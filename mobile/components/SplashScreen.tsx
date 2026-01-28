@@ -41,8 +41,9 @@ const slides = [
 ];
 
 export default function SplashScreen({ onGetStarted, onLogin, onRegister }: SplashScreenProps) {
-  const [showInitialSplash, setShowInitialSplash] = useState(true);
+  const [showLandingScreen, setShowLandingScreen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showInitialSplash, setShowInitialSplash] = useState(false);
   const [showLoginScreen, setShowLoginScreen] = useState(false);
   const [showRegisterScreen, setShowRegisterScreen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -57,17 +58,8 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
     setCurrentIndex(slideIndex);
   };
 
-  const onMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-    if (slideIndex === slides.length - 1) {
-      // User reached the last slide, show login screen after a short delay
-      setTimeout(() => {
-        setShowLoginScreen(true);
-      }, 500);
-    }
-  };
-
   const handleGetStarted = () => {
+    setShowLandingScreen(false);
     setShowOnboarding(true);
   };
 
@@ -85,6 +77,7 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
 
   const handleRegisterBack = () => {
     setShowRegisterScreen(false);
+    setShowInitialSplash(true);
   };
 
   const handleRegisterComplete = () => {
@@ -110,49 +103,8 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
     </View>
   );
 
-  // Initial Login/Registration Splash Screen
-  if (showInitialSplash) {
-    return (
-      <View style={styles.initialSplashContainer}>
-        <View style={styles.initialLogoWrapper}>
-          <Image
-            source={require('../assets/graphics5.png')}
-            style={styles.initialGraphic}
-            resizeMode="contain"
-          />
-          <Image
-            source={require('../assets/textual.png')}
-            style={styles.initialTextualLogo}
-            resizeMode="contain"
-          />
-        </View>
-        <View style={styles.initialButtonsContainer}>
-          <TouchableOpacity 
-            style={styles.initialLoginButton} 
-            onPress={() => {
-              setShowInitialSplash(false);
-              setShowOnboarding(true);
-              setShowLoginScreen(true);
-            }}
-          >
-            <Text style={styles.initialLoginButtonText}>Login</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.initialRegisterButton} 
-            onPress={() => {
-              setShowInitialSplash(false);
-              setShowRegisterScreen(true);
-            }}
-          >
-            <Text style={styles.initialRegisterButtonText}>Register</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // Initial Splash Screen with Logo
-  if (!showOnboarding) {
+  // Landing Screen with Logo and Get Started button
+  if (showLandingScreen) {
     return (
       <View style={styles.container}>
         <View style={styles.logoContainer}>
@@ -162,8 +114,8 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
             resizeMode="contain"
           />
         </View>
-        <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
-          <Text style={styles.buttonText}>Get Started</Text>
+        <TouchableOpacity style={styles.getStartedButton} onPress={handleGetStarted}>
+          <Text style={styles.getStartedButtonText}>Get Started</Text>
         </TouchableOpacity>
       </View>
     );
@@ -180,7 +132,7 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
     );
   }
 
-  // Login/Register Screen
+  // Login Screen
   if (showLoginScreen) {
     return (
       <View style={styles.container}>
@@ -258,47 +210,108 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
     );
   }
 
-  // Onboarding Slider
-  return (
-    <View style={styles.onboardingContainer}>
-      {/* Image Slider */}
-      <View style={styles.sliderContainer}>
-        <FlatList
-          ref={flatListRef}
-          data={slides}
-          renderItem={renderSlide}
-          keyExtractor={(item) => item.id}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={onScroll}
-          onMomentumScrollEnd={onMomentumScrollEnd}
-          scrollEventThrottle={16}
-          getItemLayout={(_, index) => ({
-            length: width,
-            offset: width * index,
-            index,
-          })}
-          snapToInterval={width}
-          decelerationRate="fast"
-          contentContainerStyle={styles.flatListContent}
-        />
-        
-        {/* Pagination Dots */}
-        <View style={styles.pagination}>
-          {slides.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                currentIndex === index ? styles.activeDot : styles.inactiveDot,
-              ]}
-            />
-          ))}
+  // Initial Login/Registration Screen (shows after onboarding slides)
+  if (showInitialSplash) {
+    return (
+      <View style={styles.initialSplashContainer}>
+        <View style={styles.initialLogoWrapper}>
+          <Image
+            source={require('../assets/graphics5.png')}
+            style={styles.initialGraphic}
+            resizeMode="contain"
+          />
+          <Image
+            source={require('../assets/textual.png')}
+            style={styles.initialTextualLogo}
+            resizeMode="contain"
+          />
+        </View>
+        <View style={styles.initialButtonsContainer}>
+          <TouchableOpacity 
+            style={styles.initialLoginButton} 
+            onPress={() => {
+              setShowInitialSplash(false);
+              setShowLoginScreen(true);
+            }}
+          >
+            <Text style={styles.initialLoginButtonText}>Login</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.initialRegisterButton} 
+            onPress={() => {
+              setShowInitialSplash(false);
+              setShowRegisterScreen(true);
+            }}
+          >
+            <Text style={styles.initialRegisterButtonText}>Register</Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+    );
+  }
+
+  // Onboarding Slider (shows after clicking Get Started)
+  if (showOnboarding) {
+    const isLastSlide = currentIndex === slides.length - 1;
+    
+    return (
+      <View style={styles.onboardingContainer}>
+        {/* Image Slider */}
+        <View style={styles.sliderContainer}>
+          <FlatList
+            ref={flatListRef}
+            data={slides}
+            renderItem={renderSlide}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            getItemLayout={(_, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
+            snapToInterval={width}
+            decelerationRate="fast"
+            contentContainerStyle={styles.flatListContent}
+          />
+          
+          {/* Pagination Dots */}
+          <View style={styles.pagination}>
+            {slides.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  currentIndex === index ? styles.activeDot : styles.inactiveDot,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* Continue Button - only shows on last slide */}
+        {isLastSlide && (
+          <View style={styles.getStartedContainer}>
+            <TouchableOpacity 
+              style={styles.getStartedButton} 
+              onPress={() => {
+                setShowOnboarding(false);
+                setShowInitialSplash(true);
+              }}
+            >
+              <Text style={styles.getStartedButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  // Fallback
+  return null;
 }
 
 const styles = StyleSheet.create({
@@ -369,6 +382,42 @@ const styles = StyleSheet.create({
   inactiveDot: {
     backgroundColor: '#C4C4C4',
   },
+  getStartedContainer: {
+    paddingHorizontal: 40,
+    paddingBottom: 80,
+    paddingTop: 30,
+    width: '100%',
+    alignItems: 'center',
+  },
+  getStartedButton: {
+    backgroundColor: '#16A34A',
+    paddingVertical: 16,
+    paddingHorizontal: 80,
+    borderRadius: 30,
+    elevation: 3,
+    shadowColor: '#16A34A',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    marginBottom: 16,
+  },
+  getStartedButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  skipButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+  },
+  skipButtonText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '500',
+  },
   buttonContainer: {
     paddingHorizontal: 40,
     paddingBottom: 50,
@@ -416,12 +465,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loginLogoContainer: {
-    marginBottom: 10,
+    marginBottom: 20,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   loginLogo: {
-    width: width * 0.4,
-    height: width * 0.4,
+    width: width * 0.55,
+    height: width * 0.55,
   },
   welcomeContainer: {
     marginBottom: 30,
@@ -588,16 +638,17 @@ const styles = StyleSheet.create({
   },
   initialLogoWrapper: {
     alignItems: 'center',
-    marginBottom: 50,
+    justifyContent: 'center',
+    marginBottom: 60,
   },
   initialGraphic: {
-    width: width * 0.7,
-    height: width * 0.52,
-    marginBottom: -5,
+    width: width * 0.85,
+    height: width * 0.65,
+    marginBottom: 10,
   },
   initialTextualLogo: {
-    width: width * 0.65,
-    height: width * 0.22,
+    width: width * 0.55,
+    height: width * 0.55,
   },
   initialButtonsContainer: {
     width: '100%',

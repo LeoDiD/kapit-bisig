@@ -36,6 +36,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | null>(null);
   const [mobileNumber, setMobileNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [termsModalContent, setTermsModalContent] = useState<'terms' | 'privacy'>('terms');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -45,6 +52,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [streetAddress, setStreetAddress] = useState('');
   const [householdSize, setHouseholdSize] = useState(1);
   const [vulnerableMembers, setVulnerableMembers] = useState<string[]>([]);
+  const [vulnerableCounts, setVulnerableCounts] = useState<{[key: string]: number}>({});
+  const [showVulnerableDetailsModal, setShowVulnerableDetailsModal] = useState(false);
 
   // Barangay dropdown
   const [showBarangayDropdown, setShowBarangayDropdown] = useState(false);
@@ -77,6 +86,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     dateOfBirth: false,
     gender: false,
     mobileNumber: false,
+    password: false,
+    confirmPassword: false,
+    passwordMismatch: false,
+    termsAccepted: false,
   });
   const [step2Errors, setStep2Errors] = useState({
     barangay: false,
@@ -103,6 +116,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       dateOfBirth: !dateOfBirth.trim(),
       gender: !gender,
       mobileNumber: !mobileNumber.trim(),
+      password: !password.trim() || password.length < 8,
+      confirmPassword: !confirmPassword.trim(),
+      passwordMismatch: password !== confirmPassword,
+      termsAccepted: !termsAccepted,
     };
     setStep1Errors(errors);
     
@@ -115,6 +132,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       scrollViewRef.current?.scrollTo({ y: 200, animated: true });
     } else if (errors.mobileNumber) {
       scrollViewRef.current?.scrollTo({ y: 300, animated: true });
+    } else if (errors.password || errors.confirmPassword || errors.passwordMismatch) {
+      scrollViewRef.current?.scrollTo({ y: 400, animated: true });
+    } else if (errors.termsAccepted) {
+      scrollViewRef.current?.scrollTo({ y: 600, animated: true });
     }
     
     return !Object.values(errors).some(Boolean);
@@ -144,10 +165,37 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     return !Object.values(errors).some(Boolean);
   };
 
+  // Get ID format requirements based on ID type
+  const getIdFormatInfo = (type: string) => {
+    switch (type) {
+      case 'Philippine National ID':
+        return { minLength: 12, maxLength: 12, pattern: /^\d{12}$/, hint: '12 digits', keyboardType: 'numeric' as const };
+      case "Driver's License":
+        return { minLength: 12, maxLength: 12, pattern: /^\d{12}$/, hint: '12 digits', keyboardType: 'numeric' as const };
+      case 'Passport':
+        return { minLength: 9, maxLength: 10, pattern: /^[A-Za-z]\d{8,9}$/, hint: '1 letter followed by 8-9 digits', keyboardType: 'default' as const };
+      case 'SSS ID':
+        return { minLength: 10, maxLength: 10, pattern: /^\d{10}$/, hint: '10 digits', keyboardType: 'numeric' as const };
+      case 'PhilHealth ID':
+        return { minLength: 12, maxLength: 12, pattern: /^\d{12}$/, hint: '12 digits', keyboardType: 'numeric' as const };
+      case "Voter's ID":
+        return { minLength: 22, maxLength: 22, pattern: /^\d{22}$/, hint: '22 digits', keyboardType: 'numeric' as const };
+      default:
+        return { minLength: 1, maxLength: 30, pattern: /^.+$/, hint: 'Enter your ID number', keyboardType: 'default' as const };
+    }
+  };
+
+  const validateIdNumber = (type: string, number: string): boolean => {
+    if (!number.trim()) return false;
+    const formatInfo = getIdFormatInfo(type);
+    return formatInfo.pattern.test(number);
+  };
+
   const validateStep3 = () => {
+    const isIdNumberValid = validateIdNumber(idType, idNumber);
     const errors = {
       idType: !idType.trim(),
-      idNumber: !idNumber.trim(),
+      idNumber: !idNumber.trim() || !isIdNumberValid,
       frontIdImage: !frontIdImage,
       backIdImage: !backIdImage,
     };
@@ -510,6 +558,84 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             <Ionicons name="call" size={22} color="#2E7D32" style={styles.inputIconRight} />
           </View>
         </View>
+
+        {/* Password */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>Password</Text>
+          <View style={[styles.inputContainer, showErrors && step1Errors.password && styles.inputError]}>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter password (min 8 characters)"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (text.trim() && text.length >= 8) clearStep1Error('password');
+              }}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.inputIconRight}>
+              <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
+            </TouchableOpacity>
+          </View>
+          {showErrors && step1Errors.password && (
+            <Text style={styles.errorText}>Password must be at least 8 characters</Text>
+          )}
+        </View>
+
+        {/* Confirm Password */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>Confirm Password</Text>
+          <View style={[styles.inputContainer, (showErrors && (step1Errors.confirmPassword || step1Errors.passwordMismatch)) && styles.inputError]}>
+            <TextInput
+              style={styles.input}
+              placeholder="Re-enter password"
+              placeholderTextColor="#999"
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (text.trim()) {
+                  setStep1Errors(prev => ({ ...prev, confirmPassword: false, passwordMismatch: text !== password }));
+                }
+              }}
+              secureTextEntry={!showConfirmPassword}
+            />
+            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.inputIconRight}>
+              <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
+            </TouchableOpacity>
+          </View>
+          {showErrors && step1Errors.passwordMismatch && !step1Errors.confirmPassword && (
+            <Text style={styles.errorText}>Passwords do not match</Text>
+          )}
+        </View>
+
+        {/* Terms and Conditions Checkbox */}
+        <View style={styles.termsContainer}>
+          <TouchableOpacity
+            style={[styles.checkbox, showErrors && step1Errors.termsAccepted && styles.checkboxError]}
+            onPress={() => {
+              setTermsAccepted(!termsAccepted);
+              if (!termsAccepted) {
+                setStep1Errors(prev => ({ ...prev, termsAccepted: false }));
+              }
+            }}
+          >
+            {termsAccepted && (
+              <Ionicons name="checkmark" size={16} color="#2E7D32" />
+            )}
+          </TouchableOpacity>
+          <View style={styles.termsTextContainer}>
+            <Text style={styles.termsText}>
+              I agree to the{' '}
+              <Text style={styles.termsLink} onPress={() => { setTermsModalContent('terms'); setShowTermsModal(true); }}>Terms of Service</Text>
+              {' '}and{' '}
+              <Text style={styles.termsLink} onPress={() => { setTermsModalContent('privacy'); setShowTermsModal(true); }}>Privacy Policy</Text>
+            </Text>
+          </View>
+        </View>
+        {showErrors && step1Errors.termsAccepted && (
+          <Text style={styles.errorTextTerms}>You must accept the terms and conditions</Text>
+        )}
       </View>
     </View>
   );
@@ -645,9 +771,30 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 ]}>
                   {item.label}
                 </Text>
+                {vulnerableMembers.includes(item.id) && vulnerableCounts[item.id] > 1 && (
+                  <View style={styles.vulnerableCountBadge}>
+                    <Text style={styles.vulnerableCountText}>{vulnerableCounts[item.id]}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Specify Count Button - shows when any vulnerable category is selected */}
+          {vulnerableMembers.length >= 1 && (
+            <TouchableOpacity
+              style={styles.specifyCountButton}
+              onPress={() => setShowVulnerableDetailsModal(true)}
+            >
+              <Ionicons name="people" size={20} color="#2E7D32" />
+              <Text style={styles.specifyCountButtonText}>
+                {vulnerableMembers.length === 1 
+                  ? 'More than 1 person? Tap to specify' 
+                  : 'Specify count per category'}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color="#2E7D32" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -689,8 +836,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                   ]}
                   onPress={() => {
                     setIdType(option);
+                    setIdNumber(''); // Clear ID number when type changes
                     setShowIdTypeDropdown(false);
-                    if (showErrors) setStep3Errors(prev => ({ ...prev, idType: false }));
+                    if (showErrors) setStep3Errors(prev => ({ ...prev, idType: false, idNumber: false }));
                   }}
                 >
                   <Text style={[
@@ -711,15 +859,42 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           <View style={[styles.inputContainer, showErrors && step3Errors.idNumber && styles.inputError]}>
             <TextInput
               style={styles.input}
-              placeholder="Enter the number on your ID"
+              placeholder={idType ? `Enter your ${idType} number` : 'Select ID type first'}
               placeholderTextColor="#999"
               value={idNumber}
+              maxLength={getIdFormatInfo(idType).maxLength}
+              keyboardType={getIdFormatInfo(idType).keyboardType}
+              autoCapitalize={idType === 'Passport' ? 'characters' : 'none'}
               onChangeText={(text) => {
-                setIdNumber(text);
-                if (text.trim() && showErrors) setStep3Errors(prev => ({ ...prev, idNumber: false }));
+                // For passport, allow letters and numbers; for others, only numbers
+                let filteredText = text;
+                if (idType === 'Passport') {
+                  // First character can be letter, rest are numbers
+                  filteredText = text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+                  if (filteredText.length > 1) {
+                    filteredText = filteredText[0] + filteredText.slice(1).replace(/[^0-9]/g, '');
+                  }
+                } else if (idType) {
+                  filteredText = text.replace(/[^0-9]/g, '');
+                }
+                setIdNumber(filteredText);
+                if (validateIdNumber(idType, filteredText) && showErrors) {
+                  setStep3Errors(prev => ({ ...prev, idNumber: false }));
+                }
               }}
+              editable={!!idType}
             />
           </View>
+          {idType && (
+            <Text style={styles.idFormatHint}>
+              Format: {getIdFormatInfo(idType).hint} ({idNumber.length}/{getIdFormatInfo(idType).maxLength})
+            </Text>
+          )}
+          {showErrors && step3Errors.idNumber && idNumber.trim() && (
+            <Text style={styles.idFormatError}>
+              Invalid format. Required: {getIdFormatInfo(idType).hint}
+            </Text>
+          )}
         </View>
 
         {/* Front of ID */}
@@ -893,7 +1068,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <View style={styles.backButtonIcon}>
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </View>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {currentStep === 3 ? 'Identity Verification' : currentStep === 4 ? 'Face Verification' : 'Resident Signup'}
@@ -932,8 +1109,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       {/* Bottom Actions */}
       <View style={styles.bottomActions}>
         <View style={styles.bottomButtonsRow}>
-          <TouchableOpacity style={styles.backButtonBottom} onPress={handleBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+          <TouchableOpacity 
+            style={[styles.backButtonBottom, currentStep === 1 && styles.cancelButtonBottom]} 
+            onPress={handleBack}
+          >
+            <Text style={[styles.backButtonText, currentStep === 1 && styles.cancelButtonText]}>
+              {currentStep === 1 ? 'Cancel' : 'Back'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.nextButton} onPress={handleNextStep}>
             <Text style={styles.nextButtonText}>
@@ -943,6 +1125,70 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Vulnerable Details Modal */}
+      <Modal
+        visible={showVulnerableDetailsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowVulnerableDetailsModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowVulnerableDetailsModal(false)}
+        >
+          <View style={styles.vulnerableDetailsModalContent}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Specify Vulnerable Members</Text>
+            <Text style={styles.vulnerableModalSubtitle}>
+              How many people are in each category?
+            </Text>
+            
+            {[
+              { id: 'senior', label: 'Senior Citizen', icon: 'walk' },
+              { id: 'pwd', label: 'PWD', icon: 'accessibility' },
+              { id: 'pregnant', label: 'Pregnant', icon: 'person' },
+              { id: 'children', label: 'Children (0-5)', icon: 'happy' },
+            ].filter(item => vulnerableMembers.includes(item.id)).map((item) => (
+              <View key={item.id} style={styles.vulnerableCountRow}>
+                <View style={styles.vulnerableCountInfo}>
+                  <Ionicons name={item.icon as any} size={22} color="#2E7D32" />
+                  <Text style={styles.vulnerableCountLabel}>{item.label}</Text>
+                </View>
+                <View style={styles.vulnerableCountControls}>
+                  <TouchableOpacity 
+                    style={styles.countButton}
+                    onPress={() => setVulnerableCounts(prev => ({
+                      ...prev,
+                      [item.id]: Math.max(1, (prev[item.id] || 1) - 1)
+                    }))}
+                  >
+                    <Ionicons name="remove" size={18} color="#333" />
+                  </TouchableOpacity>
+                  <Text style={styles.countValue}>{vulnerableCounts[item.id] || 1}</Text>
+                  <TouchableOpacity 
+                    style={[styles.countButton, styles.countButtonPlus]}
+                    onPress={() => setVulnerableCounts(prev => ({
+                      ...prev,
+                      [item.id]: (prev[item.id] || 1) + 1
+                    }))}
+                  >
+                    <Ionicons name="add" size={18} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity 
+              style={styles.vulnerableModalDoneButton}
+              onPress={() => setShowVulnerableDetailsModal(false)}
+            >
+              <Text style={styles.vulnerableModalDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Image Picker Modal */}
       <Modal
@@ -1088,6 +1334,146 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Terms and Privacy Modal */}
+      <Modal
+        visible={showTermsModal}
+        animationType="slide"
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <SafeAreaView style={styles.termsModalContainer}>
+          <View style={styles.termsModalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowTermsModal(false)} 
+              style={styles.termsModalCloseButton}
+            >
+              <Ionicons name="close" size={28} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.termsModalTitle}>
+              {termsModalContent === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+            </Text>
+            <View style={{ width: 28 }} />
+          </View>
+          
+          <ScrollView style={styles.termsModalContent} showsVerticalScrollIndicator={false}>
+            {termsModalContent === 'terms' ? (
+              <View style={styles.termsModalTextContainer}>
+                <Text style={styles.termsModalHeading}>Terms of Service</Text>
+                <Text style={styles.termsModalDate}>Last Updated: January 2026</Text>
+                
+                <Text style={styles.termsModalSubheading}>1. Acceptance of Terms</Text>
+                <Text style={styles.termsModalParagraph}>
+                  By accessing and using the Kapit-Bisig Relief Distribution System mobile application, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use this application.
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>2. Description of Service</Text>
+                <Text style={styles.termsModalParagraph}>
+                  Kapit-Bisig is a digital platform designed to streamline the distribution of relief goods to residents during calamities and emergencies. The service includes resident registration, identity verification, QR code generation for relief claiming, and real-time notifications from local government units (LGUs).
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>3. User Registration</Text>
+                <Text style={styles.termsModalParagraph}>
+                  To use this service, you must register with accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials. You agree to provide truthful information about your identity and household composition.
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>4. User Responsibilities</Text>
+                <Text style={styles.termsModalParagraph}>
+                  • Provide accurate personal and household information{'\n'}
+                  • Upload valid government-issued identification documents{'\n'}
+                  • Not misrepresent your identity or household status{'\n'}
+                  • Not claim relief goods fraudulently{'\n'}
+                  • Keep your account credentials secure
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>5. Prohibited Activities</Text>
+                <Text style={styles.termsModalParagraph}>
+                  Users are prohibited from:{'\n'}
+                  • Creating multiple accounts for the same household{'\n'}
+                  • Sharing QR codes with non-household members{'\n'}
+                  • Attempting to manipulate the verification system{'\n'}
+                  • Using the service for any unlawful purpose
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>6. Limitation of Liability</Text>
+                <Text style={styles.termsModalParagraph}>
+                  The Kapit-Bisig system and its operators shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service. Relief distribution is subject to availability and LGU policies.
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>7. Modifications</Text>
+                <Text style={styles.termsModalParagraph}>
+                  We reserve the right to modify these terms at any time. Continued use of the service after modifications constitutes acceptance of the updated terms.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.termsModalTextContainer}>
+                <Text style={styles.termsModalHeading}>Privacy Policy</Text>
+                <Text style={styles.termsModalDate}>Last Updated: January 2026</Text>
+                
+                <Text style={styles.termsModalSubheading}>1. Information We Collect</Text>
+                <Text style={styles.termsModalParagraph}>
+                  We collect the following types of information:{'\n'}
+                  • Personal Information: Full name, date of birth, gender, mobile number{'\n'}
+                  • Address Information: Barangay, street address{'\n'}
+                  • Household Information: Number of members, vulnerable member categories{'\n'}
+                  • Identity Documents: Government ID type, ID number, ID photos{'\n'}
+                  • Biometric Data: Facial scan for identity verification
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>2. How We Use Your Information</Text>
+                <Text style={styles.termsModalParagraph}>
+                  Your information is used to:{'\n'}
+                  • Verify your identity and eligibility for relief assistance{'\n'}
+                  • Generate your unique Family QR code{'\n'}
+                  • Process relief goods distribution{'\n'}
+                  • Send important announcements and notifications{'\n'}
+                  • Maintain distribution records and prevent fraud
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>3. Data Storage and Security</Text>
+                <Text style={styles.termsModalParagraph}>
+                  Your data is stored securely using industry-standard encryption. We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, or destruction.
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>4. Data Sharing</Text>
+                <Text style={styles.termsModalParagraph}>
+                  We may share your information with:{'\n'}
+                  • Local Government Units (LGUs) for relief distribution purposes{'\n'}
+                  • Government agencies as required by law{'\n'}
+                  • Authorized relief distribution centers
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>5. Your Rights</Text>
+                <Text style={styles.termsModalParagraph}>
+                  You have the right to:{'\n'}
+                  • Access your personal data{'\n'}
+                  • Request correction of inaccurate information{'\n'}
+                  • Request deletion of your account{'\n'}
+                  • Withdraw consent for data processing
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>6. Data Retention</Text>
+                <Text style={styles.termsModalParagraph}>
+                  We retain your personal data for as long as your account is active and as required by law. Distribution records may be retained for auditing and reporting purposes.
+                </Text>
+                
+                <Text style={styles.termsModalSubheading}>7. Contact Us</Text>
+                <Text style={styles.termsModalParagraph}>
+                  If you have questions about this Privacy Policy or your personal data, please contact your local barangay office or LGU.
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+          
+          <View style={styles.termsModalFooter}>
+            <TouchableOpacity 
+              style={styles.termsModalAcceptButton}
+              onPress={() => setShowTermsModal(false)}
+            >
+              <Text style={styles.termsModalAcceptText}>I Understand</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1107,6 +1493,14 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 5,
+  },
+  backButtonIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#2E7D32',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
@@ -1252,6 +1646,123 @@ const styles = StyleSheet.create({
   phoneInput: {
     paddingLeft: 0,
   },
+  // Password and Terms styles
+  errorText: {
+    fontSize: 12,
+    color: '#E53935',
+    marginTop: 5,
+    marginLeft: 5,
+  },
+  errorTextTerms: {
+    fontSize: 12,
+    color: '#E53935',
+    marginTop: -10,
+    marginLeft: 35,
+    marginBottom: 10,
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#2E7D32',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxError: {
+    borderColor: '#E53935',
+  },
+  termsTextContainer: {
+    flex: 1,
+    paddingTop: 2,
+  },
+  termsText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: '#2E7D32',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  // Terms Modal styles
+  termsModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  termsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+  },
+  termsModalCloseButton: {
+    padding: 5,
+  },
+  termsModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  termsModalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  termsModalTextContainer: {
+    paddingVertical: 20,
+  },
+  termsModalHeading: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 5,
+  },
+  termsModalDate: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 25,
+  },
+  termsModalSubheading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  termsModalParagraph: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 22,
+  },
+  termsModalFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
+  },
+  termsModalAcceptButton: {
+    backgroundColor: '#2E7D32',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+  },
+  termsModalAcceptText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   bottomActions: {
     paddingHorizontal: 20,
     paddingVertical: 20,
@@ -1300,6 +1811,19 @@ const styles = StyleSheet.create({
   genderButtonError: {
     borderColor: '#E53935',
   },
+  idFormatHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  idFormatError: {
+    fontSize: 12,
+    color: '#E53935',
+    marginTop: 4,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
   // Bottom buttons
   bottomButtonsRow: {
     flexDirection: 'row',
@@ -1315,10 +1839,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cancelButtonBottom: {
+    borderColor: '#E53935',
+    backgroundColor: '#FFF5F5',
+  },
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  cancelButtonText: {
+    color: '#E53935',
   },
   // Step 2 styles
   sectionLabel: {
@@ -1431,6 +1962,108 @@ const styles = StyleSheet.create({
   vulnerableCardTextActive: {
     color: '#2E7D32',
     fontWeight: '600',
+  },
+  vulnerableCountBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#2E7D32',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  vulnerableCountText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  specifyCountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0FFF0',
+    borderWidth: 1,
+    borderColor: '#2E7D32',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    gap: 8,
+  },
+  specifyCountButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2E7D32',
+  },
+  vulnerableDetailsModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 15,
+  },
+  vulnerableModalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  vulnerableCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  vulnerableCountInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  vulnerableCountLabel: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  vulnerableCountControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  countButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countButtonPlus: {
+    backgroundColor: '#2ECC71',
+  },
+  countValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  vulnerableModalDoneButton: {
+    backgroundColor: '#2ECC71',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  vulnerableModalDoneText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
   },
   // Dropdown styles
   dropdownContainer: {

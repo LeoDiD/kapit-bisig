@@ -1,13 +1,27 @@
 import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text } from 'react-native';
 import SplashScreen from './components/SplashScreen';
+import HomeScreen from './components/HomeScreen';
+import ProfileScreen from './components/ProfileScreen';
+import QRReceiptScreen from './components/QRReceiptScreen';
+
+type Screen = 'home' | 'qr' | 'profile';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [currentScreen, setCurrentScreen] = useState<Screen>('home');
 
   const handleGetStarted = () => {
     setShowSplash(false);
+  };
+
+  const handleLogout = () => {
+    setShowSplash(true);
+    setCurrentScreen('home');
+  };
+
+  const handleNavigate = (screen: Screen) => {
+    setCurrentScreen(screen);
   };
 
   if (showSplash) {
@@ -19,19 +33,22 @@ export default function App() {
     );
   }
 
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case 'profile':
+        return <ProfileScreen onNavigate={handleNavigate} onLogout={handleLogout} />;
+      case 'qr':
+        return <QRReceiptScreen onBack={() => handleNavigate('home')} onNavigate={handleNavigate} />;
+      case 'home':
+      default:
+        return <HomeScreen onNavigate={handleNavigate} />;
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text>Welcome to Kapit-Bisig!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <>
+      {renderScreen()}
+      <StatusBar style="dark" />
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
