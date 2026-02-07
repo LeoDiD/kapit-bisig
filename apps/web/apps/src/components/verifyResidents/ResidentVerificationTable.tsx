@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import VerificationDetailsModal from './VerifyResidentsModal'
 
 type ApplicationStatus = 'Pending' | 'Approved' | 'Rejected'
 type AIVerification = 'High Match' | 'Medium Match' | 'Low Match'
-type IDType = 'PhilID' | 'Passport' | 'Voter ID'
+type IDType = 'PhilID' | 'Passport' | 'Voter ID' | string
 
 type Application = {
-  id: number
+  id: string
   name: string
   email: string
   barangay: string
@@ -22,6 +22,19 @@ type Application = {
   address: string
   rejectionReason?: string
   verifiedBy?: string
+  // Additional verification details
+  verification?: {
+    overallConfidence: number
+    idConfidence: number
+    faceMatchConfidence: number
+    livenessConfidence: number
+    dataMatchScore: number
+    riskScore: number
+    isVerified: boolean
+    aiVerificationStatus: AIVerification
+    warnings: string[]
+    riskFactors: string[]
+  }
 }
 
 type FilterStatus = 'All' | ApplicationStatus
@@ -34,90 +47,19 @@ const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'Rejected', label: 'Rejected' },
 ]
 
+// API Configuration
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+
 function uniqueBarangays(items: Application[]) {
   const set = new Set(items.map((i) => i.barangay))
   return Array.from(set).sort((a, b) => a.localeCompare(b))
 }
 
 export default function ResidentVerificationTable() {
-  // --- MOCK DATA (UI-focused) ---
-  const [apps, setApps] = useState<Application[]>([
-    {
-      id: 1,
-      name: 'Bryle Agra',
-      email: 'bryle.agra@gmail.com',
-      barangay: 'Barangay San Jose',
-      idType: 'PhilID',
-      idNumber: 'VIN-12345678',
-      aiVerification: 'High Match',
-      status: 'Approved',
-      applied: 'January 12, 2026',
-      confidence: 100,
-      contactNumber: '09123456789',
-      address: '123 Pogi Street',
-      verifiedBy: '',
-    },
-    {
-      id: 2,
-      name: 'Jachin Aliman',
-      email: 'jachin.aliman@gmail.com',
-      barangay: 'Barangay Santo Nino',
-      idType: 'PhilID',
-      idNumber: 'VIN-12345678',
-      aiVerification: 'High Match',
-      status: 'Pending',
-      applied: 'January 12, 2026',
-      confidence: 58,
-      contactNumber: '09123456789',
-      address: '123 Pogi Street',
-    },
-    {
-      id: 3,
-      name: 'Peter Arenas',
-      email: 'arenas.peter@gmail.com',
-      barangay: 'Barangay San Jose',
-      idType: 'PhilID',
-      idNumber: 'VIN-12345678',
-      aiVerification: 'Medium Match',
-      status: 'Pending',
-      applied: 'January 12, 2026',
-      confidence: 58,
-      contactNumber: '09123456789',
-      address: '123 Pogi Street',
-    },
-    {
-      id: 4,
-      name: 'Emmanuel De Vera',
-      email: 'emman@gmail.com',
-      barangay: 'Barangay San Jose',
-      idType: 'Passport',
-      idNumber: 'VIN-12345678',
-      aiVerification: 'High Match',
-      status: 'Approved',
-      applied: 'January 12, 2026',
-      confidence: 100,
-      contactNumber: '09123456789',
-      address: '123 Pogi Street',
-      verifiedBy: '',
-    },
-    {
-      id: 5,
-      name: 'Charlie Padilla',
-      email: 'charlie.padilla@gmail.com',
-      barangay: 'Barangay Santo Nino',
-      idType: 'Voter ID',
-      idNumber: 'VIN-12345678',
-      aiVerification: 'Low Match',
-      status: 'Rejected',
-      applied: 'January 12, 2026',
-      confidence: 20,
-      contactNumber: '09123456789',
-      address: '123 Pogi Street',
-      rejectionReason:
-        'ID photo does not match face scan. Please resubmit with clearer photos',
-      verifiedBy: '',
-    },
-  ])
+  // --- STATE ---
+  const [apps, setApps] = useState<Application[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // --- FILTERS ---
   const [q, setQ] = useState('')
@@ -133,12 +75,86 @@ export default function ResidentVerificationTable() {
   const barangayMenuRef = useRef<HTMLDivElement>(null)
 
   // row menu
-  const [activeMenu, setActiveMenu] = useState<number | null>(null)
+  const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
   const rowMenuRef = useRef<HTMLDivElement>(null)
 
   // modal
   const [selected, setSelected] = useState<Application | null>(null)
+
+  // Fetch residents from API
+  const fetchResidents = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const response = await fetch(`${API_URL}/residents`)
+      const data = await response.json()
+      
+      if (data.success) {
+        // Transform API data to Application format
+        const transformedApps: Application[] = data.data.map((resident: {
+          _id: string
+          fullName: string
+          mobileNumber: string
+          barangay: string
+          streetAddress: string
+          idType: string
+          idNumber: string
+          status: ApplicationStatus
+          createdAt: string
+          rejectionReason?: string
+          verifiedBy?: string
+          verification?: {
+            overallConfidence: number
+            idConfidence: number
+            faceMatchConfidence: number
+            livenessConfidence: number
+            dataMatchScore: number
+            riskScore: number
+            isVerified: boolean
+            aiVerificationStatus: AIVerification
+            warnings: string[]
+            riskFactors: string[]
+          }
+        }) => ({
+          id: resident._id,
+          name: resident.fullName,
+          email: resident.mobileNumber, // Using mobile as contact
+          barangay: resident.barangay,
+          idType: resident.idType,
+          idNumber: resident.idNumber,
+          aiVerification: resident.verification?.aiVerificationStatus || 'Low Match',
+          status: resident.status,
+          applied: new Date(resident.createdAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+          confidence: resident.verification?.overallConfidence || 0,
+          contactNumber: resident.mobileNumber,
+          address: resident.streetAddress,
+          rejectionReason: resident.rejectionReason,
+          verifiedBy: resident.verifiedBy,
+          verification: resident.verification,
+        }))
+        
+        setApps(transformedApps)
+      } else {
+        setError(data.message || 'Failed to fetch residents')
+      }
+    } catch (err) {
+      console.error('Error fetching residents:', err)
+      setError('Failed to connect to server')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchResidents()
+  }, [fetchResidents])
 
   const barangayOptions = useMemo(() => {
     const list = uniqueBarangays(apps)
@@ -198,7 +214,7 @@ export default function ResidentVerificationTable() {
   const barangayLabel =
     barangayOptions.find((o) => o.value === barangayFilter)?.label ?? 'All Barangays'
 
-  const toggleRowMenu = (id: number, e: React.MouseEvent<HTMLButtonElement>) => {
+  const toggleRowMenu = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
     if (activeMenu === id) {
       setActiveMenu(null)
@@ -229,33 +245,101 @@ export default function ResidentVerificationTable() {
     setActiveMenu(null)
   }
 
-  const approveApp = (id: number) => {
-    setApps((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? {
-              ...a,
-              status: 'Approved',
-              confidence: 100,
-              rejectionReason: undefined,
-            }
-          : a
-      )
+  const approveApp = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/residents/${id}/verify`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'Approved',
+          verifiedBy: 'Admin', // TODO: Use actual logged-in user
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setApps((prev) =>
+          prev.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  status: 'Approved' as ApplicationStatus,
+                  rejectionReason: undefined,
+                }
+              : a
+          )
+        )
+      } else {
+        console.error('Failed to approve:', data.message)
+      }
+    } catch (err) {
+      console.error('Error approving application:', err)
+    }
+  }
+
+  const rejectApp = async (id: string, reason: string) => {
+    try {
+      const response = await fetch(`${API_URL}/residents/${id}/verify`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'Rejected',
+          rejectionReason: reason,
+          verifiedBy: 'Admin', // TODO: Use actual logged-in user
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setApps((prev) =>
+          prev.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  status: 'Rejected' as ApplicationStatus,
+                  rejectionReason: reason,
+                }
+              : a
+          )
+        )
+      } else {
+        console.error('Failed to reject:', data.message)
+      }
+    } catch (err) {
+      console.error('Error rejecting application:', err)
+    }
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading applications...</p>
+        </div>
+      </div>
     )
   }
 
-  const rejectApp = (id: number, reason: string) => {
-    setApps((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? {
-              ...a,
-              status: 'Rejected',
-              confidence: Math.min(a.confidence, 20),
-              rejectionReason: reason,
-            }
-          : a
-      )
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="text-red-500 text-5xl mb-4">⚠️</div>
+          <p className="text-gray-700 font-medium mb-2">Failed to load applications</p>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <button 
+            onClick={fetchResidents}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
     )
   }
 

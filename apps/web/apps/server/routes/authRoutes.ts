@@ -229,7 +229,7 @@ router.post('/register', registrationRateLimiter, async (req: Request, res: Resp
     await user.save();
     
     // Generate JWT token for immediate login
-    const token = generateToken(user._id.toString(), user.email);
+    const token = generateToken(user._id.toString(), user.email, user.role);
     
     // Return success WITHOUT the password
     res.status(201).json({
@@ -241,6 +241,8 @@ router.post('/register', registrationRateLimiter, async (req: Request, res: Resp
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          role: user.role,
+          status: user.status,
         },
         token,
       },
@@ -350,11 +352,26 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     // Clear failed attempts on successful login
     clearFailedAttempts(normalizedEmail);
     
-    // Generate JWT token
-    const token = generateToken(user._id.toString(), user.email);
+    // Check if user account is active
+    if (user.status !== 'Active') {
+      return res.status(403).json({
+        success: false,
+        message: user.status === 'Suspended' 
+          ? 'Your account has been suspended. Please contact an administrator.'
+          : 'Your account is inactive. Please contact an administrator.',
+        code: 'ACCOUNT_INACTIVE',
+      });
+    }
+    
+    // Update last login timestamp
+    user.lastLogin = new Date();
+    await user.save();
+    
+    // Generate JWT token with role
+    const token = generateToken(user._id.toString(), user.email, user.role);
     
     // Log successful login (for audit trail)
-    console.log(`[AUTH] Successful login: ${normalizedEmail}`);
+    console.log(`[AUTH] Successful login: ${normalizedEmail} (${user.role})`);
     
     // Return success response
     res.json({
@@ -366,6 +383,9 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          role: user.role,
+          status: user.status,
+          barangay: user.barangay,
         },
         token,
       },
@@ -412,6 +432,63 @@ router.post('/validate-password', (req: Request, res: Response) => {
       ],
     },
   });
+});
+
+/**
+ * GET /api/auth/me
+ * 
+ * Get current authenticated user's profile.
+ * 
+ * Security:
+ * - Requires valid JWT token
+ * - Returns user data without password
+ */
+import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware';
+
+router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        code: 'AUTH_REQUIRED',
+      });
+    }
+    
+    const user = await User.findById(userId).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+        barangay: user.barangay,
+        phoneNumber: user.phoneNumber,
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('[AUTH ME ERROR]', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred',
+    });
+  }
 });
 
 export default router;

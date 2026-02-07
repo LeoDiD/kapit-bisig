@@ -5,11 +5,17 @@
  * - Password hashing with bcrypt (pre-save hook)
  * - Password comparison method
  * - Password field excluded from JSON serialization
+ * - Role-Based Access Control (RBAC) support
  * 
  * Security Notes:
  * - Passwords are NEVER stored in plaintext
  * - Password is automatically hashed before saving
  * - Use user.comparePassword() for authentication
+ * 
+ * Roles:
+ * - Admin: Full system access (web only)
+ * - Staff: Limited admin access (web only)
+ * - Volunteer: Field volunteer access (mobile only)
  */
 
 import mongoose, { Document, Schema } from 'mongoose';
@@ -22,14 +28,83 @@ import bcrypt from 'bcrypt';
  */
 const SALT_ROUNDS = 12;
 
+/**
+ * User Roles for RBAC
+ * 
+ * Admin: Full system access - can manage users, view all data
+ * Staff: Barangay staff - can manage residents, distributions
+ * Volunteer: Field volunteer - mobile app access for verification
+ */
+export type UserRole = 'Admin' | 'Staff' | 'Volunteer';
+
+/**
+ * User Status
+ */
+export type UserStatus = 'Active' | 'Inactive' | 'Suspended';
+
+/**
+ * Role permissions mapping
+ * Defines what each role can access
+ */
+export const ROLE_PERMISSIONS = {
+  Admin: [
+    'users:read',
+    'users:create',
+    'users:update',
+    'users:delete',
+    'residents:read',
+    'residents:create',
+    'residents:update',
+    'residents:delete',
+    'distribution:read',
+    'distribution:create',
+    'distribution:update',
+    'distribution:delete',
+    'reports:read',
+    'reports:export',
+    'inventory:read',
+    'inventory:create',
+    'inventory:update',
+    'inventory:delete',
+    'settings:read',
+    'settings:update',
+  ],
+  Staff: [
+    'residents:read',
+    'residents:create',
+    'residents:update',
+    'distribution:read',
+    'distribution:create',
+    'distribution:update',
+    'reports:read',
+    'inventory:read',
+    'inventory:update',
+  ],
+  Volunteer: [
+    'residents:read',
+    'distribution:read',
+    'distribution:verify',
+    'verification:create',
+  ],
+} as const;
+
+export type Permission = typeof ROLE_PERMISSIONS[keyof typeof ROLE_PERMISSIONS][number];
+
 export interface IUser extends Document {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
+  role: UserRole;
+  status: UserStatus;
+  barangay?: string;
+  phoneNumber?: string;
+  lastLogin?: Date;
+  createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
+  hasPermission(permission: Permission): boolean;
 }
 
 const UserSchema: Schema = new Schema(
@@ -63,6 +138,43 @@ const UserSchema: Schema = new Schema(
       required: [true, 'Last name is required'],
       trim: true,
       maxlength: [50, 'Last name cannot exceed 50 characters'],
+    },
+    role: {
+      type: String,
+      enum: {
+        values: ['Admin', 'Staff', 'Volunteer'],
+        message: '{VALUE} is not a valid role',
+      },
+      default: 'Staff',
+      required: [true, 'Role is required'],
+    },
+    status: {
+      type: String,
+      enum: {
+        values: ['Active', 'Inactive', 'Suspended'],
+        message: '{VALUE} is not a valid status',
+      },
+      default: 'Active',
+    },
+    barangay: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Barangay name cannot exceed 100 characters'],
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      match: [
+        /^(\+63|0)?[0-9]{10,11}$/,
+        'Please enter a valid Philippine phone number',
+      ],
+    },
+    lastLogin: {
+      type: Date,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {
@@ -128,6 +240,23 @@ UserSchema.methods.comparePassword = async function (
 ): Promise<boolean> {
   const user = this as IUser;
   return bcrypt.compare(candidatePassword, user.password);
+};
+
+/**
+ * Instance Method: Check Permission
+ * 
+ * Checks if the user has a specific permission based on their role.
+ * 
+ * @param permission - The permission to check
+ * @returns boolean - True if user has permission
+ * 
+ * Usage:
+ * if (user.hasPermission('users:create')) { ... }
+ */
+UserSchema.methods.hasPermission = function (permission: Permission): boolean {
+  const user = this as IUser;
+  const permissions = ROLE_PERMISSIONS[user.role] as readonly string[];
+  return permissions.includes(permission);
 };
 
 /**

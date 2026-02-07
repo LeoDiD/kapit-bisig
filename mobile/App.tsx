@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SplashScreen from './components/SplashScreen';
 import HomeScreen from './components/HomeScreen';
 import ProfileScreen from './components/ProfileScreen';
@@ -26,10 +27,10 @@ export default function App() {
 
   if (showSplash) {
     return (
-      <>
+      <SafeAreaProvider>
         <SplashScreen onGetStarted={handleGetStarted} />
         <StatusBar style="dark" />
-      </>
+      </SafeAreaProvider>
     );
   }
 
@@ -46,9 +47,9 @@ export default function App() {
   };
 
   return (
-    <>
+    <SafeAreaProvider>
       {renderScreen()}
       <StatusBar style="dark" />
-    </>
+    </SafeAreaProvider>
   );
 }

@@ -6,3 +6,4 @@
 
 export * from './authMiddleware';
 export * from './rateLimiter';
+export * from './rbacMiddleware';

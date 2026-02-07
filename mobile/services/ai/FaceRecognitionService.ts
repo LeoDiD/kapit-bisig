@@ -1,9 +1,12 @@
 /**
- * Face Recognition Service using face-api.js
+ * Face Recognition Service using Backend API
  * Handles face detection, face matching, and liveness detection
  */
 
 import * as FileSystem from 'expo-file-system';
+
+// API Configuration
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 // Encoding type constant
 const EncodingType = {
@@ -143,8 +146,7 @@ class FaceRecognitionService {
         encoding: EncodingType.Base64,
       });
 
-      // Replace with your actual API endpoint
-      const response = await fetch('YOUR_API_ENDPOINT/face-detect', {
+      const response = await fetch(`${API_URL}/face/detect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +158,13 @@ class FaceRecognitionService {
         throw new Error('Face detection API request failed');
       }
 
-      const result = await response.json();
+      const json = await response.json();
+      
+      if (!json.success) {
+        throw new Error(json.message || 'Face detection failed');
+      }
+      
+      const result = json.data;
       return {
         hasFace: result.hasFace,
         faceCount: result.faceCount,
@@ -358,8 +366,7 @@ class FaceRecognitionService {
         }),
       ]);
 
-      // Replace with your actual API endpoint
-      const response = await fetch('YOUR_API_ENDPOINT/face-compare', {
+      const response = await fetch(`${API_URL}/face/compare`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -374,13 +381,19 @@ class FaceRecognitionService {
         throw new Error('Face comparison API request failed');
       }
 
-      const result = await response.json();
+      const json = await response.json();
+      
+      if (!json.success) {
+        throw new Error(json.message || 'Face comparison failed');
+      }
+      
+      const result = json.data;
       return {
-        isMatch: result.distance < FACE_MATCH_THRESHOLD,
-        similarity: 1 - result.distance,
+        isMatch: result.isMatch,
+        similarity: result.similarity,
         confidence: result.confidence,
         distance: result.distance,
-        threshold: FACE_MATCH_THRESHOLD,
+        threshold: result.threshold || FACE_MATCH_THRESHOLD,
       };
     } catch (error) {
       throw error;
@@ -582,8 +595,7 @@ class FaceRecognitionService {
       )
     );
 
-    // Replace with your actual API endpoint
-    const response = await fetch('YOUR_API_ENDPOINT/liveness-check', {
+    const response = await fetch(`${API_URL}/face/liveness`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -598,7 +610,8 @@ class FaceRecognitionService {
       throw new Error('Liveness API request failed');
     }
 
-    return await response.json();
+    const json = await response.json();
+    return json.data || json;
   }
 
   /**
@@ -619,7 +632,7 @@ class FaceRecognitionService {
       });
 
       // Replace with your actual API endpoint
-      const response = await fetch('YOUR_API_ENDPOINT/face-descriptor', {
+      const response = await fetch(`${API_URL}/face/descriptor`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -636,7 +649,8 @@ class FaceRecognitionService {
         };
       }
 
-      const result = await response.json();
+      const json = await response.json();
+      const result = json.data || json;
       return {
         descriptor: result.descriptor,
         landmarks: detection.landmarks,
@@ -728,6 +742,83 @@ class FaceRecognitionService {
    */
   async dispose(): Promise<void> {
     this.isInitialized = false;
+  }
+
+  /**
+   * Check if face already exists in the database (duplicate detection)
+   * Call this BEFORE completing registration
+   * 
+   * @param imageUri - URI of the captured face image
+   * @returns Object containing duplicate status and descriptor if valid
+   */
+  async checkDuplicateFace(imageUri: string): Promise<{
+    isDuplicate: boolean;
+    descriptor: number[] | null;
+    existingResident: {
+      name: string;
+      barangay: string;
+      registeredAt: string;
+    } | null;
+    similarity: number | null;
+    message: string;
+  }> {
+    try {
+      // First validate the face
+      const validation = await this.validateFaceForRegistration(imageUri);
+      
+      if (!validation.isValid) {
+        return {
+          isDuplicate: false,
+          descriptor: null,
+          existingResident: null,
+          similarity: null,
+          message: validation.qualityIssues.join('. ') || 'Invalid face image',
+        };
+      }
+
+      // Convert image to base64
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: EncodingType.Base64,
+      });
+
+      // Call the duplicate check API
+      const response = await fetch(`${API_URL}/face/check-duplicate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: base64 }),
+      });
+
+      const json = await response.json();
+
+      if (response.status === 409) {
+        // Duplicate found
+        return {
+          isDuplicate: true,
+          descriptor: null,
+          existingResident: json.existingResident || null,
+          similarity: json.similarity || null,
+          message: json.message || 'This face is already registered',
+        };
+      }
+
+      if (!response.ok) {
+        throw new Error(json.message || 'Failed to check duplicate');
+      }
+
+      // No duplicate - return the descriptor for registration
+      return {
+        isDuplicate: false,
+        descriptor: json.descriptor || null,
+        existingResident: null,
+        similarity: null,
+        message: 'Face verified - no duplicate found',
+      };
+    } catch (error) {
+      console.error('[FaceRecognition] Duplicate check error:', error);
+      throw error;
+    }
   }
 }
 

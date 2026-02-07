@@ -20,8 +20,10 @@ import jwt, { Secret, SignOptions } from 'jsonwebtoken';
  */
 export interface AuthenticatedRequest extends Request {
   user?: {
+    id: string;       // Alias for userId for easier access
     userId: string;
     email: string;
+    role?: string;    // User role (Admin, User, etc.)
     iat?: number;
     exp?: number;
   };
@@ -33,6 +35,7 @@ export interface AuthenticatedRequest extends Request {
 interface JWTPayload {
   userId: string;
   email: string;
+  role?: string;
   iat: number;
   exp: number;
 }
@@ -110,8 +113,10 @@ export const authMiddleware = async (
     
     // Attach user info to request for use in route handlers
     req.user = {
+      id: decoded.userId,       // Alias for easier access
       userId: decoded.userId,
       email: decoded.email,
+      role: decoded.role,
       iat: decoded.iat,
       exp: decoded.exp,
     };
@@ -175,8 +180,10 @@ export const optionalAuthMiddleware = async (
         try {
           const decoded = jwt.verify(token, getJWTSecret()) as JWTPayload;
           req.user = {
+            id: decoded.userId,
             userId: decoded.userId,
             email: decoded.email,
+            role: decoded.role,
             iat: decoded.iat,
             exp: decoded.exp,
           };
@@ -199,14 +206,15 @@ export const optionalAuthMiddleware = async (
  * 
  * @param userId - The user's database ID
  * @param email - The user's email address
+ * @param role - The user's role (optional, e.g., 'Admin', 'User')
  * @returns Signed JWT token string
  * 
  * Token Configuration:
  * - Expires in 24 hours by default (configurable via JWT_EXPIRES_IN env var)
- * - Contains userId and email claims
+ * - Contains userId, email, and role claims
  * - Signed with HS256 algorithm
  */
-export const generateToken = (userId: string, email: string): string => {
+export const generateToken = (userId: string, email: string, role?: string): string => {
   const secret: Secret = getJWTSecret();
   const options: SignOptions = { 
     expiresIn: '24h',
@@ -217,9 +225,16 @@ export const generateToken = (userId: string, email: string): string => {
     { 
       userId, 
       email,
+      role,
     },
     secret,
     options
   );
 };
+
+/**
+ * Export authenticateToken as an alias for authMiddleware
+ * for consistent naming across routes
+ */
+export const authenticateToken = authMiddleware;
 

@@ -20,6 +20,10 @@ import helmet from 'helmet';
 import { connectDB } from './config/database';
 import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
+import residentRoutes from './routes/residentRoutes';
+import faceRoutes from './routes/faceRoutes';
+import householdRoutes from './routes/householdRoutes';
+import adminTokenRoutes from './routes/adminTokenRoutes';
 import { generalRateLimiter } from './middleware/rateLimiter';
 
 const app: Express = express();
@@ -50,8 +54,9 @@ app.use(cors({
 }));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DoS
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+// Increased limit for base64 images from mobile registration
+app.use(express.json({ limit: '50mb' })); // Limit body size to prevent DoS
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Apply general rate limiting to all routes
 app.use(generalRateLimiter);
@@ -64,6 +69,10 @@ app.use(generalRateLimiter);
  */
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/residents', residentRoutes);
+app.use('/api/face', faceRoutes);
+app.use('/api/household', householdRoutes);
+app.use('/api/admin/tokens', adminTokenRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
@@ -92,6 +101,8 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`⚡️ Server is running on http://localhost:${PORT}`);
       console.log(`🔐 Authentication endpoints available at /api/auth`);
+      console.log(`🏠 Household registration available at /api/household`);
+      console.log(`🎫 Admin token management available at /api/admin/tokens`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

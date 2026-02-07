@@ -194,3 +194,97 @@ export const strictRateLimiter: RateLimitRequestHandler = rateLimit({
   keyGenerator: getClientIP,
 });
 
+/**
+ * Household Token Validation Rate Limiter
+ * 
+ * STRICT limiter to prevent brute-force token guessing.
+ * Tokens are valuable one-time use codes, so we protect aggressively.
+ * 
+ * Policy:
+ * - 5 token validation attempts per 15 minutes per IP
+ * - This prevents automated token enumeration
+ * 
+ * Security Rationale:
+ * - With 12-character alphanumeric tokens (36^12 combinations)
+ *   brute force is impractical, but we still rate limit
+ * - Legitimate users should only need 1-2 attempts
+ */
+export const tokenValidationRateLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15-minute window
+  max: 5, // Only 5 attempts allowed
+  message: {
+    success: false,
+    message: 'Too many token validation attempts. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientIP,
+  skipSuccessfulRequests: false, // Count all requests
+  handler: (req: Request, res: Response) => {
+    console.warn(`[SECURITY] Token validation rate limit exceeded for IP: ${getClientIP(req)}`);
+    
+    res.status(429).json({
+      success: false,
+      message: 'Too many token attempts. Your IP has been temporarily blocked.',
+      retryAfter: '15 minutes',
+      blocked: true,
+    });
+  },
+});
+
+/**
+ * Household Registration Rate Limiter
+ * 
+ * Limits full registration attempts per IP.
+ * More restrictive than token validation since registration is heavier.
+ * 
+ * Policy:
+ * - 3 registration attempts per hour per IP
+ * - Combined with token-based one-time use for strong protection
+ */
+export const householdRegistrationRateLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1-hour window
+  max: 3, // 3 registrations per hour
+  message: {
+    success: false,
+    message: 'Too many registration attempts. Please try again later.',
+    retryAfter: '1 hour',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientIP,
+  handler: (req: Request, res: Response) => {
+    console.warn(`[SECURITY] Registration rate limit exceeded for IP: ${getClientIP(req)}`);
+    
+    res.status(429).json({
+      success: false,
+      message: 'Registration limit reached. Please try again in 1 hour.',
+      retryAfter: '1 hour',
+    });
+  },
+});
+
+/**
+ * Admin Token Generation Rate Limiter
+ * 
+ * Limits how many tokens an admin can generate.
+ * Prevents abuse of token generation endpoint.
+ * 
+ * Policy:
+ * - 50 token generations per hour per IP
+ * - Enough for legitimate batch operations
+ */
+export const tokenGenerationRateLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1-hour window
+  max: 50, // 50 tokens per hour
+  message: {
+    success: false,
+    message: 'Token generation limit reached. Please try again later.',
+    retryAfter: '1 hour',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientIP,
+});
+
