@@ -199,12 +199,12 @@ export default function UsersTable() {
     <>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
         {/* Header Actions */}
-        <div className="p-6 border-b border-gray-100 flex flex-col lg:flex-row gap-4 justify-between items-center">
-          <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto flex-1">
+        <div className="p-4 border-b border-gray-100 flex flex-col lg:flex-row gap-3 justify-between items-center">
+          <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </span>
@@ -213,7 +213,7 @@ export default function UsersTable() {
                 placeholder="Search users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-800 placeholder-gray-400"
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
               />
             </div>
 
@@ -223,9 +223,9 @@ export default function UsersTable() {
                 ref={roleButtonRef}
                 type="button"
                 onClick={() => setRoleDropdownOpen((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+                className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
               >
-                <span className="text-sm">{selectedRoleLabel}</span>
+                <span className="text-xs">{selectedRoleLabel}</span>
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -270,7 +270,7 @@ export default function UsersTable() {
           {/* Add User */}
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 bg-[#0F533A] hover:bg-[#0a3f2c] text-white px-5 py-2 rounded-xl transition-colors font-medium text-sm shadow-[0_2px_10px_rgba(0,0,0,0.10)]"
+            className="flex items-center gap-2 bg-[#0F533A] hover:bg-[#0a3f2c] text-white px-4 py-2 rounded-xl transition-colors font-medium text-sm shadow-[0_2px_10px_rgba(0,0,0,0.10)]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -364,7 +364,7 @@ export default function UsersTable() {
       </div>
 
       {/* Summary Cards */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <SummaryCard value={summary.admins} label="Administrators" color="green" />
         <SummaryCard value={summary.staffs} label="Staff Members" color="yellow" />
         <SummaryCard value={summary.volunteers} label="Volunteers" color="gray" />
@@ -464,9 +464,9 @@ function SummaryCard({ value, label, color }: { value: number; label: string; co
   }
   
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 flex flex-col items-center justify-center">
-      <div className={`text-4xl font-semibold ${colorClasses[color]}`}>{value}</div>
-      <div className="mt-2 text-gray-600">{label}</div>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center justify-center">
+      <div className={`text-3xl font-semibold ${colorClasses[color]}`}>{value}</div>
+      <div className="mt-1 text-sm text-gray-600">{label}</div>
     </div>
   )
 }

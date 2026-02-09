@@ -50,34 +50,34 @@ const statusLabels = {
 
 export default function RecentDistributions() {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-800">Recent Distributions</h3>
-        <button className="text-sm text-green-600 hover:text-green-700 font-medium">
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-bold text-gray-800">Recent Distributions</h3>
+        <button className="text-xs text-green-600 hover:text-green-700 font-medium">
           View all
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {distributions.map((dist) => (
           <div 
             key={dist.id} 
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                <UserIcon className="w-5 h-5 text-gray-500" />
+              <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center">
+                <UserIcon className="w-4 h-4 text-gray-500" />
               </div>
               <div>
-                <p className="font-semibold text-gray-800">{dist.name}</p>
-                <p className="text-sm text-gray-500">{dist.items} • {dist.assignee}</p>
+                <p className="text-sm font-semibold text-gray-800">{dist.name}</p>
+                <p className="text-xs text-gray-500">{dist.items} • {dist.assignee}</p>
               </div>
             </div>
             <div className="text-right">
               <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusStyles[dist.status]}`}>
                 {statusLabels[dist.status]}
               </span>
-              <p className="text-xs text-gray-400 mt-1">{dist.date}</p>
+              <p className="text-[11px] text-gray-400 mt-1">{dist.date}</p>
             </div>
           </div>
         ))}

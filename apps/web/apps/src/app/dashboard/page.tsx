@@ -17,41 +17,41 @@ export default function DashboardPage() {
       />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatsCard
           title="Total Households"
           value="1234"
           variant="default"
-          icon={<HouseholdIcon className="w-6 h-6" />}
+          icon={<HouseholdIcon className="w-5 h-5" />}
         />
         <StatsCard
           title="Pending Distributions"
           value="67"
           variant="yellow"
-          icon={<PendingIcon className="w-6 h-6" />}
+          icon={<PendingIcon className="w-5 h-5" />}
         />
         <StatsCard
           title="Completed Today"
           value="67"
           variant="green"
-          icon={<CompletedIcon className="w-6 h-6" />}
+          icon={<CompletedIcon className="w-5 h-5" />}
         />
         <StatsCard
-          title="Low Stock Items"
+          title="Pending Writes"
           value="2"
-          variant="red"
-          icon={<AlertIcon className="w-6 h-6" />}
+          variant="yellow"
+          icon={<PendingIcon className="w-5 h-5" />}
         />
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <AIDistributionChart />
         <RecentDistributions />
       </div>
 
       {/* Bottom Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <LowStockAlert />
         <QuickActions />
       </div>

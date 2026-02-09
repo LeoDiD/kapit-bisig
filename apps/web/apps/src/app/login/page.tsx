@@ -1,70 +1,63 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { useAuth } from '@/lib/AuthContext'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const { user, loading: authLoading, login } = useAuth()
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Restore remember-me preference on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('rememberMe')
+    if (saved === 'true') setRememberMe(true)
+  }, [])
+
+  // If already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace('/dashboard')
+    }
+  }, [authLoading, user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     
     // Basic validation
-    if (!email || !password) {
-      setError('Please enter your email and password')
+    if (!username || !password) {
+      setError('Please enter your username and password')
       return
     }
     
     setIsLoading(true)
     
     try {
-      const response = await api.login(email, password)
+      await login(username, password, rememberMe)
       
-      if (response.success && response.data) {
-        const { user, token } = response.data
-        
-        // Check if user role is allowed for web app (Admin or Staff only)
-        if (user.role === 'Volunteer') {
-          setError('Volunteer accounts can only access the mobile app. Please use the Kapit-Bisig mobile application.')
-          return
-        }
-        
-        // Store token
-        localStorage.setItem('authToken', token)
-        
-        // Store user data
-        localStorage.setItem('userData', JSON.stringify(user))
-        
-        // If remember me, store in a more persistent way
-        if (rememberMe) {
-          localStorage.setItem('rememberMe', 'true')
-        } else {
-          localStorage.removeItem('rememberMe')
-        }
-        
-        // Redirect to dashboard
-        router.push('/dashboard')
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true')
       } else {
-        setError(response.message || 'Login failed. Please check your credentials.')
+        localStorage.removeItem('rememberMe')
       }
-    } catch (err: unknown) {
-      console.error('Login error:', err)
-      const error = err as { response?: { data?: { message?: string } }; message?: string }
       
-      if (error.response?.data?.message) {
-        setError(error.response.data.message)
-      } else if (error.message) {
-        setError(error.message)
+      router.push('/dashboard')
+    } catch (err: unknown) {
+      const error = err as { message?: string }
+      const msg = error.message || ''
+      // Show user-friendly message when server is unreachable
+      if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+        setError('Unable to connect to the server. Please try again later.')
       } else {
-        setError('An error occurred. Please try again.')
+        setError(msg || 'Invalid credentials. Please try again.')
       }
     } finally {
       setIsLoading(false)
@@ -150,26 +143,27 @@ export default function LoginPage() {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email Field */}
+            {/* Username Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                Email
+              <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
+                Username
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
                 <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@lgu.gov.ph"
+                  type="text"
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your username"
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                   required
                   disabled={isLoading}
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -186,15 +180,34 @@ export default function LoginPage() {
                   </svg>
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   id="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value.replace(/\s/g, ''))}
                   placeholder="••••••••"
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                   required
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
+                {/* Visibility toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
               </div>
             </div>
 

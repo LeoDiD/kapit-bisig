@@ -1,0 +1,98 @@
+/**
+ * Distribution Model
+ * 
+ * MongoDB schema for barangay relief distributions.
+ * 
+ * Fields:
+ * - barangay: The target barangay (one of the 10 predefined values)
+ * - status: 'Unclaimed' (default) or 'Claimed'
+ * - claimedAt: Date when the distribution was marked as claimed
+ * - createdAt / updatedAt: Timestamps
+ */
+
+import mongoose, { Document, Schema } from 'mongoose';
+
+/**
+ * Valid barangay values
+ */
+export const BARANGAY_OPTIONS = [
+  'Bolo',
+  'Bongalon',
+  'Dulig',
+  'Laois',
+  'Magsaysay',
+  'Poblacion',
+  'San Gonzalo',
+  'San Jose',
+  'Tobuan',
+  'Uyong',
+] as const;
+
+export type Barangay = typeof BARANGAY_OPTIONS[number];
+
+export type DistributionStatus = 'Unclaimed' | 'Claimed';
+
+export interface IDistribution extends Document {
+  barangay: Barangay;
+  scheduled: string;
+  households: number;
+  notes?: string;
+  status: DistributionStatus;
+  claimedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const distributionSchema = new Schema<IDistribution>(
+  {
+    barangay: {
+      type: String,
+      required: [true, 'Barangay is required'],
+      enum: {
+        values: BARANGAY_OPTIONS as unknown as string[],
+        message: '{VALUE} is not a valid barangay',
+      },
+    },
+    scheduled: {
+      type: String,
+      required: [true, 'Scheduled date is required'],
+    },
+    households: {
+      type: Number,
+      required: [true, 'Households count is required'],
+      min: [1, 'Households must be at least 1'],
+    },
+    notes: {
+      type: String,
+      default: '',
+    },
+    status: {
+      type: String,
+      enum: ['Unclaimed', 'Claimed'],
+      default: 'Unclaimed',
+    },
+    claimedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+/**
+ * Transform output to include id field
+ */
+distributionSchema.set('toJSON', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  transform: (_doc: any, ret: any) => {
+    ret.id = ret._id.toString();
+    delete ret.__v;
+    return ret;
+  },
+});
+
+const Distribution = mongoose.model<IDistribution>('Distribution', distributionSchema);
+
+export default Distribution;

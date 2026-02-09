@@ -215,8 +215,8 @@ function Donut({
   let offset = 0
 
   return (
-    <div className="flex items-center justify-between gap-6">
-      <svg width="140" height="140" viewBox="0 0 120 120">
+    <div className="flex items-center justify-between gap-4">
+      <svg width="128" height="128" viewBox="0 0 120 120">
         <circle
           cx="60"
           cy="60"
@@ -577,8 +577,8 @@ export default function ReportsPageClient() {
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <div className="font-semibold text-gray-900">Distribution Summary</div>
           <div className="text-sm text-gray-500 mb-4">Monthly distribution and household coverage</div>
           <MiniBarChart
@@ -588,7 +588,7 @@ export default function ReportsPageClient() {
           />
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <div className="font-semibold text-gray-900">Distribution by Barangay</div>
           <div className="text-sm text-gray-500 mb-4">Percentage of distributions per barangay</div>
           <Donut

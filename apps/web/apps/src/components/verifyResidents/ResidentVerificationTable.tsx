@@ -346,7 +346,7 @@ export default function ResidentVerificationTable() {
   return (
     <>
       {/* Top summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <StatCard
           value={summary.pending}
           label="Pending Review"
@@ -385,7 +385,7 @@ export default function ResidentVerificationTable() {
         {/* Search */}
         <div className="relative flex-1 max-w-xl">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </span>
@@ -393,7 +393,7 @@ export default function ResidentVerificationTable() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search applications..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-800 placeholder-gray-400"
+            className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
           />
         </div>
 
@@ -406,9 +406,9 @@ export default function ResidentVerificationTable() {
               setStatusOpen((v) => !v)
               setBarangayOpen(false)
             }}
-            className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+            className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
           >
-            <span className="text-sm">{statusLabel}</span>
+            <span className="text-xs">{statusLabel}</span>
             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -585,11 +585,11 @@ export default function ResidentVerificationTable() {
         open={!!selected}
         application={selected}
         onClose={() => setSelected(null)}
-        onApprove={(id: number) => {
+        onApprove={(id: string) => {
           approveApp(id)
           setSelected(null)
         }}
-        onReject={(id: number, reason: string) => {
+        onReject={(id: string, reason: string) => {
           rejectApp(id, reason)
           setSelected(null)
         }}
@@ -660,13 +660,13 @@ function StatCard({
       : 'bg-[#FECACA] text-[#991B1B]'
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${toneBox}`}>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${toneBox}`}>
         {icon}
       </div>
       <div className="flex-1">
-        <div className="text-xl font-semibold text-gray-900 leading-tight">{value}</div>
-        <div className="text-sm text-gray-500">{label}</div>
+        <div className="text-lg font-semibold text-gray-900 leading-tight">{value}</div>
+        <div className="text-xs text-gray-500">{label}</div>
       </div>
     </div>
   )
@@ -701,7 +701,7 @@ function RowMenuItem({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition-colors ${cls}`}
+      className={`w-full text-left px-3 py-2 text-xs flex items-center gap-3 transition-colors ${cls}`}
     >
       <span className={iconCls}>{icon}</span>
       {label}

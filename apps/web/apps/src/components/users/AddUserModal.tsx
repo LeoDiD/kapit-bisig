@@ -263,14 +263,14 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
       <div className="relative bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
         
         {/* Header - Fixed at top */}
-        <div className="p-6 pb-4 flex justify-between items-start shrink-0 bg-white z-10 border-b border-gray-100 rounded-t-3xl">
+        <div className="p-5 pb-3 flex justify-between items-start shrink-0 bg-white z-10 border-b border-gray-100 rounded-t-3xl">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Add New User</h2>
-            <p className="text-gray-500 mt-1">Create a new user account for the system</p>
+            <h2 className="text-lg font-bold text-gray-900">Add New User</h2>
+            <p className="text-sm text-gray-500 mt-1">Create a new user account for the system</p>
           </div>
           <button 
             onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+            className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
             disabled={isLoading}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,7 +281,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
 
         {/* Form Body - Scrollable */}
         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden flex-1">
-          <div className="px-6 py-4 space-y-5 overflow-y-auto flex-1" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+          <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1" style={{ maxHeight: 'calc(90vh - 180px)' }}>
             
             {/* General Error */}
             {errors.general && (
@@ -294,7 +294,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
             <div className="grid grid-cols-2 gap-4">
               {/* First Name */}
               <div>
-                <label className="block text-sm font-bold text-gray-900 mb-2">
+                <label className="block text-xs font-semibold text-gray-900 mb-2">
                   First Name <span className="text-red-500">*</span>
                 </label>
                 <input 
@@ -304,7 +304,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                   placeholder="Enter first name"
                   className={`w-full px-4 py-3 rounded-xl border ${
                     errors.firstName ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-gray-800 placeholder-gray-400 transition-colors`}
+                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
                   disabled={isLoading}
                 />
                 {errors.firstName && (
@@ -314,7 +314,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               
               {/* Last Name */}
               <div>
-                <label className="block text-sm font-bold text-gray-900 mb-2">
+                <label className="block text-xs font-semibold text-gray-900 mb-2">
                   Last Name <span className="text-red-500">*</span>
                 </label>
                 <input 
@@ -324,7 +324,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                   placeholder="Enter last name"
                   className={`w-full px-4 py-3 rounded-xl border ${
                     errors.lastName ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-gray-800 placeholder-gray-400 transition-colors`}
+                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
                   disabled={isLoading}
                 />
                 {errors.lastName && (
@@ -335,7 +335,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
+              <label className="block text-xs font-semibold text-gray-900 mb-2">
                 Email <span className="text-red-500">*</span>
               </label>
               <input 
@@ -345,7 +345,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                 placeholder="Enter email address"
                 className={`w-full px-4 py-3 rounded-xl border ${
                   errors.email ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-gray-800 placeholder-gray-400 transition-colors`}
+                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
                 disabled={isLoading}
               />
               {errors.email && (
@@ -355,7 +355,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
+              <label className="block text-xs font-semibold text-gray-900 mb-2">
                 Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -366,7 +366,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                   placeholder="Enter password"
                   className={`w-full px-4 py-3 pr-12 rounded-xl border ${
                     errors.password ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-gray-800 placeholder-gray-400 transition-colors`}
+                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
                   disabled={isLoading}
                 />
                 <button
@@ -410,7 +410,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
+              <label className="block text-xs font-semibold text-gray-900 mb-2">
                 Confirm Password <span className="text-red-500">*</span>
               </label>
               <input 
@@ -420,7 +420,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                 placeholder="Confirm password"
                 className={`w-full px-4 py-3 rounded-xl border ${
                   confirmPassword && password !== confirmPassword ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-gray-800 placeholder-gray-400 transition-colors`}
+                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
                 disabled={isLoading}
               />
               {confirmPassword && password !== confirmPassword && (
@@ -430,7 +430,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
 
             {/* Role */}
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
+              <label className="block text-xs font-semibold text-gray-900 mb-2">
                 Role <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -439,7 +439,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                   onChange={(e) => setRole(e.target.value as UserRole)}
                   className={`w-full px-4 py-3 rounded-xl border ${
                     errors.role ? 'border-red-500' : 'border-gray-300'
-                  } bg-white focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-gray-800 appearance-none cursor-pointer`}
+                  } bg-white focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 appearance-none cursor-pointer`}
                   disabled={isLoading}
                 >
                   <option value="" disabled>Select role</option>
@@ -469,7 +469,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
 
             {/* Phone Number */}
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
+              <label className="block text-xs font-semibold text-gray-900 mb-2">
                 Phone Number <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <input 
@@ -479,7 +479,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                 placeholder="e.g., 09123456789"
                 className={`w-full px-4 py-3 rounded-xl border ${
                   errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-gray-800 placeholder-gray-400 transition-colors`}
+                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
                 disabled={isLoading}
               />
               {errors.phoneNumber && (
@@ -490,18 +490,18 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
           </div>
 
           {/* Footer Actions - Fixed at bottom */}
-          <div className="px-6 py-4 flex justify-end gap-3 shrink-0 bg-white border-t border-gray-100 rounded-b-3xl">
+          <div className="px-5 py-3 flex justify-end gap-3 shrink-0 bg-white border-t border-gray-100 rounded-b-3xl">
             <button 
               type="button"
               onClick={handleClose}
-              className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
               disabled={isLoading}
             >
               Cancel
             </button>
             <button 
               type="submit"
-              className="px-6 py-3 rounded-xl bg-[#0F533A] text-white font-medium hover:bg-[#0a3f2c] transition-colors shadow-lg shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-[#0F533A] text-white text-sm font-medium hover:bg-[#0a3f2c] transition-colors shadow-lg shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               disabled={isLoading}
             >
               {isLoading && (

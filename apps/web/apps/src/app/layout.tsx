@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Metadata } from 'next'
-import { Montserrat } from 'next/font/google' // <--- 1. Import Montserrat
+import { Montserrat } from 'next/font/google'
+import { AuthProvider } from '@/lib/AuthContext'
 import './globals.css'
 
 // 2. Configure the font with necessary weights
@@ -21,8 +22,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      {/* 3. Apply the font class to the body */}
-      <body className={montserrat.className}>{children}</body>
+      <body className={montserrat.className}>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   )
 }

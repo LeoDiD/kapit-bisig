@@ -14,9 +14,9 @@ const actions: QuickAction[] = [
     icon: <HouseIcon className="w-5 h-5" />
   },
   { 
-    label: 'Add Inventory', 
-    href: '/inventory/add',
-    icon: <PackageIcon className="w-5 h-5" />
+    label: 'Blockchain Ledger', 
+    href: '/blockchain-ledger',
+    icon: <ShieldIcon className="w-5 h-5" />
   },
   { 
     label: 'New Distribution', 
@@ -32,20 +32,20 @@ const actions: QuickAction[] = [
 
 export default function QuickActions() {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <h3 className="text-lg font-bold text-gray-800 mb-4">Quick Actions</h3>
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+      <h3 className="text-base font-bold text-gray-800 mb-3">Quick Actions</h3>
 
       <div className="grid grid-cols-2 gap-3">
         {actions.map((action, index) => (
           <Link
             key={index}
             href={action.href}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-100 hover:border-green-500 hover:bg-green-50 transition-all group"
+            className="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-100 hover:border-green-500 hover:bg-green-50 transition-all group"
           >
-            <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-green-100 flex items-center justify-center text-gray-500 group-hover:text-green-600 transition-colors">
+            <div className="w-9 h-9 rounded-xl bg-gray-100 group-hover:bg-green-100 flex items-center justify-center text-gray-500 group-hover:text-green-600 transition-colors">
               {action.icon}
             </div>
-            <span className="text-sm font-medium text-gray-600 group-hover:text-green-700 text-center">
+            <span className="text-xs font-medium text-gray-600 group-hover:text-green-700 text-center leading-tight">
               {action.label}
             </span>
           </Link>
@@ -63,10 +63,10 @@ function HouseIcon({ className }: { className?: string }) {
   )
 }
 
-function PackageIcon({ className }: { className?: string }) {
+function ShieldIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6l7-4z" />
     </svg>
   )
 }

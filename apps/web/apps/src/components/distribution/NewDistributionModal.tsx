@@ -1,22 +1,13 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import type { DistributionItem } from './DistributionsTable'
+import React, { useEffect, useRef, useState } from 'react'
 
 export type CreateDistributionPayload = {
   barangay: string
-  items: DistributionItem[]
   scheduled: string
   households: number
   notes?: string
 }
-
-const itemOptions: { name: string; defaultQty: number }[] = [
-  { name: 'Rice (5kg)', defaultQty: 80 },
-  { name: 'Canned Goods', defaultQty: 150 },
-  { name: 'Bottled Water', defaultQty: 240 },
-  { name: 'Medicine Kit', defaultQty: 40 },
-]
 
 export default function NewDistributionModal({
   open,
@@ -32,24 +23,17 @@ export default function NewDistributionModal({
   const [barangay, setBarangay] = useState('')
   const [barangayOpen, setBarangayOpen] = useState(false)
 
-  const [itemsOpen, setItemsOpen] = useState(false)
-  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({})
-
   const [scheduled, setScheduled] = useState('')
   const [notes, setNotes] = useState('')
   const [households, setHouseholds] = useState(40)
 
   const barangayBtnRef = useRef<HTMLButtonElement>(null)
   const barangayMenuRef = useRef<HTMLDivElement>(null)
-  const itemsBtnRef = useRef<HTMLButtonElement>(null)
-  const itemsMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
     setBarangay('')
     setBarangayOpen(false)
-    setItemsOpen(false)
-    setSelectedItems({})
     setScheduled('')
     setNotes('')
     setHouseholds(40)
@@ -62,30 +46,13 @@ export default function NewDistributionModal({
       const inBrgyBtn = barangayBtnRef.current?.contains(t)
       const inBrgyMenu = barangayMenuRef.current?.contains(t)
       if (!inBrgyBtn && !inBrgyMenu) setBarangayOpen(false)
-
-      const inItemsBtn = itemsBtnRef.current?.contains(t)
-      const inItemsMenu = itemsMenuRef.current?.contains(t)
-      if (!inItemsBtn && !inItemsMenu) setItemsOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
   }, [])
 
-  const chosenItems = useMemo(() => {
-    return itemOptions
-      .filter((o) => selectedItems[o.name])
-      .map((o) => ({ name: o.name, qty: o.defaultQty }))
-  }, [selectedItems])
-
-  const itemsLabel = useMemo(() => {
-    if (!chosenItems.length) return 'Select items to distribute'
-    if (chosenItems.length === 1) return chosenItems[0].name
-    return `${chosenItems.length} items selected`
-  }, [chosenItems])
-
   const canCreate =
     barangay.trim().length > 0 &&
-    chosenItems.length > 0 &&
     scheduled.trim().length > 0
 
   if (!open) return null
@@ -94,7 +61,6 @@ export default function NewDistributionModal({
     if (!canCreate) return
     onCreate({
       barangay,
-      items: chosenItems,
       scheduled,
       households,
       notes: notes.trim() ? notes.trim() : undefined,
@@ -108,13 +74,13 @@ export default function NewDistributionModal({
 
         <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] border border-gray-100 flex flex-col max-h-[calc(100vh-5rem)]">
           {/* Header */}
-          <div className="p-6 border-b border-gray-100 bg-white shrink-0">
+          <div className="p-5 border-b border-gray-100 bg-white shrink-0">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-lg font-semibold text-gray-900">
                   Create Barangay Distribution
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-xs text-gray-500">
                   Schedule a relief distribution for a barangay
                 </div>
               </div>
@@ -131,10 +97,10 @@ export default function NewDistributionModal({
           </div>
 
           {/* Body */}
-          <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          <div className="p-5 space-y-4 overflow-y-auto flex-1">
             {/* Barangay */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-2">
                 Select Barangay
               </label>
 
@@ -144,11 +110,10 @@ export default function NewDistributionModal({
                   type="button"
                   onClick={() => {
                     setBarangayOpen((v) => !v)
-                    setItemsOpen(false)
                   }}
                   className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
                 >
-                  <span className={`text-sm ${barangay ? 'text-gray-700' : 'text-gray-400'}`}>
+                  <span className={`text-sm ${barangay ? 'text-gray-900' : 'text-gray-400'}`}>
                     {barangay || 'Choose a barangay'}
                   </span>
                   <ChevronDownIcon />
@@ -170,7 +135,7 @@ export default function NewDistributionModal({
                             setBarangayOpen(false)
                           }}
                           className={[
-                            'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                            'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-colors',
                             selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
                           ].join(' ')}
                         >
@@ -186,80 +151,19 @@ export default function NewDistributionModal({
               </div>
             </div>
 
-            {/* Items */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Relief Items
-              </label>
-
-              <div className="relative">
-                <button
-                  ref={itemsBtnRef}
-                  type="button"
-                  onClick={() => {
-                    setItemsOpen((v) => !v)
-                    setBarangayOpen(false)
-                  }}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
-                >
-                  <span className={`text-sm ${chosenItems.length ? 'text-gray-700' : 'text-gray-400'}`}>
-                    {itemsLabel}
-                  </span>
-                  <ChevronDownIcon />
-                </button>
-
-                {itemsOpen ? (
-                  <div
-                    ref={itemsMenuRef}
-                    className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-2 z-50"
-                  >
-                    {itemOptions.map((opt) => {
-                      const checked = !!selectedItems[opt.name]
-                      return (
-                        <button
-                          key={opt.name}
-                          type="button"
-                          onClick={() =>
-                            setSelectedItems((prev) => ({
-                              ...prev,
-                              [opt.name]: !checked,
-                            }))
-                          }
-                          className="w-full px-3 py-2 rounded-lg hover:bg-gray-50 flex items-center justify-between text-sm text-gray-700"
-                        >
-                          <span className="flex items-center gap-2">
-                            <span
-                              className={[
-                                'w-4 h-4 rounded border flex items-center justify-center',
-                                checked ? 'bg-[#0F533A] border-[#0F533A]' : 'border-gray-300 bg-white',
-                              ].join(' ')}
-                            >
-                              {checked ? <MiniCheckWhite /> : null}
-                            </span>
-                            {opt.name}
-                          </span>
-                          <span className="text-xs text-gray-400">x{opt.defaultQty}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
             {/* Date */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-2">
                 Scheduled Date
               </label>
               <div className="relative">
                 <input
+                  type="date"
                   value={scheduled}
                   onChange={(e) => setScheduled(e.target.value)}
-                  placeholder="dd/mm/yy"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 text-sm text-gray-900 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                   <CalendarIcon />
                 </span>
               </div>
@@ -267,14 +171,14 @@ export default function NewDistributionModal({
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-2">
                 Notes (Optional)
               </label>
               <input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add distribution notes..."
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 text-sm text-gray-900 placeholder-gray-400"
               />
             </div>
 
@@ -283,7 +187,7 @@ export default function NewDistributionModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50"
+                className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50"
               >
                 Cancel
               </button>
@@ -293,7 +197,7 @@ export default function NewDistributionModal({
                 onClick={doCreate}
                 disabled={!canCreate}
                 className={[
-                  'px-6 py-2.5 rounded-xl text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)]',
+                  'px-5 py-2 rounded-xl text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)]',
                   canCreate
                     ? 'bg-[#0F533A] hover:bg-[#0a3f2c] text-white'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed',
@@ -327,13 +231,6 @@ function XIcon() {
 function CheckIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-    </svg>
-  )
-}
-function MiniCheckWhite() {
-  return (
-    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
     </svg>
   )

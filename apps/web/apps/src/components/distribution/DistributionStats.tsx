@@ -12,27 +12,27 @@ export default function DistributionStats({
   barangays: number
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
       <StatCard
-        icon={<ClockIcon className="w-5 h-5 text-[#D97706]" />}
+        icon={<ClockIcon className="w-4 h-4 text-[#D97706]" />}
         iconBg="bg-[#FEF3C7]"
         value={unclaimed}
         label="Unclaimed"
       />
       <StatCard
-        icon={<CheckCircleIcon className="w-5 h-5 text-green-700" />}
+        icon={<CheckCircleIcon className="w-4 h-4 text-green-700" />}
         iconBg="bg-green-100"
         value={claimed}
         label="Claimed"
       />
       <StatCard
-        icon={<UsersIcon className="w-5 h-5 text-blue-700" />}
+        icon={<UsersIcon className="w-4 h-4 text-blue-700" />}
         iconBg="bg-blue-100"
         value={householdsServed}
         label="Households Served"
       />
       <StatCard
-        icon={<PinIcon className="w-5 h-5 text-gray-700" />}
+        icon={<PinIcon className="w-4 h-4 text-gray-700" />}
         iconBg="bg-gray-200"
         value={barangays}
         label="Barangays"
@@ -53,13 +53,13 @@ function StatCard({
   label: string
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBg}`}>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBg}`}>
         {icon}
       </div>
       <div>
-        <div className="text-2xl font-bold text-gray-900">{value}</div>
-        <div className="text-sm text-gray-500">{label}</div>
+        <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
+        <div className="text-xs text-gray-500">{label}</div>
       </div>
     </div>
   )

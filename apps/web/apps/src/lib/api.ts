@@ -106,6 +106,22 @@ export interface AvailableRoles {
 }
 
 /**
+ * Distribution data from API
+ */
+export interface DistributionData {
+  id: string;
+  _id: string;
+  barangay: string;
+  scheduled: string;
+  households: number;
+  notes?: string;
+  status: 'Unclaimed' | 'Claimed';
+  claimedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * Get auth token from localStorage
  */
 const getAuthToken = (): string | null => {
@@ -304,6 +320,49 @@ export const api = {
     const response = await fetch(`${API_URL}/health`);
     if (!response.ok) throw new Error('Server is not responding');
     return response.json();
+  },
+
+  // ==================== DISTRIBUTIONS ====================
+
+  /**
+   * Get all distributions
+   */
+  async getDistributions(): Promise<ApiResponse<DistributionData[]>> {
+    const response = await fetch(`${API_URL}/distributions`, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<DistributionData[]>>(response);
+  },
+
+  /**
+   * Create a new distribution
+   */
+  async createDistribution(data: {
+    barangay: string;
+    scheduled: string;
+    households: number;
+    notes?: string;
+  }): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions`, {
+      method: 'POST',
+      headers: createHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
+  },
+
+  /**
+   * Mark a distribution as claimed
+   */
+  async claimDistribution(id: string): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions/${id}/claim`, {
+      method: 'PATCH',
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
   },
 };
 

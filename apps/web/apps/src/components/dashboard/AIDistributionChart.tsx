@@ -23,12 +23,12 @@ export default function AIDistributionChart() {
   let cumulativePercent = 0
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <h3 className="text-lg font-bold text-gray-800 mb-6">AI Priority Distribution</h3>
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+      <h3 className="text-base font-bold text-gray-800 mb-4">AI Priority Distribution</h3>
       
       <div className="flex items-center justify-between">
         {/* Donut Chart */}
-        <div className="relative w-40 h-40">
+        <div className="relative w-36 h-36">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
             {priorityData.map((item, index) => {
               const percent = item.value / total
@@ -55,20 +55,20 @@ export default function AIDistributionChart() {
           {/* Center text */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-800">{total}%</p>
+              <p className="text-xl font-bold text-gray-800">{total}%</p>
             </div>
           </div>
         </div>
 
         {/* Legend */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {priorityData.map((item, index) => (
             <div key={index} className="flex items-center gap-2">
               <div 
                 className="w-3 h-3 rounded-full" 
                 style={{ backgroundColor: item.color }}
               />
-              <span className="text-sm text-gray-600">{item.label}</span>
+              <span className="text-xs text-gray-600">{item.label}</span>
             </div>
           ))}
         </div>

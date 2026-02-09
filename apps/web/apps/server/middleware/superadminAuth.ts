@@ -1,0 +1,108 @@
+/**
+ * SuperAdmin Authentication Middleware
+ *
+ * Provides JWT-based auth guards for the single SUPERADMIN account.
+ *
+ * - Reads the token from the `sa_token` httpOnly cookie first,
+ *   then falls back to the Authorization: Bearer header.
+ * - requireAuth: ensures a valid JWT is present.
+ * - requireSuperadmin: ensures role === "superadmin".
+ *
+ * Security: tokens are verified with HS256 using JWT_SECRET.
+ */
+
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+
+const COOKIE_NAME = 'sa_token';
+
+/** Shape of the JWT payload we issue */
+export interface SuperadminPayload {
+  sub: string;       // username
+  role: 'superadmin';
+  iat?: number;
+  exp?: number;
+}
+
+/** Extends Express Request to carry the verified user info */
+export interface SARequest extends Request {
+  saUser?: SuperadminPayload;
+}
+
+/** Security event logger (simple console – swap for a real logger in prod) */
+export function logSecurity(event: string, meta?: Record<string, unknown>) {
+  const ts = new Date().toISOString();
+  console.log(`[SECURITY ${ts}] ${event}`, meta ? JSON.stringify(meta) : '');
+}
+
+function getJWTSecret(): string {
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error('JWT_SECRET not defined');
+  return s;
+}
+
+/**
+ * Extract token: cookie first, then Authorization header.
+ */
+function extractToken(req: Request): string | null {
+  // 1. httpOnly cookie
+  const fromCookie = req.cookies?.[COOKIE_NAME];
+  if (fromCookie) return fromCookie;
+
+  // 2. Bearer header fallback
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+
+  return null;
+}
+
+/**
+ * requireAuth – verifies a valid JWT is present.
+ * Attaches `req.saUser` on success.
+ */
+export const requireAuth = (
+  req: SARequest,
+  res: Response,
+  next: NextFunction,
+): void => {
+  const token = extractToken(req);
+
+  if (!token || token === 'null' || token === 'undefined') {
+    logSecurity('ACCESS_DENIED', { reason: 'no_token', ip: req.ip, path: req.path });
+    res.status(401).json({ success: false, message: 'Authentication required' });
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(token, getJWTSecret()) as SuperadminPayload;
+    req.saUser = decoded;
+    next();
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) {
+      logSecurity('ACCESS_DENIED', { reason: 'token_expired', ip: req.ip });
+      res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+      return;
+    }
+    logSecurity('ACCESS_DENIED', { reason: 'invalid_token', ip: req.ip });
+    res.status(401).json({ success: false, message: 'Invalid authentication token' });
+  }
+};
+
+/**
+ * requireSuperadmin – must be placed AFTER requireAuth.
+ * Ensures role is "superadmin".
+ */
+export const requireSuperadmin = (
+  req: SARequest,
+  res: Response,
+  next: NextFunction,
+): void => {
+  if (req.saUser?.role !== 'superadmin') {
+    logSecurity('ACCESS_DENIED', { reason: 'insufficient_role', ip: req.ip, role: req.saUser?.role });
+    res.status(403).json({ success: false, message: 'Forbidden' });
+    return;
+  }
+  next();
+};

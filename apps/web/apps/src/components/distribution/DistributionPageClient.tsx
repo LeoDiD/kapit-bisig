@@ -1,57 +1,58 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import DistributionStats from './DistributionStats'
 import DistributionsTable, { DistributionRow } from './DistributionsTable'
 import NewDistributionModal, { CreateDistributionPayload } from './NewDistributionModal'
+import { api } from '../../lib/api'
 
-const initialData: DistributionRow[] = [
-  {
-    id: 1,
-    barangay: 'Brgy. San Jose',
-    items: [
-      { name: 'Rice (5kg)', qty: 100 },
-      { name: 'Canned Goods', qty: 300 },
-    ],
-    served: 0,
-    households: 45,
-    scheduled: 'January 15, 2026',
-    status: 'Unclaimed',
-    claimedAt: null,
-  },
-  {
-    id: 2,
-    barangay: 'Brgy. San Jose',
-    items: [
-      { name: 'Rice (5kg)', qty: 80 },
-      { name: 'Bottled Water', qty: 240 },
-      { name: 'Medicine Kit', qty: 40 },
-    ],
-    served: 40,
-    households: 40,
-    scheduled: 'January 13, 2026',
-    status: 'Claimed',
-    claimedAt: 'January 13, 2026',
-  },
-  {
-    id: 3,
-    barangay: 'Brgy. Santo Nino',
-    items: [
-      { name: 'Rice (5kg)', qty: 80 },
-      { name: 'Canned Goods', qty: 150 },
-      { name: 'Bottled Water', qty: 240 },
-    ],
-    served: 40,
-    households: 40,
-    scheduled: 'January 10, 2026',
-    status: 'Claimed',
-    claimedAt: 'January 10, 2026',
-  },
+const BARANGAY_OPTIONS = [
+  'Bolo',
+  'Bongalon',
+  'Dulig',
+  'Laois',
+  'Magsaysay',
+  'Poblacion',
+  'San Gonzalo',
+  'San Jose',
+  'Tobuan',
+  'Uyong',
 ]
 
 export default function DistributionPageClient() {
-  const [rows, setRows] = useState<DistributionRow[]>(initialData)
+  const [rows, setRows] = useState<DistributionRow[]>([])
   const [createOpen, setCreateOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchDistributions = useCallback(async () => {
+    try {
+      setError(null)
+      const res = await api.getDistributions()
+      if (res.success && res.data) {
+        const mapped: DistributionRow[] = res.data.map((d) => ({
+          id: d.id || d._id,
+          barangay: d.barangay,
+          scheduled: d.scheduled,
+          households: d.households,
+          notes: d.notes,
+          status: d.status as 'Unclaimed' | 'Claimed',
+          claimedAt: d.claimedAt,
+          createdAt: d.createdAt,
+        }))
+        setRows(mapped)
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load distributions'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDistributions()
+  }, [fetchDistributions])
 
   const unclaimedCount = useMemo(
     () => rows.filter((r) => r.status === 'Unclaimed').length,
@@ -66,41 +67,46 @@ export default function DistributionPageClient() {
     return set.size
   }, [rows])
 
-  // Matches your screenshot vibe (kept simple):
-  const householdsServedCount = 1
+  const householdsServedCount = 0
 
   const bannerText = useMemo(() => {
     if (unclaimedCount <= 0) return ''
     return `${unclaimedCount} barangay distribution(s) are waiting to be claimed by residents.`
   }, [unclaimedCount])
 
-  const handleCreate = (payload: CreateDistributionPayload) => {
-    const next: DistributionRow = {
-      id: Math.max(0, ...rows.map((r) => r.id)) + 1,
-      barangay: payload.barangay,
-      items: payload.items,
-      served: 0,
-      households: payload.households,
-      scheduled: payload.scheduled,
-      status: 'Unclaimed',
-      claimedAt: null,
+  const handleCreate = async (payload: CreateDistributionPayload) => {
+    try {
+      setError(null)
+      await api.createDistribution({
+        barangay: payload.barangay,
+        scheduled: payload.scheduled,
+        households: payload.households,
+        notes: payload.notes,
+      })
+      setCreateOpen(false)
+      await fetchDistributions()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create distribution'
+      setError(message)
     }
-    setRows((prev) => [next, ...prev])
-    setCreateOpen(false)
   }
 
-  const markClaimed = (id: number) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status: 'Claimed',
-              claimedAt: r.claimedAt ?? r.scheduled,
-              served: r.households, // auto-complete for UI
-            }
-          : r
-      )
+  const markClaimed = async (id: string) => {
+    try {
+      setError(null)
+      await api.claimDistribution(id)
+      await fetchDistributions()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to mark as claimed'
+      setError(message)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-gray-500 text-sm">Loading distributions...</div>
+      </div>
     )
   }
 
@@ -112,6 +118,12 @@ export default function DistributionPageClient() {
         householdsServed={householdsServedCount}
         barangays={barangaysCount}
       />
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl px-5 py-4 flex items-center gap-3">
+          <div className="text-sm text-red-700">{error}</div>
+        </div>
+      )}
 
       {unclaimedCount > 0 ? (
         <div className="mb-6 bg-[#FEF3C7] border border-[#FDE68A] rounded-2xl px-5 py-4 flex items-center gap-3">
@@ -135,7 +147,7 @@ export default function DistributionPageClient() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreate={handleCreate}
-        barangayOptions={['Brgy. San Jose', 'Brgy. Santo Nino']}
+        barangayOptions={BARANGAY_OPTIONS}
       />
     </div>
   )

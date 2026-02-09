@@ -1,20 +1,20 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import DistributionDetailsModal from './DistributionDetailsModal'
 
 export type DistributionStatus = 'Unclaimed' | 'Claimed'
-export type DistributionItem = { name: string; qty: number }
 
 export type DistributionRow = {
-  id: number
+  id: string
   barangay: string
-  items: DistributionItem[]
-  served: number
-  households: number
   scheduled: string
+  households: number
+  notes?: string
   status: DistributionStatus
   claimedAt: string | null
+  createdAt: string
 }
 
 type BarangayFilter = 'All' | string
@@ -33,7 +33,7 @@ export default function DistributionsTable({
 }: {
   rows: DistributionRow[]
   onOpenCreate: () => void
-  onMarkClaimed: (id: number) => void
+  onMarkClaimed: (id: string) => void
 }) {
   const [query, setQuery] = useState('')
   const [barangay, setBarangay] = useState<BarangayFilter>('All')
@@ -48,8 +48,9 @@ export default function DistributionsTable({
   const statusMenuRef = useRef<HTMLDivElement>(null)
 
   // 3-dots menu
-  const [activeMenu, setActiveMenu] = useState<number | null>(null)
-  const [menuOpensUp, setMenuOpensUp] = useState(false)
+  const [activeMenu, setActiveMenu] = useState<string | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; opensUp: boolean } | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   // Details modal
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionRow | null>(null)
@@ -58,6 +59,11 @@ export default function DistributionsTable({
     const unique = Array.from(new Set(rows.map((r) => r.barangay))).sort()
     return [{ value: 'All', label: 'All Barangays' }, ...unique.map((b) => ({ value: b, label: b }))]
   }, [rows])
+
+  const closeRowMenu = useCallback(() => {
+    setActiveMenu(null)
+    setMenuPos(null)
+  }, [])
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -72,15 +78,28 @@ export default function DistributionsTable({
       const inStatusMenu = statusMenuRef.current?.contains(t)
       if (!inStatusBtn && !inStatusMenu) setStatusOpen(false)
 
-      // close row menu - check if click is inside any row menu
-      const inRowMenu = t.closest('[data-row-menu]')
-      if (!inRowMenu) {
-        setActiveMenu(null)
+      // close row menu - check if click is inside any row menu button or the portal menu
+      const inRowMenuBtn = t.closest('[data-row-menu]')
+      const inPortalMenu = menuRef.current?.contains(t)
+      if (!inRowMenuBtn && !inPortalMenu) {
+        closeRowMenu()
       }
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
-  }, [])
+  }, [closeRowMenu])
+
+  // Close menu on scroll or resize so it doesn't float in the wrong spot
+  useEffect(() => {
+    if (!activeMenu) return
+    const close = () => closeRowMenu()
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [activeMenu, closeRowMenu])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -88,8 +107,7 @@ export default function DistributionsTable({
     return rows.filter((r) => {
       const matchesQuery =
         !q ||
-        r.barangay.toLowerCase().includes(q) ||
-        r.items.some((it) => it.name.toLowerCase().includes(q))
+        r.barangay.toLowerCase().includes(q)
 
       const matchesBarangay = barangay === 'All' || r.barangay === barangay
       const matchesStatus = status === 'All' || r.status === status
@@ -98,15 +116,20 @@ export default function DistributionsTable({
     })
   }, [rows, query, barangay, status])
 
-  const toggleRowMenu = (id: number, e: React.MouseEvent<HTMLButtonElement>) => {
+  const toggleRowMenu = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
     if (activeMenu === id) {
-      setActiveMenu(null)
+      closeRowMenu()
       return
     }
     const rect = e.currentTarget.getBoundingClientRect()
     const spaceBelow = window.innerHeight - rect.bottom
-    setMenuOpensUp(spaceBelow < 150)
+    const opensUp = spaceBelow < 200
+    setMenuPos({
+      top: opensUp ? rect.top : rect.bottom + 8,
+      left: rect.right - 224, // 224 = w-56 (14rem)
+      opensUp,
+    })
     setActiveMenu(id)
 
     setBarangayOpen(false)
@@ -139,7 +162,7 @@ export default function DistributionsTable({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search distributions..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-800 placeholder-gray-400"
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
           />
         </div>
 
@@ -152,9 +175,9 @@ export default function DistributionsTable({
               setStatusOpen(false)
               setActiveMenu(null)
             }}
-            className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+            className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
           >
-            <span className="text-sm">{barangayLabel}</span>
+            <span className="text-xs">{barangayLabel}</span>
             <ChevronDownIcon />
           </button>
 
@@ -180,9 +203,9 @@ export default function DistributionsTable({
               setBarangayOpen(false)
               setActiveMenu(null)
             }}
-            className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+            className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
           >
-            <span className="text-sm">{statusLabel}</span>
+            <span className="text-xs">{statusLabel}</span>
             <ChevronDownIcon />
           </button>
 
@@ -202,7 +225,7 @@ export default function DistributionsTable({
         <button
           type="button"
           onClick={onOpenCreate}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] text-white text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)]"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] text-white text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)]"
         >
           + New Distribution
         </button>
@@ -211,106 +234,58 @@ export default function DistributionsTable({
       {/* Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse table-fixed min-w-[980px] lg:min-w-0">
-            <thead className="bg-gray-50 text-gray-500 text-sm">
+          <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
+            <thead className="bg-gray-50 text-gray-500 text-xs">
               <tr>
-                <th className="px-4 py-4 font-medium w-[16%]">Barangay</th>
-                <th className="px-4 py-4 font-medium w-[22%]">Items</th>
-                <th className="px-4 py-4 font-medium w-[14%]">Households</th>
-                <th className="px-4 py-4 font-medium w-[14%]">Scheduled</th>
-                <th className="px-4 py-4 font-medium w-[12%]">Status</th>
-                <th className="px-4 py-4 font-medium w-[16%]">Claimed At</th>
-                <th className="px-4 py-4 font-medium w-[6%]"></th>
+                <th className="px-4 py-3 font-medium w-[18%]">Barangay</th>
+                <th className="px-4 py-3 font-medium w-[14%]">Households</th>
+                <th className="px-4 py-3 font-medium w-[16%]">Scheduled</th>
+                <th className="px-4 py-3 font-medium w-[12%]">Status</th>
+                <th className="px-4 py-3 font-medium w-[18%]">Claimed At</th>
+                <th className="px-4 py-3 font-medium w-[6%]"></th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100 text-sm">
+            <tbody className="divide-y divide-gray-100 text-[13px]">
               {filtered.length ? (
                 filtered.map((r) => {
-                  const complete = r.served >= r.households && r.households > 0
                   return (
                     <tr key={r.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2 text-gray-700">
                           <PinMiniIcon />
                           <div className="leading-tight">
                             <div className="text-xs text-gray-400">Barangay</div>
-                            <div className="font-medium">{r.barangay.replace('Brgy. ', 'San ')?.includes('San ') ? r.barangay : r.barangay}</div>
+                            <div className="font-medium">{r.barangay}</div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col gap-2">
-                          {r.items.map((it, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex w-fit px-3 py-1 rounded-full bg-gray-100 border border-gray-200 text-xs text-gray-700"
-                            >
-                              {it.name} x{it.qty}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2 text-gray-600">
                           <UsersMiniIcon />
-                          <span className="font-medium">{r.served}/{r.households}</span>
-                          {complete ? (
-                            <span className="ml-1 inline-flex items-center justify-center h-6 px-3 rounded-full text-xs font-medium bg-green-600 text-white">
-                              Complete
-                            </span>
-                          ) : null}
+                          <span className="font-medium">{r.households}</span>
                         </div>
                       </td>
 
-                      <td className="px-4 py-4 text-gray-600">{r.scheduled}</td>
+                      <td className="px-4 py-3 text-gray-600">{r.scheduled}</td>
 
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
                         <StatusPill status={r.status} />
                       </td>
 
-                      <td className="px-4 py-4 text-gray-600">
-                        {r.claimedAt ?? '-'}
+                      <td className="px-4 py-3 text-gray-600">
+                        {r.claimedAt ? new Date(r.claimedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
                       </td>
 
-                      <td className="px-4 py-4 text-right relative">
-                        <div className="relative inline-block" data-row-menu>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-block" data-row-menu>
                           <button
                             onClick={(e) => toggleRowMenu(r.id, e)}
                             className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
                           >
                             <DotsIcon />
                           </button>
-
-                          {activeMenu === r.id ? (
-                            <div
-                              className={[
-                                'absolute right-0 w-56 bg-white rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-200 z-50 overflow-hidden',
-                                menuOpensUp ? 'bottom-full mb-2' : 'top-full mt-2',
-                              ].join(' ')}
-                            >
-                              <div className="py-2">
-                                <MenuItem icon={<EyeIcon />} label="View Details" onClick={() => {
-                                  setSelectedDistribution(r)
-                                  setActiveMenu(null)
-                                }} />
-                                <MenuItem icon={<QrIcon />} label="Show QR Code" onClick={() => setActiveMenu(null)} />
-                                {r.status === 'Unclaimed' ? (
-                                  <MenuItem
-                                    icon={<CheckGreenIcon />}
-                                    label="Mark as claimed"
-                                    tone="success"
-                                    onClick={() => {
-                                      onMarkClaimed(r.id)
-                                      setActiveMenu(null)
-                                    }}
-                                  />
-                                ) : null}
-                              </div>
-                            </div>
-                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -318,7 +293,7 @@ export default function DistributionsTable({
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-6 text-center text-gray-500 text-sm">
                     No distributions found matching your filters.
                   </td>
                 </tr>
@@ -327,6 +302,50 @@ export default function DistributionsTable({
           </table>
         </div>
       </div>
+
+      {/* Row action menu rendered via portal so it's not clipped by table overflow */}
+      {activeMenu && menuPos
+        ? createPortal(
+            <div
+              ref={menuRef}
+              style={{
+                position: 'fixed',
+                top: menuPos.opensUp ? undefined : menuPos.top,
+                bottom: menuPos.opensUp ? window.innerHeight - menuPos.top + 8 : undefined,
+                left: menuPos.left,
+              }}
+              className="w-56 bg-white rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-200 z-[9999] overflow-hidden"
+            >
+              <div className="py-2">
+                {(() => {
+                  const r = filtered.find((row) => row.id === activeMenu)
+                  if (!r) return null
+                  return (
+                    <>
+                      <MenuItem icon={<EyeIcon />} label="View Details" onClick={() => {
+                        setSelectedDistribution(r)
+                        closeRowMenu()
+                      }} />
+                      <MenuItem icon={<QrIcon />} label="Show QR Code" onClick={() => closeRowMenu()} />
+                      {r.status === 'Unclaimed' ? (
+                        <MenuItem
+                          icon={<CheckGreenIcon />}
+                          label="Mark as claimed"
+                          tone="success"
+                          onClick={() => {
+                            onMarkClaimed(r.id)
+                            closeRowMenu()
+                          }}
+                        />
+                      ) : null}
+                    </>
+                  )
+                })()}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   )
 }

@@ -30,16 +30,16 @@ export default function StatsCard({
   const isColored = variant === 'yellow' || variant === 'green'
 
   return (
-    <div className={`rounded-2xl p-5 border shadow-sm transition-transform hover:scale-105 ${variantStyles[variant]}`}>
+    <div className={`rounded-2xl p-4 border shadow-sm transition-transform hover:scale-[1.02] ${variantStyles[variant]}`}>
       <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconVariantStyles[variant]}`}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconVariantStyles[variant]}`}>
           {icon}
         </div>
         <div>
-          <p className={`text-3xl font-bold ${isColored ? 'text-white' : 'text-gray-800'}`}>
+          <p className={`text-2xl font-bold ${isColored ? 'text-white' : 'text-gray-800'}`}>
             {value}
           </p>
-          <p className={`text-sm ${isColored ? 'text-white/80' : 'text-gray-500'}`}>
+          <p className={`text-xs ${isColored ? 'text-white/80' : 'text-gray-500'}`}>
             {title}
           </p>
         </div>

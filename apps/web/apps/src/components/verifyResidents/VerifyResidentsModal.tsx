@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 type ApplicationStatus = 'Pending' | 'Approved' | 'Rejected'
 
 type Application = {
-  id: number
+  id: string
   name: string
   email: string
   barangay: string
@@ -31,8 +31,8 @@ export default function VerificationDetailsModal({
   open: boolean
   application: Application | null
   onClose: () => void
-  onApprove: (id: number) => void
-  onReject: (id: number, reason: string) => void
+  onApprove: (id: string) => void
+  onReject: (id: string, reason: string) => void
 }) {
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState('')
@@ -85,7 +85,7 @@ export default function VerificationDetailsModal({
 
       {/* Modal */}
       <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] border border-gray-100 overflow-hidden flex flex-col max-h-[calc(100vh-4rem)]">
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-5 overflow-y-auto flex-1">
           {/* Header */}
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -95,7 +95,7 @@ export default function VerificationDetailsModal({
                   {application.status}
                 </span>
               </div>
-              <p className="text-sm text-gray-500">Resident verification application details</p>
+              <p className="text-xs text-gray-500">Resident verification application details</p>
             </div>
 
             <button
@@ -111,7 +111,7 @@ export default function VerificationDetailsModal({
           </div>
 
           {/* Info grid */}
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <Info label="Email" value={application.email} />
             <Info label="Contact Number" value={application.contactNumber} />
             <Info label="Address" value={application.address} />
@@ -119,7 +119,7 @@ export default function VerificationDetailsModal({
           </div>
 
           {/* ID Verification */}
-          <div className="mt-5 bg-gray-50 rounded-2xl p-5">
+          <div className="mt-4 bg-gray-50 rounded-2xl p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
               <IdCardIcon />
               ID Verification
@@ -130,7 +130,7 @@ export default function VerificationDetailsModal({
               <Info label="ID Number" value={application.idNumber} />
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-4">
+            <div className="mt-4 grid grid-cols-3 gap-3">
               <ImageSlot label="ID Front" />
               <ImageSlot label="ID Back" />
               <ImageSlot label="Face Scan" />
@@ -138,14 +138,14 @@ export default function VerificationDetailsModal({
           </div>
 
           {/* AI Verification */}
-          <div className="mt-5 bg-gray-50 rounded-2xl p-5">
+          <div className="mt-4 bg-gray-50 rounded-2xl p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-green-800">
               <AIIcon />
               AI Verification Result
             </div>
 
             <div className="mt-3 flex items-end gap-3">
-              <div className="text-3xl font-semibold text-green-800">
+              <div className="text-2xl font-semibold text-green-800">
                 {application.confidence}%
               </div>
               <div className="text-xs text-gray-500 mb-1">
@@ -170,7 +170,7 @@ export default function VerificationDetailsModal({
 
           {/* Pending actions OR Rejection reason display */}
           {canAct ? (
-            <div className="mt-5 flex flex-col sm:flex-row gap-4 sm:items-end sm:justify-between">
+            <div className="mt-4 flex flex-col sm:flex-row gap-4 sm:items-end sm:justify-between">
               <div className="flex-1">
                 <div className="text-xs text-gray-500 mb-2">Rejection Reason (if rejecting)</div>
                 <textarea

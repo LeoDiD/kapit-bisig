@@ -17,6 +17,7 @@ dotenv.config({ path: '.env.local' });
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { connectDB } from './config/database';
 import userRoutes from './routes/userRoutes';
 import authRoutes from './routes/authRoutes';
@@ -24,6 +25,9 @@ import residentRoutes from './routes/residentRoutes';
 import faceRoutes from './routes/faceRoutes';
 import householdRoutes from './routes/householdRoutes';
 import adminTokenRoutes from './routes/adminTokenRoutes';
+import distributionRoutes from './routes/distributionRoutes';
+import superadminAuthRoutes from './routes/superadminAuthRoutes';
+import { requireAuth, requireSuperadmin } from './middleware/superadminAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
 
 const app: Express = express();
@@ -44,10 +48,13 @@ app.use(helmet());
 // Set to 1 if behind single proxy (like nginx)
 app.set('trust proxy', 1);
 
+// Cookie parser — needed for httpOnly auth cookies
+app.use(cookieParser());
+
 // CORS configuration
 // In production, restrict to your specific domains
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -68,11 +75,13 @@ app.use(generalRateLimiter);
  * applied at the route level (see authRoutes.ts)
  */
 app.use('/api/auth', authRoutes);
+app.use('/api/sa', superadminAuthRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/residents', residentRoutes);
 app.use('/api/face', faceRoutes);
 app.use('/api/household', householdRoutes);
 app.use('/api/admin/tokens', adminTokenRoutes);
+app.use('/api/distributions', requireAuth, requireSuperadmin, distributionRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {

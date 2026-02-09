@@ -57,16 +57,16 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-gray-100">
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Name</th>
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Email</th>
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Role</th>
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Barangay</th>
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Status</th>
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Created</th>
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500"></th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Name</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Email</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Role</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Barangay</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Status</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Created</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500"></th>
             </tr>
           </thead>
           <tbody>
@@ -75,42 +75,42 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                 key={user.id}
                 className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
               >
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className="font-medium text-gray-900">{user.name}</span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className="text-gray-600">{user.email}</span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span
-                    className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeStyles(
+                    className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeStyles(
                       user.role
                     )}`}
                   >
                     {user.role}
                   </span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className="text-gray-600">{user.barangay}</span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span
-                    className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeStyles(
+                    className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeStyles(
                       user.status
                     )}`}
                   >
                     {user.status}
                   </span>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className="text-gray-600">{user.createdAt}</span>
                 </td>
-                <td className="px-6 py-4 relative">
+                <td className="px-4 py-3 relative">
                   <button
                     onClick={() => toggleMenu(user.id)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <MoreVerticalIcon className="w-5 h-5 text-gray-400" />
+                    <MoreVerticalIcon className="w-4 h-4 text-gray-400" />
                   </button>
 
                   {/* Dropdown Menu */}
@@ -121,17 +121,17 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                         className="fixed inset-0 z-10"
                         onClick={() => setOpenMenuId(null)}
                       />
-                      <div className="absolute right-6 top-12 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20 min-w-[120px]">
+                      <div className="absolute right-4 top-10 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20 min-w-[120px]">
                         <button
                           onClick={() => handleEdit(user.id)}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           <EditIcon className="w-4 h-4" />
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(user.id)}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          className="w-full flex items-center gap-2 px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
                         >
                           <DeleteIcon className="w-4 h-4" />
                           Delete
