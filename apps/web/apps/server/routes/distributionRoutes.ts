@@ -11,20 +11,19 @@
 
 import { Router, Request, Response } from 'express';
 import Distribution, { BARANGAY_OPTIONS } from '../models/Distribution';
+import { AuthRequest } from '../middleware/unifiedAuth';
 
 const router = Router();
 
 /**
  * POST /api/distributions
- * 
+ *
  * Create a new distribution for a barangay.
- * Body: { barangay: string }
- * 
- * Access: Admin, Staff
+ * LGU_STAFF can only create for their assigned barangays.
  */
 router.post(
   '/',
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { barangay, scheduled, households, notes } = req.body;
 
@@ -40,6 +39,17 @@ router.post(
         return res.status(400).json({
           success: false,
           message: `Invalid barangay. Must be one of: ${BARANGAY_OPTIONS.join(', ')}`,
+        });
+      }
+
+      // Scope check: staff can only create within assigned barangays
+      if (
+        req.authUser?.role === 'LGU_STAFF' &&
+        !(req.authUser.assignedBarangays ?? []).includes(barangay)
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to create distributions for this barangay',
         });
       }
 
@@ -79,60 +89,55 @@ router.post(
     } catch (error: unknown) {
       console.error('Error creating distribution:', error);
       const message = error instanceof Error ? error.message : 'Failed to create distribution';
-      res.status(500).json({
-        success: false,
-        message,
-      });
+      res.status(500).json({ success: false, message });
     }
   }
 );
 
 /**
  * GET /api/distributions
- * 
- * List all distributions, sorted by createdAt descending (newest first).
- * 
- * Access: Admin, Staff, Volunteer
+ *
+ * List distributions. LGU_STAFF only sees their assigned barangays.
  */
 router.get(
   '/',
-  async (_req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
-      const distributions = await Distribution.find()
+      // Build filter: scope to assigned barangays for staff
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const filter: any = {};
+
+      if (req.authUser?.role === 'LGU_STAFF') {
+        const assigned = req.authUser.assignedBarangays ?? [];
+        filter.barangay = { $in: assigned };
+      }
+
+      const distributions = await Distribution.find(filter)
         .sort({ createdAt: -1 })
         .lean();
 
-      // Transform _id to id for each document
       const data = distributions.map((d) => ({
         ...d,
         id: d._id.toString(),
       }));
 
-      res.json({
-        success: true,
-        data,
-      });
+      res.json({ success: true, data });
     } catch (error: unknown) {
       console.error('Error fetching distributions:', error);
       const message = error instanceof Error ? error.message : 'Failed to fetch distributions';
-      res.status(500).json({
-        success: false,
-        message,
-      });
+      res.status(500).json({ success: false, message });
     }
   }
 );
 
 /**
  * PATCH /api/distributions/:id/claim
- * 
- * Mark a distribution as claimed. Sets status to 'Claimed' and claimedAt to now.
- * 
- * Access: Admin, Staff
+ *
+ * Mark a distribution as claimed. Staff can only claim within scope.
  */
 router.patch(
   '/:id/claim',
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
 
@@ -142,6 +147,17 @@ router.patch(
         return res.status(404).json({
           success: false,
           message: 'Distribution not found',
+        });
+      }
+
+      // Scope check
+      if (
+        req.authUser?.role === 'LGU_STAFF' &&
+        !(req.authUser.assignedBarangays ?? []).includes(distribution.barangay)
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to this distribution',
         });
       }
 
@@ -164,10 +180,7 @@ router.patch(
     } catch (error: unknown) {
       console.error('Error claiming distribution:', error);
       const message = error instanceof Error ? error.message : 'Failed to claim distribution';
-      res.status(500).json({
-        success: false,
-        message,
-      });
+      res.status(500).json({ success: false, message });
     }
   }
 );

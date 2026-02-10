@@ -2,26 +2,26 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import AddUserModal from './AddUserModal'
-import { api, User, UserRole, UserStatus, UserStats } from '@/lib/api'
+import { api, StaffUser, StaffStats, BARANGAY_OPTIONS } from '@/lib/api'
 
-type FilterRole = 'All' | UserRole
+type FilterStatus = 'all' | 'active' | 'inactive'
 
-const ROLE_OPTIONS: { value: FilterRole; label: string }[] = [
-  { value: 'All', label: 'All Roles' },
-  { value: 'Admin', label: 'Admin' },
-  { value: 'Staff', label: 'Staff' },
-  { value: 'Volunteer', label: 'Volunteer' },
+const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
+  { value: 'all', label: 'All Status' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
 ]
 
 export default function UsersTable() {
   // --- STATE ---
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterRole, setFilterRole] = useState<FilterRole>('All')
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [filterBarangay, setFilterBarangay] = useState<string>('')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   
   // Data state
-  const [users, setUsers] = useState<User[]>([])
-  const [stats, setStats] = useState<UserStats | null>(null)
+  const [users, setUsers] = useState<StaffUser[]>([])
+  const [stats, setStats] = useState<StaffStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,14 +30,20 @@ export default function UsersTable() {
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; openUp: boolean } | null>(null)
   const rowMenuRef = useRef<HTMLDivElement>(null)
 
-  // Role filter dropdown
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
-  const roleMenuRef = useRef<HTMLDivElement>(null)
-  const roleButtonRef = useRef<HTMLButtonElement>(null)
+  // Status filter dropdown
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
+  const statusMenuRef = useRef<HTMLDivElement>(null)
+  const statusButtonRef = useRef<HTMLButtonElement>(null)
 
-  // Delete confirmation
-  const [deleteConfirm, setDeleteConfirm] = useState<{ userId: string; userName: string } | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+  // Barangay filter dropdown
+  const [brgyDropdownOpen, setBrgyDropdownOpen] = useState(false)
+  const brgyMenuRef = useRef<HTMLDivElement>(null)
+  const brgyButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Reset password modal
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; name: string } | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [isResetting, setIsResetting] = useState(false)
 
   // --- FETCH DATA ---
   const fetchUsers = useCallback(async () => {
@@ -45,26 +51,27 @@ export default function UsersTable() {
       setIsLoading(true)
       setError(null)
       
-      const params: { role?: UserRole; search?: string } = {}
-      if (filterRole !== 'All') params.role = filterRole
+      const params: { search?: string; status?: 'active' | 'inactive'; barangay?: string } = {}
+      if (filterStatus !== 'all') params.status = filterStatus
       if (searchQuery) params.search = searchQuery
+      if (filterBarangay) params.barangay = filterBarangay
       
-      const response = await api.getUsers(params)
+      const response = await api.getStaffUsers(params)
       
       if (response.success && response.data) {
         setUsers(response.data)
       }
     } catch (err) {
       console.error('Failed to fetch users:', err)
-      setError('Failed to load users. Please try again.')
+      setError('Failed to load staff users. Please try again.')
     } finally {
       setIsLoading(false)
     }
-  }, [filterRole, searchQuery])
+  }, [filterStatus, searchQuery, filterBarangay])
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await api.getUserStats()
+      const response = await api.getStaffStats()
       if (response.success && response.data) {
         setStats(response.data)
       }
@@ -86,16 +93,20 @@ export default function UsersTable() {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node
 
-      // close row dropdown
       if (rowMenuRef.current && !rowMenuRef.current.contains(target)) {
         setActiveDropdown(null)
       }
 
-      // close role dropdown
-      const clickedRoleButton = roleButtonRef.current?.contains(target)
-      const clickedRoleMenu = roleMenuRef.current?.contains(target)
-      if (!clickedRoleButton && !clickedRoleMenu) {
-        setRoleDropdownOpen(false)
+      const clickedStatusButton = statusButtonRef.current?.contains(target)
+      const clickedStatusMenu = statusMenuRef.current?.contains(target)
+      if (!clickedStatusButton && !clickedStatusMenu) {
+        setStatusDropdownOpen(false)
+      }
+
+      const clickedBrgyButton = brgyButtonRef.current?.contains(target)
+      const clickedBrgyMenu = brgyMenuRef.current?.contains(target)
+      if (!clickedBrgyButton && !clickedBrgyMenu) {
+        setBrgyDropdownOpen(false)
       }
     }
 
@@ -117,7 +128,7 @@ export default function UsersTable() {
     const viewportHeight = window.innerHeight
     const spaceBelow = viewportHeight - buttonRect.bottom
     const spaceAbove = buttonRect.top
-    const menuHeight = 160
+    const menuHeight = 120
     const menuWidth = 192
 
     const shouldOpenUp = spaceBelow < menuHeight && spaceAbove >= menuHeight
@@ -136,9 +147,9 @@ export default function UsersTable() {
     fetchStats()
   }
 
-  const handleStatusChange = async (userId: string, newStatus: UserStatus) => {
+  const handleToggleActive = async (userId: string, currentlyActive: boolean) => {
     try {
-      await api.updateUserStatus(userId, newStatus)
+      await api.updateStaffUser(userId, { isActive: !currentlyActive })
       fetchUsers()
       fetchStats()
       setActiveDropdown(null)
@@ -148,51 +159,43 @@ export default function UsersTable() {
     }
   }
 
-  const handleDeleteUser = async () => {
-    if (!deleteConfirm) return
+  const handleResetPassword = async () => {
+    if (!resetPasswordTarget || !newPassword) return
     
     try {
-      setIsDeleting(true)
-      await api.deleteUser(deleteConfirm.userId)
-      fetchUsers()
-      fetchStats()
-      setDeleteConfirm(null)
+      setIsResetting(true)
+      await api.resetStaffPassword(resetPasswordTarget.id, newPassword)
+      setResetPasswordTarget(null)
+      setNewPassword('')
       setActiveDropdown(null)
+      alert('Password reset successfully')
     } catch (err) {
-      console.error('Failed to delete user:', err)
-      alert('Failed to delete user')
+      console.error('Failed to reset password:', err)
+      const e = err as { message?: string }
+      alert(e.message || 'Failed to reset password')
     } finally {
-      setIsDeleting(false)
+      setIsResetting(false)
     }
   }
 
   // --- SUMMARY DATA ---
   const summary = useMemo(() => {
     if (stats) {
-      return {
-        admins: stats.byRole.admin,
-        staffs: stats.byRole.staff,
-        volunteers: stats.byRole.volunteer,
-      }
+      return { total: stats.total, active: stats.active, inactive: stats.inactive }
     }
     return {
-      admins: users.filter((u) => u.role === 'Admin').length,
-      staffs: users.filter((u) => u.role === 'Staff').length,
-      volunteers: users.filter((u) => u.role === 'Volunteer').length,
+      total: users.length,
+      active: users.filter(u => u.isActive).length,
+      inactive: users.filter(u => !u.isActive).length,
     }
   }, [stats, users])
 
-  const selectedRoleLabel =
-    ROLE_OPTIONS.find((o) => o.value === filterRole)?.label ?? 'All Roles'
+  const selectedStatusLabel =
+    STATUS_OPTIONS.find(o => o.value === filterStatus)?.label ?? 'All Status'
 
-  // Format date helper
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   }
 
   return (
@@ -210,41 +213,41 @@ export default function UsersTable() {
               </span>
               <input
                 type="text"
-                placeholder="Search users..."
+                placeholder="Search by name or username..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
               />
             </div>
 
-            {/* Role Filter */}
-            <div className="relative min-w-[180px]">
+            {/* Status Filter */}
+            <div className="relative min-w-[150px]">
               <button
-                ref={roleButtonRef}
+                ref={statusButtonRef}
                 type="button"
-                onClick={() => setRoleDropdownOpen((v) => !v)}
+                onClick={() => setStatusDropdownOpen(v => !v)}
                 className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
               >
-                <span className="text-xs">{selectedRoleLabel}</span>
+                <span className="text-xs">{selectedStatusLabel}</span>
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
-              {roleDropdownOpen && (
+              {statusDropdownOpen && (
                 <div
-                  ref={roleMenuRef}
+                  ref={statusMenuRef}
                   className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
                 >
-                  {ROLE_OPTIONS.map((opt) => {
-                    const selected = opt.value === filterRole
+                  {STATUS_OPTIONS.map(opt => {
+                    const selected = opt.value === filterStatus
                     return (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => {
-                          setFilterRole(opt.value)
-                          setRoleDropdownOpen(false)
+                          setFilterStatus(opt.value)
+                          setStatusDropdownOpen(false)
                         }}
                         className={[
                           'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
@@ -265,6 +268,70 @@ export default function UsersTable() {
                 </div>
               )}
             </div>
+
+            {/* Barangay Filter */}
+            <div className="relative min-w-[170px]">
+              <button
+                ref={brgyButtonRef}
+                type="button"
+                onClick={() => setBrgyDropdownOpen(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+              >
+                <span className="text-xs">{filterBarangay || 'All Barangays'}</span>
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {brgyDropdownOpen && (
+                <div
+                  ref={brgyMenuRef}
+                  className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50 max-h-60 overflow-y-auto"
+                >
+                  {/* All option */}
+                  <button
+                    type="button"
+                    onClick={() => { setFilterBarangay(''); setBrgyDropdownOpen(false) }}
+                    className={[
+                      'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      !filterBarangay ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                    ].join(' ')}
+                  >
+                    <span className="w-5 flex items-center justify-center">
+                      {!filterBarangay && (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                    <span>All Barangays</span>
+                  </button>
+                  {BARANGAY_OPTIONS.map(b => {
+                    const selected = filterBarangay === b
+                    return (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => { setFilterBarangay(b); setBrgyDropdownOpen(false) }}
+                        className={[
+                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                        ].join(' ')}
+                      >
+                        <span className="w-5 flex items-center justify-center">
+                          {selected && (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </span>
+                        <span>{b}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Add User */}
@@ -275,7 +342,7 @@ export default function UsersTable() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Add User
+            Add Staff
           </button>
         </div>
 
@@ -284,7 +351,7 @@ export default function UsersTable() {
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0F533A]"></div>
-              <span className="ml-3 text-gray-500">Loading users...</span>
+              <span className="ml-3 text-gray-500">Loading staff users...</span>
             </div>
           ) : error ? (
             <div className="text-center py-12">
@@ -300,38 +367,42 @@ export default function UsersTable() {
             <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
               <thead className="bg-gray-50 text-gray-500 text-sm">
                 <tr>
-                  <th className="px-4 py-3 font-medium w-[18%]">Name</th>
-                  <th className="px-4 py-3 font-medium w-[20%]">Email</th>
-                  <th className="px-4 py-3 font-medium w-[12%]">Role</th>
-                  <th className="px-4 py-3 font-medium w-[15%]">Barangay</th>
+                  <th className="px-4 py-3 font-medium w-[18%]">Full Name</th>
+                  <th className="px-4 py-3 font-medium w-[14%]">Username</th>
+                  <th className="px-4 py-3 font-medium w-[28%]">Assigned Barangays</th>
                   <th className="px-4 py-3 font-medium w-[10%]">Status</th>
-                  <th className="px-4 py-3 font-medium w-[15%]">Created</th>
-                  <th className="px-4 py-3 font-medium text-right w-[10%]"></th>
+                  <th className="px-4 py-3 font-medium w-[18%]">Created</th>
+                  <th className="px-4 py-3 font-medium text-right w-[12%]"></th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-100 text-sm">
                 {users.length > 0 ? (
-                  users.map((user) => (
-                    <tr key={user.id || user._id} className="hover:bg-gray-50 relative">
+                  users.map(user => (
+                    <tr key={user.id} className="hover:bg-gray-50 relative">
                       <td className="px-4 py-3 text-gray-800 font-medium whitespace-normal break-words">
-                        {user.firstName} {user.lastName}
+                        {user.fullName}
                       </td>
 
                       <td className="px-4 py-3 text-gray-600 whitespace-normal break-words">
-                        {user.email}
+                        {user.username}
                       </td>
 
                       <td className="px-4 py-3">
-                        <RoleBadge role={user.role} />
-                      </td>
-
-                      <td className="px-4 py-3 text-gray-600 whitespace-normal break-words">
-                        {user.barangay || '-'}
+                        <div className="flex flex-wrap gap-1">
+                          {user.assignedBarangays.map(b => (
+                            <span
+                              key={b}
+                              className="inline-block px-2 py-0.5 rounded-full bg-[#0F533A]/10 text-[#0F533A] text-[11px] font-medium"
+                            >
+                              {b}
+                            </span>
+                          ))}
+                        </div>
                       </td>
 
                       <td className="px-4 py-3">
-                        <StatusBadge status={user.status} />
+                        <StatusBadge isActive={user.isActive} />
                       </td>
 
                       <td className="px-4 py-3 text-gray-600 whitespace-normal">
@@ -340,7 +411,7 @@ export default function UsersTable() {
 
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={(e) => toggleRowDropdown(user.id || user._id || '', e)}
+                          onClick={e => toggleRowDropdown(user.id, e)}
                           className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
                         >
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,8 +423,8 @@ export default function UsersTable() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                      No users found.
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      No staff users found.
                     </td>
                   </tr>
                 )}
@@ -365,9 +436,9 @@ export default function UsersTable() {
 
       {/* Summary Cards */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SummaryCard value={summary.admins} label="Administrators" color="green" />
-        <SummaryCard value={summary.staffs} label="Staff Members" color="yellow" />
-        <SummaryCard value={summary.volunteers} label="Volunteers" color="gray" />
+        <SummaryCard value={summary.total} label="Total Staff" color="green" />
+        <SummaryCard value={summary.active} label="Active" color="yellow" />
+        <SummaryCard value={summary.inactive} label="Inactive" color="gray" />
       </div>
 
       {/* Fixed position dropdown menu */}
@@ -384,31 +455,27 @@ export default function UsersTable() {
         >
           <div className="py-2 flex flex-col">
             {/* Status Toggle */}
-            {users.find(u => (u.id || u._id) === activeDropdown)?.status === 'Active' ? (
+            {users.find(u => u.id === activeDropdown)?.isActive ? (
               <MenuItem 
                 icon={<DeactivateIcon />} 
                 label="Deactivate" 
-                onClick={() => handleStatusChange(activeDropdown, 'Inactive')}
+                onClick={() => handleToggleActive(activeDropdown, true)}
               />
             ) : (
               <MenuItem 
                 icon={<ActivateIcon />} 
                 label="Activate" 
-                onClick={() => handleStatusChange(activeDropdown, 'Active')}
+                onClick={() => handleToggleActive(activeDropdown, false)}
               />
             )}
-            <MenuItem icon={<EditIcon />} label="Edit" onClick={() => setActiveDropdown(null)} />
             <MenuItem 
-              icon={<DeleteIcon />} 
-              label="Delete" 
-              variant="danger" 
+              icon={<KeyIcon />} 
+              label="Reset Password" 
               onClick={() => {
-                const user = users.find(u => (u.id || u._id) === activeDropdown)
+                const user = users.find(u => u.id === activeDropdown)
                 if (user) {
-                  setDeleteConfirm({
-                    userId: user.id || user._id || '',
-                    userName: `${user.firstName} ${user.lastName}`
-                  })
+                  setResetPasswordTarget({ id: user.id, name: user.fullName })
+                  setActiveDropdown(null)
                 }
               }}
             />
@@ -416,29 +483,36 @@ export default function UsersTable() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
+      {/* Reset Password Modal */}
+      {resetPasswordTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setResetPasswordTarget(null); setNewPassword('') }} />
           <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete User</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{deleteConfirm.userName}</strong>? This action cannot be undone.
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Reset Password</h3>
+            <p className="text-gray-600 mb-4">
+              Set a new password for <strong>{resetPasswordTarget.name}</strong>.
             </p>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value.replace(/\s/g, ''))}
+              placeholder="New password (min. 16 characters)"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] mb-4"
+            />
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setDeleteConfirm(null)}
+                onClick={() => { setResetPasswordTarget(null); setNewPassword('') }}
                 className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
-                disabled={isDeleting}
+                disabled={isResetting}
               >
                 Cancel
               </button>
               <button
-                onClick={handleDeleteUser}
-                className="px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
-                disabled={isDeleting}
+                onClick={handleResetPassword}
+                className="px-4 py-2 rounded-xl bg-[#0F533A] text-white hover:bg-[#0a3f2c] disabled:opacity-50"
+                disabled={isResetting || !newPassword}
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isResetting ? 'Resetting...' : 'Reset'}
               </button>
             </div>
           </div>
@@ -495,54 +569,20 @@ function MenuItem({
   )
 }
 
-function RoleBadge({ role }: { role: string }) {
-  const styles: Record<string, string> = {
-    Admin: 'bg-[#0F533A] text-white',
-    Staff: 'bg-[#EAB308] text-white',
-    Volunteer: 'bg-white border border-gray-200 text-gray-600',
-  }
-
+function StatusBadge({ isActive }: { isActive: boolean }) {
   return (
-    <span
-      title={role}
-      className={[
-        'inline-flex items-center justify-center',
-        'h-6 w-[100px] rounded-full',
-        'px-2 text-[11px] font-semibold',
-        'overflow-hidden whitespace-nowrap text-ellipsis',
-        styles[role] ?? 'bg-gray-100 text-gray-700',
-      ].join(' ')}
-    >
-      {role}
+    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+      isActive ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'
+    }`}>
+      {isActive ? 'Active' : 'Inactive'}
     </span>
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    Active: 'bg-green-500 text-white',
-    Inactive: 'bg-gray-400 text-white',
-    Suspended: 'bg-red-500 text-white',
-  }
-  return (
-    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${styles[status] ?? 'bg-gray-100 text-gray-700'}`}>
-      {status}
-    </span>
-  )
-}
-
-function EditIcon() {
+function KeyIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-    </svg>
-  )
-}
-
-function DeleteIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
     </svg>
   )
 }

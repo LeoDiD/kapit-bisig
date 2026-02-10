@@ -20,14 +20,15 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { connectDB } from './config/database';
 import userRoutes from './routes/userRoutes';
-import authRoutes from './routes/authRoutes';
 import residentRoutes from './routes/residentRoutes';
 import faceRoutes from './routes/faceRoutes';
 import householdRoutes from './routes/householdRoutes';
 import adminTokenRoutes from './routes/adminTokenRoutes';
 import distributionRoutes from './routes/distributionRoutes';
 import superadminAuthRoutes from './routes/superadminAuthRoutes';
-import { requireAuth, requireSuperadmin } from './middleware/superadminAuth';
+import unifiedAuthRoutes from './routes/unifiedAuthRoutes';
+import adminStaffRoutes from './routes/adminStaffRoutes';
+import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
 
 const app: Express = express();
@@ -74,14 +75,15 @@ app.use(generalRateLimiter);
  * Authentication routes have additional rate limiting
  * applied at the route level (see authRoutes.ts)
  */
-app.use('/api/auth', authRoutes);
-app.use('/api/sa', superadminAuthRoutes);
+app.use('/api/auth', unifiedAuthRoutes);       // unified login / logout / me
+app.use('/api/sa', superadminAuthRoutes);        // legacy superadmin-only routes (kept for compat)
+app.use('/api/admin/users', adminStaffRoutes);   // SUPERADMIN manage staff
 app.use('/api/users', userRoutes);
 app.use('/api/residents', residentRoutes);
 app.use('/api/face', faceRoutes);
 app.use('/api/household', householdRoutes);
 app.use('/api/admin/tokens', adminTokenRoutes);
-app.use('/api/distributions', requireAuth, requireSuperadmin, distributionRoutes);
+app.use('/api/distributions', requireAuth, requireStaffOrSuperadmin, distributionRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {

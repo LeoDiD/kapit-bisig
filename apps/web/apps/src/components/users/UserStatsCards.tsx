@@ -2,18 +2,18 @@ import React from 'react'
 
 interface UserStatsCardsProps {
   stats: {
-    administrators: number
-    barangayOfficials: number
-    volunteers: number
+    total: number
+    active: number
+    inactive: number
   }
 }
 
 export default function UserStatsCards({ stats }: UserStatsCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <StatsCard value={stats.administrators} label="Administrators" />
-      <StatsCard value={stats.barangayOfficials} label="Barangay Officials" />
-      <StatsCard value={stats.volunteers} label="Volunteers" />
+      <StatsCard value={stats.total} label="Total Staff" />
+      <StatsCard value={stats.active} label="Active" />
+      <StatsCard value={stats.inactive} label="Inactive" />
     </div>
   )
 }

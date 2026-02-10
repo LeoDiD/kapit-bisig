@@ -9,13 +9,13 @@ import { useAuth } from '@/lib/AuthContext'
 
 // Navigation items configuration
 const mainNavItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
-  { name: 'Manage Users', href: '/users', icon: UsersIcon },
-  { name: 'Verify Residents', href: '/verify-residents', icon: VerifyResidentsIcon },
-  { name: 'Households', href: '/households', icon: HouseholdsIcon },
-  { name: 'Distribution', href: '/distribution', icon: DistributionIcon },
-  { name: 'Blockchain Ledger', href: '/blockchain-ledger', icon: BlockchainIcon },
-  { name: 'Reports', href: '/reports', icon: ReportsIcon },
+  { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon, superadminOnly: false },
+  { name: 'Manage Users', href: '/users', icon: UsersIcon, superadminOnly: true },
+  { name: 'Verify Residents', href: '/verify-residents', icon: VerifyResidentsIcon, superadminOnly: false },
+  { name: 'Households', href: '/households', icon: HouseholdsIcon, superadminOnly: false },
+  { name: 'Distribution', href: '/distribution', icon: DistributionIcon, superadminOnly: false },
+  { name: 'Blockchain Ledger', href: '/blockchain-ledger', icon: BlockchainIcon, superadminOnly: false },
+  { name: 'Reports', href: '/reports', icon: ReportsIcon, superadminOnly: false },
 ]
 
 interface SidebarProps {
@@ -26,7 +26,7 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { logout } = useAuth()
+  const { logout, isSuperadmin } = useAuth()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -70,7 +70,9 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       {/* Main Navigation */}
       <nav className="flex-1 px-2 py-3 space-y-1">
-        {mainNavItems.map((item) => {
+        {mainNavItems
+          .filter(item => !item.superadminOnly || isSuperadmin)
+          .map((item) => {
           const isActive = pathname === item.href
           return (
             <NavItem

@@ -6,62 +6,56 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-/**
- * User Roles for RBAC
- */
-export type UserRole = 'Admin' | 'Staff' | 'Volunteer';
+// ========================== TYPES ==========================
+
+/** Barangay options (must match server) */
+export const BARANGAY_OPTIONS = [
+  'Bolo', 'Bongalon', 'Dulig', 'Laois', 'Magsaysay',
+  'Poblacion', 'San Gonzalo', 'San Jose', 'Tobuan', 'Uyong',
+] as const;
+export type Barangay = typeof BARANGAY_OPTIONS[number];
 
 /**
- * User Status
+ * Staff user from admin API
  */
-export type UserStatus = 'Active' | 'Inactive' | 'Suspended';
-
-/**
- * User interface
- */
-export interface User {
+export interface StaffUser {
   id: string;
-  _id?: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-  status: UserStatus;
-  barangay?: string;
-  phoneNumber?: string;
-  lastLogin?: string;
+  username: string;
+  fullName: string;
+  role: 'LGU_STAFF';
+  assignedBarangays: string[];
+  isActive: boolean;
+  lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
-  createdBy?: {
-    firstName: string;
-    lastName: string;
-  };
 }
 
 /**
- * Create user data
+ * Create staff user data
  */
-export interface CreateUserData {
-  email: string;
+export interface CreateStaffData {
+  username: string;
   password: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-  barangay?: string;
-  phoneNumber?: string;
-  status?: UserStatus;
+  fullName: string;
+  assignedBarangays: string[];
 }
 
 /**
- * Update user data
+ * Update staff user data
  */
-export interface UpdateUserData {
-  firstName?: string;
-  lastName?: string;
-  role?: UserRole;
-  barangay?: string;
-  phoneNumber?: string;
-  status?: UserStatus;
+export interface UpdateStaffData {
+  fullName?: string;
+  assignedBarangays?: string[];
+  isActive?: boolean;
+}
+
+/**
+ * Staff user stats
+ */
+export interface StaffStats {
+  total: number;
+  active: number;
+  inactive: number;
 }
 
 /**
@@ -72,37 +66,6 @@ export interface ApiResponse<T> {
   message?: string;
   data?: T;
   errors?: string[];
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
-}
-
-/**
- * User statistics
- */
-export interface UserStats {
-  total: number;
-  byRole: {
-    admin: number;
-    staff: number;
-    volunteer: number;
-  };
-  byStatus: {
-    active: number;
-    inactive: number;
-  };
-}
-
-/**
- * Available roles response
- */
-export interface AvailableRoles {
-  webRoles: UserRole[];
-  mobileRoles: UserRole[];
-  availableRoles: UserRole[];
 }
 
 /**
@@ -121,33 +84,14 @@ export interface DistributionData {
   updatedAt: string;
 }
 
-/**
- * Get auth token from localStorage
- */
-const getAuthToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('authToken');
-  }
-  return null;
-};
+// ========================== HELPERS ==========================
 
 /**
- * Create headers with authentication
+ * Create headers (cookie-based auth – no bearer token needed)
  */
-const createHeaders = (includeAuth = true): HeadersInit => {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (includeAuth) {
-    const token = getAuthToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-  }
-  
-  return headers;
-};
+const createHeaders = (): HeadersInit => ({
+  'Content-Type': 'application/json',
+});
 
 /**
  * Handle API response
@@ -167,148 +111,81 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return data;
 }
 
-/**
- * API Client
- */
+// ========================== API CLIENT ==========================
+
 export const api = {
-  // ==================== USERS ====================
-  
+  // ==================== STAFF USER MANAGEMENT (SUPERADMIN) ====================
+
   /**
-   * Get all users with optional filtering
+   * List staff users with optional filters
    */
-  async getUsers(params?: {
-    role?: UserRole;
-    status?: UserStatus;
+  async getStaffUsers(params?: {
     search?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<ApiResponse<User[]>> {
-    const searchParams = new URLSearchParams();
-    if (params?.role) searchParams.append('role', params.role);
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.search) searchParams.append('search', params.search);
-    if (params?.page) searchParams.append('page', params.page.toString());
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    barangay?: string;
+    status?: 'active' | 'inactive';
+  }): Promise<ApiResponse<StaffUser[]>> {
+    const sp = new URLSearchParams();
+    if (params?.search) sp.append('search', params.search);
+    if (params?.barangay) sp.append('barangay', params.barangay);
+    if (params?.status) sp.append('status', params.status);
     
-    const url = `${API_URL}/users${searchParams.toString() ? `?${searchParams}` : ''}`;
+    const qs = sp.toString();
+    const url = `${API_URL}/admin/users${qs ? `?${qs}` : ''}`;
     const response = await fetch(url, {
       headers: createHeaders(),
+      credentials: 'include',
     });
-    
-    return handleResponse<ApiResponse<User[]>>(response);
+    return handleResponse<ApiResponse<StaffUser[]>>(response);
   },
 
   /**
-   * Get user by ID
+   * Get staff user stats
    */
-  async getUser(id: string): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_URL}/users/${id}`, {
+  async getStaffStats(): Promise<ApiResponse<StaffStats>> {
+    const response = await fetch(`${API_URL}/admin/users/stats`, {
       headers: createHeaders(),
+      credentials: 'include',
     });
-    return handleResponse<ApiResponse<User>>(response);
+    return handleResponse<ApiResponse<StaffStats>>(response);
   },
 
   /**
-   * Get user statistics
+   * Create a new staff user
    */
-  async getUserStats(): Promise<ApiResponse<UserStats>> {
-    const response = await fetch(`${API_URL}/users/stats`, {
-      headers: createHeaders(),
-    });
-    return handleResponse<ApiResponse<UserStats>>(response);
-  },
-
-  /**
-   * Get available roles for current user
-   */
-  async getAvailableRoles(): Promise<ApiResponse<AvailableRoles>> {
-    const response = await fetch(`${API_URL}/users/roles/available`, {
-      headers: createHeaders(),
-    });
-    return handleResponse<ApiResponse<AvailableRoles>>(response);
-  },
-
-  /**
-   * Create a new user
-   */
-  async createUser(data: CreateUserData): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_URL}/users`, {
+  async createStaffUser(data: CreateStaffData): Promise<ApiResponse<StaffUser>> {
+    const response = await fetch(`${API_URL}/admin/users`, {
       method: 'POST',
       headers: createHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     });
-    return handleResponse<ApiResponse<User>>(response);
+    return handleResponse<ApiResponse<StaffUser>>(response);
   },
 
   /**
-   * Update user
+   * Update a staff user
    */
-  async updateUser(id: string, data: UpdateUserData): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_URL}/users/${id}`, {
-      method: 'PUT',
+  async updateStaffUser(id: string, data: UpdateStaffData): Promise<ApiResponse<StaffUser>> {
+    const response = await fetch(`${API_URL}/admin/users/${id}`, {
+      method: 'PATCH',
       headers: createHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     });
-    return handleResponse<ApiResponse<User>>(response);
+    return handleResponse<ApiResponse<StaffUser>>(response);
   },
 
   /**
-   * Update user status
+   * Reset a staff user's password
    */
-  async updateUserStatus(id: string, status: UserStatus): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_URL}/users/${id}/status`, {
+  async resetStaffPassword(id: string, newPassword: string): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/admin/users/${id}/reset-password`, {
       method: 'PATCH',
       headers: createHeaders(),
-      body: JSON.stringify({ status }),
-    });
-    return handleResponse<ApiResponse<User>>(response);
-  },
-
-  /**
-   * Reset user password
-   */
-  async resetUserPassword(id: string, newPassword: string): Promise<ApiResponse<void>> {
-    const response = await fetch(`${API_URL}/users/${id}/password`, {
-      method: 'PATCH',
-      headers: createHeaders(),
+      credentials: 'include',
       body: JSON.stringify({ newPassword }),
     });
     return handleResponse<ApiResponse<void>>(response);
-  },
-
-  /**
-   * Delete user
-   */
-  async deleteUser(id: string): Promise<ApiResponse<void>> {
-    const response = await fetch(`${API_URL}/users/${id}`, {
-      method: 'DELETE',
-      headers: createHeaders(),
-    });
-    return handleResponse<ApiResponse<void>>(response);
-  },
-
-  // ==================== AUTH ====================
-
-  /**
-   * Login
-   */
-  async login(email: string, password: string): Promise<ApiResponse<{ token: string; user: User }>> {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: createHeaders(false),
-      body: JSON.stringify({ email, password }),
-    });
-    return handleResponse<ApiResponse<{ token: string; user: User }>>(response);
-  },
-
-  /**
-   * Get current user profile
-   */
-  async getProfile(): Promise<ApiResponse<User>> {
-    const response = await fetch(`${API_URL}/auth/me`, {
-      headers: createHeaders(),
-    });
-    return handleResponse<ApiResponse<User>>(response);
   },
 
   // ==================== HEALTH ====================

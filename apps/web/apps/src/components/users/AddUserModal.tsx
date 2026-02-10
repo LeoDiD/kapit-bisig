@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { api, CreateUserData, UserRole } from '@/lib/api'
+import { api, BARANGAY_OPTIONS, CreateStaffData } from '@/lib/api'
 
 interface AddUserModalProps {
   isOpen: boolean
@@ -10,83 +10,61 @@ interface AddUserModalProps {
 }
 
 interface FormErrors {
-  firstName?: string
-  lastName?: string
-  email?: string
+  username?: string
+  fullName?: string
   password?: string
-  role?: string
-  phoneNumber?: string
+  assignedBarangays?: string
   general?: string
 }
 
 /**
- * Password validation helper
+ * Strong password validation (≥16 chars, upper+lower+digit+symbol, no common patterns)
  */
-const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
+const validateStrongPassword = (password: string): { isValid: boolean; errors: string[] } => {
   const errors: string[] = []
   
-  if (password.length < 8) {
-    errors.push('Password must be at least 8 characters')
+  if (password.length < 16) {
+    errors.push('Password must be at least 16 characters')
   }
   if (!/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter')
+    errors.push('Must contain at least one uppercase letter')
   }
   if (!/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter')
+    errors.push('Must contain at least one lowercase letter')
   }
   if (!/[0-9]/.test(password)) {
-    errors.push('Password must contain at least one number')
+    errors.push('Must contain at least one number')
   }
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    errors.push('Password must contain at least one special character')
+  if (!/[!@#$%^&*(),.?":{}|<>\-_=+\\[\]~/`]/.test(password)) {
+    errors.push('Must contain at least one special character')
   }
   
-  return {
-    isValid: errors.length === 0,
-    errors,
+  const commonPatterns = ['password', '12345678', 'qwerty', 'abcdefgh']
+  const lower = password.toLowerCase()
+  for (const p of commonPatterns) {
+    if (lower.includes(p)) {
+      errors.push('Password contains a common pattern')
+      break
+    }
   }
-}
-
-/**
- * Email validation helper
- */
-const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
-}
-
-/**
- * Phone number validation helper (Philippine format)
- */
-const validatePhoneNumber = (phone: string): boolean => {
-  if (!phone) return true // Optional field
-  const phoneRegex = /^(\+63|0)?[0-9]{10,11}$/
-  return phoneRegex.test(phone.replace(/\s/g, ''))
+  
+  return { isValid: errors.length === 0, errors }
 }
 
 export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) {
   // Form state
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
+  const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [role, setRole] = useState<UserRole | ''>('')
-  const [phoneNumber, setPhoneNumber] = useState('')
+  const [assignedBarangays, setAssignedBarangays] = useState<string[]>([])
+  const [brgyDropdownOpen, setBrgyDropdownOpen] = useState(false)
   
   // UI state
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [showPassword, setShowPassword] = useState(false)
-  const [availableRoles, setAvailableRoles] = useState<UserRole[]>([])
   const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong' | ''>('')
-  
-  // Fetch available roles on mount
-  useEffect(() => {
-    if (isOpen) {
-      fetchAvailableRoles()
-    }
-  }, [isOpen])
   
   // Calculate password strength
   useEffect(() => {
@@ -96,8 +74,8 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
     }
     
     let strength = 0
-    if (password.length >= 8) strength++
-    if (password.length >= 12) strength++
+    if (password.length >= 16) strength += 2
+    else if (password.length >= 10) strength += 1
     if (/[A-Z]/.test(password) && /[a-z]/.test(password)) strength++
     if (/[0-9]/.test(password)) strength++
     if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++
@@ -107,27 +85,13 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
     else setPasswordStrength('strong')
   }, [password])
   
-  const fetchAvailableRoles = async () => {
-    try {
-      const response = await api.getAvailableRoles()
-      if (response.success && response.data) {
-        setAvailableRoles(response.data.availableRoles)
-      }
-    } catch (error) {
-      console.error('Failed to fetch roles:', error)
-      // Default to all roles if fetch fails
-      setAvailableRoles(['Admin', 'Staff', 'Volunteer'])
-    }
-  }
-  
   const resetForm = () => {
-    setFirstName('')
-    setLastName('')
-    setEmail('')
+    setUsername('')
+    setFullName('')
     setPassword('')
     setConfirmPassword('')
-    setRole('')
-    setPhoneNumber('')
+    setAssignedBarangays([])
+    setBrgyDropdownOpen(false)
     setErrors({})
     setShowPassword(false)
   }
@@ -136,51 +100,47 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
     resetForm()
     onClose()
   }
+
+  const toggleBarangay = (brgy: string) => {
+    setAssignedBarangays(prev =>
+      prev.includes(brgy)
+        ? prev.filter(b => b !== brgy)
+        : [...prev, brgy]
+    )
+  }
   
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
     
-    // First name
-    if (!firstName.trim()) {
-      newErrors.firstName = 'First name is required'
-    } else if (firstName.length > 50) {
-      newErrors.firstName = 'First name cannot exceed 50 characters'
+    // Username
+    if (!username.trim()) {
+      newErrors.username = 'Username is required'
+    } else if (username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters'
+    } else if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+      newErrors.username = 'Username may only contain letters, numbers, dots, hyphens, underscores'
     }
     
-    // Last name
-    if (!lastName.trim()) {
-      newErrors.lastName = 'Last name is required'
-    } else if (lastName.length > 50) {
-      newErrors.lastName = 'Last name cannot exceed 50 characters'
-    }
-    
-    // Email
-    if (!email.trim()) {
-      newErrors.email = 'Email is required'
-    } else if (!validateEmail(email)) {
-      newErrors.email = 'Please enter a valid email address'
+    // Full name
+    if (!fullName.trim()) {
+      newErrors.fullName = 'Full name is required'
     }
     
     // Password
     if (!password) {
       newErrors.password = 'Password is required'
     } else {
-      const passwordValidation = validatePassword(password)
-      if (!passwordValidation.isValid) {
-        newErrors.password = passwordValidation.errors[0]
+      const pwCheck = validateStrongPassword(password)
+      if (!pwCheck.isValid) {
+        newErrors.password = pwCheck.errors[0]
       } else if (password !== confirmPassword) {
         newErrors.password = 'Passwords do not match'
       }
     }
     
-    // Role
-    if (!role) {
-      newErrors.role = 'Please select a role'
-    }
-    
-    // Phone number
-    if (phoneNumber && !validatePhoneNumber(phoneNumber)) {
-      newErrors.phoneNumber = 'Please enter a valid Philippine phone number'
+    // Assigned barangays
+    if (assignedBarangays.length === 0) {
+      newErrors.assignedBarangays = 'Select at least one barangay'
     }
     
     setErrors(newErrors)
@@ -190,24 +150,20 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
     
     setIsLoading(true)
     setErrors({})
     
     try {
-      const userData: CreateUserData = {
-        email: email.trim().toLowerCase(),
+      const staffData: CreateStaffData = {
+        username: username.trim().toLowerCase(),
         password,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        role: role as UserRole,
-        ...(phoneNumber && { phoneNumber: phoneNumber.trim() }),
+        fullName: fullName.trim(),
+        assignedBarangays,
       }
       
-      const response = await api.createUser(userData)
+      const response = await api.createStaffUser(staffData)
       
       if (response.success) {
         resetForm()
@@ -216,8 +172,6 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
       }
     } catch (error: unknown) {
       console.error('Failed to create user:', error)
-      
-      // Handle specific error responses
       const err = error as { response?: { message?: string; errors?: string[] } }
       if (err.response?.message) {
         setErrors({ general: err.response.message })
@@ -262,11 +216,11 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
       {/* Modal Content */}
       <div className="relative bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
         
-        {/* Header - Fixed at top */}
+        {/* Header */}
         <div className="p-5 pb-3 flex justify-between items-start shrink-0 bg-white z-10 border-b border-gray-100 rounded-t-3xl">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Add New User</h2>
-            <p className="text-sm text-gray-500 mt-1">Create a new user account for the system</p>
+            <h2 className="text-lg font-bold text-gray-900">Add LGU Staff</h2>
+            <p className="text-sm text-gray-500 mt-1">Create a new LGU Staff account</p>
           </div>
           <button 
             onClick={handleClose}
@@ -279,7 +233,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
           </button>
         </div>
 
-        {/* Form Body - Scrollable */}
+        {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden flex-1">
           <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1" style={{ maxHeight: 'calc(90vh - 180px)' }}>
             
@@ -290,66 +244,43 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               </div>
             )}
             
-            {/* Name Row */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* First Name */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-900 mb-2">
-                  First Name <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Enter first name"
-                  className={`w-full px-4 py-3 rounded-xl border ${
-                    errors.firstName ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
-                  disabled={isLoading}
-                />
-                {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
-                )}
-              </div>
-              
-              {/* Last Name */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-900 mb-2">
-                  Last Name <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Enter last name"
-                  className={`w-full px-4 py-3 rounded-xl border ${
-                    errors.lastName ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
-                  disabled={isLoading}
-                />
-                {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Email */}
+            {/* Full Name */}
             <div>
               <label className="block text-xs font-semibold text-gray-900 mb-2">
-                Email <span className="text-red-500">*</span>
+                Full Name <span className="text-red-500">*</span>
               </label>
               <input 
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter email address"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="e.g. Juan Dela Cruz"
                 className={`w-full px-4 py-3 rounded-xl border ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
+                  errors.fullName ? 'border-red-500' : 'border-gray-300'
                 } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
                 disabled={isLoading}
               />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+              {errors.fullName && (
+                <p className="mt-1 text-sm text-red-500">{errors.fullName}</p>
+              )}
+            </div>
+
+            {/* Username */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-900 mb-2">
+                Username <span className="text-red-500">*</span>
+              </label>
+              <input 
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
+                placeholder="e.g. juan.delacruz"
+                className={`w-full px-4 py-3 rounded-xl border ${
+                  errors.username ? 'border-red-500' : 'border-gray-300'
+                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
+                disabled={isLoading}
+              />
+              {errors.username && (
+                <p className="mt-1 text-sm text-red-500">{errors.username}</p>
               )}
             </div>
 
@@ -357,13 +288,14 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
             <div>
               <label className="block text-xs font-semibold text-gray-900 mb-2">
                 Password <span className="text-red-500">*</span>
+                <span className="text-gray-400 font-normal ml-1">(min. 16 characters)</span>
               </label>
               <div className="relative">
                 <input 
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  onChange={(e) => setPassword(e.target.value.replace(/\s/g, ''))}
+                  placeholder="Strong password (≥16 chars)"
                   className={`w-full px-4 py-3 pr-12 rounded-xl border ${
                     errors.password ? 'border-red-500' : 'border-gray-300'
                   } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
@@ -416,7 +348,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               <input 
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => setConfirmPassword(e.target.value.replace(/\s/g, ''))}
                 placeholder="Confirm password"
                 className={`w-full px-4 py-3 rounded-xl border ${
                   confirmPassword && password !== confirmPassword ? 'border-red-500' : 'border-gray-300'
@@ -428,68 +360,93 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               )}
             </div>
 
-            {/* Role */}
+            {/* Assigned Barangays */}
             <div>
               <label className="block text-xs font-semibold text-gray-900 mb-2">
-                Role <span className="text-red-500">*</span>
+                Assigned Barangays <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <select 
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
-                  className={`w-full px-4 py-3 rounded-xl border ${
-                    errors.role ? 'border-red-500' : 'border-gray-300'
-                  } bg-white focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 appearance-none cursor-pointer`}
-                  disabled={isLoading}
-                >
-                  <option value="" disabled>Select role</option>
-                  {availableRoles.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </span>
-              </div>
-              {errors.role && (
-                <p className="mt-1 text-sm text-red-500">{errors.role}</p>
-              )}
               
-              {/* Role Description */}
-              {role && (
-                <p className="mt-2 text-xs text-gray-500">
-                  {role === 'Admin' && 'Full system access - can manage all users and settings'}
-                  {role === 'Staff' && 'Can manage residents, distributions, and view reports'}
-                  {role === 'Volunteer' && 'Mobile app access for field verification'}
-                </p>
+              {/* Selected barangay chips */}
+              {assignedBarangays.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {assignedBarangays.map(b => (
+                    <span
+                      key={b}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#0F533A]/10 text-[#0F533A] text-xs font-medium"
+                    >
+                      {b}
+                      <button
+                        type="button"
+                        onClick={() => toggleBarangay(b)}
+                        className="hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
               )}
-            </div>
 
-            {/* Phone Number */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-900 mb-2">
-                Phone Number <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input 
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="e.g., 09123456789"
-                className={`w-full px-4 py-3 rounded-xl border ${
-                  errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
+              {/* Dropdown trigger */}
+              <button
+                type="button"
+                onClick={() => setBrgyDropdownOpen(prev => !prev)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border ${
+                  errors.assignedBarangays ? 'border-red-500' : 'border-gray-300'
+                } bg-white text-sm text-gray-600 focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] transition-colors`}
                 disabled={isLoading}
-              />
-              {errors.phoneNumber && (
-                <p className="mt-1 text-sm text-red-500">{errors.phoneNumber}</p>
+              >
+                <span>
+                  {assignedBarangays.length === 0
+                    ? 'Select barangays...'
+                    : `${assignedBarangays.length} barangay${assignedBarangays.length > 1 ? 's' : ''} selected`}
+                </span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${brgyDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown list */}
+              {brgyDropdownOpen && (
+                <div className="mt-1 max-h-40 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                  {BARANGAY_OPTIONS.map(b => {
+                    const checked = assignedBarangays.includes(b)
+                    return (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => toggleBarangay(b)}
+                        className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
+                          checked ? 'bg-[#0F533A]/5 text-[#0F533A] font-medium' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className={`w-4 h-4 flex items-center justify-center rounded border ${
+                          checked ? 'bg-[#0F533A] border-[#0F533A]' : 'border-gray-300'
+                        }`}>
+                          {checked && (
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </span>
+                        {b}
+                      </button>
+                    )
+                  })}
+                </div>
               )}
+
+              {errors.assignedBarangays && (
+                <p className="mt-1 text-sm text-red-500">{errors.assignedBarangays}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-400">Staff can only manage distributions in their assigned barangays.</p>
             </div>
 
           </div>
 
-          {/* Footer Actions - Fixed at bottom */}
+          {/* Footer Actions */}
           <div className="px-5 py-3 flex justify-end gap-3 shrink-0 bg-white border-t border-gray-100 rounded-b-3xl">
             <button 
               type="button"
@@ -510,7 +467,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
               )}
-              {isLoading ? 'Creating...' : 'Create User'}
+              {isLoading ? 'Creating...' : 'Create Staff'}
             </button>
           </div>
         </form>

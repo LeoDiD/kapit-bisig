@@ -24,13 +24,24 @@ const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: 'Barangay Summary', label: 'Barangay Summary' },
 ]
 
-const BARANGAYS = ['Brgy. San Jose', 'Brgy. Santo Nino', 'Brgy. San Miguel']
+const BARANGAYS = [
+  'Bolo',
+  'Bongalon',
+  'Dulig',
+  'Laois',
+  'Magsaysay',
+  'Poblacion',
+  'San Gonzalo',
+  'San Jose',
+  'Tobuan',
+  'Uyong',
+]
 
 const mockRows: ReportRow[] = [
   {
     id: 1,
     date: '2025-12-25',
-    barangay: 'Brgy. San Jose',
+    barangay: 'San Jose',
     totalHouseholds: 45,
     claimed: 43,
     unclaimed: 2,
@@ -45,7 +56,7 @@ const mockRows: ReportRow[] = [
   {
     id: 2,
     date: '2025-12-15',
-    barangay: 'Brgy. Santo Nino',
+    barangay: 'Poblacion',
     totalHouseholds: 40,
     claimed: 40,
     unclaimed: 0,
@@ -60,7 +71,7 @@ const mockRows: ReportRow[] = [
   {
     id: 3,
     date: '2025-12-05',
-    barangay: 'Brgy. San Miguel',
+    barangay: 'Uyong',
     totalHouseholds: 25,
     claimed: 24,
     unclaimed: 1,
@@ -594,9 +605,9 @@ export default function ReportsPageClient() {
           <Donut
             segments={[
               { label: 'San Jose: 45', value: 45, stroke: '#0F533A' },
-              { label: 'Santo Nino: 40', value: 40, stroke: '#EAB308' },
-              { label: 'San Miguel: 30', value: 30, stroke: '#22C55E' },
-              { label: 'San Miguel: 30', value: 30, stroke: '#9ACB3C' },
+              { label: 'Poblacion: 40', value: 40, stroke: '#EAB308' },
+              { label: 'Uyong: 25', value: 25, stroke: '#22C55E' },
+              { label: 'Bolo: 15', value: 15, stroke: '#9ACB3C' },
             ]}
           />
         </div>
