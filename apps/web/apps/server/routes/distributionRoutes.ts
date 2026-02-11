@@ -11,6 +11,8 @@
 
 import { Router, Request, Response } from 'express';
 import Distribution, { BARANGAY_OPTIONS } from '../models/Distribution';
+import Resident from '../models/Resident';
+import DistributionClaim from '../models/DistributionClaim';
 import { AuthRequest } from '../middleware/unifiedAuth';
 
 const router = Router();
@@ -116,9 +118,21 @@ router.get(
         .sort({ createdAt: -1 })
         .lean();
 
+      // Aggregate registered (approved) household counts per barangay
+      const barangays = [...new Set(distributions.map((d) => d.barangay))];
+      const counts = await Resident.aggregate([
+        { $match: { barangay: { $in: barangays }, status: 'Approved' } },
+        { $group: { _id: '$barangay', count: { $sum: 1 } } },
+      ]);
+      const countMap: Record<string, number> = {};
+      for (const c of counts) {
+        countMap[c._id] = c.count;
+      }
+
       const data = distributions.map((d) => ({
         ...d,
         id: d._id.toString(),
+        registeredHouseholds: countMap[d.barangay] ?? 0,
       }));
 
       res.json({ success: true, data });
@@ -180,6 +194,136 @@ router.patch(
     } catch (error: unknown) {
       console.error('Error claiming distribution:', error);
       const message = error instanceof Error ? error.message : 'Failed to claim distribution';
+      res.status(500).json({ success: false, message });
+    }
+  }
+);
+
+/**
+ * GET /api/distributions/:id/households
+ *
+ * Returns households for the distribution's barangay split into
+ * Claimed (for this distribution) and Not Yet Claimed.
+ *
+ * RBAC:
+ * - SUPERADMIN: all
+ * - LGU_STAFF: only if distribution.barangay ∈ assignedBarangays
+ */
+router.get(
+  '/:id/households',
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      // 1) Find the distribution
+      const distribution = await Distribution.findById(id);
+      if (!distribution) {
+        return res.status(404).json({
+          success: false,
+          message: 'Distribution not found',
+        });
+      }
+
+      // 2) RBAC scope check
+      if (
+        req.authUser?.role === 'LGU_STAFF' &&
+        !(req.authUser.assignedBarangays ?? []).includes(distribution.barangay)
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to this distribution',
+        });
+      }
+
+      const targetBarangay = distribution.barangay;
+
+      // 3) Get all approved residents (registered households) in this barangay
+      const registeredHouseholds = await Resident.find({
+        barangay: targetBarangay,
+        status: 'Approved',
+      })
+        .select('_id fullName firstName lastName streetAddress barangay')
+        .lean();
+
+      // 4) If zero registered households, return early
+      if (registeredHouseholds.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            distributionId: id,
+            barangay: targetBarangay,
+            totals: { registered: 0, claimed: 0, notYetClaimed: 0 },
+            claimed: [],
+            notYetClaimed: [],
+          },
+        });
+      }
+
+      // 5) Find claims for THIS distribution
+      const claims = await DistributionClaim.find({
+        distributionId: distribution._id,
+      }).lean();
+
+      const claimedHouseholdIds = new Set(
+        claims.map((c) => c.householdId.toString())
+      );
+
+      // 6) Build claimed and notYetClaimed lists
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const claimedList: any[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const notYetClaimedList: any[] = [];
+
+      for (const hh of registeredHouseholds) {
+        const hhId = (hh._id as any).toString();
+        const householdName =
+          hh.fullName || `${hh.firstName} ${hh.lastName}`;
+        const address = hh.streetAddress
+          ? `${hh.streetAddress}, ${hh.barangay}`
+          : hh.barangay;
+
+        if (claimedHouseholdIds.has(hhId)) {
+          const claim = claims.find(
+            (c) => c.householdId.toString() === hhId
+          );
+          claimedList.push({
+            householdId: hhId,
+            householdName,
+            address,
+            claimedAt: claim?.claimedAt?.toISOString() ?? null,
+            claimedBy: claim?.claimedBy ?? null,
+            proofMethod: claim?.proofMethod ?? null,
+          });
+        } else {
+          notYetClaimedList.push({
+            householdId: hhId,
+            householdName,
+            address,
+          });
+        }
+      }
+
+      // 7) Return response
+      res.json({
+        success: true,
+        data: {
+          distributionId: id,
+          barangay: targetBarangay,
+          totals: {
+            registered: registeredHouseholds.length,
+            claimed: claimedList.length,
+            notYetClaimed: notYetClaimedList.length,
+          },
+          claimed: claimedList,
+          notYetClaimed: notYetClaimedList,
+        },
+      });
+    } catch (error: unknown) {
+      console.error('Error fetching distribution households:', error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch distribution households';
       res.status(500).json({ success: false, message });
     }
   }

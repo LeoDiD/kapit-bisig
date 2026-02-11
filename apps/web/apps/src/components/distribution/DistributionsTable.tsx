@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import DistributionDetailsModal from './DistributionDetailsModal'
+import ViewHouseholdsModal from './ViewHouseholdsModal'
 
 export type DistributionStatus = 'Unclaimed' | 'Claimed'
 
@@ -11,6 +12,7 @@ export type DistributionRow = {
   barangay: string
   scheduled: string
   households: number
+  registeredHouseholds: number
   notes?: string
   status: DistributionStatus
   claimedAt: string | null
@@ -54,6 +56,9 @@ export default function DistributionsTable({
 
   // Details modal
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionRow | null>(null)
+
+  // View Households modal
+  const [householdsDistribution, setHouseholdsDistribution] = useState<DistributionRow | null>(null)
 
   const barangayOptions = useMemo(() => {
     const unique = Array.from(new Set(rows.map((r) => r.barangay))).sort()
@@ -150,6 +155,13 @@ export default function DistributionsTable({
         onClose={() => setSelectedDistribution(null)}
         distribution={selectedDistribution}
         onMarkClaimed={onMarkClaimed}
+      />
+
+      {/* View Households Modal */}
+      <ViewHouseholdsModal
+        open={householdsDistribution !== null}
+        onClose={() => setHouseholdsDistribution(null)}
+        distribution={householdsDistribution}
       />
 
       {/* Filters */}
@@ -264,7 +276,7 @@ export default function DistributionsTable({
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 text-gray-600">
                           <UsersMiniIcon />
-                          <span className="font-medium">{r.households}</span>
+                          <span className="font-medium">{r.registeredHouseholds > 0 ? r.registeredHouseholds : '--'}</span>
                         </div>
                       </td>
 
@@ -327,6 +339,10 @@ export default function DistributionsTable({
                         closeRowMenu()
                       }} />
                       <MenuItem icon={<QrIcon />} label="Show QR Code" onClick={() => closeRowMenu()} />
+                      <MenuItem icon={<HouseholdsIcon />} label="View Households" onClick={() => {
+                        setHouseholdsDistribution(r)
+                        closeRowMenu()
+                      }} />
                       {r.status === 'Unclaimed' ? (
                         <MenuItem
                           icon={<CheckGreenIcon />}
@@ -500,6 +516,13 @@ function CheckGreenIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+function HouseholdsIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   )
 }

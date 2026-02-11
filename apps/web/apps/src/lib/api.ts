@@ -82,6 +82,43 @@ export interface DistributionData {
   claimedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  registeredHouseholds?: number;
+}
+
+/**
+ * Claimed household entry
+ */
+export interface ClaimedHousehold {
+  householdId: string;
+  householdName: string;
+  address: string;
+  claimedAt: string | null;
+  claimedBy: { id: string; name: string } | null;
+  proofMethod: 'QR' | 'FACE' | null;
+}
+
+/**
+ * Not-yet-claimed household entry
+ */
+export interface UnclaimedHousehold {
+  householdId: string;
+  householdName: string;
+  address: string;
+}
+
+/**
+ * Distribution households response
+ */
+export interface DistributionHouseholdsData {
+  distributionId: string;
+  barangay: string;
+  totals: {
+    registered: number;
+    claimed: number;
+    notYetClaimed: number;
+  };
+  claimed: ClaimedHousehold[];
+  notYetClaimed: UnclaimedHousehold[];
 }
 
 // ========================== HELPERS ==========================
@@ -240,6 +277,22 @@ export const api = {
       credentials: 'include',
     });
     return handleResponse<ApiResponse<DistributionData>>(response);
+  },
+
+  /**
+   * Get households for a distribution (claimed / not-yet-claimed)
+   */
+  async getDistributionHouseholds(
+    distributionId: string
+  ): Promise<ApiResponse<DistributionHouseholdsData>> {
+    const response = await fetch(
+      `${API_URL}/distributions/${distributionId}/households`,
+      {
+        headers: createHeaders(),
+        credentials: 'include',
+      }
+    );
+    return handleResponse<ApiResponse<DistributionHouseholdsData>>(response);
   },
 };
 

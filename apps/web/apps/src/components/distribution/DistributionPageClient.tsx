@@ -35,6 +35,7 @@ export default function DistributionPageClient() {
           barangay: d.barangay,
           scheduled: d.scheduled,
           households: d.households,
+          registeredHouseholds: d.registeredHouseholds ?? 0,
           notes: d.notes,
           status: d.status as 'Unclaimed' | 'Claimed',
           claimedAt: d.claimedAt,
