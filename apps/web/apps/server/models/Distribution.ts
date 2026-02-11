@@ -30,7 +30,7 @@ export const BARANGAY_OPTIONS = [
 
 export type Barangay = typeof BARANGAY_OPTIONS[number];
 
-export type DistributionStatus = 'Unclaimed' | 'Claimed';
+export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed';
 
 export interface IDistribution extends Document {
   barangay: Barangay;

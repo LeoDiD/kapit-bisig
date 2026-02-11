@@ -10,6 +10,8 @@ import {
   groupByBarangay,
   type LedgerRow,
 } from '@/components/blockchain-ledger'
+import type { LedgerStatsData } from '@/components/blockchain-ledger/BlockchainLedgerStats'
+import api from '@/lib/api'
 
 /* ------------------------------------------------------------------ */
 /*  Barangay & Status options                                          */
@@ -35,253 +37,39 @@ const STATUS_OPTIONS = ['All Status', 'Confirmed', 'Pending', 'Failed'] as const
 type StatusFilter = (typeof STATUS_OPTIONS)[number]
 
 /* ------------------------------------------------------------------ */
-/*  Mock data (realistic, matching the 10 barangays)                   */
+/*  Stats helpers – compute from the full (unfiltered) fetched rows    */
 /* ------------------------------------------------------------------ */
 
-const MOCK_CLAIMS: LedgerRow[] = [
-  // ── Bolo ──
-  {
-    id: 'bl-1',
-    barangay: 'Bolo',
-    dateTimeISO: '2024-06-15T09:45:00Z',
-    householdCode: 'HH-BL-0008',
-    householdHash: '0x50acea3b9f22d71e88a3c4596491',
-    txHash: '0xf311dd8a12bc5e4f9a73bf0831',
-    eventHash: '0xe9ad7c2b33f1a85d0187a2',
-    staffSigner: '0xb9bc3f7a22e1d894c0734c',
-    blockNumber: 1847301,
-    status: 'Pending',
-    offChainMatch: null,
-  },
-  {
-    id: 'bl-2',
-    barangay: 'Bolo',
-    dateTimeISO: '2024-06-15T07:15:00Z',
-    householdCode: 'HH-BL-0022',
-    householdHash: '0x3441d7ee91c4a5b1f399942f',
-    txHash: '0xbeaa6e0d3f17c8a29abf09d8',
-    eventHash: '0x919d4a8f02c7eb3dec0d',
-    staffSigner: '0xd671a3c82e4b9f1f67',
-    blockNumber: 1847280,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-BL-0022',
-      claimId: 'CLM-2024-0189',
-      barangay: 'Bolo',
-      distributionSite: 'Bolo Barangay Hall',
-      lguStaff: 'Luis Tan',
-      verification: 'Verified',
-    },
-  },
-  // ── Bongalon ──
-  {
-    id: 'bg-1',
-    barangay: 'Bongalon',
-    dateTimeISO: '2024-06-13T09:44:00Z',
-    householdCode: 'HH-BG-0015',
-    householdHash: '0x8c4f2a1b6e93d507cc81',
-    txHash: '0xa23b7f091cc4d58e2f88',
-    eventHash: '0x7b2c93a05d1e8f44bb11',
-    staffSigner: '0xc5a912e73f8b64dd0022',
-    blockNumber: 1847155,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-BG-0015',
-      claimId: 'CLM-2024-0175',
-      barangay: 'Bongalon',
-      distributionSite: 'Bongalon Covered Court',
-      lguStaff: 'Maria Santos',
-      verification: 'Verified',
-    },
-  },
-  // ── Dulig ──
-  {
-    id: 'dl-1',
-    barangay: 'Dulig',
-    dateTimeISO: '2024-06-14T14:33:00Z',
-    householdCode: 'HH-DL-0011',
-    householdHash: '0x009be1c3a79f45dabe32ba',
-    txHash: '0x6c8f36a12b8e5d9c28f613',
-    eventHash: '0xd82f4a15ce0b73946611',
-    staffSigner: '0x2a91bc7f3e4560fd8833',
-    blockNumber: 1847210,
-    status: 'Failed',
-    offChainMatch: null,
-  },
-  // ── Laois ──
-  {
-    id: 'la-1',
-    barangay: 'Laois',
-    dateTimeISO: '2024-06-15T11:30:00Z',
-    householdCode: 'HH-LA-0003',
-    householdHash: '0x5e7a1c0bf923d48e6644',
-    txHash: '0x91a4c3b8d2f7e50a1177',
-    eventHash: '0xfe2a7931b4d85c069f22',
-    staffSigner: '0xa87b3e12cf945d06dd44',
-    blockNumber: 1847310,
-    status: 'Pending',
-    offChainMatch: null,
-  },
-  // ── Magsaysay ──
-  {
-    id: 'mg-1',
-    barangay: 'Magsaysay',
-    dateTimeISO: '2024-06-15T10:12:00Z',
-    householdCode: 'HH-MG-0041',
-    householdHash: '0x0f7291b9a3e27a32f3a6',
-    txHash: '0x6e5c5060a1b2c3d4e5f6',
-    eventHash: '0xcc9812efa4b730c15d33',
-    staffSigner: '0xf19a7c340b8e25d6aa55',
-    blockNumber: 1847305,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-MG-0041',
-      claimId: 'CLM-2024-0191',
-      barangay: 'Magsaysay',
-      distributionSite: 'Magsaysay Barangay Hall',
-      lguStaff: 'Ana Reyes',
-      verification: 'Verified',
-    },
-  },
-  // ── Poblacion ──
-  {
-    id: 'pb-1',
-    barangay: 'Poblacion',
-    dateTimeISO: '2024-06-14T16:20:00Z',
-    householdCode: 'HH-PB-0009',
-    householdHash: '0xaa22b4c1d3e5f607a899',
-    txHash: '0xbb33c5d2e4f60718b900',
-    eventHash: '0xdd44e6f3a5071829cb11',
-    staffSigner: '0xee55f704b618293adc22',
-    blockNumber: 1847225,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-PB-0009',
-      claimId: 'CLM-2024-0180',
-      barangay: 'Poblacion',
-      distributionSite: 'Poblacion Multi-Purpose Hall',
-      lguStaff: 'Carlo Mendoza',
-      verification: 'Verified',
-    },
-  },
-  {
-    id: 'pb-2',
-    barangay: 'Poblacion',
-    dateTimeISO: '2024-06-14T15:55:00Z',
-    householdCode: 'HH-PB-0017',
-    householdHash: '0xff66a815c729304bed33',
-    txHash: '0x1177b926d83a415cfe44',
-    eventHash: '0x2288ca37e94b526d0f55',
-    staffSigner: '0x3399db48fa5c637e1066',
-    blockNumber: 1847220,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-PB-0017',
-      claimId: 'CLM-2024-0179',
-      barangay: 'Poblacion',
-      distributionSite: 'Poblacion Multi-Purpose Hall',
-      lguStaff: 'Carlo Mendoza',
-      verification: 'Manual Override',
-    },
-  },
-  // ── San Gonzalo ──
-  {
-    id: 'sg-1',
-    barangay: 'San Gonzalo',
-    dateTimeISO: '2024-06-14T13:10:00Z',
-    householdCode: 'HH-SG-0006',
-    householdHash: '0x44aabb59c06d748e2f77',
-    txHash: '0x55bbcc6ad17e859f3088',
-    eventHash: '0x66ccdd7be28f960a4199',
-    staffSigner: '0x77ddee8cf3a0a71b52aa',
-    blockNumber: 1847200,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-SG-0006',
-      claimId: 'CLM-2024-0174',
-      barangay: 'San Gonzalo',
-      distributionSite: 'San Gonzalo Elementary School',
-      lguStaff: 'Elena Cruz',
-      verification: 'Verified',
-    },
-  },
-  // ── San Jose ──
-  {
-    id: 'sj-1',
-    barangay: 'San Jose',
-    dateTimeISO: '2024-06-15T09:05:00Z',
-    householdCode: 'HH-SJ-0033',
-    householdHash: '0xf8bdb5a5fa0c2d1181cc',
-    txHash: '0xd0035ca1583f9bb1c2dd',
-    eventHash: '0xb112e7c3942a0d5e3aff',
-    staffSigner: '0x9a01d6b2831f9c4d2bee',
-    blockNumber: 1847295,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-SJ-0033',
-      claimId: 'CLM-2024-0186',
-      barangay: 'San Jose',
-      distributionSite: 'San Jose Barangay Hall',
-      lguStaff: 'Roberto Lim',
-      verification: 'Verified',
-    },
-  },
-  {
-    id: 'sj-2',
-    barangay: 'San Jose',
-    dateTimeISO: '2024-06-14T15:10:00Z',
-    householdCode: 'HH-SJ-0021',
-    householdHash: '0x3c26bf392722aa81ff00',
-    txHash: '0xdc72554eabddbb2a9c11',
-    eventHash: '0xac539e43bc0ecc3b8d22',
-    staffSigner: '0x8c42bf52ad1fdd4c7e33',
-    blockNumber: 1847218,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-SJ-0021',
-      claimId: 'CLM-2024-0178',
-      barangay: 'San Jose',
-      distributionSite: 'San Jose Barangay Hall',
-      lguStaff: 'Roberto Lim',
-      verification: 'Verified',
-    },
-  },
-  // ── Tobuan ──
-  {
-    id: 'tb-1',
-    barangay: 'Tobuan',
-    dateTimeISO: '2024-06-14T10:45:00Z',
-    householdCode: 'HH-TB-0012',
-    householdHash: '0x88eeff9de04b1c8a63bb',
-    txHash: '0x99ff00aef15c2d9b74cc',
-    eventHash: '0xaa0011bfc26d3eac85dd',
-    staffSigner: '0xbb1122c0d37e4fbd96ee',
-    blockNumber: 1847180,
-    status: 'Pending',
-    offChainMatch: null,
-  },
-  // ── Uyong ──
-  {
-    id: 'uy-1',
-    barangay: 'Uyong',
-    dateTimeISO: '2024-06-13T15:30:00Z',
-    householdCode: 'HH-UY-0005',
-    householdHash: '0xcc2233d1e48f50ce07ff',
-    txHash: '0xdd3344e2f590a1df1800',
-    eventHash: '0xee4455f306a1b2e02911',
-    staffSigner: '0xff5566041782c3f13a22',
-    blockNumber: 1847140,
-    status: 'Confirmed',
-    offChainMatch: {
-      householdCode: 'HH-UY-0005',
-      claimId: 'CLM-2024-0170',
-      barangay: 'Uyong',
-      distributionSite: 'Uyong Covered Court',
-      lguStaff: 'Grace Villanueva',
-      verification: 'Verified',
-    },
-  },
-]
+function computeStats(rows: LedgerRow[]): LedgerStatsData {
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfWeek = new Date(startOfToday)
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()) // Sunday
+
+  let claimsToday = 0
+  let claimsThisWeek = 0
+  const householdSet = new Set<string>()
+  let pendingWrites = 0
+  let failedWrites = 0
+
+  for (const r of rows) {
+    const d = new Date(r.dateTimeISO)
+    if (d >= startOfToday) claimsToday++
+    if (d >= startOfWeek) claimsThisWeek++
+    householdSet.add(r.householdHash)
+    if (r.status === 'Pending') pendingWrites++
+    if (r.status === 'Failed') failedWrites++
+  }
+
+  return {
+    claimsToday,
+    claimsThisWeek,
+    uniqueHouseholds: householdSet.size,
+    duplicateBlocks: 0, // on-chain contract prevents duplicates; no way to count from ledger rows
+    pendingWrites,
+    failedWrites,
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
@@ -294,6 +82,11 @@ export default function BlockchainLedgerPage() {
   const [recordOpen, setRecordOpen] = useState(false)
   const [selectedClaim, setSelectedClaim] = useState<LedgerRow | null>(null)
 
+  // Live data from API
+  const [allRows, setAllRows] = useState<LedgerRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   // Dropdown state
   const [barangayOpen, setBarangayOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
@@ -301,6 +94,29 @@ export default function BlockchainLedgerPage() {
   const barangayMenuRef = useRef<HTMLDivElement>(null)
   const statusBtnRef = useRef<HTMLButtonElement>(null)
   const statusMenuRef = useRef<HTMLDivElement>(null)
+
+  // ── Fetch claims from backend ──
+  const fetchLedger = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.getLedger()
+      if (res.success && Array.isArray(res.data)) {
+        setAllRows(res.data as LedgerRow[])
+      } else {
+        setAllRows([])
+      }
+    } catch {
+      setError('Unable to connect to the server.')
+      setAllRows([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchLedger()
+  }, [fetchLedger])
 
   // Close dropdowns on outside click
   const handleClickOutside = useCallback((e: MouseEvent) => {
@@ -318,11 +134,13 @@ export default function BlockchainLedgerPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [handleClickOutside])
 
-  // Filter
+  // Stats computed from ALL fetched rows (unfiltered)
+  const stats = useMemo(() => computeStats(allRows), [allRows])
+
+  // Client-side filtering
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return MOCK_CLAIMS.filter((c) => {
-      // text search
+    return allRows.filter((c) => {
       const matchesQuery =
         !q ||
         c.barangay.toLowerCase().includes(q) ||
@@ -330,17 +148,15 @@ export default function BlockchainLedgerPage() {
         c.householdHash.toLowerCase().includes(q) ||
         c.txHash.toLowerCase().includes(q)
 
-      // barangay filter
       const matchesBarangay =
         barangay === 'All Barangays' || c.barangay === barangay
 
-      // status filter
       const matchesStatus =
         status === 'All Status' || c.status === status
 
       return matchesQuery && matchesBarangay && matchesStatus
     })
-  }, [query, barangay, status])
+  }, [query, barangay, status, allRows])
 
   const groups = useMemo(() => groupByBarangay(filtered), [filtered])
 
@@ -351,7 +167,7 @@ export default function BlockchainLedgerPage() {
         subtitle="Immutable record of claimed relief packs (hash-based, no personal data stored on-chain)."
       />
 
-      <BlockchainLedgerStats />
+      <BlockchainLedgerStats data={stats} />
 
       {/* Record Claim + Filters row */}
       <div className="flex flex-col lg:flex-row gap-4 mb-6 items-stretch lg:items-center">
@@ -433,14 +249,63 @@ export default function BlockchainLedgerPage() {
         </div>
       </div>
 
-      {/* Accordion table grouped by barangay */}
-      <BlockchainLedgerTable
-        groups={groups}
-        onViewClaim={(row) => setSelectedClaim(row)}
-      />
+      {/* Loading / Error / Empty / Table */}
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse"
+            >
+              <div className="flex items-center justify-between">
+                <div className="h-4 w-32 bg-gray-200 rounded" />
+                <div className="flex gap-3">
+                  <div className="h-3 w-20 bg-gray-200 rounded" />
+                  <div className="h-3 w-16 bg-gray-200 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
+            <ExclamationIcon className="w-5 h-5 text-red-500" />
+          </div>
+          <p className="text-sm text-gray-700 font-medium">{error}</p>
+          <button
+            type="button"
+            onClick={fetchLedger}
+            className="mt-3 text-sm text-green-700 hover:underline font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      ) : allRows.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+            <LedgerIcon className="w-5 h-5 text-gray-400" />
+          </div>
+          <p className="text-sm text-gray-700 font-medium">No claims recorded yet.</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Claims will appear here once relief packs are distributed and recorded on-chain.
+          </p>
+        </div>
+      ) : (
+        <BlockchainLedgerTable
+          groups={groups}
+          onViewClaim={(row) => setSelectedClaim(row)}
+        />
+      )}
 
       {/* Modals */}
-      <RecordClaimModal open={recordOpen} onClose={() => setRecordOpen(false)} />
+      <RecordClaimModal
+        open={recordOpen}
+        onClose={() => {
+          setRecordOpen(false)
+          fetchLedger() // refresh after recording
+        }}
+      />
       <ClaimDetailsModal
         open={!!selectedClaim}
         claim={selectedClaim}
@@ -527,6 +392,22 @@ function CheckIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
+function ExclamationIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+    </svg>
+  )
+}
+
+function LedgerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   )
 }

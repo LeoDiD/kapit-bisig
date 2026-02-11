@@ -36,6 +36,7 @@ export default function DistributionPageClient() {
           scheduled: d.scheduled,
           households: d.households,
           registeredHouseholds: d.registeredHouseholds ?? 0,
+          claimedHouseholds: d.claimedHouseholds ?? 0,
           notes: d.notes,
           status: d.status as 'Unclaimed' | 'Claimed',
           claimedAt: d.claimedAt,
@@ -68,7 +69,10 @@ export default function DistributionPageClient() {
     return set.size
   }, [rows])
 
-  const householdsServedCount = 0
+  const householdsServedCount = useMemo(
+    () => rows.reduce((sum, r) => sum + r.claimedHouseholds, 0),
+    [rows]
+  )
 
   const bannerText = useMemo(() => {
     if (unclaimedCount <= 0) return ''

@@ -12,7 +12,8 @@
 
 // Load environment variables FIRST, before any other imports
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
 
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
@@ -28,6 +29,8 @@ import distributionRoutes from './routes/distributionRoutes';
 import superadminAuthRoutes from './routes/superadminAuthRoutes';
 import unifiedAuthRoutes from './routes/unifiedAuthRoutes';
 import adminStaffRoutes from './routes/adminStaffRoutes';
+import claimRoutes from './routes/claimRoutes';
+import householdListRoutes from './routes/householdListRoutes';
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
 
@@ -84,6 +87,8 @@ app.use('/api/face', faceRoutes);
 app.use('/api/household', householdRoutes);
 app.use('/api/admin/tokens', adminTokenRoutes);
 app.use('/api/distributions', requireAuth, requireStaffOrSuperadmin, distributionRoutes);
+app.use('/api/claims', requireAuth, requireStaffOrSuperadmin, claimRoutes);
+app.use('/api/households', requireAuth, requireStaffOrSuperadmin, householdListRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {

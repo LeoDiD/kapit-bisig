@@ -1,0 +1,40 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\Users\\Shekinah\\Desktop\\Kapit-Bisig\\apps\\web\\apps\\contracts\\ClaimLedger.sol": {
+      "lastModificationDate": 1770778890675,
+      "contentHash": "89398fed0a65254fd3a09c6eeab020a8",
+      "sourceName": "contracts/ClaimLedger.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "ClaimLedger"
+      ]
+    }
+  }
+}

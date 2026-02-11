@@ -129,11 +129,38 @@ router.get(
         countMap[c._id] = c.count;
       }
 
-      const data = distributions.map((d) => ({
-        ...d,
-        id: d._id.toString(),
-        registeredHouseholds: countMap[d.barangay] ?? 0,
-      }));
+      // Aggregate claimed household counts per distribution from DistributionClaim
+      const distIds = distributions.map((d) => d._id);
+      const claimedCounts = await DistributionClaim.aggregate([
+        { $match: { distributionId: { $in: distIds } } },
+        { $group: { _id: '$distributionId', count: { $sum: 1 } } },
+      ]);
+      const claimedCountMap: Record<string, number> = {};
+      for (const c of claimedCounts) {
+        claimedCountMap[c._id.toString()] = c.count;
+      }
+
+      const data = distributions.map((d) => {
+        const claimed = claimedCountMap[d._id.toString()] ?? 0;
+        const registered = countMap[d.barangay] ?? 0;
+
+        // Derive status from actual claims vs registered households
+        let derivedStatus = d.status;
+        if (claimed > 0 && registered > 0 && claimed >= registered) {
+          derivedStatus = 'Claimed';           // all households claimed
+        } else if (claimed > 0) {
+          derivedStatus = 'Partially Claimed';  // some households claimed
+        }
+
+        return {
+          ...d,
+          id: d._id.toString(),
+          registeredHouseholds: registered,
+          claimedHouseholds: claimed,
+          status: derivedStatus,
+          claimedAt: claimed > 0 ? (d.claimedAt || new Date().toISOString()) : d.claimedAt,
+        };
+      });
 
       res.json({ success: true, data });
     } catch (error: unknown) {

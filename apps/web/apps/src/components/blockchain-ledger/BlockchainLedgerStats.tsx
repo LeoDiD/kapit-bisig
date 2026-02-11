@@ -1,5 +1,18 @@
 import React from 'react'
 
+/* ------------------------------------------------------------------ */
+/*  Props – stats are computed by the parent from fetched ledger rows  */
+/* ------------------------------------------------------------------ */
+
+export interface LedgerStatsData {
+  claimsToday: number
+  claimsThisWeek: number
+  uniqueHouseholds: number
+  duplicateBlocks: number
+  pendingWrites: number
+  failedWrites: number
+}
+
 interface LedgerStat {
   label: string
   value: string | number
@@ -25,33 +38,33 @@ function toneClasses(tone: LedgerStat['tone']) {
   }
 }
 
-export default function BlockchainLedgerStats() {
+export default function BlockchainLedgerStats({ data }: { data: LedgerStatsData }) {
   const stats: LedgerStat[] = [
     {
       label: 'Claims Today',
-      value: 34,
-      subtext: '187 this week',
+      value: data.claimsToday,
+      subtext: data.claimsThisWeek > 0 ? `${data.claimsThisWeek} this week` : undefined,
       icon: <ShieldIcon className="w-4 h-4" />,
       tone: 'default',
     },
     {
       label: 'Unique Households',
-      value: 142,
+      value: data.uniqueHouseholds,
       icon: <UsersIcon className="w-4 h-4" />,
       tone: 'default',
     },
     {
       label: 'Duplicate Blocks',
-      value: 3,
+      value: data.duplicateBlocks,
       icon: <NoEntryIcon className="w-4 h-4" />,
-      tone: 'danger',
+      tone: data.duplicateBlocks > 0 ? 'danger' : 'default',
     },
     {
       label: 'Pending Writes',
-      value: 2,
-      subtext: '1 failed',
+      value: data.pendingWrites,
+      subtext: data.failedWrites > 0 ? `${data.failedWrites} failed` : undefined,
       icon: <ClockIcon className="w-4 h-4" />,
-      tone: 'warning',
+      tone: data.pendingWrites > 0 || data.failedWrites > 0 ? 'warning' : 'default',
     },
   ]
 

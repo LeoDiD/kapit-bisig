@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import DistributionDetailsModal from './DistributionDetailsModal'
 import ViewHouseholdsModal from './ViewHouseholdsModal'
 
-export type DistributionStatus = 'Unclaimed' | 'Claimed'
+export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed'
 
 export type DistributionRow = {
   id: string
@@ -13,6 +13,7 @@ export type DistributionRow = {
   scheduled: string
   households: number
   registeredHouseholds: number
+  claimedHouseholds: number
   notes?: string
   status: DistributionStatus
   claimedAt: string | null
@@ -25,6 +26,7 @@ type StatusFilter = 'All' | DistributionStatus
 const statusOptions: { value: StatusFilter; label: string }[] = [
   { value: 'All', label: 'All Status' },
   { value: 'Claimed', label: 'Claimed' },
+  { value: 'Partially Claimed', label: 'Partially Claimed' },
   { value: 'Unclaimed', label: 'Unclaimed' },
 ]
 
@@ -251,6 +253,7 @@ export default function DistributionsTable({
               <tr>
                 <th className="px-4 py-3 font-medium w-[18%]">Barangay</th>
                 <th className="px-4 py-3 font-medium w-[14%]">Households</th>
+                <th className="px-4 py-3 font-medium w-[14%]">Claimed</th>
                 <th className="px-4 py-3 font-medium w-[16%]">Scheduled</th>
                 <th className="px-4 py-3 font-medium w-[12%]">Status</th>
                 <th className="px-4 py-3 font-medium w-[18%]">Claimed At</th>
@@ -280,6 +283,22 @@ export default function DistributionsTable({
                         </div>
                       </td>
 
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                          {r.claimedHouseholds > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              <CheckMiniIcon />
+                              {r.claimedHouseholds}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">0</span>
+                          )}
+                          {r.registeredHouseholds > 0 && (
+                            <span className="text-[11px] text-gray-400">/ {r.registeredHouseholds}</span>
+                          )}
+                        </div>
+                      </td>
+
                       <td className="px-4 py-3 text-gray-600">{r.scheduled}</td>
 
                       <td className="px-4 py-3">
@@ -305,7 +324,7 @@ export default function DistributionsTable({
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-gray-500 text-sm">
+                  <td colSpan={7} className="px-4 py-6 text-center text-gray-500 text-sm">
                     No distributions found matching your filters.
                   </td>
                 </tr>
@@ -343,7 +362,7 @@ export default function DistributionsTable({
                         setHouseholdsDistribution(r)
                         closeRowMenu()
                       }} />
-                      {r.status === 'Unclaimed' ? (
+                      {r.status !== 'Claimed' ? (
                         <MenuItem
                           icon={<CheckGreenIcon />}
                           label="Mark as claimed"
@@ -411,10 +430,12 @@ function StatusPill({ status }: { status: DistributionStatus }) {
   const cls =
     status === 'Claimed'
       ? 'bg-green-600 text-white'
-      : 'bg-[#EAB308] text-white'
+      : status === 'Partially Claimed'
+        ? 'bg-orange-500 text-white'
+        : 'bg-[#EAB308] text-white'
 
   return (
-    <span className={`inline-flex items-center justify-center h-6 px-3 rounded-full text-xs font-medium ${cls}`}>
+    <span className={`inline-flex items-center justify-center h-6 px-3 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
       {status}
     </span>
   )
@@ -516,6 +537,13 @@ function CheckGreenIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+function CheckMiniIcon() {
+  return (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
     </svg>
   )
 }

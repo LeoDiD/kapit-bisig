@@ -83,6 +83,7 @@ export interface DistributionData {
   createdAt: string;
   updatedAt: string;
   registeredHouseholds?: number;
+  claimedHouseholds?: number;
 }
 
 /**
@@ -293,6 +294,89 @@ export const api = {
       }
     );
     return handleResponse<ApiResponse<DistributionHouseholdsData>>(response);
+  },
+
+  // ==================== HOUSEHOLDS ====================
+
+  /**
+   * Get registered households list.
+   * Supports search, barangay, and status filters.
+   */
+  async getHouseholds(params?: {
+    search?: string;
+    barangay?: string;
+    status?: string;
+  }): Promise<ApiResponse<any[]>> {
+    const sp = new URLSearchParams();
+    if (params?.search) sp.append('search', params.search);
+    if (params?.barangay && params.barangay !== 'All Barangays')
+      sp.append('barangay', params.barangay);
+    if (params?.status && params.status !== 'All Status')
+      sp.append('status', params.status);
+
+    const qs = sp.toString();
+    const url = `${API_URL}/households${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<any[]>>(response);
+  },
+
+  // ==================== BLOCKCHAIN LEDGER ====================
+
+  /**
+   * Get ledger rows (blockchain claim records).
+   * Supports filtering by barangay, status, and free-text search.
+   */
+  async getLedger(params?: {
+    barangay?: string;
+    status?: string;
+    search?: string;
+  }): Promise<ApiResponse<any[]>> {
+    const sp = new URLSearchParams();
+    if (params?.barangay && params.barangay !== 'All Barangays')
+      sp.append('barangay', params.barangay);
+    if (params?.status && params.status !== 'All Status')
+      sp.append('status', params.status);
+    if (params?.search) sp.append('search', params.search);
+
+    const qs = sp.toString();
+    const url = `${API_URL}/claims/ledger${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<any[]>>(response);
+  },
+
+  /**
+   * Record a relief-pack claim (sends token + distribution info).
+   */
+  async recordClaim(data: {
+    claimToken: string;
+    distributionId: string;
+    distributionSite: string;
+  }): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_URL}/claims/record-claim`, {
+      method: 'POST',
+      headers: createHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<any>>(response);
+  },
+
+  /**
+   * Retry a CHAIN_FAILED claim.
+   */
+  async retryClaimChain(claimId: string): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_URL}/claims/${claimId}/retry-chain`, {
+      method: 'POST',
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<any>>(response);
   },
 };
 

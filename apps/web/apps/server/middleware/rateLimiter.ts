@@ -84,6 +84,9 @@ export const generalRateLimiter: RateLimitRequestHandler = rateLimit({
  * - 15-minute window provides good security without frustrating legitimate users
  * - Combined with account-based lockout (in authRoutes) for defense in depth
  */
+// TEMPORARILY DISABLED — re-enable after login
+export const loginRateLimiter = (_req: Request, _res: Response, next: Function) => next();
+/* ORIGINAL loginRateLimiter — uncomment to re-enable
 export const loginRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
   max: 5, // Only 5 attempts allowed
@@ -108,6 +111,7 @@ export const loginRateLimiter: RateLimitRequestHandler = rateLimit({
     });
   },
 });
+*/
 
 /**
  * Registration Rate Limiter
