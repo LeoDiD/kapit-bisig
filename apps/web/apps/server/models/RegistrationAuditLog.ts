@@ -22,6 +22,7 @@
  * - BRUTE_FORCE_DETECTED: Suspicious activity detected
  */
 
+import crypto from 'crypto';
 import mongoose, { Document, Schema } from 'mongoose';
 
 export type AuditEventType = 
@@ -141,7 +142,6 @@ const RegistrationAuditLogSchema: Schema = new Schema(
     requestId: {
       type: String,
       required: [true, 'Request ID is required'],
-      unique: true,
       index: true,
     },
     
@@ -200,7 +200,6 @@ const RegistrationAuditLogSchema: Schema = new Schema(
       type: Date,
       default: Date.now,
       immutable: true, // Cannot be modified after creation
-      index: true,
     },
   },
   {
@@ -266,7 +265,26 @@ RegistrationAuditLogSchema.statics.log = async function(params: {
     timestamp: new Date(),
   });
   
-  return log.save();
+  try {
+    return await log.save();
+  } catch (error) {
+    const mongoError = error as { code?: number; keyPattern?: Record<string, number> };
+    if (mongoError.code === 11000 && mongoError.keyPattern?.requestId) {
+      const fallbackRequestId = `${params.requestId}-${crypto.randomBytes(4).toString('hex')}`;
+      return this.create({
+        ...log.toObject(),
+        requestId: fallbackRequestId,
+        details: {
+          message: params.message,
+          metadata: {
+            ...(params.metadata || {}),
+            originalRequestId: params.requestId,
+          },
+        },
+      });
+    }
+    throw error;
+  }
 };
 
 /**

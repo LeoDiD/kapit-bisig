@@ -31,6 +31,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import { resolveApiBaseUrl } from '../../services/config/apiSecurity';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const FACE_FRAME_SIZE = SCREEN_WIDTH * 0.75;
@@ -95,7 +96,11 @@ export default function FaceScannerV2({
   mode,
   onComplete,
   onCancel,
-  apiBaseUrl = 'http://192.168.1.72:8000',
+  apiBaseUrl = resolveApiBaseUrl(
+    process.env.EXPO_PUBLIC_FACE_API_URL,
+    'http://localhost:8000',
+    'FaceScannerV2',
+  ),
   userId,
   userName,
 }: FaceScannerV2Props) {

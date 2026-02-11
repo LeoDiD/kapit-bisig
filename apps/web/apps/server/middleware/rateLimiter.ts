@@ -270,6 +270,31 @@ export const householdRegistrationRateLimiter: RateLimitRequestHandler = rateLim
 });
 
 /**
+ * Mobile Number Lookup Rate Limiter
+ *
+ * Limits anonymous mobile-number probing attempts.
+ */
+export const mobileLookupRateLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15-minute window
+  max: 10,
+  message: {
+    success: false,
+    message: 'Too many requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientIP,
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({
+      success: false,
+      message: 'Too many requests. Please try again later.',
+      retryAfter: '15 minutes',
+    });
+  },
+});
+
+/**
  * Admin Token Generation Rate Limiter
  * 
  * Limits how many tokens an admin can generate.

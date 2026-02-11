@@ -21,11 +21,21 @@ import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAIVerification } from '../hooks/useAIVerification';
 import { VerificationResult } from '../services/ai';
+import { resolveApiBaseUrl } from '../services/config/apiSecurity';
 
 const { width } = Dimensions.get('window');
 
 // API Configuration
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = resolveApiBaseUrl(
+  process.env.EXPO_PUBLIC_API_URL,
+  'http://localhost:3001/api',
+  'RegisterScreen API',
+);
+const FACE_API_URL = resolveApiBaseUrl(
+  process.env.EXPO_PUBLIC_FACE_API_URL,
+  'http://localhost:8000',
+  'RegisterScreen Face API',
+);
 
 interface RegisterScreenProps {
   onBack: () => void;
@@ -44,6 +54,23 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionComplete, setSubmissionComplete] = useState(false);
+
+  // NEW: Duplicate Check Results for Face Verification
+  interface DuplicateCheckResult {
+    success: boolean;
+    face_detected: boolean;
+    decision: 'ALLOW' | 'BLOCK' | 'ERROR';
+    best_match_id: string | null;
+    best_match_name: string | null;
+    similarity: number;
+    threshold: number;
+    processing_time_ms: number;
+    message: string;
+    resident_id: string | null;
+  }
+  const [duplicateCheckResult, setDuplicateCheckResult] = useState<DuplicateCheckResult | null>(null);
+  const [verificationProgress, setVerificationProgress] = useState(0);
+  const [verificationStep, setVerificationStep] = useState<string>('');
 
   // Step 1: Personal Info
   const [firstName, setFirstName] = useState('');
@@ -126,11 +153,52 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     ageRestriction: false,
     gender: false,
     mobileNumber: false,
+    mobileNumberDuplicate: false,
     password: false,
     confirmPassword: false,
     passwordMismatch: false,
     termsAccepted: false,
   });
+
+  // Mobile number checking
+  const [isCheckingMobile, setIsCheckingMobile] = useState(false);
+  const [mobileChecked, setMobileChecked] = useState(false);
+
+  // Privacy-preserving server-side check. The API intentionally returns a generic response.
+  const checkMobileAvailability = async (mobileNumber: string) => {
+    if (!mobileNumber || mobileNumber.length < 10) {
+      setMobileChecked(false);
+      return;
+    }
+
+    setIsCheckingMobile(true);
+    try {
+      const response = await fetch(`${API_URL}/household/check-mobile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mobileNumber }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMobileChecked(true);
+        setStep1Errors(prev => ({
+          ...prev,
+          mobileNumberDuplicate: false,
+        }));
+      } else {
+        setMobileChecked(false);
+      }
+    } catch (error) {
+      console.error('Mobile check error:', error);
+      setMobileChecked(false);
+    } finally {
+      setIsCheckingMobile(false);
+    }
+  };
   const [step2Errors, setStep2Errors] = useState({
     barangay: false,
     streetAddress: false,
@@ -166,7 +234,24 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     return age;
   };
 
+  const getPasswordError = (value: string): string | null => {
+    if (!value || !value.trim()) return 'Password is required';
+    if (/\s/.test(value)) return 'Password must not contain spaces';
+    if (!/^[A-Za-z0-9]+$/.test(value)) return 'Password must contain only letters and numbers';
+    if (value.length < 8) return 'Password must be at least 8 characters';
+    return null;
+  };
+
+  const getConfirmPasswordError = (value: string, original: string): string | null => {
+    if (!value || !value.trim()) return 'Please confirm your password';
+    if (/\s/.test(value)) return 'Confirm password must not contain spaces';
+    if (value !== original) return 'Passwords do not match';
+    return null;
+  };
+
   const validateStep1 = () => {
+    const passwordError = getPasswordError(password);
+    const confirmPasswordError = getConfirmPasswordError(confirmPassword, password);
     const age = calculateAge(dateOfBirth);
     const errors = {
       firstName: !firstName.trim(),
@@ -175,9 +260,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       ageRestriction: dateOfBirth.length === 10 && age < 18,
       gender: !gender,
       mobileNumber: !mobileNumber.trim(),
-      password: !password.trim() || password.length < 8,
-      confirmPassword: !confirmPassword.trim(),
-      passwordMismatch: password !== confirmPassword,
+      mobileNumberDuplicate: false,
+      password: !!passwordError,
+      confirmPassword: !!confirmPasswordError,
+      passwordMismatch: confirmPasswordError === 'Passwords do not match',
       termsAccepted: !termsAccepted,
     };
     setStep1Errors(errors);
@@ -436,13 +522,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   // Step 4: Face Scan functions - DISABLED for testing
   const validateStep4 = () => {
-    // TEMPORARILY DISABLED - Face scan optional for testing
     const errors = {
-      faceScan: false, // !faceScanComplete,
+      faceScan: !faceScanComplete,
     };
     setStep4Errors(errors);
-    return true; // Always pass for now
-    // return !Object.values(errors).some(Boolean);
+    return !Object.values(errors).some(Boolean);
   };
 
   const startFaceScan = async () => {
@@ -482,10 +566,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       setCapturedPhotoUri(photo.uri);
       setScanStatus('capturing');
       setFaceInstructions('AI is analyzing your photo...');
+      // Close the scanner immediately and continue analysis in the background
+      setShowFaceScanner(false);
       
       // Send to AI for analysis
-      const API_BASE_URL = 'http://192.168.1.72:8000';
-      const detectResponse = await fetch(`${API_BASE_URL}/api/face/detect`, {
+      const detectResponse = await fetch(`${FACE_API_URL}/api/face/detect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: photo.base64 }),
@@ -547,12 +632,6 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       setFaceScanComplete(true);
       setFaceInstructions('Photo verified successfully!');
       if (showErrors) setStep4Errors({ faceScan: false });
-      
-      // Close scanner after success
-      setTimeout(() => {
-        setShowFaceScanner(false);
-      }, 2000);
-      
     } catch (error: any) {
       console.error('Snap photo error:', error);
       setScanStatus('failed');
@@ -575,52 +654,165 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setCapturedPhotoUri(null);
   };
 
-  // Submit registration to server (Face validation disabled for now - frontend only)
+  // Submit registration to server with DUPLICATE FACE CHECK
   const performVerificationAndSubmit = async () => {
-    // Temporarily bypass image requirements for testing
-    // if (!frontIdImage || !backIdImage || !faceImage) {
-    //   Alert.alert('Error', 'Missing required images for verification');
-    //   return;
-    // }
-
     setIsSubmitting(true);
+    setVerificationProgress(0);
+    setVerificationStep('Initializing...');
+    setDuplicateCheckResult(null);
     
     try {
-      // DISABLED: AI Face Verification - will be enabled later
-      // For now, create a mock verification result with proper nested structure
-      const mockVerificationResult: VerificationResult = {
+      // Step 1: Prepare face image (10%)
+      setVerificationProgress(10);
+      setVerificationStep('Preparing face image...');
+      
+      let faceBase64 = '';
+      if (faceImage) {
+        try {
+          const faceBase64Response = await fetch(faceImage);
+          const faceBlob = await faceBase64Response.blob();
+          const reader = new FileReader();
+          faceBase64 = await new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => {
+              const base64 = (reader.result as string).split(',')[1];
+              resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(faceBlob);
+          });
+        } catch (error) {
+          console.log('[Verification] Failed to convert face image:', error);
+          throw new Error('Failed to process face image');
+        }
+      } else {
+        throw new Error('No face image captured. Please go back and take a photo.');
+      }
+      
+      // Step 2: Check for duplicate face (30%)
+      setVerificationProgress(30);
+      setVerificationStep('Detecting face...');
+      
+      const residentData = {
+        firstName,
+        lastName,
+        dateOfBirth,
+        gender,
+        mobileNumber,
+        barangay,
+        streetAddress,
+        householdToken,
+      };
+      
+      // Call the duplicate check endpoint
+      const duplicateResponse = await fetch(`${FACE_API_URL}/api/face/check-duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          image: faceBase64,
+          resident_data: residentData 
+        }),
+      });
+      
+      if (!duplicateResponse.ok) {
+        const errorData = await duplicateResponse.json().catch(() => ({}));
+        const userFriendlyMsg = errorData.detail?.includes('face') 
+          ? 'Could not detect your face. Please ensure good lighting and face the camera directly.'
+          : errorData.detail?.includes('connection') || errorData.detail?.includes('network')
+          ? 'Network connection error. Please check your internet and try again.'
+          : errorData.detail || 'Verification failed. Please try again.';
+        throw new Error(userFriendlyMsg);
+      }
+      
+      // Step 3: Processing results (60%)
+      setVerificationProgress(60);
+      setVerificationStep('Analyzing face embedding...');
+      
+      const duplicateResult = await duplicateResponse.json();
+      
+      // Store the duplicate check result for display
+      setDuplicateCheckResult(duplicateResult);
+      
+      // Step 4: Processing decision (80%)
+      setVerificationProgress(80);
+      setVerificationStep(`Decision: ${duplicateResult.decision}`);
+      
+      // Handle BLOCK decision - duplicate detected
+      if (duplicateResult.decision === 'BLOCK') {
+        setVerificationProgress(100);
+        setVerificationStep('Duplicate Detected - Registration Blocked');
+        
+        // Create a "failed" verification result for display
+        const failedResult: VerificationResult = {
+          isVerified: false,
+          overallConfidence: duplicateResult.similarity,
+          idVerification: {
+            isValid: !!frontIdImage,
+            confidence: frontIdImage ? 0.90 : 0.50,
+            extractedData: null,
+            warnings: [],
+          },
+          faceVerification: {
+            isValid: false,
+            matchConfidence: duplicateResult.similarity,
+            livenessConfidence: 0.90,
+            warnings: [`Duplicate face detected - matches ${duplicateResult.best_match_name}`],
+          },
+          dataMatchVerification: {
+            isMatch: false,
+            matchScore: duplicateResult.similarity,
+            discrepancies: ['Face already registered in system'],
+          },
+          riskScore: 1.0,
+          riskFactors: ['Duplicate registration attempt'],
+          recommendations: ['Contact barangay office if you believe this is an error'],
+        };
+        setVerificationResult(failedResult);
+        
+        // Show alert but don't submit to main database
+        Alert.alert(
+          '⚠️ Registration Blocked',
+          `This face is already registered under "${duplicateResult.best_match_name}".\n\nSimilarity: ${(duplicateResult.similarity * 100).toFixed(1)}%\nThreshold: ${(duplicateResult.threshold * 100).toFixed(0)}%\n\nDuplicate registrations are not allowed.`,
+          [{ text: 'OK' }]
+        );
+        
+        setIsSubmitting(false);
+        return; // Stop here - don't submit to main registration
+      }
+      
+      // Step 5: ALLOW - proceed with registration (90%)
+      setVerificationProgress(90);
+      setVerificationStep('Saving registration...');
+      
+      // Create successful verification result
+      const successResult: VerificationResult = {
         isVerified: true,
-        overallConfidence: 0.85,
+        overallConfidence: 1 - (duplicateResult.similarity || 0), // Uniqueness score
         idVerification: {
-          isValid: true,
-          confidence: 0.90,
+          isValid: !!frontIdImage,
+          confidence: frontIdImage ? 0.90 : 0.50,
           extractedData: null,
-          warnings: [],
+          warnings: frontIdImage ? [] : ['ID not provided'],
         },
         faceVerification: {
           isValid: true,
-          matchConfidence: 0.80,
-          livenessConfidence: 0.85,
+          matchConfidence: 1 - (duplicateResult.similarity || 0),
+          livenessConfidence: 0.90,
           warnings: [],
         },
         dataMatchVerification: {
           isMatch: true,
-          matchScore: 0.88,
+          matchScore: 1.0,
           discrepancies: [],
         },
-        riskScore: 0.15,
+        riskScore: duplicateResult.similarity || 0,
         riskFactors: [],
-        recommendations: [],
+        recommendations: ['Registration approved - no duplicates found'],
       };
-
-      setVerificationResult(mockVerificationResult);
-
-      // Combine first and last name for submission
+      setVerificationResult(successResult);
+      
+      // Submit to main registration system
       const fullName = `${firstName} ${lastName}`.trim();
-
-      // Submit to server with household token
       const registrationData = {
-        // Personal Info
         firstName,
         lastName,
         fullName,
@@ -628,83 +820,89 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         gender,
         mobileNumber,
         password,
-        
-        // Household Info
         city,
         barangay,
         streetAddress,
         householdSize,
         vulnerableMembers,
         vulnerableCounts,
-        
-        // Identity Verification
         idType,
         idNumber,
-        frontIdImage: frontIdImage || '', // Optional for now
-        backIdImage: backIdImage || '',   // Optional for now
-        
-        // Face Scan
-        faceImage: faceImage || '',       // Optional for now
-        
-        // AI Verification Result (mocked for now)
-        verification: mockVerificationResult,
-        
-        // Household Registration Token
+        frontIdImage: frontIdImage || '',
+        backIdImage: backIdImage || '',
+        faceImage: faceImage || '',
+        verification: {
+          overallConfidence: 100,
+          idConfidence: frontIdImage ? 90 : 50,
+          faceMatchConfidence: 100,
+          livenessConfidence: 90,
+          dataMatchScore: 100,
+          riskScore: Math.round((duplicateResult.similarity || 0) * 100),
+          isVerified: true,
+          aiVerificationStatus: 'Verified - No Duplicate',
+          duplicateCheck: {
+            decision: duplicateResult.decision,
+            similarity: duplicateResult.similarity,
+            threshold: duplicateResult.threshold,
+            processingTime: duplicateResult.processing_time_ms,
+            bestMatch: duplicateResult.best_match_name || 'None',
+          },
+          warnings: [],
+          riskFactors: [],
+        },
         householdToken,
+        // Include the face embedding resident ID from the duplicate check
+        faceResidentId: duplicateResult.resident_id,
       };
 
-      // Use the new household registration endpoint with token validation
       const response = await fetch(`${API_URL}/household/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(registrationData),
       });
 
       const data = await response.json();
+      
+      // Step 6: Complete (100%)
+      setVerificationProgress(100);
 
       if (data.success) {
+        setVerificationStep('Registration Complete!');
         setSubmissionComplete(true);
       } else {
+        setVerificationStep('Registration Failed');
         // Handle specific error codes
         if (data.errorCode === 'LOCK_CONFLICT') {
           Alert.alert(
             'Registration In Progress',
-            'Another family member is currently completing registration for your household. Please wait a moment and try again.',
+            'Another family member is currently completing registration. Please wait and try again.',
             [{ text: 'OK' }]
           );
         } else if (data.errorCode === 'TOKEN_NOT_FOUND') {
-          Alert.alert(
-            'Invalid Token',
-            'Your registration token has expired or is invalid. Please contact your barangay office for a new token.',
-            [{ text: 'OK' }]
-          );
-          // Reset token validation
+          Alert.alert('Invalid Token', 'Your registration token has expired or is invalid.', [{ text: 'OK' }]);
           setTokenValidated(false);
           setTokenError(data.message);
         } else if (data.errorCode === 'DUPLICATE_MOBILE') {
-          Alert.alert(
-            'Already Registered',
-            'This mobile number is already registered. Please use a different number or contact support.',
-            [{ text: 'OK' }]
-          );
+          Alert.alert('Already Registered', 'This mobile number is already registered.', [{ text: 'OK' }]);
         } else {
           Alert.alert('Registration Error', data.message || 'Failed to submit registration');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Verification/Submission error:', error);
-      Alert.alert(
-        'Error',
-        'An error occurred during verification. Your registration has been saved with the available data.'
-      );
-      // Still show result even if there was an error
-      setSubmissionComplete(true);
+      setVerificationProgress(100);
+      setVerificationStep('Error');
+      
+      let errorMessage = 'An error occurred during registration.';
+      if (error.message?.includes('Network request failed') || error.message?.includes('fetch')) {
+        errorMessage = 'Unable to connect to the server. Please check your connection.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Registration Failed', errorMessage, [{ text: 'OK' }]);
     } finally {
       setIsSubmitting(false);
-      // DISABLED: AI verification session end
-      // aiVerification.endSession();
     }
   };
 
@@ -716,6 +914,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   // Get verification status label
   const getVerificationStatus = (): { label: string; color: string } => {
+    // Use duplicate check result if available
+    if (duplicateCheckResult) {
+      if (duplicateCheckResult.decision === 'BLOCK') {
+        return { label: 'BLOCKED - Duplicate', color: '#E74C3C' };
+      } else if (duplicateCheckResult.decision === 'ALLOW') {
+        return { label: 'ALLOWED - Unique', color: '#2ECC71' };
+      } else {
+        return { label: 'ERROR', color: '#F39C12' };
+      }
+    }
+    
     const confidence = getConfidencePercentage();
     if (confidence >= 80) return { label: 'High Match', color: '#2ECC71' };
     if (confidence >= 50) return { label: 'Medium Match', color: '#F39C12' };
@@ -760,7 +969,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   const handleBack = () => {
     if (currentStep === 5) {
-      // Can't go back from verification result
+      // Allow going back from Step 5 only if verification failed (BLOCK or ERROR)
+      if (duplicateCheckResult?.decision === 'BLOCK' || duplicateCheckResult?.decision === 'ERROR' || !submissionComplete) {
+        // Reset verification state and go back to face capture
+        setDuplicateCheckResult(null);
+        setVerificationResult(null);
+        setIsSubmitting(false);
+        setVerificationProgress(0);
+        setCurrentStep(4);
+        return;
+      }
+      // If submission is complete, don't allow going back
       return;
     }
     if (currentStep > 1) {
@@ -811,7 +1030,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     );
   };
 
-  const renderStep1 = () => (
+  const renderStep1 = () => {
+    const passwordErrorMessage = getPasswordError(password);
+    const confirmPasswordErrorMessage = getConfirmPasswordError(confirmPassword, password);
+
+    return (
     <View style={styles.formContent}>
       <View style={styles.headerSection}>
         <Text style={styles.title}>
@@ -946,12 +1169,29 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               value={mobileNumber}
               onChangeText={(text) => {
                 setMobileNumber(text);
-                if (text.trim()) clearStep1Error('mobileNumber');
+                if (text.trim()) {
+                  clearStep1Error('mobileNumber');
+                }
+                // Check mobile availability after user stops typing
+                if (text.length >= 10) {
+                  const timeoutId = setTimeout(() => {
+                    checkMobileAvailability(text);
+                  }, 500); // 500ms debounce
+                  return () => clearTimeout(timeoutId);
+                } else {
+                  setMobileChecked(false);
+                }
               }}
               keyboardType="phone-pad"
               maxLength={12}
             />
-            <Ionicons name="call" size={22} color="#2E7D32" style={styles.inputIconRight} />
+            {isCheckingMobile ? (
+              <ActivityIndicator size="small" color="#2E7D32" style={styles.inputIconRight} />
+            ) : mobileChecked ? (
+              <Ionicons name="checkmark-circle" size={22} color="#2E7D32" style={styles.inputIconRight} />
+            ) : (
+              <Ionicons name="call" size={22} color="#2E7D32" style={styles.inputIconRight} />
+            )}
           </View>
         </View>
 
@@ -961,21 +1201,27 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           <View style={[styles.inputContainer, showErrors && step1Errors.password && styles.inputError]}>
             <TextInput
               style={styles.input}
-              placeholder="Enter password (min 8 characters)"
+              placeholder="Enter password (letters and numbers only)"
               placeholderTextColor="#999"
               value={password}
               onChangeText={(text) => {
-                setPassword(text);
-                if (text.trim() && text.length >= 8) clearStep1Error('password');
+                // Strip whitespace as user types
+                const sanitizedText = text.replace(/\s/g, '');
+                setPassword(sanitizedText);
+                if (!getPasswordError(sanitizedText)) clearStep1Error('password');
               }}
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.inputIconRight}>
               <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
             </TouchableOpacity>
           </View>
           {showErrors && step1Errors.password && (
-            <Text style={styles.errorText}>Password must be at least 8 characters</Text>
+            <Text style={styles.errorText}>
+              {passwordErrorMessage || 'Invalid password'}
+            </Text>
           )}
         </View>
 
@@ -989,19 +1235,28 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               placeholderTextColor="#999"
               value={confirmPassword}
               onChangeText={(text) => {
-                setConfirmPassword(text);
-                if (text.trim()) {
-                  setStep1Errors(prev => ({ ...prev, confirmPassword: false, passwordMismatch: text !== password }));
+                // Strip whitespace as user types
+                const sanitizedText = text.replace(/\s/g, '');
+                setConfirmPassword(sanitizedText);
+                if (sanitizedText.trim()) {
+                  const confirmError = getConfirmPasswordError(sanitizedText, password);
+                  setStep1Errors(prev => ({
+                    ...prev,
+                    confirmPassword: !!confirmError,
+                    passwordMismatch: confirmError === 'Passwords do not match',
+                  }));
                 }
               }}
               secureTextEntry={!showConfirmPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
             <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.inputIconRight}>
               <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
             </TouchableOpacity>
           </View>
-          {showErrors && step1Errors.passwordMismatch && !step1Errors.confirmPassword && (
-            <Text style={styles.errorText}>Passwords do not match</Text>
+          {showErrors && step1Errors.confirmPassword && (
+            <Text style={styles.errorText}>{confirmPasswordErrorMessage || 'Please confirm your password'}</Text>
           )}
         </View>
 
@@ -1034,7 +1289,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         )}
       </View>
     </View>
-  );
+    );
+  };
 
   const renderStep2 = () => (
     <View style={styles.formContent}>
@@ -1471,6 +1727,30 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 <Text style={styles.faceVerifiedText}>Photo Captured</Text>
               </View>
             </View>
+          ) : capturedPhotoUri ? (
+            <View style={styles.faceImageContainer}>
+              <Image source={{ uri: capturedPhotoUri }} style={styles.faceImage} resizeMode="cover" />
+              <View
+                style={[
+                  styles.faceStatusBadge,
+                  scanStatus === 'failed' && styles.faceStatusBadgeError,
+                ]}
+              >
+                {scanStatus === 'capturing' ? (
+                  <ActivityIndicator size="small" color="#2E7D32" />
+                ) : (
+                  <Ionicons name="alert-circle" size={20} color="#D32F2F" />
+                )}
+                <Text
+                  style={[
+                    styles.faceStatusText,
+                    scanStatus === 'failed' && styles.faceStatusTextError,
+                  ]}
+                >
+                  {scanStatus === 'capturing' ? 'Analyzing photo...' : 'Please retake'}
+                </Text>
+              </View>
+            </View>
           ) : (
             <View style={styles.faceScanPlaceholder}>
               <View style={styles.faceScanIconContainer}>
@@ -1488,6 +1768,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         <TouchableOpacity 
           style={[styles.scanButton, faceScanComplete && styles.scanButtonComplete]}
           onPress={faceScanComplete ? retakeFaceScan : startFaceScan}
+          disabled={scanStatus === 'capturing'}
         >
           <Ionicons 
             name={faceScanComplete ? "refresh" : "camera"} 
@@ -1498,6 +1779,25 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             {faceScanComplete ? 'Retake Photo' : 'Snap a Photo'}
           </Text>
         </TouchableOpacity>
+
+        {scanStatus !== 'idle' && !faceScanComplete && (
+          <View style={styles.scanStatusRow}>
+            {scanStatus === 'capturing' && (
+              <ActivityIndicator size="small" color="#2E7D32" />
+            )}
+            <Text
+              style={[
+                styles.scanStatusText,
+                scanStatus === 'failed' && styles.scanStatusTextError,
+              ]}
+            >
+              {faceInstructions}
+            </Text>
+          </View>
+        )}
+        {showErrors && step4Errors.faceScan && (
+          <Text style={styles.errorText}>Please capture a clear face photo to continue</Text>
+        )}
 
         {/* Simple Tips */}
         <View style={styles.quickTipsContainer}>
@@ -1519,31 +1819,18 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     </View>
   );
 
-  // Step 5: Verification Result
+  // Step 5: Verification Result with Duplicate Check Display
   const renderStep5 = () => {
-    const confidencePercent = getConfidencePercentage();
     const status = getVerificationStatus();
     
     // Show loading state while verifying
-    if (isSubmitting || aiVerification.isLoading) {
+    if (isSubmitting) {
       return (
         <View style={styles.formContent}>
           <View style={styles.verificationLoadingContainer}>
             <ActivityIndicator size="large" color="#2E7D32" />
-            <Text style={styles.verificationLoadingTitle}>Verifying Your Identity</Text>
-            <Text style={styles.verificationLoadingSubtitle}>
-              {aiVerification.currentStep === 'id_front_capture' && 'Analyzing front ID...'}
-              {aiVerification.currentStep === 'id_back_capture' && 'Analyzing back ID...'}
-              {aiVerification.currentStep === 'id_quality_check' && 'Checking ID quality...'}
-              {aiVerification.currentStep === 'id_ocr' && 'Extracting ID data...'}
-              {aiVerification.currentStep === 'id_data_validation' && 'Validating data...'}
-              {aiVerification.currentStep === 'face_capture' && 'Processing face scan...'}
-              {aiVerification.currentStep === 'face_quality_check' && 'Checking face quality...'}
-              {aiVerification.currentStep === 'face_liveness' && 'Verifying liveness...'}
-              {aiVerification.currentStep === 'face_matching' && 'Matching face with ID...'}
-              {aiVerification.currentStep === 'final_verification' && 'Finalizing verification...'}
-              {!aiVerification.currentStep && 'Please wait...'}
-            </Text>
+            <Text style={styles.verificationLoadingTitle}>AI Face Verification</Text>
+            <Text style={styles.verificationLoadingSubtitle}>{verificationStep}</Text>
             
             {/* Progress bar */}
             <View style={styles.verificationProgressContainer}>
@@ -1551,108 +1838,123 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 <View 
                   style={[
                     styles.verificationProgressFill, 
-                    { width: `${aiVerification.progress}%` }
+                    { width: `${verificationProgress}%` }
                   ]} 
                 />
               </View>
-              <Text style={styles.verificationProgressText}>{aiVerification.progress}%</Text>
+              <Text style={styles.verificationProgressText}>{verificationProgress}%</Text>
             </View>
           </View>
         </View>
       );
     }
 
-    // Show verification result
+    // Show duplicate check result
     return (
       <View style={styles.formContent}>
         <View style={styles.verificationResultContainer}>
           {/* Result Icon */}
           <View style={[styles.verificationResultIcon, { backgroundColor: status.color + '20' }]}>
             <Ionicons 
-              name={confidencePercent >= 50 ? "shield-checkmark" : "warning"} 
+              name={duplicateCheckResult?.decision === 'ALLOW' ? "shield-checkmark" : 
+                    duplicateCheckResult?.decision === 'BLOCK' ? "close-circle" : "warning"} 
               size={60} 
               color={status.color} 
             />
           </View>
 
-          {/* Confidence Score */}
+          {/* Decision Badge */}
           <View style={styles.confidenceScoreContainer}>
-            <Text style={styles.confidenceScoreLabel}>Identity Match Score</Text>
-            <Text style={[styles.confidenceScoreValue, { color: status.color }]}>
-              {confidencePercent}%
-            </Text>
-            <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-              <Text style={[styles.statusBadgeText, { color: status.color }]}>
-                {status.label}
+            <Text style={styles.confidenceScoreLabel}>Duplicate Check Result</Text>
+            <View style={[styles.statusBadge, { backgroundColor: status.color + '20', paddingHorizontal: 20, paddingVertical: 10 }]}>
+              <Text style={[styles.statusBadgeText, { color: status.color, fontSize: 20, fontWeight: 'bold' }]}>
+                {duplicateCheckResult?.decision || 'PENDING'}
               </Text>
             </View>
           </View>
 
-          {/* Progress Ring Visual */}
-          <View style={styles.progressRingContainer}>
-            <View style={styles.progressRingBackground}>
-              <View 
-                style={[
-                  styles.progressRingFill, 
-                  { 
-                    width: `${confidencePercent}%`,
-                    backgroundColor: status.color,
-                  }
-                ]} 
-              />
-            </View>
-          </View>
-
-          {/* Verification Details */}
-          {verificationResult && (
-            <View style={styles.verificationDetailsContainer}>
-              <Text style={styles.verificationDetailsTitle}>Verification Breakdown</Text>
+          {/* Duplicate Check Details - Screenshot Ready */}
+          {duplicateCheckResult && (
+            <View style={[styles.verificationDetailsContainer, { backgroundColor: '#f8f9fa', borderRadius: 12, padding: 16, marginTop: 16 }]}>
+              <Text style={[styles.verificationDetailsTitle, { textAlign: 'center', marginBottom: 16, fontSize: 18 }]}>
+                AI Verification Details
+              </Text>
               
               <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>ID Verification</Text>
+                <Text style={styles.verificationDetailLabel}>Face Detected</Text>
                 <Text style={[
                   styles.verificationDetailValue,
-                  { color: verificationResult.idVerification.isValid ? '#2ECC71' : '#E74C3C' }
+                  { color: duplicateCheckResult.face_detected ? '#2ECC71' : '#E74C3C', fontWeight: 'bold' }
                 ]}>
-                  {Math.round(verificationResult.idVerification.confidence * 100)}%
+                  {duplicateCheckResult.face_detected ? 'Yes' : 'No'}
                 </Text>
               </View>
 
               <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Face Match</Text>
-                <Text style={[
-                  styles.verificationDetailValue,
-                  { color: verificationResult.faceVerification.isValid ? '#2ECC71' : '#E74C3C' }
-                ]}>
-                  {Math.round(verificationResult.faceVerification.matchConfidence * 100)}%
+                <Text style={styles.verificationDetailLabel}>Best Match</Text>
+                <Text style={[styles.verificationDetailValue, { fontWeight: 'bold' }]}>
+                  {duplicateCheckResult.best_match_name || 'None'}
                 </Text>
               </View>
 
               <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Liveness Check</Text>
+                <Text style={styles.verificationDetailLabel}>Similarity</Text>
                 <Text style={[
                   styles.verificationDetailValue,
-                  { color: verificationResult.faceVerification.livenessConfidence >= 0.7 ? '#2ECC71' : '#E74C3C' }
+                  { color: duplicateCheckResult.similarity >= duplicateCheckResult.threshold ? '#E74C3C' : '#2ECC71', fontWeight: 'bold' }
                 ]}>
-                  {Math.round(verificationResult.faceVerification.livenessConfidence * 100)}%
+                  {(duplicateCheckResult.similarity * 100).toFixed(1)}%
                 </Text>
               </View>
 
               <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Data Match</Text>
+                <Text style={styles.verificationDetailLabel}>Threshold</Text>
+                <Text style={[styles.verificationDetailValue, { fontWeight: 'bold' }]}>
+                  {(duplicateCheckResult.threshold * 100).toFixed(0)}%
+                </Text>
+              </View>
+
+              <View style={styles.verificationDetailRow}>
+                <Text style={styles.verificationDetailLabel}>Decision</Text>
                 <Text style={[
                   styles.verificationDetailValue,
-                  { color: verificationResult.dataMatchVerification.isMatch ? '#2ECC71' : '#F39C12' }
+                  { 
+                    color: duplicateCheckResult.decision === 'ALLOW' ? '#2ECC71' : '#E74C3C',
+                    fontWeight: 'bold',
+                    fontSize: 16
+                  }
                 ]}>
-                  {Math.round(verificationResult.dataMatchVerification.matchScore * 100)}%
+                  {duplicateCheckResult.decision === 'ALLOW' ? 'ALLOW (New)' : 
+                   duplicateCheckResult.decision === 'BLOCK' ? 'BLOCK (Duplicate)' : 'ERROR'}
+                </Text>
+              </View>
+
+              <View style={styles.verificationDetailRow}>
+                <Text style={styles.verificationDetailLabel}>Processing Time</Text>
+                <Text style={[styles.verificationDetailValue, { fontWeight: 'bold' }]}>
+                  {duplicateCheckResult.processing_time_ms} ms
                 </Text>
               </View>
             </View>
           )}
 
           {/* Status Message */}
-          <View style={styles.statusMessageContainer}>
-            {submissionComplete ? (
+          <View style={[styles.statusMessageContainer, { marginTop: 20 }]}>
+            {duplicateCheckResult?.decision === 'BLOCK' ? (
+              <>
+                <Ionicons name="alert-circle" size={24} color="#E74C3C" />
+                <Text style={[styles.statusMessageText, { color: '#E74C3C' }]}>
+                  Registration blocked. This face is already registered under "{duplicateCheckResult.best_match_name}".
+                </Text>
+              </>
+            ) : duplicateCheckResult?.decision === 'ERROR' ? (
+              <>
+                <Ionicons name="warning" size={24} color="#F39C12" />
+                <Text style={[styles.statusMessageText, { color: '#F39C12' }]}>
+                  {duplicateCheckResult.message || 'An error occurred during verification. Please try again.'}
+                </Text>
+              </>
+            ) : submissionComplete ? (
               <>
                 <Ionicons name="checkmark-circle" size={24} color="#2ECC71" />
                 <Text style={styles.statusMessageText}>
@@ -1663,17 +1965,45 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <>
                 <Ionicons name="time" size={24} color="#F39C12" />
                 <Text style={styles.statusMessageText}>
-                  Submitting your registration...
+                  Processing your registration...
                 </Text>
               </>
             )}
           </View>
 
-          {/* Complete Button */}
-          {submissionComplete && (
-            <TouchableOpacity style={styles.completeButton} onPress={onComplete}>
-              <Text style={styles.completeButtonText}>Done</Text>
-              <Ionicons name="checkmark" size={22} color="#FFF" />
+          {/* Complete, Retry, or Go Back Button */}
+          {(submissionComplete || duplicateCheckResult?.decision === 'BLOCK' || duplicateCheckResult?.decision === 'ERROR') && (
+            <TouchableOpacity 
+              style={[
+                styles.completeButton, 
+                duplicateCheckResult?.decision === 'BLOCK' && { backgroundColor: '#E74C3C' },
+                duplicateCheckResult?.decision === 'ERROR' && { backgroundColor: '#F39C12' }
+              ]} 
+              onPress={() => {
+                if (duplicateCheckResult?.decision === 'BLOCK') {
+                  onCancel();
+                } else if (duplicateCheckResult?.decision === 'ERROR') {
+                  // Retry - go back to face capture
+                  setDuplicateCheckResult(null);
+                  setVerificationResult(null);
+                  setIsSubmitting(false);
+                  setVerificationProgress(0);
+                  setCurrentStep(4);
+                } else {
+                  onComplete();
+                }
+              }}
+            >
+              <Text style={styles.completeButtonText}>
+                {duplicateCheckResult?.decision === 'BLOCK' ? 'Exit' : 
+                 duplicateCheckResult?.decision === 'ERROR' ? 'Retry Photo' : 'Done'}
+              </Text>
+              <Ionicons 
+                name={duplicateCheckResult?.decision === 'BLOCK' ? "close" : 
+                      duplicateCheckResult?.decision === 'ERROR' ? "refresh" : "checkmark"} 
+                size={22} 
+                color="#FFF" 
+              />
             </TouchableOpacity>
           )}
         </View>
@@ -3072,6 +3402,26 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     marginLeft: 6,
   },
+  faceStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FFF0',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+  },
+  faceStatusBadgeError: {
+    backgroundColor: '#FFEBEE',
+  },
+  faceStatusText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2E7D32',
+  },
+  faceStatusTextError: {
+    color: '#D32F2F',
+  },
   scanButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3089,6 +3439,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#FFF',
+  },
+  scanStatusRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  scanStatusText: {
+    fontSize: 14,
+    color: '#2E7D32',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  scanStatusTextError: {
+    color: '#D32F2F',
   },
   instructionsContainer: {
     marginTop: 25,

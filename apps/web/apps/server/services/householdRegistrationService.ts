@@ -104,11 +104,17 @@ export class HouseholdRegistrationService {
    * 
    * This is called when user enters their token to check if it's valid.
    * Does NOT acquire a lock - just validates.
+   * 
+   * @param token - The token to validate
+   * @param ipAddress - Client IP address
+   * @param userAgent - Client user agent
+   * @param barangay - Optional barangay to filter tokens (speeds up validation)
    */
   async validateToken(
     token: string,
     ipAddress: string,
-    userAgent: string
+    userAgent: string,
+    barangay?: string
   ): Promise<TokenValidationResponse> {
     const requestId = generateRequestId();
     
@@ -117,7 +123,8 @@ export class HouseholdRegistrationService {
         token,
         ipAddress,
         userAgent,
-        requestId
+        requestId,
+        barangay
       );
       
       if (!result.success) {
@@ -210,20 +217,25 @@ export class HouseholdRegistrationService {
         lockerId,
         ipAddress,
         userAgent,
-        requestId
+        requestId,
+        data.barangay  // Pass barangay for faster token lookup
       );
       
       if (!lockResult.success || !lockResult.locked) {
         // Lock failed - another registration is in progress or token is invalid
         const errorMessages: Record<string, string> = {
-          'TOKEN_NOT_FOUND': 'Token not found or has expired.',
+          'TOKEN_NOT_FOUND': 'Token not found or has expired. Please contact your barangay office for a new token.',
+          'TOKEN_ALREADY_USED': 'This token has already been used for registration.',
+          'TOKEN_EXPIRED': 'This token has expired. Please contact your barangay office for a new token.',
           'LOCK_CONFLICT': 'Another family member is currently registering. Please wait and try again.',
           'LOCK_ERROR': 'Registration temporarily unavailable. Please try again.',
         };
         
+        console.log('[RegistrationService] Lock failed:', lockResult.errorCode, lockResult.error);
+        
         return {
           success: false,
-          message: errorMessages[lockResult.errorCode || ''] || 'Unable to start registration.',
+          message: errorMessages[lockResult.errorCode || ''] || `Unable to start registration: ${lockResult.error || 'Unknown error'}`,
           errorCode: lockResult.errorCode,
         };
       }
@@ -322,7 +334,51 @@ export class HouseholdRegistrationService {
         status: 'Pending',
       });
       
-      await resident.save();
+      try {
+        await resident.save();
+      } catch (saveError: any) {
+        // Release lock on save failure
+        await householdTokenService.releaseLock(
+          tokenId,
+          lockerId,
+          ipAddress,
+          userAgent,
+          requestId,
+          `Save failed: ${saveError.message}`
+        );
+        
+        // Handle Mongoose validation errors specifically
+        if (saveError.name === 'ValidationError') {
+          const validationMessages = Object.values(saveError.errors)
+            .map((err: any) => err.message)
+            .join(', ');
+          
+          console.error('[RegistrationService] Validation error:', validationMessages);
+          
+          await RegistrationAuditLog.log({
+            eventType: 'REGISTRATION_FAILED',
+            severity: 'WARNING',
+            tokenPrefix: data.householdToken.replace(/-/g, '').slice(0, 4),
+            tokenId,
+            ipAddress,
+            userAgent,
+            requestId,
+            message: `Validation error: ${validationMessages}`,
+            success: false,
+            errorCode: 'VALIDATION_ERROR',
+            processingTimeMs: Date.now() - startTime,
+          });
+          
+          return {
+            success: false,
+            message: `Validation failed: ${validationMessages}`,
+            errorCode: 'VALIDATION_ERROR',
+          };
+        }
+        
+        // Re-throw other errors to be handled by the outer catch
+        throw saveError;
+      }
       
       // Step 5: Mark token as used (atomic)
       const completeResult = await householdTokenService.completeRegistration(

@@ -189,12 +189,19 @@ export class HouseholdTokenService {
    * 
    * Used to check if a token is valid before starting registration.
    * Does NOT acquire a lock - just checks validity.
+   * 
+   * @param plainToken - The token to validate
+   * @param ipAddress - Client IP address
+   * @param userAgent - Client user agent
+   * @param requestId - Unique request identifier
+   * @param barangay - Optional barangay to filter tokens (speeds up validation)
    */
   async validateToken(
     plainToken: string,
     ipAddress: string,
     userAgent: string,
-    requestId: string
+    requestId: string,
+    barangay?: string
   ): Promise<TokenValidationResult> {
     const startTime = Date.now();
     
@@ -202,7 +209,7 @@ export class HouseholdTokenService {
       // Normalize token format
       const normalizedToken = plainToken.trim().toUpperCase();
       
-      console.log('[TokenService] Validating token:', normalizedToken);
+      console.log('[TokenService] Validating token:', normalizedToken, barangay ? `for barangay: ${barangay}` : '');
       
       // Basic format validation
       if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(normalizedToken)) {
@@ -228,12 +235,21 @@ export class HouseholdTokenService {
         };
       }
       
-      // Find all tokens and check hash (we can't query by hash directly)
-      // This is intentionally slow to prevent timing attacks
-      const tokens = await HouseholdToken.find({
+      // Build query - filter by barangay if provided for faster lookup
+      // Each barangay has its own "database" of tokens
+      const query: Record<string, unknown> = {
         status: { $in: ['UNUSED', 'LOCKED'] },
         expiresAt: { $gt: new Date() },
-      });
+      };
+      
+      // Filter by barangay for barangay-specific token validation
+      if (barangay && barangay.trim()) {
+        query['householdInfo.barangay'] = barangay.trim();
+        console.log('[TokenService] Filtering tokens by barangay:', barangay);
+      }
+      
+      // Find tokens matching criteria
+      const tokens = await HouseholdToken.find(query);
       
       console.log('[TokenService] Found', tokens.length, 'candidate tokens');
       
@@ -359,7 +375,8 @@ export class HouseholdTokenService {
     lockerId: string,
     ipAddress: string,
     userAgent: string,
-    requestId: string
+    requestId: string,
+    barangay?: string
   ): Promise<TokenLockResult> {
     const startTime = Date.now();
     
@@ -367,11 +384,19 @@ export class HouseholdTokenService {
       // Normalize token
       const normalizedToken = plainToken.trim().toUpperCase();
       
-      // Find the token by hash comparison
-      const tokens = await HouseholdToken.find({
+      // Build query - filter by barangay if provided for faster lookup
+      const query: Record<string, unknown> = {
         status: { $in: ['UNUSED', 'LOCKED'] },
         expiresAt: { $gt: new Date() },
-      });
+      };
+      
+      // Filter by barangay for faster lookup
+      if (barangay && barangay.trim()) {
+        query['householdInfo.barangay'] = barangay.trim();
+      }
+      
+      // Find the token by hash comparison
+      const tokens = await HouseholdToken.find(query);
       
       let matchedToken: IHouseholdToken | null = null;
       

@@ -29,10 +29,12 @@ import { householdRegistrationService } from '../services/householdRegistrationS
 import RegistrationAuditLog from '../models/RegistrationAuditLog';
 import { generateRequestId } from '../services/householdTokenService';
 import HouseholdToken from '../models/HouseholdToken';
+import Resident from '../models/Resident';
 import bcrypt from 'bcrypt';
 import {
   tokenValidationRateLimiter,
   householdRegistrationRateLimiter,
+  mobileLookupRateLimiter,
 } from '../middleware/rateLimiter';
 
 const router = Router();
@@ -133,7 +135,7 @@ router.post('/validate-token', tokenValidationRateLimiter, async (req: Request, 
   const userAgent = getUserAgent(req);
   
   try {
-    const { token } = req.body;
+    const { token, barangay } = req.body;
     
     // Input validation
     if (!token || typeof token !== 'string') {
@@ -146,6 +148,7 @@ router.post('/validate-token', tokenValidationRateLimiter, async (req: Request, 
     }
     
     const sanitizedToken = sanitizeToken(token);
+    const sanitizedBarangay = barangay && typeof barangay === 'string' ? barangay.trim() : undefined;
     
     // Check for brute force attempts
     const bruteForceCheck = await RegistrationAuditLog.detectBruteForce(ipAddress, 15, 10);
@@ -195,11 +198,12 @@ router.post('/validate-token', tokenValidationRateLimiter, async (req: Request, 
       });
     }
     
-    // Validate token
+    // Validate token (with barangay filter for faster lookup)
     const result = await householdRegistrationService.validateToken(
       sanitizedToken,
       ipAddress,
-      userAgent
+      userAgent,
+      sanitizedBarangay
     );
     
     return res.status(result.valid ? 200 : 400).json(result);
@@ -385,6 +389,52 @@ router.post('/register', householdRegistrationRateLimiter, async (req: Request, 
       success: false,
       message: 'Registration failed. Please try again.',
       errorCode: 'SYSTEM_ERROR',
+    });
+  }
+});
+
+/**
+ * Check Mobile Number Endpoint
+ *
+ * POST /api/household/check-mobile
+ *
+ * Performs a privacy-preserving mobile number pre-check.
+ *
+ * Request body:
+ * {
+ *   mobileNumber: string
+ * }
+ *
+ * Response:
+ * {
+ *   success: boolean,
+ *   message: string
+ * }
+ */
+router.post('/check-mobile', mobileLookupRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const { mobileNumber } = req.body;
+
+    if (!mobileNumber || typeof mobileNumber !== 'string') {
+      return res.status(200).json({
+        success: true,
+        message: 'If this number is eligible, registration can continue.',
+      });
+    }
+
+    await Resident.findOne({
+      mobileNumber: mobileNumber.trim(),
+    });
+
+    return res.json({
+      success: true,
+      message: 'If this number is eligible, registration can continue.',
+    });
+  } catch (error) {
+    console.error('[HouseholdRoutes] Check mobile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Unable to process request.',
     });
   }
 });

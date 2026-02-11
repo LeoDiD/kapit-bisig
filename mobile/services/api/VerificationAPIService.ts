@@ -11,6 +11,7 @@
  */
 
 import * as FileSystem from 'expo-file-system';
+import { resolveApiBaseUrl } from '../config/apiSecurity';
 
 // Encoding type constant
 const EncodingType = {
@@ -21,7 +22,11 @@ const EncodingType = {
 // Configuration
 const API_CONFIG = {
   // Replace with your actual backend URL
-  baseUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api',
+  baseUrl: resolveApiBaseUrl(
+    process.env.EXPO_PUBLIC_API_URL,
+    'http://localhost:3001/api',
+    'VerificationAPIService',
+  ),
   timeout: 30000, // 30 seconds for AI processing
   retryAttempts: 2,
 };

@@ -12,6 +12,7 @@
  */
 
 import * as FileSystem from 'expo-file-system';
+import { resolveApiBaseUrl } from '../config/apiSecurity';
 
 // ============================================
 // CONFIGURATION
@@ -21,7 +22,11 @@ import * as FileSystem from 'expo-file-system';
 const DEFAULT_API_URL = 'http://localhost:8000';
 
 // Get API URL from environment or use default
-const API_BASE_URL = process.env.EXPO_PUBLIC_FACE_API_URL || DEFAULT_API_URL;
+const API_BASE_URL = resolveApiBaseUrl(
+  process.env.EXPO_PUBLIC_FACE_API_URL,
+  DEFAULT_API_URL,
+  'FaceRecognitionApi',
+);
 
 // Request timeout (30 seconds for face processing)
 const REQUEST_TIMEOUT = 30000;

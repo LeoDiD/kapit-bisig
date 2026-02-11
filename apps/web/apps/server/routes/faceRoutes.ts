@@ -35,7 +35,6 @@ router.post('/detect', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Face detection failed',
-      error: (error as Error).message,
     });
   }
 });
@@ -66,7 +65,6 @@ router.post('/compare', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Face comparison failed',
-      error: (error as Error).message,
     });
   }
 });
@@ -104,7 +102,6 @@ router.post('/descriptor', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Face descriptor generation failed',
-      error: (error as Error).message,
     });
   }
 });
@@ -142,7 +139,6 @@ router.post('/verify', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Face verification failed',
-      error: (error as Error).message,
     });
   }
 });
@@ -165,7 +161,6 @@ router.get('/health', async (_req: Request, res: Response) => {
     return res.status(503).json({
       success: false,
       message: 'Face recognition service not ready',
-      error: (error as Error).message,
       modelsLoaded: false,
     });
   }
@@ -221,7 +216,6 @@ router.post('/check-duplicate', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to check for duplicate face',
-      error: (error as Error).message,
     });
   }
 });

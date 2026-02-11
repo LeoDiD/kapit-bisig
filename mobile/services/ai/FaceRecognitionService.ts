@@ -6,7 +6,13 @@
 import * as FileSystem from 'expo-file-system';
 
 // API Configuration
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { resolveApiBaseUrl } from '../config/apiSecurity';
+
+const API_URL = resolveApiBaseUrl(
+  process.env.EXPO_PUBLIC_API_URL,
+  'http://localhost:3001/api',
+  'FaceRecognitionService',
+);
 
 // Encoding type constant
 const EncodingType = {

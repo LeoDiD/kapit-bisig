@@ -7,16 +7,21 @@
  * 
  * Features:
  * - Secure login with JWT tokens
- * - Token storage using AsyncStorage
+ * - Token storage using SecureStore
  * - Auto token refresh
  * - Role validation (only Volunteer role allowed)
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { resolveApiBaseUrl } from '../config/apiSecurity';
 
 // Configuration
 const API_CONFIG = {
-  baseUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api',
+  baseUrl: resolveApiBaseUrl(
+    process.env.EXPO_PUBLIC_API_URL,
+    'http://localhost:3001/api',
+    'MobileAuthService',
+  ),
   timeout: 15000,
 };
 
@@ -88,8 +93,8 @@ class MobileAuthService {
   async initialize(): Promise<boolean> {
     try {
       const [storedToken, storedUser] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN),
-        AsyncStorage.getItem(STORAGE_KEYS.USER_DATA),
+        this.getStoredItem(STORAGE_KEYS.AUTH_TOKEN),
+        this.getStoredItem(STORAGE_KEYS.USER_DATA),
       ]);
 
       if (storedToken && storedUser) {
@@ -215,8 +220,8 @@ class MobileAuthService {
       this.user = null;
 
       await Promise.all([
-        AsyncStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN),
-        AsyncStorage.removeItem(STORAGE_KEYS.USER_DATA),
+        this.deleteStoredItem(STORAGE_KEYS.AUTH_TOKEN),
+        this.deleteStoredItem(STORAGE_KEYS.USER_DATA),
       ]);
     } catch (error) {
       console.error('[MobileAuthService] Logout error:', error);
@@ -245,7 +250,7 @@ class MobileAuthService {
       if (data.success && data.data) {
         // Update user data
         this.user = data.data;
-        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(data.data));
+        await this.setStoredItem(STORAGE_KEYS.USER_DATA, JSON.stringify(data.data));
         return true;
       }
 
@@ -264,9 +269,23 @@ class MobileAuthService {
     this.user = user;
 
     await Promise.all([
-      AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token),
-      AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user)),
+      this.setStoredItem(STORAGE_KEYS.AUTH_TOKEN, token),
+      this.setStoredItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user)),
     ]);
+  }
+
+  private async getStoredItem(key: string): Promise<string | null> {
+    return SecureStore.getItemAsync(key);
+  }
+
+  private async setStoredItem(key: string, value: string): Promise<void> {
+    await SecureStore.setItemAsync(key, value, {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    });
+  }
+
+  private async deleteStoredItem(key: string): Promise<void> {
+    await SecureStore.deleteItemAsync(key);
   }
 
   /**

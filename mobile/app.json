@@ -3,11 +3,9 @@
     "name": "kapit-bisig",
     "slug": "kapit-bisig",
     "scheme": "kapitbisig",
-
     "ios": {
       "supportsTablet": true
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
@@ -16,9 +14,11 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
-
     "web": {
       "favicon": "./assets/logo.png"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
