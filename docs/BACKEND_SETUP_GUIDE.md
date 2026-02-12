@@ -181,7 +181,7 @@ MAX_IMAGE_DIM=800               # Max image dimension (resize for speed)
 
 ```env
 # MongoDB Connection
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/kapit-bisig
+MONGODB_URI=mongodb+srv://cluster0.example.mongodb.net/kapit-bisig
 
 # Server Settings
 PORT=3001
