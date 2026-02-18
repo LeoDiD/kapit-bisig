@@ -13,6 +13,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { isJWTRevoked } from '../services/tokenRevocationService';
 
 const COOKIE_NAME = 'sa_token';
 
@@ -20,6 +21,7 @@ const COOKIE_NAME = 'sa_token';
 export interface SuperadminPayload {
   sub: string;       // username
   role: 'superadmin';
+  jti?: string;
   iat?: number;
   exp?: number;
 }
@@ -38,6 +40,7 @@ export function logSecurity(event: string, meta?: Record<string, unknown>) {
 function getJWTSecret(): string {
   const s = process.env.JWT_SECRET;
   if (!s) throw new Error('JWT_SECRET not defined');
+  if (s.length < 32) throw new Error('JWT_SECRET must be at least 32 characters long');
   return s;
 }
 
@@ -62,11 +65,11 @@ function extractToken(req: Request): string | null {
  * requireAuth – verifies a valid JWT is present.
  * Attaches `req.saUser` on success.
  */
-export const requireAuth = (
+export const requireAuth = async (
   req: SARequest,
   res: Response,
   next: NextFunction,
-): void => {
+): Promise<void> => {
   const token = extractToken(req);
 
   if (!token || token === 'null' || token === 'undefined') {
@@ -76,7 +79,12 @@ export const requireAuth = (
   }
 
   try {
-    const decoded = jwt.verify(token, getJWTSecret()) as SuperadminPayload;
+    const decoded = jwt.verify(token, getJWTSecret(), { algorithms: ['HS256'] }) as SuperadminPayload;
+    if (await isJWTRevoked(decoded.jti)) {
+      logSecurity('ACCESS_DENIED', { reason: 'token_revoked', ip: req.ip });
+      res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+      return;
+    }
     req.saUser = decoded;
     next();
   } catch (err) {

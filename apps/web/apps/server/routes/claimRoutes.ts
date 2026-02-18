@@ -101,7 +101,7 @@ router.post('/record-claim', validateRequest({ body: recordClaimBody }), async (
     const candidates = await HouseholdToken.find({
       status: { $in: ['UNUSED', 'LOCKED', 'USED'] }, // USED tokens are valid households
       expiresAt: { $gt: new Date() },
-    });
+    }).setOptions({ sanitizeFilter: false });
 
     let matchedToken = null;
     const bcrypt = await import('bcrypt');

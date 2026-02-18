@@ -5,3 +5,4 @@
  */
 
 export * from './passwordValidator';
+export * from './mobileNumber';

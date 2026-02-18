@@ -10,7 +10,9 @@
     "dev:mobile": "cd mobile && npm run start",
     "dev:web-server": "concurrently -n \"web,server\" -c \"blue,green\" \"npm run dev:web\" \"npm run dev:server\"",
     "install:all": "npm install && cd apps/web/apps && npm install && cd ../../../mobile && npm install",
-    "build:web": "cd apps/web/apps && npm run build"
+    "build:web": "cd apps/web/apps && npm run build",
+    "test:auth:newman": "npx newman run docs/postman/KapitBisig_Auth_Security.postman_collection.json -e docs/postman/KapitBisig_Local.postman_environment.json --reporters cli",
+    "test:auth:newman:insecure": "npx newman run docs/postman/KapitBisig_Auth_Security.postman_collection.json -e docs/postman/KapitBisig_Local.postman_environment.json --reporters cli --insecure"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -15,6 +15,7 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 import { loginRateLimiter } from '../middleware/rateLimiter';
 import { loginOtpRateLimiter } from '../middleware/rateLimiter';
 import {
@@ -24,26 +25,38 @@ import {
   logSecurity,
 } from '../middleware/unifiedAuth';
 import StaffUser from '../models/StaffUser';
+<<<<<<< Updated upstream
 import LoginVerifyOtp from '../models/LoginVerifyOtp';
 import { validateRequest } from '../validation/validateRequest';
 import { loginBody, loginVerifyOtpBody, loginResendOtpBody } from '../validation/auth.schema';
 import { logAudit } from '../utils/audit';
 import { sendLoginVerifyOtpEmail } from '../utils/mailer';
 import { setCsrfCookie, generateCsrfToken } from '../middleware/csrf';
+=======
+import { validateRequest } from '../middleware/requestValidation';
+import { unifiedLoginSchema } from '../schemas/authSchemas';
+import { revokeJWTByValue } from '../services/tokenRevocationService';
+>>>>>>> Stashed changes
 
 const router = Router();
 
 const COOKIE_NAME = 'sa_token';
+<<<<<<< Updated upstream
 const TOKEN_EXPIRY_HOURS = 10;
 const REMEMBER_ME_EXPIRY_DAYS = 30;
 const SALT_ROUNDS = 12;
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_PENDING_TOKEN_EXPIRY = '10m';
+=======
+const TOKEN_EXPIRY_HOURS = Number(process.env.AUTH_TOKEN_EXPIRY_HOURS || 10);
+const REMEMBER_ME_EXPIRY_DAYS = Number(process.env.AUTH_REMEMBER_ME_DAYS || 30);
+>>>>>>> Stashed changes
 
 function getJWTSecret(): string {
   const s = process.env.JWT_SECRET;
   if (!s) throw new Error('JWT_SECRET not set');
+  if (s.length < 32) throw new Error('JWT_SECRET must be at least 32 characters long');
   return s;
 }
 
@@ -73,6 +86,7 @@ function setCookie(res: Response, token: string, rememberMe: boolean) {
 /* ------------------------------------------------------------------ */
 /*  POST /api/auth/login                                              */
 /* ------------------------------------------------------------------ */
+<<<<<<< Updated upstream
 router.post('/login', loginRateLimiter, validateRequest({ body: loginBody }), async (req: Request, res: Response) => {
   try {
     const { username, password, rememberMe } = req.body;
@@ -91,12 +105,18 @@ router.post('/login', loginRateLimiter, validateRequest({ body: loginBody }), as
       return;
     }
 
+=======
+router.post('/login', loginRateLimiter, validateRequest({ body: unifiedLoginSchema }), async (req: Request, res: Response) => {
+  try {
+    const { username, password, rememberMe } = req.body;
+
+>>>>>>> Stashed changes
     const trimmedUser = username.trim().toLowerCase();
     const isEmail = trimmedUser.includes('@');
     const remember = !!rememberMe;
-    const expiry = remember
+    const expiry = (remember
       ? `${REMEMBER_ME_EXPIRY_DAYS}d`
-      : `${TOKEN_EXPIRY_HOURS}h`;
+      : `${TOKEN_EXPIRY_HOURS}h`) as SignOptions['expiresIn'];
     const secret: Secret = getJWTSecret();
     const options: SignOptions = { expiresIn: expiry, algorithm: 'HS256' };
 
@@ -116,6 +136,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: loginBody }), as
       const payload: AuthPayload = {
         sub: saUser,
         role: 'SUPERADMIN',
+        jti: randomUUID(),
       };
       const token = jwt.sign(payload, secret, options);
       setCookie(res, token, remember);
@@ -146,12 +167,29 @@ router.post('/login', loginRateLimiter, validateRequest({ body: loginBody }), as
       '+passwordHash',
     );
 
+<<<<<<< Updated upstream
     // Always run bcrypt.compare even when user not found (timing-attack mitigation)
     const dummyHash = '$2b$12$KIXTOzaOGBy05XHs9hLKyuBP7dsQVG4x5vjXPMNGSBKLVoKJGxbW6';
     const hashToCompare = staffUser?.passwordHash || dummyHash;
     const pwMatch = await bcrypt.compare(password, hashToCompare);
 
     if (!staffUser || !pwMatch || !staffUser.isActive) {
+=======
+    if (!staffUser) {
+      logSecurity('LOGIN_FAIL', { ip: req.ip, reason: 'invalid_credentials' });
+      res.status(401).json({ success: false, message: 'Invalid credentials.' });
+      return;
+    }
+
+    if (!staffUser.isActive) {
+      logSecurity('LOGIN_FAIL', { ip: req.ip, reason: 'invalid_credentials', username: trimmedUser });
+      res.status(401).json({ success: false, message: 'Invalid credentials.' });
+      return;
+    }
+
+    const pwMatch = await bcrypt.compare(password, staffUser.passwordHash);
+    if (!pwMatch) {
+>>>>>>> Stashed changes
       logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedUser });
       await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', { username: trimmedUser, reason: 'invalid_credentials' });
       // GENERIC error — never reveal whether user exists, is inactive, or password is wrong
@@ -227,6 +265,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: loginBody }), as
       role: 'LGU_STAFF',
       userId: staffUser._id.toString(),
       assignedBarangays: staffUser.assignedBarangays,
+      jti: randomUUID(),
     };
     const token = jwt.sign(payload, secret, options);
     setCookie(res, token, remember);
@@ -445,6 +484,7 @@ router.post(
 /* ------------------------------------------------------------------ */
 /*  POST /api/auth/logout                                             */
 /* ------------------------------------------------------------------ */
+<<<<<<< Updated upstream
 router.post('/logout', (_req: Request, res: Response) => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
@@ -457,6 +497,19 @@ router.post('/logout', (_req: Request, res: Response) => {
     sameSite: 'lax',
     path: '/',
   });
+=======
+router.post('/logout', async (_req: Request, res: Response) => {
+  const cookieToken = _req.cookies?.[COOKIE_NAME] as string | undefined;
+  const authHeader = _req.headers.authorization;
+  const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+  const token = cookieToken || headerToken;
+
+  if (token) {
+    await revokeJWTByValue(token, 'session');
+  }
+
+  res.clearCookie(COOKIE_NAME, { path: '/' });
+>>>>>>> Stashed changes
   logSecurity('LOGOUT', { ip: _req.ip });
   logAudit(_req, 'LOGOUT', 'Auth', '').catch(() => {});
   res.json({ success: true, message: 'Logged out.' });

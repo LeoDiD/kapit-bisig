@@ -22,6 +22,11 @@ import mongoose from 'mongoose';
 import Resident, { IResident } from '../models/Resident';
 import { householdTokenService, generateRequestId } from './householdTokenService';
 import RegistrationAuditLog from '../models/RegistrationAuditLog';
+import { validatePassword, isCommonPassword } from '../utils/passwordValidator';
+import {
+  isValidPhilippineMobileNumber,
+  normalizePhilippineMobileNumber,
+} from '../utils/mobileNumber';
 
 export interface RegistrationData {
   // Personal Info (Step 1)
@@ -70,6 +75,7 @@ export interface RegistrationData {
 export interface RegistrationResult {
   success: boolean;
   residentId?: mongoose.Types.ObjectId;
+  residentCode?: string;
   message: string;
   errorCode?: string;
   householdInfo?: {
@@ -198,6 +204,9 @@ export class HouseholdRegistrationService {
     let lockAcquired = false;
     
     try {
+      const normalizedMobileNumber = normalizePhilippineMobileNumber(data.mobileNumber || '');
+      data.mobileNumber = normalizedMobileNumber;
+
       // Log registration start
       await RegistrationAuditLog.log({
         eventType: 'REGISTRATION_STARTED',
@@ -265,7 +274,7 @@ export class HouseholdRegistrationService {
       
       // Step 3: Check for duplicate registration (by mobile number)
       const existingResident = await Resident.findOne({
-        mobileNumber: data.mobileNumber,
+        mobileNumber: normalizedMobileNumber,
       });
       
       if (existingResident) {
@@ -300,13 +309,27 @@ export class HouseholdRegistrationService {
       }
       
       // Step 4: Create resident record
+      const verificationPayload = data.verification || {
+        overallConfidence: 0,
+        idConfidence: 0,
+        faceMatchConfidence: 0,
+        livenessConfidence: 0,
+        dataMatchScore: 0,
+        riskScore: 0,
+        isVerified: false,
+        aiVerificationStatus: 'Low Match',
+        warnings: [],
+        riskFactors: [],
+      };
+      const isAutoApproved = verificationPayload.isVerified === true;
+
       const resident = new Resident({
         firstName: data.firstName,
         lastName: data.lastName,
         fullName: `${data.firstName} ${data.lastName}`,
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
-        mobileNumber: data.mobileNumber,
+        mobileNumber: normalizedMobileNumber,
         password: data.password,
         city: data.city || '',
         barangay: data.barangay,
@@ -319,19 +342,9 @@ export class HouseholdRegistrationService {
         frontIdImage: data.frontIdImage || 'placeholder', // Optional for testing
         backIdImage: data.backIdImage || 'placeholder',   // Optional for testing
         faceImage: data.faceImage || 'placeholder',       // Optional for testing
-        verification: data.verification || {
-          overallConfidence: 0,
-          idConfidence: 0,
-          faceMatchConfidence: 0,
-          livenessConfidence: 0,
-          dataMatchScore: 0,
-          riskScore: 0,
-          isVerified: false,
-          aiVerificationStatus: 'Low Match',
-          warnings: [],
-          riskFactors: [],
-        },
-        status: 'Pending',
+        verification: verificationPayload,
+        status: isAutoApproved ? 'Approved' : 'Pending',
+        verifiedAt: isAutoApproved ? new Date() : undefined,
       });
       
       try {
@@ -347,6 +360,28 @@ export class HouseholdRegistrationService {
           `Save failed: ${saveError.message}`
         );
         
+        if (saveError?.code === 11000) {
+          await RegistrationAuditLog.log({
+            eventType: 'REGISTRATION_FAILED',
+            severity: 'WARNING',
+            tokenPrefix: data.householdToken.replace(/-/g, '').slice(0, 4),
+            tokenId,
+            ipAddress,
+            userAgent,
+            requestId,
+            message: 'Registration failed - duplicate mobile number (unique index)',
+            success: false,
+            errorCode: 'DUPLICATE_MOBILE',
+            processingTimeMs: Date.now() - startTime,
+          });
+
+          return {
+            success: false,
+            message: 'This mobile number is already registered.',
+            errorCode: 'DUPLICATE_MOBILE',
+          };
+        }
+
         // Handle Mongoose validation errors specifically
         if (saveError.name === 'ValidationError') {
           const validationMessages = Object.values(saveError.errors)
@@ -440,6 +475,7 @@ export class HouseholdRegistrationService {
       return {
         success: true,
         residentId: resident._id as mongoose.Types.ObjectId,
+        residentCode: resident.residentCode,
         message: 'Registration successful! Your application is pending review.',
         householdInfo: token?.householdInfo ? {
           headOfHousehold: token.householdInfo.headOfHousehold,
@@ -490,6 +526,7 @@ export class HouseholdRegistrationService {
    */
   private validateRegistrationData(data: RegistrationData): string[] {
     const errors: string[] = [];
+    const normalizedMobile = normalizePhilippineMobileNumber(data.mobileNumber || '');
     
     // Required fields
     if (!data.firstName?.trim()) errors.push('First name is required');
@@ -509,15 +546,21 @@ export class HouseholdRegistrationService {
     // if (!data.backIdImage) errors.push('Back ID image is required');
     // if (!data.faceImage) errors.push('Face image is required');
     
-    // Password validation
-    if (data.password && data.password.length < 8) {
-      errors.push('Password must be at least 8 characters');
+    // Password validation aligned with shared security policy.
+    if (data.password) {
+      const passwordValidation = validatePassword(data.password);
+      if (!passwordValidation.isValid && passwordValidation.errors.length > 0) {
+        errors.push(passwordValidation.errors[0]);
+      }
+      if (isCommonPassword(data.password)) {
+        errors.push('Password is too common');
+      }
     }
     
-    // Mobile number format (relaxed for testing)
-    // if (data.mobileNumber && !/^(09|\+639)\d{9}$/.test(data.mobileNumber.replace(/\s/g, ''))) {
-    //   errors.push('Invalid mobile number format');
-    // }
+    // Mobile number format (Philippines): exactly 11 digits, starts with 09
+    if (data.mobileNumber && !isValidPhilippineMobileNumber(normalizedMobile)) {
+      errors.push('Invalid mobile number format (must be 11 digits and start with 09)');
+    }
     
     // Token format
     if (data.householdToken && !/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(data.householdToken.trim())) {

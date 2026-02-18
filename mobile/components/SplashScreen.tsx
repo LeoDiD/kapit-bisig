@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import RegisterScreen from './RegisterScreen';
+import { residentLogin, saveResidentSession } from '../services/api/ResidentQrService';
 
 const { width } = Dimensions.get('window');
 
@@ -47,10 +48,12 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
   const [showLoginScreen, setShowLoginScreen] = useState(false);
   const [showRegisterScreen, setShowRegisterScreen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [email, setEmail] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -63,15 +66,40 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
     setShowOnboarding(true);
   };
 
-  const handleLogin = () => {
-    if (onLogin) {
-      onLogin();
-    } else {
-      onGetStarted();
+  const handleLogin = async () => {
+    setLoginError('');
+
+    if (!mobileNumber.trim() || !password.trim()) {
+      setLoginError('Enter your mobile number and password.');
+      return;
+    }
+
+    setIsLoggingIn(true);
+    try {
+      const response = await residentLogin(mobileNumber.trim(), password);
+      if (!response.success || !response.data) {
+        setLoginError(response.message || 'Login failed. Please try again.');
+        return;
+      }
+
+      await saveResidentSession(response.data);
+
+      if (onLogin) {
+        onLogin();
+      } else {
+        onGetStarted();
+      }
+    } catch (error) {
+      console.error('[SplashScreen] Resident login error:', error);
+      setLoginError('Unable to connect to server. Please try again.');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
   const handleRegister = () => {
+    setShowLoginScreen(false);
+    setShowInitialSplash(false);
     setShowRegisterScreen(true);
   };
 
@@ -81,15 +109,16 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
   };
 
   const handleRegisterComplete = () => {
+    setShowRegisterScreen(false);
+    setShowInitialSplash(true);
     if (onRegister) {
       onRegister();
-    } else {
-      onGetStarted();
     }
   };
 
   const handleRegisterCancel = () => {
     setShowRegisterScreen(false);
+    setShowInitialSplash(true);
   };
 
   const renderSlide = ({ item }: { item: typeof slides[0] }) => (
@@ -153,14 +182,14 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
 
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
+            <Ionicons name="call-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Email Address"
+              placeholder="Mobile Number"
               placeholderTextColor="#888"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
+              value={mobileNumber}
+              onChangeText={setMobileNumber}
+              keyboardType="phone-pad"
               autoCapitalize="none"
             />
           </View>
@@ -180,6 +209,10 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
             </TouchableOpacity>
           </View>
 
+          {!!loginError && (
+            <Text style={styles.loginErrorText}>{loginError}</Text>
+          )}
+
           <View style={styles.optionsContainer}>
             <TouchableOpacity 
               style={styles.rememberContainer} 
@@ -195,8 +228,12 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.loginButtonMain} onPress={handleLogin}>
-            <Text style={styles.loginButtonMainText}>Login</Text>
+          <TouchableOpacity
+            style={[styles.loginButtonMain, isLoggingIn && styles.loginButtonMainDisabled]}
+            onPress={handleLogin}
+            disabled={isLoggingIn}
+          >
+            <Text style={styles.loginButtonMainText}>{isLoggingIn ? 'Signing In...' : 'Login'}</Text>
           </TouchableOpacity>
 
           <View style={styles.registerContainer}>
@@ -546,6 +583,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2E7D32',
   },
+  loginErrorText: {
+    color: '#B00020',
+    fontSize: 13,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
   loginButtonMain: {
     backgroundColor: '#2E7D32',
     paddingVertical: 14,
@@ -560,6 +603,9 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  loginButtonMainDisabled: {
+    opacity: 0.7,
   },
   loginButtonMainText: {
     color: '#FFFFFF',

@@ -14,6 +14,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
+import { isJWTRevoked } from '../services/tokenRevocationService';
 
 /**
  * Extended Request interface to include user data from JWT
@@ -36,6 +38,7 @@ interface JWTPayload {
   userId: string;
   email: string;
   role?: string;
+  jti?: string;
   iat: number;
   exp: number;
 }
@@ -58,7 +61,7 @@ const getJWTSecret = (): string => {
   
   // Warn if secret is too short (less secure)
   if (secret.length < 32) {
-    console.warn('[SECURITY WARNING] JWT_SECRET should be at least 32 characters long');
+    throw new Error('JWT_SECRET must be at least 32 characters long');
   }
   
   return secret;
@@ -109,7 +112,16 @@ export const authMiddleware = async (
     }
     
     // Verify and decode the token
-    const decoded = jwt.verify(token, getJWTSecret()) as JWTPayload;
+    const decoded = jwt.verify(token, getJWTSecret(), { algorithms: ['HS256'] }) as JWTPayload;
+
+    if (await isJWTRevoked(decoded.jti)) {
+      res.status(401).json({
+        success: false,
+        message: 'Session expired. Please log in again.',
+        code: 'TOKEN_REVOKED',
+      });
+      return;
+    }
     
     // Attach user info to request for use in route handlers
     req.user = {
@@ -178,7 +190,7 @@ export const optionalAuthMiddleware = async (
       
       if (token && token !== 'null' && token !== 'undefined') {
         try {
-          const decoded = jwt.verify(token, getJWTSecret()) as JWTPayload;
+          const decoded = jwt.verify(token, getJWTSecret(), { algorithms: ['HS256'] }) as JWTPayload;
           req.user = {
             id: decoded.userId,
             userId: decoded.userId,
@@ -216,8 +228,9 @@ export const optionalAuthMiddleware = async (
  */
 export const generateToken = (userId: string, email: string, role?: string): string => {
   const secret: Secret = getJWTSecret();
+  const expiresIn = (process.env.JWT_EXPIRES_IN || '24h') as SignOptions['expiresIn'];
   const options: SignOptions = { 
-    expiresIn: '24h',
+    expiresIn,
     algorithm: 'HS256',
   };
   
@@ -226,6 +239,7 @@ export const generateToken = (userId: string, email: string, role?: string): str
       userId, 
       email,
       role,
+      jti: randomUUID(),
     },
     secret,
     options

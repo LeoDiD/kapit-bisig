@@ -9,10 +9,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { ResidentProfile } from '../services/api/ResidentQrService';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
   onLogout?: () => void;
+  residentProfile?: ResidentProfile | null;
 }
 
 interface MenuItemProps {
@@ -32,7 +34,14 @@ const MenuItem = ({ icon, label, onPress, isDestructive }: MenuItemProps) => (
   </TouchableOpacity>
 );
 
-export default function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
+export default function ProfileScreen({ onNavigate, onLogout, residentProfile }: ProfileScreenProps) {
+  const displayName = residentProfile?.fullName || 'Resident';
+  const secondaryLine = residentProfile?.mobileNumber || 'No mobile number';
+  const isVerified = residentProfile?.status === 'Approved';
+  const locationLine = [residentProfile?.streetAddress, residentProfile?.barangay, residentProfile?.city]
+    .filter(Boolean)
+    .join(', ');
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -56,11 +65,13 @@ export default function ProfileScreen({ onNavigate, onLogout }: ProfileScreenPro
               <Ionicons name="camera" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.profileName}>Juan Dela Cruz</Text>
-          <Text style={styles.profileEmail}>juan.delacruz@email.com</Text>
+          <Text style={styles.profileName}>{displayName}</Text>
+          <Text style={styles.profileEmail}>{secondaryLine}</Text>
           <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-            <Text style={styles.verifiedText}>Verified Household</Text>
+            <Ionicons name={isVerified ? 'checkmark-circle' : 'time-outline'} size={16} color={isVerified ? '#16A34A' : '#F59E0B'} />
+            <Text style={styles.verifiedText}>
+              {isVerified ? 'Verified Household' : 'Pending Verification'}
+            </Text>
           </View>
         </View>
 
@@ -68,11 +79,11 @@ export default function ProfileScreen({ onNavigate, onLogout }: ProfileScreenPro
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>ACCOUNT</Text>
           <View style={styles.menuCard}>
-            <MenuItem icon="person-outline" label="Personal Information" />
+            <MenuItem icon="person-outline" label={`Resident Code: ${residentProfile?.residentCode || 'N/A'}`} />
             <View style={styles.menuDivider} />
-            <MenuItem icon="home-outline" label="Address Details" />
+            <MenuItem icon="home-outline" label={locationLine || 'Address not available'} />
             <View style={styles.menuDivider} />
-            <MenuItem icon="people-outline" label="Family Members" />
+            <MenuItem icon="people-outline" label={`Household Size: ${residentProfile?.householdSize || 0}`} />
           </View>
         </View>
 

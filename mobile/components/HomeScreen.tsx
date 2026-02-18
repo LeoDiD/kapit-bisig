@@ -18,6 +18,8 @@ interface HomeScreenProps {
   barangayName?: string;
   isVerified?: boolean;
   claimStatus?: 'claimed' | 'not-claimed';
+  residentCode?: string;
+  streetAddress?: string;
   onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
 }
 
@@ -44,6 +46,8 @@ export default function HomeScreen({
   barangayName = 'Barangay San Jose',
   isVerified = true,
   claimStatus = 'not-claimed',
+  residentCode = 'N/A',
+  streetAddress = 'Address not available',
   onNavigate,
 }: HomeScreenProps) {
   return (
@@ -110,6 +114,12 @@ export default function HomeScreen({
                 {claimStatus === 'claimed' ? 'Claimed' : 'Not Yet Claimed'}
               </Text>
             </View>
+          </View>
+          <View style={styles.statusMetaRow}>
+            <Text style={styles.statusMetaText}>ID: {residentCode}</Text>
+            <Text style={styles.statusMetaText} numberOfLines={1}>
+              {streetAddress}
+            </Text>
           </View>
         </View>
 
@@ -309,6 +319,17 @@ const styles = StyleSheet.create({
   statusCardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  statusMetaRow: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  statusMetaText: {
+    fontSize: 12,
+    color: '#4B5563',
+    marginTop: 2,
   },
   statusItem: {
     flex: 1,

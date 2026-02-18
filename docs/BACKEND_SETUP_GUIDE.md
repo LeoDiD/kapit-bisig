@@ -10,7 +10,10 @@ Complete guide for running the Python Face Recognition backend and generating ho
 2. [Running the Face Recognition API](#2-running-the-face-recognition-api)
 3. [Generating Household Tokens](#3-generating-household-tokens)
 4. [Environment Variables](#4-environment-variables)
-5. [Troubleshooting](#5-troubleshooting)
+5. [Changing IP Address for Different Wi-Fi](#5-changing-ip-address-for-different-wi-fi)
+6. [Troubleshooting](#6-troubleshooting)
+
+Quick reference: see `docs/WIFI_IP_CHANGE_CHECKLIST.md` for a short, copy-ready checklist.
 
 ---
 
@@ -115,6 +118,22 @@ node server/scripts/generateTestTokenSimple.js 5 "San Jose"
 npx ts-node server/scripts/generateTestToken.ts
 ```
 
+### Option C: Generate Resident QR Payload (No Signature)
+
+```powershell
+# Generate QR for latest approved resident
+node server/scripts/generateResidentQr.js
+
+# Generate QR for a specific mobile number
+node server/scripts/generateResidentQr.js --mobile 09123456789
+
+# Generate QR for a specific resident code
+node server/scripts/generateResidentQr.js --code SJ-2026-000001
+```
+
+This outputs compact QR text that can be resolved by:
+- `POST /api/household/qr/resolve`
+
 ### Available Barangays
 
 | # | Barangay |
@@ -189,7 +208,86 @@ PORT=3001
 
 ---
 
-## 5. Troubleshooting
+## 5. Changing IP Address for Different Wi-Fi
+
+When you connect your laptop to a different Wi-Fi, your local IP usually changes.  
+Update these files so mobile and web can still reach the backend.
+
+### A. Mobile App (Required)
+
+File: `mobile/.env`
+
+Update both variables to your current laptop IP:
+
+```env
+EXPO_PUBLIC_API_URL=http://10.51.176.83:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://10.51.176.83:8000
+```
+
+Example:
+
+```env
+EXPO_PUBLIC_API_URL=http://10.51.176.83:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://10.51.176.83:8000
+```
+
+### B. Web App Frontend (Optional, if opening web app from another device)
+
+File: `apps/web/apps/.env.local`
+
+Update:
+
+```env
+NEXT_PUBLIC_API_URL=http://10.51.176.83:3001/api
+```
+
+If you only use web app on the same laptop browser, `http://localhost:3001/api` is fine.
+
+### C. Web App Backend CORS (Important for cross-device access)
+
+File: `apps/web/apps/.env.local`
+
+Set:
+
+```env
+CORS_ORIGIN=*
+```
+
+Or restrict to specific origin:
+
+```env
+CORS_ORIGIN=http://10.51.176.83:3000
+```
+
+### D. Backend Host Binding
+
+Python backend (`backend/main.py`) already runs on:
+
+```python
+uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+This is correct for LAN access. No IP change needed here.
+
+### E. How to get your new IP (Windows)
+
+Run:
+
+```powershell
+ipconfig
+```
+
+Use the `IPv4 Address` of your active Wi-Fi adapter.
+
+### F. Restart after changing IP
+
+1. Restart Node backend (`apps/web/apps`).
+2. Restart Python backend (`backend`).
+3. Restart Expo (`mobile`), then reload app.
+
+---
+
+## 6. Troubleshooting
 
 ### Issue: `ModuleNotFoundError: No module named 'fastapi'`
 

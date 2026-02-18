@@ -72,6 +72,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [verificationProgress, setVerificationProgress] = useState(0);
   const [verificationStep, setVerificationStep] = useState<string>('');
 
+  // Keep detailed progress in terminal logs, not on-screen.
+  useEffect(() => {
+    if (isSubmitting && verificationStep) {
+      console.log(`[Registration Verification] ${verificationStep} (${verificationProgress}%)`);
+    }
+  }, [isSubmitting, verificationStep, verificationProgress]);
+
   // Step 1: Personal Info
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -166,7 +173,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   // Privacy-preserving server-side check. The API intentionally returns a generic response.
   const checkMobileAvailability = async (mobileNumber: string) => {
-    if (!mobileNumber || mobileNumber.length < 10) {
+    if (!mobileNumber || mobileNumber.length < 11) {
       setMobileChecked(false);
       return;
     }
@@ -237,8 +244,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const getPasswordError = (value: string): string | null => {
     if (!value || !value.trim()) return 'Password is required';
     if (/\s/.test(value)) return 'Password must not contain spaces';
-    if (!/^[A-Za-z0-9]+$/.test(value)) return 'Password must contain only letters and numbers';
     if (value.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Z]/.test(value)) return 'Password must contain at least one uppercase letter';
+    if (!/[a-z]/.test(value)) return 'Password must contain at least one lowercase letter';
+    if (!/[0-9]/.test(value)) return 'Password must contain at least one number';
+    if (!/[!@#$%^&*()_+\-=[\]{}|;':",./<>?`~\\]/.test(value)) return 'Password must contain at least one special character';
     return null;
   };
 
@@ -771,7 +781,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         // Show alert but don't submit to main database
         Alert.alert(
           '⚠️ Registration Blocked',
-          `This face is already registered under "${duplicateResult.best_match_name}".\n\nSimilarity: ${(duplicateResult.similarity * 100).toFixed(1)}%\nThreshold: ${(duplicateResult.threshold * 100).toFixed(0)}%\n\nDuplicate registrations are not allowed.`,
+          `This face is already registered under "${duplicateResult.best_match_name}".\n\nDuplicate registrations are not allowed.`,
           [{ text: 'OK' }]
         );
         
@@ -839,7 +849,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           dataMatchScore: 100,
           riskScore: Math.round((duplicateResult.similarity || 0) * 100),
           isVerified: true,
-          aiVerificationStatus: 'Verified - No Duplicate',
+          aiVerificationStatus: 'High Match',
           duplicateCheck: {
             decision: duplicateResult.decision,
             similarity: duplicateResult.similarity,
@@ -1155,27 +1165,35 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           </View>
         </View>
 
+        <View style={styles.credentialsSection}>
+          <Text style={styles.credentialsSectionTitle}>Create your login credentials</Text>
+          <View style={styles.credentialsInfoBox}>
+            <Ionicons name="information-circle" size={18} color="#2E7D32" />
+            <Text style={styles.credentialsInfoText}>
+              You will use this mobile number and password to log in next time.
+            </Text>
+          </View>
+        </View>
+
         {/* Mobile Number */}
         <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Mobile Number</Text>
+          <Text style={styles.fieldLabel}>Mobile Number (Login ID)</Text>
           <View style={[styles.inputContainer, showErrors && step1Errors.mobileNumber && styles.inputError]}>
-            <View style={styles.phonePrefix}>
-              <Text style={styles.phonePrefixText}>+63</Text>
-            </View>
             <TextInput
-              style={[styles.input, styles.phoneInput]}
-              placeholder="912 345 6789"
+              style={styles.input}
+              placeholder="09123456789"
               placeholderTextColor="#999"
               value={mobileNumber}
               onChangeText={(text) => {
-                setMobileNumber(text);
-                if (text.trim()) {
+                const sanitized = text.replace(/\D/g, '').slice(0, 11);
+                setMobileNumber(sanitized);
+                if (sanitized.trim()) {
                   clearStep1Error('mobileNumber');
                 }
                 // Check mobile availability after user stops typing
-                if (text.length >= 10) {
+                if (sanitized.length === 11) {
                   const timeoutId = setTimeout(() => {
-                    checkMobileAvailability(text);
+                    checkMobileAvailability(sanitized);
                   }, 500); // 500ms debounce
                   return () => clearTimeout(timeoutId);
                 } else {
@@ -1183,7 +1201,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 }
               }}
               keyboardType="phone-pad"
-              maxLength={12}
+              maxLength={11}
             />
             {isCheckingMobile ? (
               <ActivityIndicator size="small" color="#2E7D32" style={styles.inputIconRight} />
@@ -1193,6 +1211,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <Ionicons name="call" size={22} color="#2E7D32" style={styles.inputIconRight} />
             )}
           </View>
+          <Text style={styles.fieldHelperText}>Use 11 digits starting with 09 (e.g., 09123456789).</Text>
         </View>
 
         {/* Password */}
@@ -1201,7 +1220,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           <View style={[styles.inputContainer, showErrors && step1Errors.password && styles.inputError]}>
             <TextInput
               style={styles.input}
-              placeholder="Enter password (letters and numbers only)"
+              placeholder="Create password"
               placeholderTextColor="#999"
               value={password}
               onChangeText={(text) => {
@@ -1218,6 +1237,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
             </TouchableOpacity>
           </View>
+          <Text style={styles.fieldHelperText}>Use at least 8 characters with uppercase, lowercase, number, and special character.</Text>
           {showErrors && step1Errors.password && (
             <Text style={styles.errorText}>
               {passwordErrorMessage || 'Invalid password'}
@@ -1830,7 +1850,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           <View style={styles.verificationLoadingContainer}>
             <ActivityIndicator size="large" color="#2E7D32" />
             <Text style={styles.verificationLoadingTitle}>AI Face Verification</Text>
-            <Text style={styles.verificationLoadingSubtitle}>{verificationStep}</Text>
+            <Text style={styles.verificationLoadingSubtitle}>Please wait...</Text>
             
             {/* Progress bar */}
             <View style={styles.verificationProgressContainer}>
@@ -1842,7 +1862,6 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                   ]} 
                 />
               </View>
-              <Text style={styles.verificationProgressText}>{verificationProgress}%</Text>
             </View>
           </View>
         </View>
@@ -1873,71 +1892,6 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             </View>
           </View>
 
-          {/* Duplicate Check Details - Screenshot Ready */}
-          {duplicateCheckResult && (
-            <View style={[styles.verificationDetailsContainer, { backgroundColor: '#f8f9fa', borderRadius: 12, padding: 16, marginTop: 16 }]}>
-              <Text style={[styles.verificationDetailsTitle, { textAlign: 'center', marginBottom: 16, fontSize: 18 }]}>
-                AI Verification Details
-              </Text>
-              
-              <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Face Detected</Text>
-                <Text style={[
-                  styles.verificationDetailValue,
-                  { color: duplicateCheckResult.face_detected ? '#2ECC71' : '#E74C3C', fontWeight: 'bold' }
-                ]}>
-                  {duplicateCheckResult.face_detected ? 'Yes' : 'No'}
-                </Text>
-              </View>
-
-              <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Best Match</Text>
-                <Text style={[styles.verificationDetailValue, { fontWeight: 'bold' }]}>
-                  {duplicateCheckResult.best_match_name || 'None'}
-                </Text>
-              </View>
-
-              <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Similarity</Text>
-                <Text style={[
-                  styles.verificationDetailValue,
-                  { color: duplicateCheckResult.similarity >= duplicateCheckResult.threshold ? '#E74C3C' : '#2ECC71', fontWeight: 'bold' }
-                ]}>
-                  {(duplicateCheckResult.similarity * 100).toFixed(1)}%
-                </Text>
-              </View>
-
-              <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Threshold</Text>
-                <Text style={[styles.verificationDetailValue, { fontWeight: 'bold' }]}>
-                  {(duplicateCheckResult.threshold * 100).toFixed(0)}%
-                </Text>
-              </View>
-
-              <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Decision</Text>
-                <Text style={[
-                  styles.verificationDetailValue,
-                  { 
-                    color: duplicateCheckResult.decision === 'ALLOW' ? '#2ECC71' : '#E74C3C',
-                    fontWeight: 'bold',
-                    fontSize: 16
-                  }
-                ]}>
-                  {duplicateCheckResult.decision === 'ALLOW' ? 'ALLOW (New)' : 
-                   duplicateCheckResult.decision === 'BLOCK' ? 'BLOCK (Duplicate)' : 'ERROR'}
-                </Text>
-              </View>
-
-              <View style={styles.verificationDetailRow}>
-                <Text style={styles.verificationDetailLabel}>Processing Time</Text>
-                <Text style={[styles.verificationDetailValue, { fontWeight: 'bold' }]}>
-                  {duplicateCheckResult.processing_time_ms} ms
-                </Text>
-              </View>
-            </View>
-          )}
-
           {/* Status Message */}
           <View style={[styles.statusMessageContainer, { marginTop: 20 }]}>
             {duplicateCheckResult?.decision === 'BLOCK' ? (
@@ -1958,7 +1912,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <>
                 <Ionicons name="checkmark-circle" size={24} color="#2ECC71" />
                 <Text style={styles.statusMessageText}>
-                  Registration submitted successfully! Your application is pending review by the barangay.
+                  ALLOW. Registration complete. You can now log in using your mobile number and password.
                 </Text>
               </>
             ) : (
@@ -1996,11 +1950,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             >
               <Text style={styles.completeButtonText}>
                 {duplicateCheckResult?.decision === 'BLOCK' ? 'Exit' : 
-                 duplicateCheckResult?.decision === 'ERROR' ? 'Retry Photo' : 'Done'}
+                 duplicateCheckResult?.decision === 'ERROR' ? 'Retry Photo' : 'Go to Login/Register'}
               </Text>
               <Ionicons 
                 name={duplicateCheckResult?.decision === 'BLOCK' ? "close" : 
-                      duplicateCheckResult?.decision === 'ERROR' ? "refresh" : "checkmark"} 
+                      duplicateCheckResult?.decision === 'ERROR' ? "refresh" : "log-in"} 
                 size={22} 
                 color="#FFF" 
               />
@@ -2034,7 +1988,6 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       <View style={styles.progressSection}>
         <View style={styles.progressTextContainer}>
           <Text style={styles.stepText}>Step {currentStep} of {totalSteps}</Text>
-          <Text style={styles.percentText}>{Math.round(progressPercentage)}% Completed</Text>
         </View>
         <View style={styles.progressBarContainer}>
           <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
@@ -2652,19 +2605,38 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     fontWeight: '600',
   },
-  phonePrefix: {
-    paddingRight: 12,
-    borderRightWidth: 1,
-    borderRightColor: '#E8E8E8',
-    marginRight: 12,
+  credentialsSection: {
+    marginTop: 4,
+    marginBottom: 2,
   },
-  phonePrefixText: {
+  credentialsSectionTitle: {
     fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontWeight: '700',
+    color: '#2E7D32',
+    marginBottom: 10,
   },
-  phoneInput: {
-    paddingLeft: 0,
+  credentialsInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  credentialsInfoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#2E7D32',
+    lineHeight: 18,
+  },
+  fieldHelperText: {
+    fontSize: 12,
+    color: '#5F6B62',
+    marginTop: 6,
+    marginLeft: 5,
   },
   // Password and Terms styles
   errorText: {

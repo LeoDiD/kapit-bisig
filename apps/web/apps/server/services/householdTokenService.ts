@@ -238,8 +238,8 @@ export class HouseholdTokenService {
       // Build query - filter by barangay if provided for faster lookup
       // Each barangay has its own "database" of tokens
       const query: Record<string, unknown> = {
-        status: { $in: ['UNUSED', 'LOCKED'] },
-        expiresAt: { $gt: new Date() },
+        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED'] }),
+        expiresAt: mongoose.trusted({ $gt: new Date() }),
       };
       
       // Filter by barangay for barangay-specific token validation
@@ -249,7 +249,7 @@ export class HouseholdTokenService {
       }
       
       // Find tokens matching criteria
-      const tokens = await HouseholdToken.find(query);
+      const tokens = await HouseholdToken.find(query).setOptions({ sanitizeFilter: false });
       
       console.log('[TokenService] Found', tokens.length, 'candidate tokens');
       
@@ -386,8 +386,8 @@ export class HouseholdTokenService {
       
       // Build query - filter by barangay if provided for faster lookup
       const query: Record<string, unknown> = {
-        status: { $in: ['UNUSED', 'LOCKED'] },
-        expiresAt: { $gt: new Date() },
+        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED'] }),
+        expiresAt: mongoose.trusted({ $gt: new Date() }),
       };
       
       // Filter by barangay for faster lookup
@@ -396,7 +396,7 @@ export class HouseholdTokenService {
       }
       
       // Find the token by hash comparison
-      const tokens = await HouseholdToken.find(query);
+      const tokens = await HouseholdToken.find(query).setOptions({ sanitizeFilter: false });
       
       let matchedToken: IHouseholdToken | null = null;
       
@@ -675,10 +675,11 @@ export class HouseholdTokenService {
     
     const [tokens, total] = await Promise.all([
       HouseholdToken.find(query)
+        .setOptions({ sanitizeFilter: false })
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
-      HouseholdToken.countDocuments(query),
+      HouseholdToken.countDocuments(query).setOptions({ sanitizeFilter: false }),
     ]);
     
     return { tokens, total };
@@ -692,13 +693,13 @@ export class HouseholdTokenService {
     
     const result = await HouseholdToken.updateMany(
       {
-        status: { $in: ['UNUSED', 'LOCKED'] },
-        expiresAt: { $lt: now },
+        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED'] }),
+        expiresAt: mongoose.trusted({ $lt: now }),
       },
       {
         $set: { status: 'EXPIRED' },
       }
-    );
+    ).setOptions({ sanitizeFilter: false });
     
     if (result.modifiedCount > 0) {
       console.log(`[TokenService] Expired ${result.modifiedCount} stale tokens`);
@@ -719,7 +720,7 @@ export class HouseholdTokenService {
     const result = await HouseholdToken.updateMany(
       {
         status: 'LOCKED',
-        lockExpiresAt: { $lt: now },
+        lockExpiresAt: mongoose.trusted({ $lt: now }),
       },
       {
         $set: {
@@ -729,7 +730,7 @@ export class HouseholdTokenService {
           lockExpiresAt: null,
         },
       }
-    );
+    ).setOptions({ sanitizeFilter: false });
     
     if (result.modifiedCount > 0) {
       console.log(`[TokenService] Cleaned up ${result.modifiedCount} expired locks`);

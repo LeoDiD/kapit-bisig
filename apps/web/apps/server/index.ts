@@ -1,16 +1,7 @@
 /**
  * Express Server Entry Point
- * 
- * Main server configuration with security middleware.
- * 
- * Security Features:
- * - Helmet for HTTP security headers
- * - CORS with configured origins
- * - Rate limiting on all routes
- * - Secure authentication endpoints
  */
 
-// Load environment variables FIRST, before any other imports
 import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
@@ -37,30 +28,40 @@ import claimRoutes from './routes/claimRoutes';
 import householdListRoutes from './routes/householdListRoutes';
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
+<<<<<<< Updated upstream
 import { mongoSanitize } from './validation/mongoSanitize';
 import { csrfProtect } from './middleware/csrf';
+=======
+import {
+  enforceHTTPSInProduction,
+  getAllowedCorsOrigins,
+  rejectNoSQLInjection,
+} from './middleware/securityHardening';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+>>>>>>> Stashed changes
 
 const app: Express = express();
 const PORT = env.PORT;
 
-/**
- * Security Middleware - Order matters!
- */
+app.use(
+  helmet({
+    hsts:
+      process.env.NODE_ENV === 'production'
+        ? {
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+          }
+        : false,
+  })
+);
 
-// Helmet: Sets various HTTP headers for security
-// - X-Content-Type-Options: nosniff
-// - X-Frame-Options: DENY
-// - X-XSS-Protection
-// - And more...
-app.use(helmet());
-
-// Trust proxy - Required for rate limiting behind reverse proxy
-// Set to 1 if behind single proxy (like nginx)
 app.set('trust proxy', 1);
 
-// Cookie parser — needed for httpOnly auth cookies
 app.use(cookieParser());
+app.use(enforceHTTPSInProduction);
 
+<<<<<<< Updated upstream
 // CORS configuration
 // In production, restrict to your specific domains
 app.use(cors({
@@ -69,12 +70,29 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   credentials: true,
 }));
+=======
+const allowedOrigins = getAllowedCorsOrigins();
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('CORS origin not allowed'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
+>>>>>>> Stashed changes
 
-// Body parsing middleware
-// Increased limit for base64 images from mobile registration
-app.use(express.json({ limit: '50mb' })); // Limit body size to prevent DoS
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(rejectNoSQLInjection);
 
+<<<<<<< Updated upstream
 // NoSQL injection sanitizer — strip $ and . keys from body/query/params
 app.use(mongoSanitize);
 
@@ -94,6 +112,13 @@ app.use('/api/auth', unifiedAuthRoutes);       // unified login / logout / me
 app.use('/api/auth/forgot-password', forgotPasswordRoutes); // forgot password OTP flow
 app.use('/api/sa', superadminAuthRoutes);        // legacy superadmin-only routes (kept for compat)
 app.use('/api/admin/users', adminStaffRoutes);   // SUPERADMIN manage staff
+=======
+app.use(generalRateLimiter);
+
+app.use('/api/auth', unifiedAuthRoutes);
+app.use('/api/sa', superadminAuthRoutes);
+app.use('/api/admin/users', adminStaffRoutes);
+>>>>>>> Stashed changes
 app.use('/api/users', userRoutes);
 app.use('/api/residents', residentRoutes);       // route-level auth (register is public)
 app.use('/api/face', faceRoutes);                // route-level auth where needed
@@ -103,38 +128,36 @@ app.use('/api/distributions', requireAuth, requireStaffOrSuperadmin, distributio
 app.use('/api/claims', requireAuth, requireStaffOrSuperadmin, claimRoutes);
 app.use('/api/households', requireAuth, requireStaffOrSuperadmin, householdListRoutes);
 
-// Health check endpoint
-app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ 
-    status: 'ok', 
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
     message: 'Server is running',
     timestamp: new Date().toISOString(),
   });
 });
 
-// 404 handler
-app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found',
-  });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
-// Start server with database connection
 const startServer = async () => {
   try {
-    // Connect to MongoDB first
     await connectDB();
-    
-    // Then start the server
+
     app.listen(PORT, () => {
+<<<<<<< Updated upstream
       console.log(`⚡️ Server is running on port ${PORT} [${env.NODE_ENV}]`);
       console.log(`🔐 Authentication endpoints available at /api/auth`);
       console.log(`🏠 Household registration available at /api/household`);
       console.log(`🎫 Admin token management available at /api/admin/tokens`);
+=======
+      console.log(`Server is running on http://localhost:${PORT}`);
+      console.log('Authentication endpoints available at /api/auth');
+      console.log('Household registration available at /api/household');
+      console.log('Admin token management available at /api/admin/tokens');
+>>>>>>> Stashed changes
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 };

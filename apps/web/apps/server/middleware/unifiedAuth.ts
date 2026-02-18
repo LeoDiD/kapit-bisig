@@ -15,6 +15,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { isJWTRevoked } from '../services/tokenRevocationService';
 
 /* ------------------------------------------------------------------ */
 /*  Constants & types                                                 */
@@ -30,6 +31,7 @@ export interface AuthPayload {
   role: AppRole;
   userId?: string;            // DB _id for staff users
   assignedBarangays?: string[];
+  jti?: string;
   iat?: number;
   exp?: number;
 }
@@ -56,6 +58,7 @@ export function logSecurity(event: string, meta?: Record<string, unknown>) {
 function getJWTSecret(): string {
   const s = process.env.JWT_SECRET;
   if (!s) throw new Error('JWT_SECRET not defined');
+  if (s.length < 32) throw new Error('JWT_SECRET must be at least 32 characters long');
   return s;
 }
 
@@ -78,11 +81,11 @@ function extractToken(req: Request): string | null {
  * requireAuth – verifies a valid JWT is present.
  * Attaches `req.authUser` (and legacy `req.saUser`).
  */
-export const requireAuth = (
+export const requireAuth = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
-): void => {
+): Promise<void> => {
   const token = extractToken(req);
 
   if (!token || token === 'null' || token === 'undefined') {
@@ -92,7 +95,12 @@ export const requireAuth = (
   }
 
   try {
-    const decoded = jwt.verify(token, getJWTSecret()) as AuthPayload;
+    const decoded = jwt.verify(token, getJWTSecret(), { algorithms: ['HS256'] }) as AuthPayload;
+    if (await isJWTRevoked(decoded.jti)) {
+      logSecurity('ACCESS_DENIED', { reason: 'token_revoked', ip: req.ip });
+      res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+      return;
+    }
     req.authUser = decoded;
     // Backward compat (used in superadminAuthRoutes /me)
     (req as any).saUser = decoded;

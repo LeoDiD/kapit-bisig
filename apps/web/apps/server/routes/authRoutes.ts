@@ -20,8 +20,14 @@ import User from '../models/User';
 import { validatePassword, isCommonPassword } from '../utils/passwordValidator';
 import { generateToken } from '../middleware/authMiddleware';
 import { loginRateLimiter, registrationRateLimiter } from '../middleware/rateLimiter';
+<<<<<<< Updated upstream
 import { validateRequest } from '../validation/validateRequest';
 import { registerBody, validatePasswordBody } from '../validation/auth.schema';
+=======
+import { validateRequest } from '../middleware/requestValidation';
+import { userLoginSchema, userRegisterSchema } from '../schemas/authSchemas';
+import { revokeJWTByValue } from '../services/tokenRevocationService';
+>>>>>>> Stashed changes
 
 const router = Router();
 
@@ -154,7 +160,11 @@ function clearFailedAttempts(email: string): void {
  * 4. bcrypt hashing before storage
  * 5. Password never logged or returned
  */
+<<<<<<< Updated upstream
 router.post('/register', registrationRateLimiter, validateRequest({ body: registerBody }), async (req: Request, res: Response) => {
+=======
+router.post('/register', registrationRateLimiter, validateRequest({ body: userRegisterSchema }), async (req: Request, res: Response) => {
+>>>>>>> Stashed changes
   try {
     const { email, password, firstName, lastName } = req.body;
     
@@ -275,7 +285,7 @@ router.post('/register', registrationRateLimiter, validateRequest({ body: regist
  * 4. Generic error messages to prevent enumeration
  * 5. Failed attempts are logged for security monitoring
  */
-router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
+router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema }), async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     
@@ -398,6 +408,32 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'An error occurred during login',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ *
+ * Revokes the currently supplied bearer token.
+ */
+router.post('/logout', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    if (token) {
+      await revokeJWTByValue(token, 'access');
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out.',
+    });
+  } catch (error) {
+    console.error('[AUTH LOGOUT ERROR]', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred during logout',
     });
   }
 });

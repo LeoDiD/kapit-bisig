@@ -7,10 +7,50 @@
 
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcrypt';
+import {
+  isValidPhilippineMobileNumber,
+  normalizePhilippineMobileNumber,
+} from '../utils/mobileNumber';
+import { getNextResidentSequence } from './ResidentCounter';
 
 const SALT_ROUNDS = 12;
 
+function getBarangayCode(barangay: string): string {
+  const cleaned = (barangay || '')
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, ' ')
+    .trim();
+
+  if (!cleaned) {
+    return 'KB';
+  }
+
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return `${words[0][0] || 'K'}${words[1][0] || 'B'}`;
+  }
+
+  const single = words[0];
+  if (single.length >= 2) {
+    return single.slice(0, 2);
+  }
+
+  return `${single[0] || 'K'}B`;
+}
+
+async function generateResidentCode(barangay: string): Promise<string> {
+  const year = new Date().getFullYear();
+  const sequence = await getNextResidentSequence(`resident:${year}`);
+  const code = getBarangayCode(barangay);
+  return `${code}-${year}-${String(sequence).padStart(6, '0')}`;
+}
+
 export interface IResident extends Document {
+  residentCode: string;
+  qrVersion: number;
+  qrIssuedAt?: Date;
+  qrStatus: 'ACTIVE' | 'REVOKED';
+
   // Personal Info (Step 1)
   firstName: string;
   lastName: string;
@@ -75,6 +115,28 @@ export interface IResident extends Document {
 
 const ResidentSchema: Schema = new Schema(
   {
+    residentCode: {
+      type: String,
+      unique: true,
+      index: true,
+      sparse: true,
+    },
+    qrVersion: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    qrIssuedAt: {
+      type: Date,
+      default: null,
+    },
+    qrStatus: {
+      type: String,
+      enum: ['ACTIVE', 'REVOKED'],
+      default: 'ACTIVE',
+      index: true,
+    },
+
     // Personal Info
     firstName: {
       type: String,
@@ -104,6 +166,14 @@ const ResidentSchema: Schema = new Schema(
       type: String,
       required: [true, 'Mobile number is required'],
       trim: true,
+      unique: true,
+      index: true,
+      validate: {
+        validator: function(value: string) {
+          return isValidPhilippineMobileNumber(value);
+        },
+        message: 'Mobile number must be a valid Philippine format (09XXXXXXXXX)',
+      },
     },
     password: {
       type: String,
@@ -256,6 +326,27 @@ const ResidentSchema: Schema = new Schema(
     timestamps: true,
   }
 );
+
+ResidentSchema.pre('validate', function(next) {
+  const currentMobile = this.mobileNumber;
+  if (typeof currentMobile === 'string' && currentMobile.trim().length > 0) {
+    this.mobileNumber = normalizePhilippineMobileNumber(currentMobile);
+  }
+  next();
+});
+
+ResidentSchema.pre('save', async function (next) {
+  if (this.residentCode) {
+    return next();
+  }
+
+  try {
+    this.residentCode = await generateResidentCode(this.barangay as string);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
 
 // Hash password before saving
 ResidentSchema.pre('save', async function (next) {

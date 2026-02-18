@@ -7,6 +7,7 @@
 
 import { Router, Request, Response } from 'express';
 import Resident from '../models/Resident';
+<<<<<<< Updated upstream
 import { requireAuth, requireStaffOrSuperadmin, AuthRequest } from '../middleware/unifiedAuth';
 import { validateRequest } from '../validation/validateRequest';
 import { escapeRegex } from '../validation/mongoSanitize';
@@ -17,6 +18,12 @@ import {
   verifyResidentBody,
 } from '../validation/resident.schema';
 import { logAudit } from '../utils/audit';
+=======
+import {
+  isValidPhilippineMobileNumber,
+  normalizePhilippineMobileNumber,
+} from '../utils/mobileNumber';
+>>>>>>> Stashed changes
 
 const router = Router();
 
@@ -66,11 +73,29 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       verificationResult,
     } = req.body;
 
+    const normalizedMobileNumber = normalizePhilippineMobileNumber(mobileNumber || '');
+
     // Validate required fields
     if (!firstName || !lastName || !dateOfBirth || !gender || !mobileNumber || !password) {
       return res.status(400).json({
         success: false,
         message: 'Personal information is required',
+        error: {
+          code: 'VALIDATION_ERROR',
+          field: 'mobileNumber',
+        },
+      });
+    }
+
+    if (!isValidPhilippineMobileNumber(normalizedMobileNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid mobile number format. Use 09XXXXXXXXX.',
+        error: {
+          code: 'INVALID_MOBILE_FORMAT',
+          field: 'mobileNumber',
+          details: 'Mobile number must be exactly 11 digits and start with 09.',
+        },
       });
     }
 
@@ -98,15 +123,22 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
     // Check if resident already exists
     const existingResident = await Resident.findOne({
       $or: [
-        { mobileNumber },
+        { mobileNumber: normalizedMobileNumber },
         { idNumber },
       ],
     });
 
     if (existingResident) {
-      return res.status(400).json({
+      const isDuplicateMobile = existingResident.mobileNumber === normalizedMobileNumber;
+      return res.status(409).json({
         success: false,
-        message: 'A resident with this mobile number or ID already exists',
+        message: isDuplicateMobile
+          ? 'Mobile number is already registered'
+          : 'ID number is already registered',
+        error: {
+          code: isDuplicateMobile ? 'DUPLICATE_MOBILE' : 'DUPLICATE_ID',
+          field: isDuplicateMobile ? 'mobileNumber' : 'idNumber',
+        },
       });
     }
 
@@ -139,7 +171,7 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       fullName: fullName || `${firstName} ${lastName}`.trim(),
       dateOfBirth,
       gender,
-      mobileNumber,
+      mobileNumber: normalizedMobileNumber,
       password,
       city: city || '',
       barangay,
@@ -183,10 +215,29 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
     });
   } catch (error) {
     console.error('[ResidentRoutes] Registration error:', error);
+
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: number }).code === 11000
+    ) {
+      return res.status(409).json({
+        success: false,
+        message: 'Mobile number is already registered',
+        error: {
+          code: 'DUPLICATE_MOBILE',
+          field: 'mobileNumber',
+        },
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error during registration',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: {
+        code: 'SERVER_ERROR',
+      },
     });
   }
 });

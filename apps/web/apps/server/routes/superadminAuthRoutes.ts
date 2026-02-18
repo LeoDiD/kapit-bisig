@@ -15,6 +15,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 import { loginRateLimiter } from '../middleware/rateLimiter';
 import {
   requireAuth,
@@ -22,18 +23,25 @@ import {
   SuperadminPayload,
   logSecurity,
 } from '../middleware/superadminAuth';
+<<<<<<< Updated upstream
 import { validateRequest } from '../validation/validateRequest';
 import { saLoginBody } from '../validation/auth.schema';
+=======
+import { validateRequest } from '../middleware/requestValidation';
+import { superadminLoginSchema } from '../schemas/authSchemas';
+import { revokeJWTByValue } from '../services/tokenRevocationService';
+>>>>>>> Stashed changes
 
 const router = Router();
 
 const COOKIE_NAME = 'sa_token';
-const TOKEN_EXPIRY_HOURS = 10;            // default session: 10 hours
-const REMEMBER_ME_EXPIRY_DAYS = 30;       // remember-me: 30 days
+const TOKEN_EXPIRY_HOURS = Number(process.env.AUTH_TOKEN_EXPIRY_HOURS || 10);
+const REMEMBER_ME_EXPIRY_DAYS = Number(process.env.AUTH_REMEMBER_ME_DAYS || 30);
 
 function getJWTSecret(): string {
   const s = process.env.JWT_SECRET;
   if (!s) throw new Error('JWT_SECRET not set');
+  if (s.length < 32) throw new Error('JWT_SECRET must be at least 32 characters long');
   return s;
 }
 
@@ -55,6 +63,7 @@ function setCookie(res: Response, token: string, rememberMe: boolean) {
 /**
  * POST /api/sa/login
  */
+<<<<<<< Updated upstream
 router.post('/login', loginRateLimiter, validateRequest({ body: saLoginBody }), async (req: Request, res: Response) => {
   try {
     const { username, password, rememberMe } = req.body;
@@ -67,6 +76,12 @@ router.post('/login', loginRateLimiter, validateRequest({ body: saLoginBody }), 
       return;
     }
 
+=======
+router.post('/login', loginRateLimiter, validateRequest({ body: superadminLoginSchema }), async (req: Request, res: Response) => {
+  try {
+    const { username, password, rememberMe } = req.body;
+
+>>>>>>> Stashed changes
     // Trim but don't over-sanitise (bcrypt handles arbitrary bytes)
     const trimmedUser = username.trim();
 
@@ -93,8 +108,8 @@ router.post('/login', loginRateLimiter, validateRequest({ body: saLoginBody }), 
 
     // Issue JWT — longer expiry if "remember me" is checked
     const remember = !!rememberMe;
-    const expiry = remember ? `${REMEMBER_ME_EXPIRY_DAYS}d` : `${TOKEN_EXPIRY_HOURS}h`;
-    const payload: SuperadminPayload = { sub: expectedUser, role: 'superadmin' };
+    const expiry = (remember ? `${REMEMBER_ME_EXPIRY_DAYS}d` : `${TOKEN_EXPIRY_HOURS}h`) as SignOptions['expiresIn'];
+    const payload: SuperadminPayload = { sub: expectedUser, role: 'superadmin', jti: randomUUID() };
     const secret: Secret = getJWTSecret();
     const options: SignOptions = { expiresIn: expiry, algorithm: 'HS256' };
     const token = jwt.sign(payload, secret, options);
@@ -116,6 +131,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: saLoginBody }), 
 /**
  * POST /api/sa/logout
  */
+<<<<<<< Updated upstream
 router.post('/logout', (_req: Request, res: Response) => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
@@ -123,6 +139,19 @@ router.post('/logout', (_req: Request, res: Response) => {
     sameSite: 'lax',
     path: '/',
   });
+=======
+router.post('/logout', async (_req: Request, res: Response) => {
+  const cookieToken = _req.cookies?.[COOKIE_NAME] as string | undefined;
+  const authHeader = _req.headers.authorization;
+  const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+  const token = cookieToken || headerToken;
+
+  if (token) {
+    await revokeJWTByValue(token, 'session');
+  }
+
+  res.clearCookie(COOKIE_NAME, { path: '/' });
+>>>>>>> Stashed changes
   logSecurity('LOGOUT', { ip: _req.ip });
   res.json({ success: true, message: 'Logged out.' });
 });

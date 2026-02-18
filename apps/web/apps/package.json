@@ -10,7 +10,9 @@
     "server": "ts-node --project tsconfig.server.json server/index.ts",
     "server:dev": "nodemon --exec ts-node --project tsconfig.server.json server/index.ts",
     "seed:optiona": "node server/scripts/seedOptionA.js",
-    "seed:optiona:reset": "node server/scripts/resetOptionA.js"
+    "seed:optiona:reset": "node server/scripts/resetOptionA.js",
+    "test:auth:newman": "npx newman run ../../../docs/postman/KapitBisig_Auth_Security.postman_collection.json -e ../../../docs/postman/KapitBisig_Local.postman_environment.json --reporters cli",
+    "test:auth:newman:insecure": "npx newman run ../../../docs/postman/KapitBisig_Auth_Security.postman_collection.json -e ../../../docs/postman/KapitBisig_Local.postman_environment.json --reporters cli --insecure"
   },
   "dependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
@@ -33,7 +35,10 @@
     "nprogress": "^0.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+<<<<<<< Updated upstream
     "sonner": "^2.0.7",
+=======
+>>>>>>> Stashed changes
     "vercel__ms": "npm:ms@^2.1.3",
     "zod": "^4.3.6"
   },

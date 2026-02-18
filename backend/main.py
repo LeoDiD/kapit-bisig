@@ -188,14 +188,23 @@ def warmup_model():
     except Exception as e:
         logger.warning(f"Model warmup failed (will load on first request): {e}")
 
-def save_database():
-    """Save face database to file"""
+def save_database() -> bool:
+    """Save face database to file. Returns True on success, False on failure."""
     try:
-        with open(EMBEDDINGS_FILE, 'w') as f:
-            json.dump(face_database, f, indent=2)
+        # Ensure any numpy types are JSON-serializable
+        serializable_data = to_native(face_database)
+
+        # Write atomically to avoid partial files if the process crashes
+        tmp_path = f"{EMBEDDINGS_FILE}.tmp"
+        with open(tmp_path, 'w') as f:
+            json.dump(serializable_data, f, indent=2)
+        os.replace(tmp_path, EMBEDDINGS_FILE)
+
         logger.info(f"Database saved with {len(face_database)} users")
+        return True
     except Exception as e:
         logger.error(f"Failed to save database: {e}")
+        return False
 
 def load_database():
     """Load face database from file"""
@@ -930,7 +939,11 @@ async def register_face(request: FaceRegisterRequest):
         }
         
         # Persist to file
-        save_database()
+        if not save_database():
+            return FaceRegisterResponse(
+                success=False,
+                message="Registration failed. Could not save registration data."
+            )
         
         logger.info(f"Successfully registered: {request.name}")
         return FaceRegisterResponse(

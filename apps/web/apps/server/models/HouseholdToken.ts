@@ -279,14 +279,14 @@ HouseholdTokenSchema.statics.atomicLock = async function(
   const result = await this.findOneAndUpdate(
     {
       tokenHash,
-      expiresAt: { $gt: now }, // Token not expired
-      $or: [
+      expiresAt: mongoose.trusted({ $gt: now }), // Token not expired
+      $or: mongoose.trusted([
         { status: 'UNUSED' },
         { 
           status: 'LOCKED',
-          lockExpiresAt: { $lt: now } // Lock expired, can be reclaimed
+          lockExpiresAt: mongoose.trusted({ $lt: now }) // Lock expired, can be reclaimed
         }
-      ]
+      ])
     },
     {
       $set: {
@@ -299,7 +299,8 @@ HouseholdTokenSchema.statics.atomicLock = async function(
     },
     {
       new: true,
-      runValidators: true
+      runValidators: true,
+      sanitizeFilter: false,
     }
   );
   
@@ -328,7 +329,7 @@ HouseholdTokenSchema.statics.atomicComplete = async function(
       tokenHash,
       status: 'LOCKED',
       lockedBy: lockerId,
-      lockExpiresAt: { $gt: now } // Lock still valid
+      lockExpiresAt: mongoose.trusted({ $gt: now }) // Lock still valid
     },
     {
       $set: {
@@ -345,7 +346,8 @@ HouseholdTokenSchema.statics.atomicComplete = async function(
     },
     {
       new: true,
-      runValidators: true
+      runValidators: true,
+      sanitizeFilter: false,
     }
   );
   
@@ -378,7 +380,8 @@ HouseholdTokenSchema.statics.atomicUnlock = async function(
     },
     {
       new: true,
-      runValidators: true
+      runValidators: true,
+      sanitizeFilter: false,
     }
   );
   
@@ -391,13 +394,13 @@ HouseholdTokenSchema.statics.expireStaleTokens = async function(): Promise<numbe
   
   const result = await this.updateMany(
     {
-      status: { $in: ['UNUSED', 'LOCKED'] },
-      expiresAt: { $lt: now }
+      status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED'] }),
+      expiresAt: mongoose.trusted({ $lt: now })
     },
     {
       $set: { status: 'EXPIRED' }
     }
-  );
+  ).setOptions({ sanitizeFilter: false });
   
   return result.modifiedCount;
 };
