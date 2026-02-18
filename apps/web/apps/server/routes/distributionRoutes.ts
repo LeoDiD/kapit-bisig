@@ -20,6 +20,7 @@ import {
   distributionIdParams,
 } from '../validation/distribution.schema';
 import { logAudit } from '../utils/audit';
+import { broadcastNotification } from '../utils/createNotification';
 
 const router = Router();
 
@@ -94,6 +95,14 @@ router.post(
         barangay,
         scheduled,
         households: householdsNum,
+      });
+
+      // Notify all staff about the new distribution
+      broadcastNotification({
+        title: 'New Distribution',
+        message: `A relief distribution for ${barangay} has been scheduled on ${scheduled}.`,
+        type: 'dispatch',
+        meta: { distributionId: distribution._id.toString(), barangay, scheduled },
       });
 
       res.status(201).json({

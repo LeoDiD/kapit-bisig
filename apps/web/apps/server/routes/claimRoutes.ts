@@ -28,6 +28,7 @@ import {
   retryChainParams,
 } from '../validation/claim.schema';
 import { logAudit } from '../utils/audit';
+import { broadcastNotification } from '../utils/createNotification';
 
 const router = Router();
 
@@ -255,6 +256,14 @@ router.post('/record-claim', validateRequest({ body: recordClaimBody }), async (
       }
 
       logHeader('RECORD CLAIM END');
+
+      // ── Notify all staff about the new claim ──
+      broadcastNotification({
+        title: 'Claim Recorded',
+        message: `Relief claim confirmed for household ${householdCode} in ${barangay}.`,
+        type: 'dispatch',
+        meta: { claimId, householdCode, barangay, distributionId },
+      });
 
       return res.status(201).json({
         success: true,

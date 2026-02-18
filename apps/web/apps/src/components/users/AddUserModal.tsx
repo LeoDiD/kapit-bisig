@@ -3,6 +3,11 @@
 import React, { useState, useEffect } from 'react'
 import { api, BARANGAY_OPTIONS, CreateStaffData } from '@/lib/api'
 import { showToast } from '@/lib/toast'
+import PasswordStrengthMeter, {
+  getPasswordStrength,
+  validateStrongPassword,
+  type PasswordStrengthLevel,
+} from '@/components/ui/PasswordStrengthMeter'
 
 interface AddUserModalProps {
   isOpen: boolean
@@ -19,40 +24,6 @@ interface FormErrors {
   general?: string
 }
 
-/**
- * Strong password validation (≥16 chars, upper+lower+digit+symbol, no common patterns)
- */
-const validateStrongPassword = (password: string): { isValid: boolean; errors: string[] } => {
-  const errors: string[] = []
-  
-  if (password.length < 16) {
-    errors.push('Password must be at least 16 characters')
-  }
-  if (!/[A-Z]/.test(password)) {
-    errors.push('Must contain at least one uppercase letter')
-  }
-  if (!/[a-z]/.test(password)) {
-    errors.push('Must contain at least one lowercase letter')
-  }
-  if (!/[0-9]/.test(password)) {
-    errors.push('Must contain at least one number')
-  }
-  if (!/[!@#$%^&*(),.?":{}|<>\-_=+\\[\]~/`]/.test(password)) {
-    errors.push('Must contain at least one special character')
-  }
-  
-  const commonPatterns = ['password', '12345678', 'qwerty', 'abcdefgh']
-  const lower = password.toLowerCase()
-  for (const p of commonPatterns) {
-    if (lower.includes(p)) {
-      errors.push('Password contains a common pattern')
-      break
-    }
-  }
-  
-  return { isValid: errors.length === 0, errors }
-}
-
 export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) {
   // Form state
   const [username, setUsername] = useState('')
@@ -67,50 +38,11 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [showPassword, setShowPassword] = useState(false)
-  const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong' | ''>('')
-  
-  // Common weak patterns (must match backend passwordValidator.ts)
-  const COMMON_WEAK_PATTERNS = [
-    'password', 'admin', '123456', 'qwerty', 'letmein', 'welcome',
-    'monkey', 'dragon', 'master', 'login', 'superadmin', 'super',
-    'abc123', 'trustno1', 'iloveyou', 'sunshine', 'princess',
-    'football', 'shadow', 'passw0rd', 'kapitbisig', 'changeme',
-    '12345678', '123456789',
-  ]
+  const [passwordStrength, setPasswordStrength] = useState<PasswordStrengthLevel>('')
 
-  // Calculate password strength (aligned with backend validator)
+  // Calculate password strength using shared util
   useEffect(() => {
-    if (!password) {
-      setPasswordStrength('')
-      return
-    }
-
-    // Reject if contains common pattern (matches backend)
-    const lower = password.toLowerCase()
-    const hasCommonPattern = COMMON_WEAK_PATTERNS.some(p => lower.includes(p))
-    if (hasCommonPattern) {
-      setPasswordStrength('weak')
-      return
-    }
-
-    // Must be at least 16 chars (backend policy)
-    if (password.length < 16) {
-      setPasswordStrength('weak')
-      return
-    }
-
-    let score = 0
-    if (password.length >= 16) score++
-    if (password.length >= 20) score++
-    if (password.length >= 24) score++
-    if (/[A-Z]/.test(password)) score++
-    if (/[a-z]/.test(password)) score++
-    if (/[0-9]/.test(password)) score++
-    if (/[!@#$%^&*()_+\-=\[\]{}|;':",./<>?`~\\]/.test(password)) score++
-
-    if (score >= 6) setPasswordStrength('strong')
-    else if (score >= 4) setPasswordStrength('medium')
-    else setPasswordStrength('weak')
+    setPasswordStrength(getPasswordStrength(password))
   }, [password])
   
   const resetForm = () => {
@@ -227,24 +159,6 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
   }
 
   if (!isOpen) return null
-
-  const getPasswordStrengthColor = () => {
-    switch (passwordStrength) {
-      case 'weak': return 'bg-red-500'
-      case 'medium': return 'bg-yellow-500'
-      case 'strong': return 'bg-green-500'
-      default: return 'bg-gray-200'
-    }
-  }
-
-  const getPasswordStrengthWidth = () => {
-    switch (passwordStrength) {
-      case 'weak': return 'w-1/3'
-      case 'medium': return 'w-2/3'
-      case 'strong': return 'w-full'
-      default: return 'w-0'
-    }
-  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -380,21 +294,8 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
                 </button>
               </div>
               
-              {/* Password Strength Indicator */}
-              {password && (
-                <div className="mt-2">
-                  <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                    <div className={`h-full ${getPasswordStrengthColor()} ${getPasswordStrengthWidth()} transition-all duration-300`} />
-                  </div>
-                  <p className={`mt-1 text-xs ${
-                    passwordStrength === 'weak' ? 'text-red-500' :
-                    passwordStrength === 'medium' ? 'text-yellow-600' :
-                    passwordStrength === 'strong' ? 'text-green-600' : 'text-gray-400'
-                  }`}>
-                    Password strength: {passwordStrength || 'none'}
-                  </p>
-                </div>
-              )}
+              {/* Password Strength Indicator — shared component */}
+              <PasswordStrengthMeter password={password} />
               
               {errors.password && (
                 <p className="mt-1 text-sm text-red-500">{errors.password}</p>

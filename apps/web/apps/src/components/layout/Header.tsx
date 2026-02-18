@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '@/lib/AuthContext'
+import { NotificationBell, ProfileDropdown } from './HeaderWidgets'
 
 interface HeaderProps {
   title: string
@@ -37,55 +38,43 @@ export default function Header({ title, subtitle }: HeaderProps) {
   }, [mobileSearchOpen])
 
   return (
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-      {/* Title Section */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{title}</h1>
-        {subtitle && <p className="hidden md:block text-sm text-gray-500 mt-1">{subtitle}</p>}
-      </div>
-
-      {/* Right Section */}
-      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-        {/* Search Bar (desktop) */}
-        <div className="relative hidden md:block">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <SearchIcon className="w-4 h-4 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search..."
-            className="pl-9 pr-3 py-2 w-56 border border-gray-200 rounded-xl bg-white text-sm text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-          />
+    <header className="sticky top-0 z-40 bg-gray-100/80 backdrop-blur-md pb-4 -mx-6 px-6 pt-2 mb-4 border-b border-gray-200/60">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Title Section */}
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{title}</h1>
+          {subtitle && <p className="hidden md:block text-sm text-gray-500 mt-1">{subtitle}</p>}
         </div>
 
-        {/* Search Icon (mobile) */}
-        <button
-          type="button"
-          onClick={() => setMobileSearchOpen(true)}
-          className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
-          aria-label="Open search"
-        >
-          <SearchIcon className="w-5 h-5" />
-        </button>
-
-        {/* User Profile (mobile: initial only) */}
-        <div
-          className="md:hidden w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-sm"
-          aria-label={`Profile: ${displayName}`}
-          title={displayName}
-        >
-          {initial}
-        </div>
-
-        {/* User Profile (desktop) */}
-        <div className="hidden md:flex items-center gap-3 bg-white rounded-xl px-3 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100">
-          <div className="w-9 h-9 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-sm">
-            {initial}
+        {/* Right Section */}
+        <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+          {/* Search Bar (desktop) */}
+          <div className="relative hidden md:block">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <SearchIcon className="w-4 h-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search..."
+              className="pl-9 pr-3 py-2 w-56 border border-gray-200 rounded-xl bg-white text-sm text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+            />
           </div>
-          <div className="text-right">
-            <p className="text-sm font-semibold text-gray-800">{displayName}</p>
-            <p className="text-[11px] text-gray-500">{user?.role === 'LGU_STAFF' ? 'LGU Staff' : 'Superadmin'}</p>
-          </div>
+
+          {/* Search Icon (mobile) */}
+          <button
+            type="button"
+            onClick={() => setMobileSearchOpen(true)}
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
+            aria-label="Open search"
+          >
+            <SearchIcon className="w-5 h-5" />
+          </button>
+
+          {/* Notification Bell */}
+          <NotificationBell />
+
+          {/* Profile Dropdown */}
+          <ProfileDropdown />
         </div>
       </div>
 

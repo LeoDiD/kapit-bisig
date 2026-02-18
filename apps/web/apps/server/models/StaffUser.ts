@@ -27,6 +27,7 @@ export interface IStaffUser extends Document {
   emailLower: string;
   passwordHash: string;
   fullName: string;
+  avatarUrl: string | null;
   role: 'LGU_STAFF';
   assignedBarangays: string[];
   isActive: boolean;
@@ -72,6 +73,10 @@ const staffUserSchema = new Schema<IStaffUser>(
       required: [true, 'Full name is required'],
       trim: true,
       maxlength: [100, 'Full name cannot exceed 100 characters'],
+    },
+    avatarUrl: {
+      type: String,
+      default: null,
     },
     role: {
       type: String,

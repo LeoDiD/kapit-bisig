@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@types/multer": "^2.0.0",
     "bcrypt": "^5.1.1",
     "canvas": "^3.2.1",
     "cookie-parser": "^1.4.7",
@@ -30,6 +31,7 @@
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
+    "multer": "^2.0.2",
     "next": "14.0.4",
     "nodemailer": "^8.0.1",
     "nprogress": "^0.2.0",

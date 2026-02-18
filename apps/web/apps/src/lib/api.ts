@@ -407,6 +407,131 @@ export const api = {
 
 export default api;
 
+// ==================== PROFILE / SETTINGS ====================
+
+export const profileApi = {
+  /** GET /api/users/me – current user profile */
+  async getProfile(): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_URL}/users/me`, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<any>>(response);
+  },
+
+  /** PATCH /api/users/me – update profile fields */
+  async updateProfile(data: {
+    fullName?: string;
+    username?: string;
+  }): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_URL}/users/me`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<any>>(response);
+  },
+
+  /** POST /api/users/me/avatar – upload avatar image */
+  async uploadAvatar(file: File): Promise<ApiResponse<{ avatarUrl: string }>> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    // Don't set Content-Type header — browser sets it with boundary for FormData
+    const csrfToken = getCookie('XSRF-TOKEN');
+    const response = await fetch(`${API_URL}/users/me/avatar`, {
+      method: 'POST',
+      headers: {
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
+      credentials: 'include',
+      body: formData,
+    });
+    return handleResponse<ApiResponse<{ avatarUrl: string }>>(response);
+  },
+
+  /** POST /api/users/me/change-password */
+  async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/users/me/change-password`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<void>>(response);
+  },
+
+  /** PATCH /api/users/me/preferences */
+  async updatePreferences(data: { theme?: string }): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_URL}/users/me/preferences`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<any>>(response);
+  },
+};
+
+// ==================== NOTIFICATIONS ====================
+
+export interface NotificationData {
+  id: string;
+  _id: string;
+  userId: string | null;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  meta?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export const notificationsApi = {
+  /** GET /api/notifications */
+  async getNotifications(params?: {
+    limit?: number;
+    offset?: number;
+    unreadOnly?: boolean;
+  }): Promise<ApiResponse<{ notifications: NotificationData[]; total: number; unreadCount: number }>> {
+    const sp = new URLSearchParams();
+    if (params?.limit) sp.append('limit', String(params.limit));
+    if (params?.offset) sp.append('offset', String(params.offset));
+    if (params?.unreadOnly) sp.append('unreadOnly', 'true');
+
+    const qs = sp.toString();
+    const url = `${API_URL}/notifications${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  /** PATCH /api/notifications/mark-all-read */
+  async markAllRead(): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/notifications/mark-all-read`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  /** PATCH /api/notifications/:id/read */
+  async markRead(id: string): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_URL}/notifications/${id}/read`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+};
+
 // ==================== FORGOT PASSWORD ====================
 
 export const forgotPasswordApi = {

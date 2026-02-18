@@ -26,6 +26,8 @@ import adminStaffRoutes from './routes/adminStaffRoutes';
 import forgotPasswordRoutes from './routes/forgotPasswordRoutes';
 import claimRoutes from './routes/claimRoutes';
 import householdListRoutes from './routes/householdListRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import profileRoutes from './routes/profileRoutes';
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
 <<<<<<< Updated upstream
@@ -93,6 +95,12 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(rejectNoSQLInjection);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+// Serve uploaded files (avatars, etc.)
+app.use('/uploads', express.static(path.resolve(__dirname, '..', 'public', 'uploads')));
+
+>>>>>>> Stashed changes
 // NoSQL injection sanitizer — strip $ and . keys from body/query/params
 app.use(mongoSanitize);
 
@@ -112,12 +120,16 @@ app.use('/api/auth', unifiedAuthRoutes);       // unified login / logout / me
 app.use('/api/auth/forgot-password', forgotPasswordRoutes); // forgot password OTP flow
 app.use('/api/sa', superadminAuthRoutes);        // legacy superadmin-only routes (kept for compat)
 app.use('/api/admin/users', adminStaffRoutes);   // SUPERADMIN manage staff
+<<<<<<< Updated upstream
 =======
 app.use(generalRateLimiter);
 
 app.use('/api/auth', unifiedAuthRoutes);
 app.use('/api/sa', superadminAuthRoutes);
 app.use('/api/admin/users', adminStaffRoutes);
+>>>>>>> Stashed changes
+=======
+app.use('/api/users', profileRoutes);                    // /api/users/me/* (must be before userRoutes)
 >>>>>>> Stashed changes
 app.use('/api/users', userRoutes);
 app.use('/api/residents', residentRoutes);       // route-level auth (register is public)
@@ -127,6 +139,7 @@ app.use('/api/admin/tokens', adminTokenRoutes);
 app.use('/api/distributions', requireAuth, requireStaffOrSuperadmin, distributionRoutes);
 app.use('/api/claims', requireAuth, requireStaffOrSuperadmin, claimRoutes);
 app.use('/api/households', requireAuth, requireStaffOrSuperadmin, householdListRoutes);
+app.use('/api/notifications', notificationRoutes);       // auth applied inside router
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
