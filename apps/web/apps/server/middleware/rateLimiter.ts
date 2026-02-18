@@ -84,34 +84,26 @@ export const generalRateLimiter: RateLimitRequestHandler = rateLimit({
  * - 15-minute window provides good security without frustrating legitimate users
  * - Combined with account-based lockout (in authRoutes) for defense in depth
  */
-// TEMPORARILY DISABLED — re-enable after login
-export const loginRateLimiter = (_req: Request, _res: Response, next: Function) => next();
-/* ORIGINAL loginRateLimiter — uncomment to re-enable
 export const loginRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
   max: 5, // Only 5 attempts allowed
   message: {
     success: false,
-    message: 'Too many login attempts. Your IP has been temporarily blocked.',
+    message: 'Too many login attempts. Please try again later.',
     retryAfter: '15 minutes',
   },
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getClientIP,
-  skipSuccessfulRequests: true, // Don't count successful logins against limit
+  skipSuccessfulRequests: false, // Count ALL requests
   handler: (req: Request, res: Response) => {
-    // Log the blocked attempt for security monitoring
     console.warn(`[SECURITY] Login rate limit exceeded for IP: ${getClientIP(req)}`);
-    
     res.status(429).json({
       success: false,
-      message: 'Too many failed login attempts. Please try again in 15 minutes.',
-      retryAfter: '15 minutes',
-      blocked: true,
+      message: 'Too many login attempts. Please try again later.',
     });
   },
 });
-*/
 
 /**
  * Registration Rate Limiter
@@ -173,6 +165,34 @@ export const passwordResetRateLimiter: RateLimitRequestHandler = rateLimit({
       success: false,
       message: 'Password reset limit reached. Please try again in 1 hour.',
       retryAfter: '1 hour',
+    });
+  },
+});
+
+/**
+ * Login OTP Rate Limiter
+ * 
+ * Protects login-OTP sending from flooding.
+ * 
+ * Policy:
+ * - 3 OTP send requests per 15 minutes per IP
+ */
+export const loginOtpRateLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15-minute window
+  max: 3,
+  message: {
+    success: false,
+    message: 'Too many OTP requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientIP,
+  handler: (req: Request, res: Response) => {
+    res.status(429).json({
+      success: false,
+      message: 'Too many OTP requests. Please try again later.',
+      retryAfter: '15 minutes',
     });
   },
 });

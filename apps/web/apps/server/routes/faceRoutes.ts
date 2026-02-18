@@ -6,6 +6,14 @@
 import express, { Request, Response, Router } from 'express';
 import { faceRecognitionService } from '../services/faceRecognitionService';
 import { checkDuplicateFace } from '../services/duplicateFaceService';
+import { validateRequest } from '../validation/validateRequest';
+import {
+  faceDetectBody,
+  faceCompareBody,
+  faceDescriptorBody,
+  faceVerifyBody,
+  faceCheckDuplicateBody,
+} from '../validation/face.schema';
 
 const router: Router = express.Router();
 
@@ -13,7 +21,7 @@ const router: Router = express.Router();
  * POST /api/face/detect
  * Detect face in an image
  */
-router.post('/detect', async (req: Request, res: Response) => {
+router.post('/detect', validateRequest({ body: faceDetectBody }), async (req: Request, res: Response) => {
   try {
     const { image } = req.body;
 
@@ -43,7 +51,7 @@ router.post('/detect', async (req: Request, res: Response) => {
  * POST /api/face/compare
  * Compare two face images
  */
-router.post('/compare', async (req: Request, res: Response) => {
+router.post('/compare', validateRequest({ body: faceCompareBody }), async (req: Request, res: Response) => {
   try {
     const { image1, image2 } = req.body;
 
@@ -73,7 +81,7 @@ router.post('/compare', async (req: Request, res: Response) => {
  * POST /api/face/descriptor
  * Generate face descriptor for storage
  */
-router.post('/descriptor', async (req: Request, res: Response) => {
+router.post('/descriptor', validateRequest({ body: faceDescriptorBody }), async (req: Request, res: Response) => {
   try {
     const { image } = req.body;
 
@@ -110,7 +118,7 @@ router.post('/descriptor', async (req: Request, res: Response) => {
  * POST /api/face/verify
  * Verify a face against a stored descriptor
  */
-router.post('/verify', async (req: Request, res: Response) => {
+router.post('/verify', validateRequest({ body: faceVerifyBody }), async (req: Request, res: Response) => {
   try {
     const { image, descriptor } = req.body;
 
@@ -171,7 +179,7 @@ router.get('/health', async (_req: Request, res: Response) => {
  * Check if a face already exists in the database
  * This is the main endpoint for duplicate detection during registration
  */
-router.post('/check-duplicate', async (req: Request, res: Response) => {
+router.post('/check-duplicate', validateRequest({ body: faceCheckDuplicateBody }), async (req: Request, res: Response) => {
   try {
     const { image } = req.body;
 

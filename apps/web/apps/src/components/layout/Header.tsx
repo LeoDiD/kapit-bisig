@@ -78,7 +78,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
         </div>
 
         {/* User Profile (desktop) */}
-        <div className="hidden md:flex items-center gap-3 bg-white rounded-xl px-3 py-1.5 shadow-sm border border-gray-100">
+        <div className="hidden md:flex items-center gap-3 bg-white rounded-xl px-3 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100">
           <div className="w-9 h-9 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-sm">
             {initial}
           </div>

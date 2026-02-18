@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import api from '@/lib/api'
+import { showToast } from '@/lib/toast'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -149,7 +150,7 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
       // If we get here (no thrown error), the API returned 2xx
       if (res.success) {
         // Determine how far the backend got from the claim status
-        const claim = res.claim || res.data
+        const claim = (res as any).claim || res.data
         const claimStatus: string = claim?.status || ''
 
         if (claimStatus === 'CONFIRMED') {
@@ -159,6 +160,7 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
           setStepStatus(3, 'done')
           setStepStatus(4, 'done')
           setResultMsg({ type: 'success', text: 'Claim recorded and confirmed on-chain!' })
+          showToast.success('Claim confirmed on-chain!')
         } else if (claimStatus === 'CHAIN_FAILED') {
           // DB saved but blockchain write failed
           setStepStatus(1, 'done')
@@ -169,6 +171,7 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
             type: 'error',
             text: 'Blockchain write failed. Claim saved in DB as CHAIN_FAILED. You can retry later.',
           })
+          showToast.error('Blockchain write failed. Retry later.')
         } else {
           // Pending or other
           setStepStatus(1, 'done')
@@ -176,6 +179,7 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
           setStepStatus(3, 'done')
           setStepStatus(4, 'active')
           setResultMsg({ type: 'success', text: res.message || 'Claim recorded.' })
+          showToast.success('Claim recorded.')
         }
 
         // Trigger ledger refresh
@@ -191,10 +195,12 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
       if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('expired')) {
         setStepStatus(0, 'error')
         setTokenError(msg)
+        showToast.error(msg)
       } else if (msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
         setStepStatus(0, 'done')
         setStepStatus(1, 'error')
         setResultMsg({ type: 'error', text: msg })
+        showToast.error(msg)
       } else {
         // Generic error on current active step
         setSteps((prev) => {
@@ -205,6 +211,7 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
           return prev.map((s, i) => (i === 0 ? { ...s, status: 'error' as StepStatus } : s))
         })
         setResultMsg({ type: 'error', text: msg })
+        showToast.error(msg)
       }
     } finally {
       setProcessing(false)

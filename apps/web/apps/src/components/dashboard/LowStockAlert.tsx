@@ -14,7 +14,7 @@ const stockItems: StockItem[] = [
 
 export default function LowStockAlert() {
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-gray-800">Ledger Alerts</h3>
         <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">

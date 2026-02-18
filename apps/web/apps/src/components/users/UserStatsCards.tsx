@@ -25,7 +25,7 @@ interface StatsCardProps {
 
 function StatsCard({ value, label }: StatsCardProps) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-center">
+    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100 p-4 text-center">
       <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
       <p className="text-sm text-gray-500 font-medium">{label}</p>
     </div>

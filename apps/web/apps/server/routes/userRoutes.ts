@@ -36,6 +36,16 @@ import {
   WEB_ROLES,
   MOBILE_ROLES,
 } from '../middleware/rbacMiddleware';
+import { validateRequest } from '../validation/validateRequest';
+import { escapeRegex } from '../validation/mongoSanitize';
+import {
+  createUserBody,
+  listUsersQuery,
+  userIdParams,
+  updateUserBody,
+  updateStatusBody,
+  resetUserPasswordBody,
+} from '../validation/user.schema';
 
 const router = Router();
 
@@ -164,6 +174,7 @@ router.get(
   '/',
   authMiddleware,
   requireRoles(['Admin', 'Staff']),
+  validateRequest({ query: listUsersQuery }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { role, status, search, page = '1', limit = '50' } = req.query;
@@ -184,7 +195,7 @@ router.get(
       }
       
       if (search) {
-        const searchRegex = new RegExp(search as string, 'i');
+        const searchRegex = new RegExp(escapeRegex(search as string), 'i');
         query.$or = [
           { firstName: searchRegex },
           { lastName: searchRegex },
@@ -238,6 +249,7 @@ router.get(
   '/:id',
   authMiddleware,
   requireRoles(['Admin', 'Staff']),
+  validateRequest({ params: userIdParams }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const user = await User.findById(req.params.id)
@@ -295,6 +307,7 @@ router.post(
   '/',
   authMiddleware,
   requirePermission('users:create'),
+  validateRequest({ body: createUserBody }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { 
@@ -441,6 +454,7 @@ router.put(
   '/:id',
   authMiddleware,
   requireRoles(['Admin', 'Staff']),
+  validateRequest({ params: userIdParams, body: updateUserBody }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { firstName, lastName, role, barangay, phoneNumber, status } = req.body;
@@ -549,6 +563,7 @@ router.patch(
   authMiddleware,
   requirePermission('users:update'),
   preventSelfAction('change status of'),
+  validateRequest({ params: userIdParams, body: updateStatusBody }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { status } = req.body;
@@ -599,6 +614,7 @@ router.patch(
   '/:id/password',
   authMiddleware,
   requirePermission('users:update'),
+  validateRequest({ params: userIdParams, body: resetUserPasswordBody }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { newPassword } = req.body;
@@ -666,6 +682,7 @@ router.delete(
   authMiddleware,
   requirePermission('users:delete'),
   preventSelfAction('delete'),
+  validateRequest({ params: userIdParams }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const user = await User.findById(req.params.id);

@@ -23,11 +23,15 @@ const SALT_ROUNDS = 12;
 
 export interface IStaffUser extends Document {
   username: string;
+  email: string;
+  emailLower: string;
   passwordHash: string;
   fullName: string;
   role: 'LGU_STAFF';
   assignedBarangays: string[];
   isActive: boolean;
+  emailVerified: boolean;
+  lastOtpVerifiedAt: Date | null;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +48,19 @@ const staffUserSchema = new Schema<IStaffUser>(
       trim: true,
       minlength: [3, 'Username must be at least 3 characters'],
       maxlength: [60, 'Username cannot exceed 60 characters'],
+    },
+    email: {
+      type: String,
+      required: [true, 'Email is required'],
+      trim: true,
+      maxlength: [255, 'Email cannot exceed 255 characters'],
+      match: [/^\S+@\S+\.\S+$/, 'Invalid email format'],
+    },
+    emailLower: {
+      type: String,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
     passwordHash: {
       type: String,
@@ -81,6 +98,14 @@ const staffUserSchema = new Schema<IStaffUser>(
       type: Boolean,
       default: true,
     },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    lastOtpVerifiedAt: {
+      type: Date,
+      default: null,
+    },
     lastLoginAt: {
       type: Date,
       default: null,
@@ -97,6 +122,16 @@ staffUserSchema.methods.comparePassword = async function (
 ): Promise<boolean> {
   return bcrypt.compare(candidate, this.passwordHash);
 };
+
+/**
+ * Pre-save hook: normalise email → emailLower.
+ */
+staffUserSchema.pre('save', function (next) {
+  if (this.isModified('email') || !this.emailLower) {
+    this.emailLower = this.email.trim().toLowerCase();
+  }
+  next();
+});
 
 /**
  * Static helper: hash a password (used when creating / resetting).
@@ -116,6 +151,7 @@ staffUserSchema.set('toJSON', {
     ret.id = ret._id.toString();
     delete ret.passwordHash;
     delete ret.__v;
+    delete ret.emailLower; // emailLower is internal; expose email only
     return ret;
   },
 });

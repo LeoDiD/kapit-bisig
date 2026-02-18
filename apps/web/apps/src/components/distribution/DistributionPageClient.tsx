@@ -5,6 +5,8 @@ import DistributionStats from './DistributionStats'
 import DistributionsTable, { DistributionRow } from './DistributionsTable'
 import NewDistributionModal, { CreateDistributionPayload } from './NewDistributionModal'
 import { api } from '../../lib/api'
+import { showToast } from '@/lib/toast'
+import { TableSkeleton } from '@/components/ui/Skeleton'
 
 const BARANGAY_OPTIONS = [
   'Bolo',
@@ -89,10 +91,12 @@ export default function DistributionPageClient() {
         notes: payload.notes,
       })
       setCreateOpen(false)
+      showToast.success('Distribution created.')
       await fetchDistributions()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create distribution'
       setError(message)
+      showToast.error(message)
     }
   }
 
@@ -100,17 +104,30 @@ export default function DistributionPageClient() {
     try {
       setError(null)
       await api.claimDistribution(id)
+      showToast.success('Distribution marked as claimed.')
       await fetchDistributions()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to mark as claimed'
       setError(message)
+      showToast.error(message)
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-gray-500 text-sm">Loading distributions...</div>
+      <div className="space-y-6">
+        {/* Stats skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="rounded-2xl p-4 border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] bg-white animate-pulse">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-gray-200" />
+                <div className="space-y-2"><div className="h-5 w-16 bg-gray-200 rounded" /><div className="h-3 w-24 bg-gray-200 rounded" /></div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <TableSkeleton rows={6} columns={6} />
       </div>
     )
   }

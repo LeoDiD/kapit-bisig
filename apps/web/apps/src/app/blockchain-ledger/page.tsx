@@ -12,6 +12,7 @@ import {
 } from '@/components/blockchain-ledger'
 import type { LedgerStatsData } from '@/components/blockchain-ledger/BlockchainLedgerStats'
 import api from '@/lib/api'
+import { showToast } from '@/lib/toast'
 
 /* ------------------------------------------------------------------ */
 /*  Barangay & Status options                                          */
@@ -108,6 +109,7 @@ export default function BlockchainLedgerPage() {
       }
     } catch {
       setError('Unable to connect to the server.')
+      showToast.error('Failed to load blockchain ledger.')
       setAllRows([])
     } finally {
       setLoading(false)
@@ -255,7 +257,7 @@ export default function BlockchainLedgerPage() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse"
+              className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-5 animate-pulse"
             >
               <div className="flex items-center justify-between">
                 <div className="h-4 w-32 bg-gray-200 rounded" />
@@ -268,7 +270,7 @@ export default function BlockchainLedgerPage() {
           ))}
         </div>
       ) : error ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-12 text-center">
           <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
             <ExclamationIcon className="w-5 h-5 text-red-500" />
           </div>
@@ -282,7 +284,7 @@ export default function BlockchainLedgerPage() {
           </button>
         </div>
       ) : allRows.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-12 text-center">
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
             <LedgerIcon className="w-5 h-5 text-gray-400" />
           </div>

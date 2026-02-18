@@ -23,7 +23,7 @@ export default function AIDistributionChart() {
   let cumulativePercent = 0
 
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100">
       <h3 className="text-base font-bold text-gray-800 mb-4">AI Priority Distribution</h3>
       
       <div className="flex items-center justify-between">

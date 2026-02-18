@@ -246,7 +246,7 @@ export default function DistributionsTable({
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
             <thead className="bg-gray-50 text-gray-500 text-xs">

@@ -1,0 +1,145 @@
+/**
+ * Mailer Utility — Nodemailer transporter
+ *
+ * Reads SMTP settings exclusively from environment variables.
+ * NEVER log SMTP_PASS or the OTP value.
+ *
+ * Usage:
+ *   import { sendResetOtpEmail } from '../utils/mailer';
+ *   await sendResetOtpEmail('user@example.com', '123456');
+ */
+
+import nodemailer, { Transporter } from 'nodemailer';
+
+/* ------------------------------------------------------------------ */
+/*  Lazy-initialised transporter                                       */
+/* ------------------------------------------------------------------ */
+
+let _transporter: Transporter | null = null;
+
+function getTransporter(): Transporter {
+  if (_transporter) return _transporter;
+
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const secure = process.env.SMTP_SECURE !== 'false'; // default true
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !user || !pass) {
+    throw new Error(
+      'SMTP configuration incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS in your environment.',
+    );
+  }
+
+  _transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+  });
+
+  return _transporter;
+}
+
+/* ------------------------------------------------------------------ */
+/*  App-level names / settings                                         */
+/* ------------------------------------------------------------------ */
+
+const APP_NAME = process.env.APP_NAME || 'KapitBisig';
+
+/* ------------------------------------------------------------------ */
+/*  Send password-reset OTP email                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Send a password-reset OTP to the given email address.
+ * The OTP is included in the email body; it is NOT logged.
+ */
+export async function sendResetOtpEmail(
+  to: string,
+  otp: string,
+): Promise<void> {
+  const transporter = getTransporter();
+  const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
+
+  const subject = `${APP_NAME} Password Reset OTP`;
+
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+      <h2 style="color: #0F533A; margin-bottom: 8px;">${APP_NAME}</h2>
+      <p style="color: #374151; font-size: 14px;">You requested a password reset. Use the OTP below to verify your identity:</p>
+
+      <div style="text-align: center; margin: 24px 0;">
+        <span style="display: inline-block; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #0F533A; background: #f0fdf4; padding: 16px 32px; border-radius: 8px; border: 2px dashed #0F533A;">
+          ${otp}
+        </span>
+      </div>
+
+      <p style="color: #6b7280; font-size: 13px;">This code expires in <strong>10 minutes</strong>.</p>
+      <p style="color: #6b7280; font-size: 13px;">If you did not request this, you can safely ignore this email.</p>
+
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+      <p style="color: #9ca3af; font-size: 11px; text-align: center;">&copy; ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.</p>
+    </div>
+  `;
+
+  const text = [
+    `${APP_NAME} — Password Reset OTP`,
+    '',
+    `Your OTP code: ${otp}`,
+    '',
+    'This code expires in 10 minutes.',
+    'If you did not request this, you can safely ignore this email.',
+  ].join('\n');
+
+  await transporter.sendMail({ from, to, subject, html, text });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Send login-verification OTP email                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Send a login-verification OTP to the given email address.
+ * The OTP is included in the email body; it is NOT logged.
+ */
+export async function sendLoginVerifyOtpEmail(
+  to: string,
+  otp: string,
+): Promise<void> {
+  const transporter = getTransporter();
+  const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
+
+  const subject = `${APP_NAME} Login Verification Code`;
+
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+      <h2 style="color: #0F533A; margin-bottom: 8px;">${APP_NAME}</h2>
+      <p style="color: #374151; font-size: 14px;">A login attempt was made with your account. Enter the code below to verify your identity:</p>
+
+      <div style="text-align: center; margin: 24px 0;">
+        <span style="display: inline-block; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #0F533A; background: #f0fdf4; padding: 16px 32px; border-radius: 8px; border: 2px dashed #0F533A;">
+          ${otp}
+        </span>
+      </div>
+
+      <p style="color: #6b7280; font-size: 13px;">This code expires in <strong>10 minutes</strong>.</p>
+      <p style="color: #6b7280; font-size: 13px;">If you did not attempt to log in, please secure your account immediately.</p>
+
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+      <p style="color: #9ca3af; font-size: 11px; text-align: center;">&copy; ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.</p>
+    </div>
+  `;
+
+  const text = [
+    `${APP_NAME} — Login Verification Code`,
+    '',
+    `Your verification code: ${otp}`,
+    '',
+    'This code expires in 10 minutes.',
+    'If you did not attempt to log in, please secure your account immediately.',
+  ].join('\n');
+
+  await transporter.sendMail({ from, to, subject, html, text });
+}

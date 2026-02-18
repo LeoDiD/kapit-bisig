@@ -459,7 +459,7 @@ export default function ResidentVerificationTable() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse table-fixed min-w-[980px] lg:min-w-0">
             <thead className="bg-gray-50 text-gray-500 text-sm">
@@ -660,7 +660,7 @@ function StatCard({
       : 'bg-[#FECACA] text-[#991B1B]'
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-4 flex items-center gap-3">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${toneBox}`}>
         {icon}
       </div>

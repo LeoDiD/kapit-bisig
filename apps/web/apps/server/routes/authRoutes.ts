@@ -20,6 +20,8 @@ import User from '../models/User';
 import { validatePassword, isCommonPassword } from '../utils/passwordValidator';
 import { generateToken } from '../middleware/authMiddleware';
 import { loginRateLimiter, registrationRateLimiter } from '../middleware/rateLimiter';
+import { validateRequest } from '../validation/validateRequest';
+import { registerBody, validatePasswordBody } from '../validation/auth.schema';
 
 const router = Router();
 
@@ -152,7 +154,7 @@ function clearFailedAttempts(email: string): void {
  * 4. bcrypt hashing before storage
  * 5. Password never logged or returned
  */
-router.post('/register', registrationRateLimiter, async (req: Request, res: Response) => {
+router.post('/register', registrationRateLimiter, validateRequest({ body: registerBody }), async (req: Request, res: Response) => {
   try {
     const { email, password, firstName, lastName } = req.body;
     
@@ -408,7 +410,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
  * 
  * This endpoint has no rate limiting as it doesn't reveal sensitive info.
  */
-router.post('/validate-password', (req: Request, res: Response) => {
+router.post('/validate-password', validateRequest({ body: validatePasswordBody }), (req: Request, res: Response) => {
   const { password } = req.body;
   
   if (!password) {

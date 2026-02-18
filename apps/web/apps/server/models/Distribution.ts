@@ -93,6 +93,10 @@ distributionSchema.set('toJSON', {
   },
 });
 
+/* ── Indexes for common queries ─────────────────────────────────── */
+distributionSchema.index({ barangay: 1, createdAt: -1 });
+distributionSchema.index({ status: 1, createdAt: -1 });
+
 const Distribution = mongoose.model<IDistribution>('Distribution', distributionSchema);
 
 export default Distribution;

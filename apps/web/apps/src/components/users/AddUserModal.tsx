@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { api, BARANGAY_OPTIONS, CreateStaffData } from '@/lib/api'
+import { showToast } from '@/lib/toast'
 
 interface AddUserModalProps {
   isOpen: boolean
@@ -11,6 +12,7 @@ interface AddUserModalProps {
 
 interface FormErrors {
   username?: string
+  email?: string
   fullName?: string
   password?: string
   assignedBarangays?: string
@@ -54,6 +56,7 @@ const validateStrongPassword = (password: string): { isValid: boolean; errors: s
 export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) {
   // Form state
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -66,27 +69,53 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
   const [showPassword, setShowPassword] = useState(false)
   const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong' | ''>('')
   
-  // Calculate password strength
+  // Common weak patterns (must match backend passwordValidator.ts)
+  const COMMON_WEAK_PATTERNS = [
+    'password', 'admin', '123456', 'qwerty', 'letmein', 'welcome',
+    'monkey', 'dragon', 'master', 'login', 'superadmin', 'super',
+    'abc123', 'trustno1', 'iloveyou', 'sunshine', 'princess',
+    'football', 'shadow', 'passw0rd', 'kapitbisig', 'changeme',
+    '12345678', '123456789',
+  ]
+
+  // Calculate password strength (aligned with backend validator)
   useEffect(() => {
     if (!password) {
       setPasswordStrength('')
       return
     }
-    
-    let strength = 0
-    if (password.length >= 16) strength += 2
-    else if (password.length >= 10) strength += 1
-    if (/[A-Z]/.test(password) && /[a-z]/.test(password)) strength++
-    if (/[0-9]/.test(password)) strength++
-    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++
-    
-    if (strength <= 2) setPasswordStrength('weak')
-    else if (strength <= 4) setPasswordStrength('medium')
-    else setPasswordStrength('strong')
+
+    // Reject if contains common pattern (matches backend)
+    const lower = password.toLowerCase()
+    const hasCommonPattern = COMMON_WEAK_PATTERNS.some(p => lower.includes(p))
+    if (hasCommonPattern) {
+      setPasswordStrength('weak')
+      return
+    }
+
+    // Must be at least 16 chars (backend policy)
+    if (password.length < 16) {
+      setPasswordStrength('weak')
+      return
+    }
+
+    let score = 0
+    if (password.length >= 16) score++
+    if (password.length >= 20) score++
+    if (password.length >= 24) score++
+    if (/[A-Z]/.test(password)) score++
+    if (/[a-z]/.test(password)) score++
+    if (/[0-9]/.test(password)) score++
+    if (/[!@#$%^&*()_+\-=\[\]{}|;':",./<>?`~\\]/.test(password)) score++
+
+    if (score >= 6) setPasswordStrength('strong')
+    else if (score >= 4) setPasswordStrength('medium')
+    else setPasswordStrength('weak')
   }, [password])
   
   const resetForm = () => {
     setUsername('')
+    setEmail('')
     setFullName('')
     setPassword('')
     setConfirmPassword('')
@@ -119,6 +148,13 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
       newErrors.username = 'Username must be at least 3 characters'
     } else if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
       newErrors.username = 'Username may only contain letters, numbers, dots, hyphens, underscores'
+    }
+
+    // Email
+    if (!email.trim()) {
+      newErrors.email = 'Email is required'
+    } else if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      newErrors.email = 'Invalid email format'
     }
     
     // Full name
@@ -158,6 +194,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
     try {
       const staffData: CreateStaffData = {
         username: username.trim().toLowerCase(),
+        email: email.trim().toLowerCase(),
         password,
         fullName: fullName.trim(),
         assignedBarangays,
@@ -167,6 +204,7 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
       
       if (response.success) {
         resetForm()
+        showToast.success('Staff user created.')
         onSuccess?.()
         onClose()
       }
@@ -175,10 +213,13 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
       const err = error as { response?: { message?: string; errors?: string[] } }
       if (err.response?.message) {
         setErrors({ general: err.response.message })
+        showToast.error(err.response.message)
       } else if (err.response?.errors?.length) {
         setErrors({ general: err.response.errors.join(', ') })
+        showToast.error('Failed to create user.')
       } else {
         setErrors({ general: 'Failed to create user. Please try again.' })
+        showToast.error('Failed to create user.')
       }
     } finally {
       setIsLoading(false)
@@ -261,6 +302,26 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               />
               {errors.fullName && (
                 <p className="mt-1 text-sm text-red-500">{errors.fullName}</p>
+              )}
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-900 mb-2">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <input 
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. juan@lgu.gov.ph"
+                className={`w-full px-4 py-3 rounded-xl border ${
+                  errors.email ? 'border-red-500' : 'border-gray-300'
+                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
+                disabled={isLoading}
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
               )}
             </div>
 

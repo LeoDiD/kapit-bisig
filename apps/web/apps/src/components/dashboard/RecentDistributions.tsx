@@ -50,7 +50,7 @@ const statusLabels = {
 
 export default function RecentDistributions() {
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-gray-800">Recent Distributions</h3>
         <button className="text-xs text-green-600 hover:text-green-700 font-medium">

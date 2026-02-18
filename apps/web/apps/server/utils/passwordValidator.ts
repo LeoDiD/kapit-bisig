@@ -25,11 +25,12 @@ export interface PasswordValidationResult {
 
 // Password policy configuration - easy to modify if requirements change
 const PASSWORD_POLICY = {
-  minLength: 8,
+  minLength: 16,
   requireUppercase: true,
   requireLowercase: true,
   requireNumber: true,
   requireSpecialChar: true,
+  rejectWhitespace: true,
 };
 
 // Regex patterns for password validation
@@ -63,6 +64,16 @@ export function validatePassword(password: string): PasswordValidationResult {
       errors: ['Password is required'],
       strength: 'weak',
     };
+  }
+
+  // Whitespace check
+  if (PASSWORD_POLICY.rejectWhitespace && /\s/.test(password)) {
+    errors.push('Password must not contain spaces or whitespace');
+  }
+
+  // Common password / pattern check
+  if (isCommonPassword(password)) {
+    errors.push('Password contains a common or guessable pattern');
   }
 
   // Minimum length check
@@ -105,17 +116,17 @@ export function validatePassword(password: string): PasswordValidationResult {
  * This provides additional feedback beyond just pass/fail validation.
  * 
  * Strength criteria:
- * - weak: Less than 8 chars or fails basic requirements
- * - medium: Meets minimum requirements (8-11 chars)
- * - strong: Exceeds requirements (12+ chars with all character types)
+ * - weak: Less than 16 chars or fails basic requirements
+ * - medium: Meets minimum requirements (16-19 chars)
+ * - strong: Exceeds requirements (20+ chars with all character types)
  */
 function calculatePasswordStrength(password: string): 'weak' | 'medium' | 'strong' {
   let score = 0;
 
   // Length scoring
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
   if (password.length >= 16) score++;
+  if (password.length >= 20) score++;
+  if (password.length >= 24) score++;
 
   // Character variety scoring
   if (PATTERNS.uppercase.test(password)) score++;
@@ -141,34 +152,59 @@ export function isPasswordValid(password: string): boolean {
 }
 
 /**
- * Common weak passwords that should be rejected regardless of policy.
- * This prevents users from using well-known compromised passwords.
- * 
- * In production, consider using a more comprehensive list like:
+ * Reusable strength checker matching the checklist spec.
+ * Returns { ok: true } or { ok: false, reason: '...' }.
+ */
+export function validatePasswordStrength(password: string): { ok: boolean; reason?: string } {
+  const result = validatePassword(password);
+  if (result.isValid) return { ok: true };
+  return { ok: false, reason: result.errors.join('; ') };
+}
+
+/**
+ * Common weak passwords / patterns to reject.
+ * Checked case-insensitively as substrings — more thorough than exact-match.
+ *
+ * In production, consider also using:
  * - Have I Been Pwned API (https://haveibeenpwned.com/API/v3)
  * - NIST bad passwords list
  */
-const COMMON_WEAK_PASSWORDS = [
+const COMMON_WEAK_PATTERNS = [
   'password',
-  'password1',
-  'password123',
+  'admin',
+  '123456',
+  'qwerty',
+  'letmein',
+  'welcome',
+  'monkey',
+  'dragon',
+  'master',
+  'login',
+  'superadmin',
+  'super',
+  'abc123',
+  'trustno1',
+  'iloveyou',
+  'sunshine',
+  'princess',
+  'football',
+  'shadow',
+  'passw0rd',
+  'kapitbisig',
+  'changeme',
   '12345678',
   '123456789',
-  'qwerty123',
-  'letmein123',
-  'welcome123',
-  'admin123',
-  'changeme',
 ];
 
 /**
- * Checks if password is a commonly used weak password.
- * These passwords should be rejected even if they meet complexity requirements.
- * 
+ * Checks if password contains a commonly used weak pattern.
+ * Uses case-insensitive **substring** matching for broader coverage.
+ *
  * @param password - The password to check
- * @returns boolean indicating if password is commonly used (bad)
+ * @returns boolean indicating if password contains a common pattern (bad)
  */
 export function isCommonPassword(password: string): boolean {
-  return COMMON_WEAK_PASSWORDS.includes(password.toLowerCase());
+  const lower = password.toLowerCase();
+  return COMMON_WEAK_PATTERNS.some((pattern) => lower.includes(pattern));
 }
 

@@ -32,7 +32,7 @@ const actions: QuickAction[] = [
 
 export default function QuickActions() {
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100">
       <h3 className="text-base font-bold text-gray-800 mb-3">Quick Actions</h3>
 
       <div className="grid grid-cols-2 gap-3">

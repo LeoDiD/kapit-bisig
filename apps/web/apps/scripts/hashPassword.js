@@ -32,6 +32,9 @@ function validatePassword(pw) {
   if (pw.length < 16) {
     errors.push(`Too short (${pw.length} chars). Minimum is 16.`);
   }
+  if (/\s/.test(pw)) {
+    errors.push('Must not contain spaces or whitespace.');
+  }
   if (!/[A-Z]/.test(pw)) {
     errors.push('Missing uppercase letter.');
   }

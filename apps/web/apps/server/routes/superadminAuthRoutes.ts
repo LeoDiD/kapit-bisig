@@ -22,6 +22,8 @@ import {
   SuperadminPayload,
   logSecurity,
 } from '../middleware/superadminAuth';
+import { validateRequest } from '../validation/validateRequest';
+import { saLoginBody } from '../validation/auth.schema';
 
 const router = Router();
 
@@ -53,14 +55,15 @@ function setCookie(res: Response, token: string, rememberMe: boolean) {
 /**
  * POST /api/sa/login
  */
-router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
+router.post('/login', loginRateLimiter, validateRequest({ body: saLoginBody }), async (req: Request, res: Response) => {
   try {
     const { username, password, rememberMe } = req.body;
 
     // Basic input validation
     if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
       logSecurity('LOGIN_FAIL', { reason: 'bad_input', ip: req.ip });
-      res.status(400).json({ success: false, message: 'Username and password are required.' });
+      // GENERIC error — do not reveal which field is missing
+      res.status(401).json({ success: false, message: 'Invalid credentials.' });
       return;
     }
 
@@ -114,7 +117,12 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
  * POST /api/sa/logout
  */
 router.post('/logout', (_req: Request, res: Response) => {
-  res.clearCookie(COOKIE_NAME, { path: '/' });
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
   logSecurity('LOGOUT', { ip: _req.ip });
   res.json({ success: true, message: 'Logged out.' });
 });

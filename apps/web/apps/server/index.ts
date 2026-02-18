@@ -15,6 +15,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
 
+// Validate env vars immediately — exits if any required var is missing
+import { env } from './config/env';
+
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -29,13 +32,16 @@ import distributionRoutes from './routes/distributionRoutes';
 import superadminAuthRoutes from './routes/superadminAuthRoutes';
 import unifiedAuthRoutes from './routes/unifiedAuthRoutes';
 import adminStaffRoutes from './routes/adminStaffRoutes';
+import forgotPasswordRoutes from './routes/forgotPasswordRoutes';
 import claimRoutes from './routes/claimRoutes';
 import householdListRoutes from './routes/householdListRoutes';
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
+import { mongoSanitize } from './validation/mongoSanitize';
+import { csrfProtect } from './middleware/csrf';
 
 const app: Express = express();
-const PORT = process.env.PORT || 3001;
+const PORT = env.PORT;
 
 /**
  * Security Middleware - Order matters!
@@ -58,9 +64,9 @@ app.use(cookieParser());
 // CORS configuration
 // In production, restrict to your specific domains
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: env.CORS_ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   credentials: true,
 }));
 
@@ -69,8 +75,14 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' })); // Limit body size to prevent DoS
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// NoSQL injection sanitizer — strip $ and . keys from body/query/params
+app.use(mongoSanitize);
+
 // Apply general rate limiting to all routes
 app.use(generalRateLimiter);
+
+// CSRF protection (double-submit cookie)
+app.use(csrfProtect);
 
 /**
  * Routes
@@ -79,11 +91,12 @@ app.use(generalRateLimiter);
  * applied at the route level (see authRoutes.ts)
  */
 app.use('/api/auth', unifiedAuthRoutes);       // unified login / logout / me
+app.use('/api/auth/forgot-password', forgotPasswordRoutes); // forgot password OTP flow
 app.use('/api/sa', superadminAuthRoutes);        // legacy superadmin-only routes (kept for compat)
 app.use('/api/admin/users', adminStaffRoutes);   // SUPERADMIN manage staff
 app.use('/api/users', userRoutes);
-app.use('/api/residents', residentRoutes);
-app.use('/api/face', faceRoutes);
+app.use('/api/residents', residentRoutes);       // route-level auth (register is public)
+app.use('/api/face', faceRoutes);                // route-level auth where needed
 app.use('/api/household', householdRoutes);
 app.use('/api/admin/tokens', adminTokenRoutes);
 app.use('/api/distributions', requireAuth, requireStaffOrSuperadmin, distributionRoutes);
@@ -115,7 +128,7 @@ const startServer = async () => {
     
     // Then start the server
     app.listen(PORT, () => {
-      console.log(`⚡️ Server is running on http://localhost:${PORT}`);
+      console.log(`⚡️ Server is running on port ${PORT} [${env.NODE_ENV}]`);
       console.log(`🔐 Authentication endpoints available at /api/auth`);
       console.log(`🏠 Household registration available at /api/household`);
       console.log(`🎫 Admin token management available at /api/admin/tokens`);

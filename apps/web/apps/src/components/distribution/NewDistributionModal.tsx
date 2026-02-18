@@ -17,11 +17,12 @@ export default function NewDistributionModal({
 }: {
   open: boolean
   onClose: () => void
-  onCreate: (payload: CreateDistributionPayload) => void
+  onCreate: (payload: CreateDistributionPayload) => void | Promise<void>
   barangayOptions: string[]
 }) {
   const [barangay, setBarangay] = useState('')
   const [barangayOpen, setBarangayOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
 
   const [scheduled, setScheduled] = useState('')
   const [notes, setNotes] = useState('')
@@ -37,6 +38,7 @@ export default function NewDistributionModal({
     setScheduled('')
     setNotes('')
     setHouseholds(40)
+    setIsCreating(false)
   }, [open])
 
   useEffect(() => {
@@ -57,14 +59,19 @@ export default function NewDistributionModal({
 
   if (!open) return null
 
-  const doCreate = () => {
-    if (!canCreate) return
-    onCreate({
-      barangay,
-      scheduled,
-      households,
-      notes: notes.trim() ? notes.trim() : undefined,
-    })
+  const doCreate = async () => {
+    if (!canCreate || isCreating) return
+    setIsCreating(true)
+    try {
+      await onCreate({
+        barangay,
+        scheduled,
+        households,
+        notes: notes.trim() ? notes.trim() : undefined,
+      })
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -195,15 +202,22 @@ export default function NewDistributionModal({
               <button
                 type="button"
                 onClick={doCreate}
-                disabled={!canCreate}
+                disabled={!canCreate || isCreating}
                 className={[
-                  'px-5 py-2 rounded-xl text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)]',
-                  canCreate
+                  'px-5 py-2 rounded-xl text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)] flex items-center gap-2',
+                  canCreate && !isCreating
                     ? 'bg-[#0F533A] hover:bg-[#0a3f2c] text-white'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed',
                 ].join(' ')}
               >
-                Create Distribution
+                {isCreating ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                    Creating…
+                  </>
+                ) : (
+                  'Create Distribution'
+                )}
               </button>
             </div>
           </div>

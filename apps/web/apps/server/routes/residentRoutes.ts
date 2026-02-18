@@ -7,6 +7,16 @@
 
 import { Router, Request, Response } from 'express';
 import Resident from '../models/Resident';
+import { requireAuth, requireStaffOrSuperadmin, AuthRequest } from '../middleware/unifiedAuth';
+import { validateRequest } from '../validation/validateRequest';
+import { escapeRegex } from '../validation/mongoSanitize';
+import {
+  registerResidentBody,
+  listResidentsQuery,
+  residentIdParams,
+  verifyResidentBody,
+} from '../validation/resident.schema';
+import { logAudit } from '../utils/audit';
 
 const router = Router();
 
@@ -23,7 +33,7 @@ function getAIVerificationStatus(confidence: number): 'High Match' | 'Medium Mat
  * POST /api/residents/register
  * Register a new resident from mobile app
  */
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', validateRequest({ body: registerResidentBody }), async (req: Request, res: Response) => {
   try {
     const {
       // Personal Info
@@ -185,31 +195,56 @@ router.post('/register', async (req: Request, res: Response) => {
  * GET /api/residents
  * Get all residents (for admin dashboard)
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, requireStaffOrSuperadmin, validateRequest({ query: listResidentsQuery }), async (req: AuthRequest, res: Response) => {
   try {
     const { status, barangay, search } = req.query;
     
     const query: Record<string, unknown> = {};
+
+    // RBAC: LGU_STAFF can only see residents in their assigned barangays
+    if (req.authUser?.role === 'LGU_STAFF') {
+      const assigned = req.authUser.assignedBarangays ?? [];
+      query.barangay = { $in: assigned };
+    }
     
     if (status && status !== 'All') {
       query.status = status;
     }
     
     if (barangay && barangay !== 'All') {
+      // If staff, verify the requested barangay is within scope
+      if (req.authUser?.role === 'LGU_STAFF') {
+        const assigned = req.authUser.assignedBarangays ?? [];
+        if (!assigned.includes(barangay as string)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have access to the requested barangay',
+          });
+        }
+      }
       query.barangay = barangay;
     }
     
     if (search) {
+      const escaped = escapeRegex(search as string);
       query.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { mobileNumber: { $regex: search, $options: 'i' } },
-        { idNumber: { $regex: search, $options: 'i' } },
+        { fullName: { $regex: escaped, $options: 'i' } },
+        { mobileNumber: { $regex: escaped, $options: 'i' } },
+        { idNumber: { $regex: escaped, $options: 'i' } },
       ];
     }
     
+    // ── Pagination ──────────────────────────────────────────────
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const rawLimit = parseInt(req.query.limit as string, 10) || 50;
+    const limit = Math.min(rawLimit, 50);   // hard cap
+    const skip = (page - 1) * limit;
+
     const residents = await Resident.find(query)
       .select('-password -frontIdImage -backIdImage -faceImage')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
     
     res.json({
       success: true,
@@ -228,7 +263,7 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/residents/:id
  * Get resident by ID with all details
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requireAuth, requireStaffOrSuperadmin, validateRequest({ params: residentIdParams }), async (req: AuthRequest, res: Response) => {
   try {
     const resident = await Resident.findById(req.params.id).select('-password');
     
@@ -256,7 +291,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  * PATCH /api/residents/:id/verify
  * Approve or reject a resident application
  */
-router.patch('/:id/verify', async (req: Request, res: Response) => {
+router.patch('/:id/verify', requireAuth, requireStaffOrSuperadmin, validateRequest({ params: residentIdParams, body: verifyResidentBody }), async (req: AuthRequest, res: Response) => {
   try {
     const { status, rejectionReason, verifiedBy } = req.body;
     
@@ -291,6 +326,11 @@ router.patch('/:id/verify', async (req: Request, res: Response) => {
         message: 'Resident not found',
       });
     }
+
+    await logAudit(req, 'RESIDENT_VERIFIED', 'Resident', req.params.id, {
+      status,
+      rejectionReason: status === 'Rejected' ? rejectionReason : undefined,
+    });
     
     res.json({
       success: true,
@@ -310,7 +350,7 @@ router.patch('/:id/verify', async (req: Request, res: Response) => {
  * GET /api/residents/stats/summary
  * Get summary statistics for dashboard
  */
-router.get('/stats/summary', async (_req: Request, res: Response) => {
+router.get('/stats/summary', requireAuth, requireStaffOrSuperadmin, async (_req: AuthRequest, res: Response) => {
   try {
     const [total, pending, approved, rejected] = await Promise.all([
       Resident.countDocuments(),

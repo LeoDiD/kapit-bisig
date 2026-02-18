@@ -140,13 +140,16 @@ export default function DistributionDetailsModal({
 
 /* ----- Status Pill ----- */
 
-function StatusPill({ status }: { status: 'Claimed' | 'Unclaimed' }) {
+function StatusPill({ status }: { status: 'Claimed' | 'Unclaimed' | 'Partially Claimed' }) {
   const isUnclaimed = status === 'Unclaimed'
+  const isPartial = status === 'Partially Claimed'
   
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
       isUnclaimed 
         ? 'bg-[#EAB308] text-white' 
+        : isPartial
+        ? 'bg-orange-500 text-white'
         : 'bg-green-600 text-white'
     }`}>
       {isUnclaimed ? <ClockSmallIcon /> : <CheckSmallIcon />}

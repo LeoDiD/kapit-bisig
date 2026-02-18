@@ -175,7 +175,7 @@ function StatCard({
   accentBg: string
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-4 flex items-center gap-3">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accentBg}`}>
         {icon}
       </div>
@@ -370,7 +370,7 @@ export default function ReportsPageClient() {
   return (
     <div className="space-y-6">
       {/* Filters Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-5">
         <div className="flex items-center gap-2 text-gray-800 font-semibold mb-4">
           <FilterIcon className="w-5 h-5 text-gray-700" />
           <span>Report Filters</span>
@@ -485,7 +485,7 @@ export default function ReportsPageClient() {
       </div>
 
       {/* Report Table Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center gap-2 font-semibold text-gray-900">
             <DocIcon className="w-5 h-5 text-gray-700" />
@@ -589,7 +589,7 @@ export default function ReportsPageClient() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-4">
           <div className="font-semibold text-gray-900">Distribution Summary</div>
           <div className="text-sm text-gray-500 mb-4">Monthly distribution and household coverage</div>
           <MiniBarChart
@@ -599,7 +599,7 @@ export default function ReportsPageClient() {
           />
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-4">
           <div className="font-semibold text-gray-900">Distribution by Barangay</div>
           <div className="text-sm text-gray-500 mb-4">Percentage of distributions per barangay</div>
           <Donut

@@ -36,41 +36,14 @@ import {
   householdRegistrationRateLimiter,
   mobileLookupRateLimiter,
 } from '../middleware/rateLimiter';
+import { validateRequest } from '../validation/validateRequest';
+import {
+  validateTokenBody,
+  registerHouseholdBody,
+  checkMobileBody,
+} from '../validation/household.schema';
 
 const router = Router();
-
-/**
- * Debug endpoint to check tokens in database
- * Remove this in production!
- */
-router.get('/debug-tokens', async (_req: Request, res: Response) => {
-  try {
-    const tokens = await HouseholdToken.find({
-      status: { $in: ['UNUSED', 'LOCKED'] },
-      expiresAt: { $gt: new Date() },
-    });
-    
-    const testToken = 'JFTP-3OMT-Y9Q7';
-    let matchResult = 'No match';
-    
-    for (const token of tokens) {
-      const isMatch = await bcrypt.compare(testToken, token.tokenHash);
-      if (isMatch) {
-        matchResult = `Match found: ${token.tokenPrefix}`;
-        break;
-      }
-    }
-    
-    res.json({
-      tokenCount: tokens.length,
-      tokenPrefixes: tokens.map(t => t.tokenPrefix),
-      testToken,
-      matchResult,
-    });
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
-  }
-});
 
 /**
  * Get client IP address
@@ -128,7 +101,7 @@ function sanitizeToken(token: string): string {
  *   }
  * }
  */
-router.post('/validate-token', tokenValidationRateLimiter, async (req: Request, res: Response) => {
+router.post('/validate-token', tokenValidationRateLimiter, validateRequest({ body: validateTokenBody }), async (req: Request, res: Response) => {
   const startTime = Date.now();
   const requestId = generateRequestId();
   const ipAddress = getClientIP(req);
@@ -250,7 +223,7 @@ router.post('/validate-token', tokenValidationRateLimiter, async (req: Request, 
  *   householdInfo?: { ... }
  * }
  */
-router.post('/register', householdRegistrationRateLimiter, async (req: Request, res: Response) => {
+router.post('/register', householdRegistrationRateLimiter, validateRequest({ body: registerHouseholdBody }), async (req: Request, res: Response) => {
   const startTime = Date.now();
   const requestId = generateRequestId();
   const ipAddress = getClientIP(req);
@@ -411,7 +384,7 @@ router.post('/register', householdRegistrationRateLimiter, async (req: Request, 
  *   message: string
  * }
  */
-router.post('/check-mobile', mobileLookupRateLimiter, async (req: Request, res: Response) => {
+router.post('/check-mobile', mobileLookupRateLimiter, validateRequest({ body: checkMobileBody }), async (req: Request, res: Response) => {
   try {
     const { mobileNumber } = req.body;
 

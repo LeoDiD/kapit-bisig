@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import AddUserModal from './AddUserModal'
 import { api, StaffUser, StaffStats, BARANGAY_OPTIONS } from '@/lib/api'
+import { showToast } from '@/lib/toast'
+import { TableSkeleton } from '@/components/ui/Skeleton'
 
 type FilterStatus = 'all' | 'active' | 'inactive'
 
@@ -150,12 +152,13 @@ export default function UsersTable() {
   const handleToggleActive = async (userId: string, currentlyActive: boolean) => {
     try {
       await api.updateStaffUser(userId, { isActive: !currentlyActive })
+      showToast.success(currentlyActive ? 'User deactivated.' : 'User activated.')
       fetchUsers()
       fetchStats()
       setActiveDropdown(null)
     } catch (err) {
       console.error('Failed to update status:', err)
-      alert('Failed to update user status')
+      showToast.error('Failed to update user status.')
     }
   }
 
@@ -168,11 +171,11 @@ export default function UsersTable() {
       setResetPasswordTarget(null)
       setNewPassword('')
       setActiveDropdown(null)
-      alert('Password reset successfully')
+      showToast.success('Password reset successfully.')
     } catch (err) {
       console.error('Failed to reset password:', err)
       const e = err as { message?: string }
-      alert(e.message || 'Failed to reset password')
+      showToast.error(e.message || 'Failed to reset password.')
     } finally {
       setIsResetting(false)
     }
@@ -200,7 +203,7 @@ export default function UsersTable() {
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)]">
         {/* Header Actions */}
         <div className="p-4 border-b border-gray-100 flex flex-col lg:flex-row gap-3 justify-between items-center">
           <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
@@ -349,10 +352,7 @@ export default function UsersTable() {
         {/* Table Content */}
         <div className="overflow-x-auto w-full">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0F533A]"></div>
-              <span className="ml-3 text-gray-500">Loading staff users...</span>
-            </div>
+            <TableSkeleton rows={6} columns={5} />
           ) : error ? (
             <div className="text-center py-12">
               <p className="text-red-500 mb-4">{error}</p>
@@ -367,11 +367,12 @@ export default function UsersTable() {
             <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
               <thead className="bg-gray-50 text-gray-500 text-sm">
                 <tr>
-                  <th className="px-4 py-3 font-medium w-[18%]">Full Name</th>
-                  <th className="px-4 py-3 font-medium w-[14%]">Username</th>
-                  <th className="px-4 py-3 font-medium w-[28%]">Assigned Barangays</th>
-                  <th className="px-4 py-3 font-medium w-[10%]">Status</th>
-                  <th className="px-4 py-3 font-medium w-[18%]">Created</th>
+                  <th className="px-4 py-3 font-medium w-[15%]">Full Name</th>
+                  <th className="px-4 py-3 font-medium w-[12%]">Username</th>
+                  <th className="px-4 py-3 font-medium w-[18%]">Email</th>
+                  <th className="px-4 py-3 font-medium w-[20%]">Assigned Barangays</th>
+                  <th className="px-4 py-3 font-medium w-[8%]">Status</th>
+                  <th className="px-4 py-3 font-medium w-[15%]">Created</th>
                   <th className="px-4 py-3 font-medium text-right w-[12%]"></th>
                 </tr>
               </thead>
@@ -386,6 +387,10 @@ export default function UsersTable() {
 
                       <td className="px-4 py-3 text-gray-600 whitespace-normal break-words">
                         {user.username}
+                      </td>
+
+                      <td className="px-4 py-3 text-gray-600 whitespace-normal break-words">
+                        {user.email || '—'}
                       </td>
 
                       <td className="px-4 py-3">
@@ -423,7 +428,7 @@ export default function UsersTable() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                       No staff users found.
                     </td>
                   </tr>
@@ -538,7 +543,7 @@ function SummaryCard({ value, label, color }: { value: number; label: string; co
   }
   
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center justify-center">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-6 flex flex-col items-center justify-center">
       <div className={`text-3xl font-semibold ${colorClasses[color]}`}>{value}</div>
       <div className="mt-1 text-sm text-gray-600">{label}</div>
     </div>

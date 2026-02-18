@@ -1,19 +1,29 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
+import { showToast } from '@/lib/toast'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { user, loading: authLoading, login } = useAuth()
+  const { user, loading: authLoading, login, verifyLoginOtp, resendLoginOtp } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // OTP modal state
+  const [otpModalOpen, setOtpModalOpen] = useState(false)
+  const [otpToken, setOtpToken] = useState<string | null>(null)
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', ''])
+  const [otpError, setOtpError] = useState<string | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   // Restore remember-me preference on mount
   useEffect(() => {
@@ -28,11 +38,17 @@ export default function LoginPage() {
     }
   }, [authLoading, user, router])
 
+  // Focus first OTP input when modal opens
+  useEffect(() => {
+    if (otpModalOpen) {
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
+    }
+  }, [otpModalOpen])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     
-    // Basic validation
     if (!username || !password) {
       setError('Please enter your username and password')
       return
@@ -41,27 +57,135 @@ export default function LoginPage() {
     setIsLoading(true)
     
     try {
-      await login(username, password, rememberMe)
+      const result = await login(username, password, rememberMe)
+
+      if (result.otpRequired) {
+        // Open OTP modal — do NOT navigate
+        setOtpToken(result.otpToken)
+        setOtpDigits(['', '', '', '', '', ''])
+        setOtpError(null)
+        setOtpModalOpen(true)
+        showToast.info(result.message || 'OTP sent to your email.')
+        return
+      }
       
+      // Normal login success
       if (rememberMe) {
         localStorage.setItem('rememberMe', 'true')
       } else {
         localStorage.removeItem('rememberMe')
       }
-      
+
+      showToast.info('Signing in…')
+      await new Promise((r) => setTimeout(r, 500))
+      showToast.success('Welcome back!')
       router.push('/dashboard')
     } catch (err: unknown) {
       const error = err as { message?: string }
       const msg = error.message || ''
-      // Show user-friendly message when server is unreachable
       if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
         setError('Unable to connect to the server. Please try again later.')
+        showToast.error('Unable to connect to the server.')
       } else {
         setError(msg || 'Invalid credentials. Please try again.')
+        showToast.error(msg || 'Login failed. Check credentials.')
       }
     } finally {
       setIsLoading(false)
     }
+  }
+
+  /* ---------- OTP input handlers ---------- */
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return // digits only
+    const newDigits = [...otpDigits]
+    newDigits[index] = value.slice(-1) // only last char
+    setOtpDigits(newDigits)
+    setOtpError(null)
+
+    // Auto-advance focus
+    if (value && index < 5) {
+      otpInputRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (pasted.length > 0) {
+      const newDigits = [...otpDigits]
+      for (let i = 0; i < 6; i++) {
+        newDigits[i] = pasted[i] || ''
+      }
+      setOtpDigits(newDigits)
+      // Focus last filled or the next empty
+      const focusIdx = Math.min(pasted.length, 5)
+      otpInputRefs.current[focusIdx]?.focus()
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    const otp = otpDigits.join('')
+    if (otp.length !== 6) {
+      setOtpError('Please enter the complete 6-digit code.')
+      return
+    }
+    if (!otpToken) return
+
+    setIsVerifying(true)
+    setOtpError(null)
+
+    try {
+      await verifyLoginOtp(otpToken, otp)
+
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true')
+      } else {
+        localStorage.removeItem('rememberMe')
+      }
+
+      setOtpModalOpen(false)
+      showToast.success('Email verified! Welcome!')
+      router.push('/dashboard')
+    } catch (err: unknown) {
+      const error = err as { message?: string }
+      setOtpError(error.message || 'Invalid or expired code.')
+      setOtpDigits(['', '', '', '', '', ''])
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (!otpToken || isResending) return
+    setIsResending(true)
+
+    try {
+      await resendLoginOtp(otpToken)
+      showToast.success('A new OTP has been sent to your email.')
+      setOtpDigits(['', '', '', '', '', ''])
+      setOtpError(null)
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
+    } catch (err: unknown) {
+      const error = err as { message?: string }
+      showToast.error(error.message || 'Failed to resend OTP.')
+    } finally {
+      setIsResending(false)
+    }
+  }
+
+  const handleCancelOtp = () => {
+    setOtpModalOpen(false)
+    setOtpToken(null)
+    setOtpDigits(['', '', '', '', '', ''])
+    setOtpError(null)
   }
 
   return (
@@ -146,7 +270,7 @@ export default function LoginPage() {
             {/* Username Field */}
             <div>
               <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
-                Username
+                Username or Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -159,7 +283,7 @@ export default function LoginPage() {
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username"
+                  placeholder="Enter your username or email"
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                   required
                   disabled={isLoading}
@@ -252,6 +376,110 @@ export default function LoginPage() {
           </form>
         </div>
       </div>
+
+      {/* ========== OTP VERIFICATION MODAL ========== */}
+      {otpModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop — blur + darken */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={handleCancelOtp}
+          />
+
+          {/* Modal card */}
+          <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 animate-in fade-in zoom-in duration-200">
+            {/* Close button */}
+            <button
+              onClick={handleCancelOtp}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-[#226538]/10 flex items-center justify-center">
+                <svg className="w-8 h-8 text-[#226538]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold text-gray-800 text-center mb-1">Verify Your Email</h2>
+            <p className="text-sm text-gray-500 text-center mb-6">
+              We sent a 6-digit code to your registered email.
+              <br />Enter it below to complete sign-in.
+            </p>
+
+            {/* OTP error */}
+            {otpError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm text-center">{otpError}</p>
+              </div>
+            )}
+
+            {/* OTP input boxes */}
+            <div className="flex justify-center gap-2 mb-6" onPaste={handleOtpPaste}>
+              {otpDigits.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={(el) => { otpInputRefs.current[i] = el }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(i, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                  disabled={isVerifying}
+                  className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60"
+                />
+              ))}
+            </div>
+
+            {/* Verify button */}
+            <button
+              onClick={handleVerifyOtp}
+              disabled={isVerifying || otpDigits.join('').length !== 6}
+              className="w-full py-3 px-4 bg-[#226538] hover:bg-[#1b502d] text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#226538] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isVerifying ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Verifying…
+                </>
+              ) : (
+                'Verify & Sign In'
+              )}
+            </button>
+
+            {/* Resend + Cancel row */}
+            <div className="flex items-center justify-between mt-4">
+              <button
+                onClick={handleResendOtp}
+                disabled={isResending || isVerifying}
+                className="text-sm text-[#226538] hover:text-[#1b502d] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isResending ? 'Sending…' : 'Resend Code'}
+              </button>
+              <button
+                onClick={handleCancelOtp}
+                disabled={isVerifying}
+                className="text-sm text-gray-500 hover:text-gray-700 font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400 text-center mt-4">Code expires in 10 minutes</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

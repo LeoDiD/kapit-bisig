@@ -18,26 +18,28 @@ import {
   AuthRequest,
   logSecurity,
 } from '../middleware/unifiedAuth';
+import { validatePasswordStrength } from '../utils/passwordValidator';
+import { validateRequest } from '../validation/validateRequest';
+import { escapeRegex } from '../validation/mongoSanitize';
+import {
+  createStaffBody,
+  listStaffQuery,
+  updateStaffBody,
+  staffIdParams,
+  resetPasswordBody,
+} from '../validation/adminStaff.schema';
+import { logAudit } from '../utils/audit';
 
 const router = Router();
 const SALT_ROUNDS = 12;
 
 /* ------------------------------------------------------------------ */
-/*  Password strength validator (same rules as hashPassword.js)       */
+/*  Password strength validator – delegates to shared utility         */
 /* ------------------------------------------------------------------ */
 function validateStrongPassword(pw: string): { ok: boolean; errors: string[] } {
-  const errors: string[] = [];
-  if (pw.length < 16) errors.push('Must be at least 16 characters');
-  if (!/[A-Z]/.test(pw)) errors.push('Must contain an uppercase letter');
-  if (!/[a-z]/.test(pw)) errors.push('Must contain a lowercase letter');
-  if (!/[0-9]/.test(pw)) errors.push('Must contain a digit');
-  if (!/[^A-Za-z0-9]/.test(pw)) errors.push('Must contain a symbol');
-
-  const common = ['password', '12345678', 'qwerty', 'letmein', 'admin'];
-  if (common.some((c) => pw.toLowerCase().includes(c)))
-    errors.push('Contains a common pattern');
-
-  return { ok: errors.length === 0, errors };
+  const result = validatePasswordStrength(pw);
+  if (result.ok) return { ok: true, errors: [] };
+  return { ok: false, errors: result.reason ? result.reason.split('; ') : ['Password is too weak'] };
 }
 
 /* ------------------------------------------------------------------ */
@@ -48,9 +50,9 @@ router.use(requireAuth, requireSuperadmin);
 /* ------------------------------------------------------------------ */
 /*  POST /api/admin/users                                             */
 /* ------------------------------------------------------------------ */
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
-    const { username, fullName, password, assignedBarangays } = req.body;
+    const { username, fullName, email, password, assignedBarangays } = req.body;
 
     // --- validation ---
     if (!username || typeof username !== 'string' || username.trim().length < 3) {
@@ -60,6 +62,11 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
     if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2) {
       res.status(400).json({ success: false, message: 'Full name is required.' });
+      return;
+    }
+
+    if (!email || typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      res.status(400).json({ success: false, message: 'A valid email is required.' });
       return;
     }
 
@@ -103,10 +110,19 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Duplicate email check
+    const emailLower = email.trim().toLowerCase();
+    const emailExists = await StaffUser.findOne({ emailLower });
+    if (emailExists) {
+      res.status(400).json({ success: false, message: 'Email is already in use.' });
+      return;
+    }
+
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     const user = new StaffUser({
       username: username.trim().toLowerCase(),
+      email: email.trim(),
       passwordHash,
       fullName: fullName.trim(),
       assignedBarangays,
@@ -118,6 +134,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       admin: req.authUser?.sub,
       newUser: user.username,
       ip: req.ip,
+    });
+    await logAudit(req, 'STAFF_CREATED', 'StaffUser', user._id.toString(), {
+      username: user.username,
+      assignedBarangays: user.assignedBarangays,
     });
 
     res.status(201).json({
@@ -134,7 +154,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 /* ------------------------------------------------------------------ */
 /*  GET /api/admin/users                                              */
 /* ------------------------------------------------------------------ */
-router.get('/', async (req: AuthRequest, res: Response) => {
+router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequest, res: Response) => {
   try {
     const { search, barangay, status } = req.query;
 
@@ -142,8 +162,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     const filter: any = {};
 
     if (search && typeof search === 'string') {
-      const re = new RegExp(search, 'i');
-      filter.$or = [{ username: re }, { fullName: re }];
+      const re = new RegExp(escapeRegex(search), 'i');
+      filter.$or = [{ username: re }, { fullName: re }, { email: re }];
     }
     if (barangay && typeof barangay === 'string') {
       filter.assignedBarangays = barangay;
@@ -151,7 +171,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     if (status === 'active') filter.isActive = true;
     else if (status === 'inactive') filter.isActive = false;
 
-    const users = await StaffUser.find(filter).sort({ createdAt: -1 }).lean();
+    const users = await StaffUser.find(filter).sort({ createdAt: -1 }).limit(50).lean();
 
     // Remap _id → id
     const data = users.map((u) => ({
@@ -188,7 +208,7 @@ router.get('/stats', async (_req: AuthRequest, res: Response) => {
 /* ------------------------------------------------------------------ */
 /*  PATCH /api/admin/users/:id                                        */
 /* ------------------------------------------------------------------ */
-router.patch('/:id', async (req: AuthRequest, res: Response) => {
+router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { fullName, assignedBarangays, isActive } = req.body;
@@ -237,6 +257,11 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
       target: user.username,
       ip: req.ip,
     });
+    const auditAction = isActive === false ? 'STAFF_DISABLED' : 'STAFF_UPDATED';
+    await logAudit(req, auditAction as any, 'StaffUser', user._id.toString(), {
+      username: user.username,
+      changes: { fullName, assignedBarangays, isActive },
+    });
 
     res.json({ success: true, message: 'Staff user updated.', data: user.toJSON() });
   } catch (err) {
@@ -248,7 +273,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
 /* ------------------------------------------------------------------ */
 /*  PATCH /api/admin/users/:id/reset-password                         */
 /* ------------------------------------------------------------------ */
-router.patch('/:id/reset-password', async (req: AuthRequest, res: Response) => {
+router.patch('/:id/reset-password', validateRequest({ params: staffIdParams, body: resetPasswordBody }), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;
@@ -281,6 +306,9 @@ router.patch('/:id/reset-password', async (req: AuthRequest, res: Response) => {
       admin: req.authUser?.sub,
       target: user.username,
       ip: req.ip,
+    });
+    await logAudit(req, 'STAFF_PASSWORD_RESET', 'StaffUser', user._id.toString(), {
+      username: user.username,
     });
 
     res.json({ success: true, message: 'Password has been reset.' });

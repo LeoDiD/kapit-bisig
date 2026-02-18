@@ -64,7 +64,7 @@ function StatItem({
   iconBg: string
 }) {
   return (
-    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] flex items-center gap-3">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBg}`}>
         {icon}
       </div>

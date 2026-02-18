@@ -14,6 +14,12 @@ import Distribution, { BARANGAY_OPTIONS } from '../models/Distribution';
 import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
 import { AuthRequest } from '../middleware/unifiedAuth';
+import { validateRequest } from '../validation/validateRequest';
+import {
+  createDistributionBody,
+  distributionIdParams,
+} from '../validation/distribution.schema';
+import { logAudit } from '../utils/audit';
 
 const router = Router();
 
@@ -25,6 +31,7 @@ const router = Router();
  */
 router.post(
   '/',
+  validateRequest({ body: createDistributionBody }),
   async (req: AuthRequest, res: Response) => {
     try {
       const { barangay, scheduled, households, notes } = req.body;
@@ -82,6 +89,12 @@ router.post(
       });
 
       await distribution.save();
+
+      await logAudit(req, 'DISTRIBUTION_CREATED', 'Distribution', distribution._id.toString(), {
+        barangay,
+        scheduled,
+        households: householdsNum,
+      });
 
       res.status(201).json({
         success: true,
@@ -178,6 +191,7 @@ router.get(
  */
 router.patch(
   '/:id/claim',
+  validateRequest({ params: distributionIdParams }),
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
@@ -213,6 +227,10 @@ router.patch(
       distribution.claimedAt = new Date();
       await distribution.save();
 
+      await logAudit(req, 'DISTRIBUTION_CLAIMED', 'Distribution', distribution._id.toString(), {
+        barangay: distribution.barangay,
+      });
+
       res.json({
         success: true,
         message: 'Distribution marked as claimed',
@@ -238,6 +256,7 @@ router.patch(
  */
 router.get(
   '/:id/households',
+  validateRequest({ params: distributionIdParams }),
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;

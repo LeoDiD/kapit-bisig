@@ -1,7 +1,10 @@
 import React from 'react'
 import type { Metadata } from 'next'
 import { Montserrat } from 'next/font/google'
+import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/AuthContext'
+import { RouteLoadingProvider } from '@/lib/RouteLoadingContext'
+import TopLoadingBar from '@/components/layout/TopLoadingBar'
 import './globals.css'
 
 // 2. Configure the font with necessary weights
@@ -23,7 +26,24 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={montserrat.className}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <RouteLoadingProvider>
+          <TopLoadingBar />
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                fontFamily: 'inherit',
+                borderRadius: '0.75rem',
+                fontSize: '0.875rem',
+              },
+            }}
+            richColors
+            closeButton
+          />
+          </RouteLoadingProvider>
+        </AuthProvider>
       </body>
     </html>
   )

@@ -55,7 +55,7 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden mb-6">
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>

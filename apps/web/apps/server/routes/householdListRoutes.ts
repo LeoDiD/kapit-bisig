@@ -11,6 +11,10 @@
 import { Router, Request, Response } from 'express';
 import Resident from '../models/Resident';
 import Claim from '../models/Claim';
+import { AuthRequest } from '../middleware/unifiedAuth';
+import { validateRequest } from '../validation/validateRequest';
+import { escapeRegex } from '../validation/mongoSanitize';
+import { listHouseholdsQuery } from '../validation/householdList.schema';
 
 const router = Router();
 
@@ -18,7 +22,7 @@ const router = Router();
 /*  GET /api/households                                                */
 /* ------------------------------------------------------------------ */
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: AuthRequest, res: Response) => {
   try {
     const { search, barangay, status } = req.query as {
       search?: string;
@@ -30,12 +34,28 @@ router.get('/', async (req: Request, res: Response) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: Record<string, any> = {};
 
+    // RBAC: LGU_STAFF can only see their assigned barangays
+    if (req.authUser?.role === 'LGU_STAFF') {
+      const assigned = req.authUser.assignedBarangays ?? [];
+      filter.barangay = { $in: assigned };
+    }
+
     if (barangay && barangay !== 'All Barangays') {
+      // If staff, ensure the requested barangay is within their scope
+      if (req.authUser?.role === 'LGU_STAFF') {
+        const assigned = req.authUser.assignedBarangays ?? [];
+        if (!assigned.includes(barangay)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have access to the requested barangay',
+          });
+        }
+      }
       filter.barangay = barangay;
     }
 
     if (search) {
-      const re = new RegExp(search, 'i');
+      const re = new RegExp(escapeRegex(search), 'i');
       filter.$or = [
         { fullName: re },
         { firstName: re },
@@ -46,7 +66,14 @@ router.get('/', async (req: Request, res: Response) => {
       ];
     }
 
+    // ── Pagination ──────────────────────────────────────────────
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const rawLimit = parseInt(req.query.limit as string, 10) || 50;
+    const limit = Math.min(rawLimit, 50);   // hard cap
+    const skip = (page - 1) * limit;
+
     // Fetch residents (exclude heavy fields like images)
+    const total = await Resident.countDocuments(filter);
     const residents = await Resident.find(filter)
       .select(
         'firstName lastName fullName barangay streetAddress city householdSize ' +
@@ -54,6 +81,8 @@ router.get('/', async (req: Request, res: Response) => {
         'verification.aiVerificationStatus createdAt updatedAt'
       )
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .lean();
 
     // Build a Set of resident IDs that have at least one CONFIRMED claim
@@ -108,6 +137,12 @@ router.get('/', async (req: Request, res: Response) => {
       success: true,
       data: households,
       total: households.length,
+      pagination: {
+        page,
+        limit,
+        totalDocs: total,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('GET /api/households error:', error);

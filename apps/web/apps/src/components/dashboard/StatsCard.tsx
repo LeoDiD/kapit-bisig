@@ -30,7 +30,7 @@ export default function StatsCard({
   const isColored = variant === 'yellow' || variant === 'green'
 
   return (
-    <div className={`rounded-2xl p-4 border shadow-sm transition-transform hover:scale-[1.02] ${variantStyles[variant]}`}>
+    <div className={`rounded-2xl p-4 border shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] transition-all hover:scale-[1.02] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] ${variantStyles[variant]}`}>
       <div className="flex items-center gap-4">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconVariantStyles[variant]}`}>
           {icon}

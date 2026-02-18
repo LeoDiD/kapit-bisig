@@ -20,6 +20,14 @@ import {
   recordClaimOnChain,
   isClaimedOnChain,
 } from '../services/blockchainService';
+import { validateRequest } from '../validation/validateRequest';
+import { escapeRegex } from '../validation/mongoSanitize';
+import {
+  recordClaimBody,
+  ledgerQuery,
+  retryChainParams,
+} from '../validation/claim.schema';
+import { logAudit } from '../utils/audit';
 
 const router = Router();
 
@@ -68,7 +76,7 @@ function logHeader(title: string): void {
 /*  Input: { claimToken, distributionId, distributionSite }            */
 /* ------------------------------------------------------------------ */
 
-router.post('/record-claim', async (req: AuthRequest, res: Response) => {
+router.post('/record-claim', validateRequest({ body: recordClaimBody }), async (req: AuthRequest, res: Response) => {
   try {
     const { claimToken, distributionId, distributionSite } = req.body;
 
@@ -199,6 +207,12 @@ router.post('/record-claim', async (req: AuthRequest, res: Response) => {
     });
     await claim.save();
 
+    await logAudit(req, 'CLAIM_RECORDED', 'Claim', claimId, {
+      householdCode,
+      barangay,
+      distributionId,
+    });
+
     console.log(`[4] DB: claimId=${claimId} status=PENDING_CHAIN`);
 
     // ── 7) Send on-chain transaction ──
@@ -281,13 +295,30 @@ router.post('/record-claim', async (req: AuthRequest, res: Response) => {
 /*  Returns claims list for the blockchain-ledger UI                   */
 /* ------------------------------------------------------------------ */
 
-router.get('/ledger', async (req: AuthRequest, res: Response) => {
+router.get('/ledger', validateRequest({ query: ledgerQuery }), async (req: AuthRequest, res: Response) => {
   try {
     const { barangay, status, search } = req.query;
 
     // Build filter
     const filter: Record<string, any> = {};
+
+    // RBAC: LGU_STAFF can only see claims in their assigned barangays
+    if (req.authUser?.role === 'LGU_STAFF') {
+      const assigned = req.authUser.assignedBarangays ?? [];
+      filter.barangay = { $in: assigned };
+    }
+
     if (barangay && barangay !== 'All Barangays') {
+      // Verify staff has access to requested barangay
+      if (req.authUser?.role === 'LGU_STAFF') {
+        const assigned = req.authUser.assignedBarangays ?? [];
+        if (!assigned.includes(barangay as string)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have access to the requested barangay',
+          });
+        }
+      }
       filter.barangay = barangay;
     }
 
@@ -303,7 +334,7 @@ router.get('/ledger', async (req: AuthRequest, res: Response) => {
 
     // Text search (barangay, householdCode, hashes, txHash)
     if (search && typeof search === 'string' && search.trim()) {
-      const q = search.trim();
+      const q = escapeRegex(search.trim());
       filter.$or = [
         { barangay: { $regex: q, $options: 'i' } },
         { householdCode: { $regex: q, $options: 'i' } },
@@ -312,7 +343,10 @@ router.get('/ledger', async (req: AuthRequest, res: Response) => {
       ];
     }
 
-    const claims = await Claim.find(filter).sort({ createdAt: -1 }).lean();
+    const claims = await Claim.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
 
     // Map DB status to UI status label
     const statusLabel = (s: string) => {
@@ -368,7 +402,7 @@ router.get('/ledger', async (req: AuthRequest, res: Response) => {
 /*  Re-send a CHAIN_FAILED claim to the blockchain                     */
 /* ------------------------------------------------------------------ */
 
-router.post('/:claimId/retry-chain', async (req: AuthRequest, res: Response) => {
+router.post('/:claimId/retry-chain', validateRequest({ params: retryChainParams }), async (req: AuthRequest, res: Response) => {
   try {
     const { claimId } = req.params;
 

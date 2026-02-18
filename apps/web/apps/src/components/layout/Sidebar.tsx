@@ -1,11 +1,13 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
+import { useRouteLoading } from '@/lib/RouteLoadingContext'
+import { showToast } from '@/lib/toast'
 
 // Navigation items configuration
 const mainNavItems = [
@@ -18,54 +20,114 @@ const mainNavItems = [
   { name: 'Reports', href: '/reports', icon: ReportsIcon, superadminOnly: false },
 ]
 
-interface SidebarProps {
-  isCollapsed: boolean
-  onToggle: () => void
-}
-
-export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { logout, isSuperadmin } = useAuth()
+  const { isRouteLoading } = useRouteLoading()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
+  // Hover-driven expansion (unchanged logic).
+  const [isHovering, setIsHovering] = useState(false)
+  // Lock sidebar open while a route transition is in-flight.
+  const [lockExpanded, setLockExpanded] = useState(false)
+
+  const isExpanded = isHovering || lockExpanded
+  const isCollapsed = !isExpanded
+
+  const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearCollapseTimer = () => {
+    if (collapseTimerRef.current) {
+      clearTimeout(collapseTimerRef.current)
+      collapseTimerRef.current = null
+    }
+  }
+
+  const expand = () => {
+    clearCollapseTimer()
+    setIsHovering(true)
+  }
+
+  const scheduleCollapse = () => {
+    // Don't collapse while locked (waiting for loading bar to finish).
+    if (lockExpanded) return
+    clearCollapseTimer()
+    // Small delay to prevent flicker when moving between elements.
+    collapseTimerRef.current = setTimeout(() => setIsHovering(false), 200)
+  }
+
+  // Release the lock once loading finishes, then collapse.
+  useEffect(() => {
+    if (!isRouteLoading && lockExpanded) {
+      setLockExpanded(false)
+      // Collapse after a short delay so the transition feels smooth.
+      collapseTimerRef.current = setTimeout(() => setIsHovering(false), 150)
+    }
+  }, [isRouteLoading, lockExpanded])
+
+  // Lock sidebar on nav click (only for actual route changes).
+  const handleNavClick = (href: string) => {
+    if (href !== pathname) {
+      setLockExpanded(true)
+    }
+  }
+
+  useEffect(() => {
+    return () => clearCollapseTimer()
+  }, [])
+
   const handleLogout = async () => {
     setLoggingOut(true)
-    await logout()
-    router.replace('/login')
+    try {
+      await logout()
+      showToast.info('Signing out…')
+      // Small delay so the user sees the logging-out feedback
+      await new Promise((r) => setTimeout(r, 400))
+      showToast.success('Logged out successfully.')
+      router.replace('/login')
+    } catch {
+      showToast.error('Logout failed. Please try again.')
+      setLoggingOut(false)
+    }
   }
 
   return (
-    <aside 
-      className={`fixed left-0 top-0 h-screen bg-[linear-gradient(to_bottom,#004A1C_0%,#2F7F6A_50%,#8FAE6A_100%)] text-white flex flex-col shadow-xl z-50 transition-all duration-300 ${
+    <aside
+      onMouseEnter={expand}
+      onMouseLeave={scheduleCollapse}
+      onFocusCapture={expand}
+      onBlurCapture={(e) => {
+        const nextFocused = e.relatedTarget as Node | null
+        if (!nextFocused || !e.currentTarget.contains(nextFocused)) {
+          scheduleCollapse()
+        }
+      }}
+      className={`fixed left-0 top-0 h-screen bg-[linear-gradient(to_bottom,#004A1C_0%,#2F7F6A_50%,#8FAE6A_100%)] text-white flex flex-col shadow-xl z-50 will-change-[width] transition-[width] duration-300 ease-in-out ${
         isCollapsed ? 'w-16' : 'w-48'
       }`}
     >
-      {/* Header with Hamburger and Logo */}
-      <div className={`p-2 flex items-center gap-2 border-b border-white/10 ${isCollapsed ? 'justify-center' : ''}`}>
-        <button
-          onClick={onToggle}
-          className="p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0"
-          aria-label="Toggle sidebar"
+      {/* Header with Logo (always visible) */}
+      <div className="py-2 px-2 flex items-center border-b border-white/10">
+        <span className="w-12 flex items-center justify-center shrink-0">
+          <Image
+            src="/images/logo1.png"
+            alt="Kapit Bisig Logo"
+            width={32}
+            height={32}
+            priority
+            className="object-contain"
+          />
+        </span>
+        <span
+          aria-hidden={isCollapsed}
+          className={`text-sm font-bold tracking-tight text-white whitespace-nowrap overflow-hidden pointer-events-none transition-[max-width,opacity,transform] duration-300 ease-in-out ${
+            isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[160px] opacity-100 translate-x-0'
+          }`}
         >
-          <HamburgerIcon className="w-4 h-4" />
-        </button>
-        {!isCollapsed && (
-          <>
-            <Image
-              src="/images/logo1.png"
-              alt="Kapit-Bisig Logo"
-              width={32}
-              height={32}
-              priority
-              className="object-contain shrink-0"
-            />
-            <span className="text-sm font-bold tracking-tight text-white whitespace-nowrap">
-              Kapit-Bisig
-            </span>
-          </>
-        )}
+          Kapit Bisig
+        </span>
       </div>
 
       {/* Main Navigation */}
@@ -81,6 +143,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               icon={item.icon}
               isActive={isActive}
               isCollapsed={isCollapsed}
+              onNavClick={() => handleNavClick(item.href)}
             >
               {item.name}
             </NavItem>
@@ -95,6 +158,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           icon={SettingsIcon}
           isActive={pathname === '/settings'}
           isCollapsed={isCollapsed}
+          onNavClick={() => handleNavClick('/settings')}
         >
           Settings
         </NavItem>
@@ -103,10 +167,19 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         <button
           onClick={() => setShowLogoutModal(true)}
           title={isCollapsed ? 'Logout' : undefined}
-          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200 text-white/90 hover:bg-white/10 hover:text-white ${isCollapsed ? 'justify-center' : ''}`}
+          className="w-full flex items-center py-2 pr-2 rounded-xl transition-all duration-200 text-white/90 hover:bg-white/10 hover:text-white"
         >
-          <LogoutIcon className="w-4 h-4 shrink-0" />
-          {!isCollapsed && <span className="text-xs whitespace-nowrap">Logout</span>}
+          <span className="w-12 flex items-center justify-center shrink-0">
+            <LogoutIcon className="w-4 h-4" />
+          </span>
+          <span
+            aria-hidden={isCollapsed}
+            className={`text-xs whitespace-nowrap overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-in-out ${
+              isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[220px] opacity-100 translate-x-0'
+            }`}
+          >
+            Logout
+          </span>
         </button>
       </div>
 
@@ -177,30 +250,37 @@ interface NavItemProps {
   isActive: boolean
   isCollapsed: boolean
   children: React.ReactNode
+  onNavClick?: () => void
 }
 
-function NavItem({ href, icon: Icon, isActive, isCollapsed, children }: NavItemProps) {
+function NavItem({ href, icon: Icon, isActive, isCollapsed, children, onNavClick }: NavItemProps) {
   return (
     <Link
       href={href}
+      onClick={onNavClick}
       title={isCollapsed ? String(children) : undefined}
-      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all duration-200 ${
+      className={`flex items-center py-2 pr-2 rounded-xl transition-colors duration-200 ${
         isActive
           ? 'bg-yellow-500 text-green-900 font-semibold shadow-lg'
           : 'text-white/90 hover:bg-white/10 hover:text-white' 
-      } ${isCollapsed ? 'justify-center' : ''}`}
+      }`}
     >
-      <Icon className="w-4 h-4 shrink-0" />
-      {!isCollapsed && <span className="text-xs whitespace-nowrap">{children}</span>}
+      <span className="w-12 flex items-center justify-center shrink-0">
+        <Icon className="w-4 h-4" />
+      </span>
+      <span
+        aria-hidden={isCollapsed}
+        className={`text-xs whitespace-nowrap overflow-hidden transition-[max-width,opacity,transform] duration-300 ease-in-out ${
+          isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[220px] opacity-100 translate-x-0'
+        }`}
+      >
+        {children}
+      </span>
     </Link>
   )
 }
 
 // --- Icon Components ---
-
-function HamburgerIcon({ className }: { className?: string }) {
-  return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-}
 function DashboardIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
 }

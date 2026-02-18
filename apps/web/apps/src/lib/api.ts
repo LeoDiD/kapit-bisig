@@ -21,6 +21,7 @@ export type Barangay = typeof BARANGAY_OPTIONS[number];
 export interface StaffUser {
   id: string;
   username: string;
+  email?: string;
   fullName: string;
   role: 'LGU_STAFF';
   assignedBarangays: string[];
@@ -35,6 +36,7 @@ export interface StaffUser {
  */
 export interface CreateStaffData {
   username: string;
+  email: string;
   password: string;
   fullName: string;
   assignedBarangays: string[];
@@ -125,11 +127,34 @@ export interface DistributionHouseholdsData {
 // ========================== HELPERS ==========================
 
 /**
- * Create headers (cookie-based auth – no bearer token needed)
+ * Read a cookie value by name (browser-side).
  */
-const createHeaders = (): HeadersInit => ({
-  'Content-Type': 'application/json',
-});
+function getCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'))
+  return match ? decodeURIComponent(match[1]) : undefined
+}
+
+/**
+ * Create headers (cookie-based auth – no bearer token needed).
+ * Automatically attaches X-CSRF-Token for state-changing requests.
+ */
+const createHeaders = (method: string = 'GET'): HeadersInit => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  // Attach CSRF token for state-changing methods
+  const upper = method.toUpperCase()
+  if (upper !== 'GET' && upper !== 'HEAD' && upper !== 'OPTIONS') {
+    const csrfToken = getCookie('XSRF-TOKEN')
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken
+    }
+  }
+
+  return headers
+};
 
 /**
  * Handle API response
@@ -193,7 +218,7 @@ export const api = {
   async createStaffUser(data: CreateStaffData): Promise<ApiResponse<StaffUser>> {
     const response = await fetch(`${API_URL}/admin/users`, {
       method: 'POST',
-      headers: createHeaders(),
+      headers: createHeaders('POST'),
       credentials: 'include',
       body: JSON.stringify(data),
     });
@@ -206,7 +231,7 @@ export const api = {
   async updateStaffUser(id: string, data: UpdateStaffData): Promise<ApiResponse<StaffUser>> {
     const response = await fetch(`${API_URL}/admin/users/${id}`, {
       method: 'PATCH',
-      headers: createHeaders(),
+      headers: createHeaders('PATCH'),
       credentials: 'include',
       body: JSON.stringify(data),
     });
@@ -219,7 +244,7 @@ export const api = {
   async resetStaffPassword(id: string, newPassword: string): Promise<ApiResponse<void>> {
     const response = await fetch(`${API_URL}/admin/users/${id}/reset-password`, {
       method: 'PATCH',
-      headers: createHeaders(),
+      headers: createHeaders('PATCH'),
       credentials: 'include',
       body: JSON.stringify({ newPassword }),
     });
@@ -261,7 +286,7 @@ export const api = {
   }): Promise<ApiResponse<DistributionData>> {
     const response = await fetch(`${API_URL}/distributions`, {
       method: 'POST',
-      headers: createHeaders(),
+      headers: createHeaders('POST'),
       credentials: 'include',
       body: JSON.stringify(data),
     });
@@ -274,7 +299,7 @@ export const api = {
   async claimDistribution(id: string): Promise<ApiResponse<DistributionData>> {
     const response = await fetch(`${API_URL}/distributions/${id}/claim`, {
       method: 'PATCH',
-      headers: createHeaders(),
+      headers: createHeaders('PATCH'),
       credentials: 'include',
     });
     return handleResponse<ApiResponse<DistributionData>>(response);
@@ -360,7 +385,7 @@ export const api = {
   }): Promise<ApiResponse<any>> {
     const response = await fetch(`${API_URL}/claims/record-claim`, {
       method: 'POST',
-      headers: createHeaders(),
+      headers: createHeaders('POST'),
       credentials: 'include',
       body: JSON.stringify(data),
     });
@@ -373,7 +398,7 @@ export const api = {
   async retryClaimChain(claimId: string): Promise<ApiResponse<any>> {
     const response = await fetch(`${API_URL}/claims/${claimId}/retry-chain`, {
       method: 'POST',
-      headers: createHeaders(),
+      headers: createHeaders('POST'),
       credentials: 'include',
     });
     return handleResponse<ApiResponse<any>>(response);
@@ -381,3 +406,46 @@ export const api = {
 };
 
 export default api;
+
+// ==================== FORGOT PASSWORD ====================
+
+export const forgotPasswordApi = {
+  /**
+   * Step 1: Request OTP for password reset
+   */
+  async sendOtp(email: string): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/auth/forgot-password/send-otp`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse<ApiResponse<void>>(response);
+  },
+
+  /**
+   * Step 2: Verify OTP and get a reset token
+   */
+  async verifyOtp(email: string, otp: string): Promise<{ success: boolean; resetToken?: string }> {
+    const response = await fetch(`${API_URL}/auth/forgot-password/verify-otp`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+      body: JSON.stringify({ email, otp }),
+    });
+    return handleResponse<{ success: boolean; resetToken?: string }>(response);
+  },
+
+  /**
+   * Step 3: Reset password using the reset token
+   */
+  async resetPassword(resetToken: string, newPassword: string): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/auth/forgot-password/reset`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+      body: JSON.stringify({ resetToken, newPassword }),
+    });
+    return handleResponse<ApiResponse<void>>(response);
+  },
+};

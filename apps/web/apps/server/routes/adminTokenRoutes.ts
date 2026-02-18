@@ -26,6 +26,15 @@ import RegistrationAuditLog from '../models/RegistrationAuditLog';
 import { generateRequestId } from '../services/householdTokenService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tokenGenerationRateLimiter, strictRateLimiter } from '../middleware/rateLimiter';
+import { validateRequest } from '../validation/validateRequest';
+import {
+  generateTokenBody,
+  bulkGenerateBody,
+  listTokensQuery,
+  tokenIdParams,
+  tokenHistoryQuery,
+  tokenStatsQuery,
+} from '../validation/adminToken.schema';
 
 const router = Router();
 
@@ -98,6 +107,7 @@ router.post(
   authenticateToken,
   requireAdmin,
   tokenGenerationRateLimiter,
+  validateRequest({ body: generateTokenBody }),
   async (req: AuthenticatedRequest, res: Response) => {
     const requestId = generateRequestId();
     const ipAddress = getClientIP(req);
@@ -192,6 +202,7 @@ router.post(
   authenticateToken,
   requireAdmin,
   strictRateLimiter,
+  validateRequest({ body: bulkGenerateBody }),
   async (req: AuthenticatedRequest, res: Response) => {
     const requestId = generateRequestId();
     const ipAddress = getClientIP(req);
@@ -306,6 +317,7 @@ router.get(
   '/list',
   authenticateToken,
   requireAdmin,
+  validateRequest({ query: listTokensQuery }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const {
@@ -373,6 +385,7 @@ router.get(
   '/:id',
   authenticateToken,
   requireAdmin,
+  validateRequest({ params: tokenIdParams }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
@@ -434,6 +447,7 @@ router.get(
   '/:id/history',
   authenticateToken,
   requireAdmin,
+  validateRequest({ params: tokenIdParams, query: tokenHistoryQuery }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
@@ -497,6 +511,7 @@ router.delete(
   '/:id',
   authenticateToken,
   requireAdmin,
+  validateRequest({ params: tokenIdParams }),
   async (req: AuthenticatedRequest, res: Response) => {
     const requestId = generateRequestId();
     const ipAddress = getClientIP(req);
@@ -571,6 +586,7 @@ router.get(
   '/stats/summary',
   authenticateToken,
   requireAdmin,
+  validateRequest({ query: tokenStatsQuery }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { barangay } = req.query;
