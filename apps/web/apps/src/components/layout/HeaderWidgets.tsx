@@ -16,10 +16,16 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const rateLimitedUntilRef = useRef<number>(0)
+  const inFlightRef = useRef(false)
   const bellRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const fetchNotifications = useCallback(async () => {
+    if (Date.now() < rateLimitedUntilRef.current) return
+    if (inFlightRef.current) return
+
+    inFlightRef.current = true
     setLoading(true)
     try {
       const res = await notificationsApi.getNotifications({ limit: 10 })
@@ -27,9 +33,14 @@ export function NotificationBell() {
         setNotifications(res.data.notifications)
         setUnreadCount(res.data.unreadCount)
       }
-    } catch {
-      // silent
+    } catch (err) {
+      const e = err as { status?: number }
+      if (e.status === 429) {
+        // Back off client polling when server rate-limit is reached.
+        rateLimitedUntilRef.current = Date.now() + 60_000
+      }
     } finally {
+      inFlightRef.current = false
       setLoading(false)
     }
   }, [])

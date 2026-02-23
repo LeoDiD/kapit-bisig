@@ -139,7 +139,14 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <Image src="/images/logoW.png" alt="Kapit-Bisig Logo" width={200} height={72} priority />
+          <Image
+            src="/images/logoW.png"
+            alt="Kapit-Bisig Logo"
+            width={200}
+            height={72}
+            priority
+            style={{ width: 'auto', height: 'auto' }}
+          />
         </div>
 
         <h1 className="text-2xl font-bold text-gray-800 text-center mb-1">Reset Password</h1>

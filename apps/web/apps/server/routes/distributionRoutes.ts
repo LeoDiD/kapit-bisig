@@ -9,7 +9,7 @@
  * - PATCH  /api/distributions/:id/claim - Mark distribution as claimed (Admin, Staff)
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import Distribution, { BARANGAY_OPTIONS } from '../models/Distribution';
 import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
@@ -24,6 +24,14 @@ import { broadcastNotification } from '../utils/createNotification';
 
 const router = Router();
 
+const hasDistributionAccess = (user: AuthRequest['authUser'], distribution: { barangay: string; assignedBarangays?: string[] }) => {
+  if (!user || user.role !== 'LGU_STAFF') return true;
+  const assigned = user.assignedBarangays ?? [];
+  if (assigned.includes(distribution.barangay)) return true;
+  const targetBarangays = distribution.assignedBarangays ?? [];
+  return targetBarangays.some((b) => assigned.includes(b));
+};
+
 /**
  * POST /api/distributions
  *
@@ -35,7 +43,7 @@ router.post(
   validateRequest({ body: createDistributionBody }),
   async (req: AuthRequest, res: Response) => {
     try {
-      const { barangay, scheduled, households, notes } = req.body;
+      const { barangay, assignedBarangays, scheduled, households, notes } = req.body;
 
       // Validate barangay
       if (!barangay || typeof barangay !== 'string') {
@@ -52,15 +60,38 @@ router.post(
         });
       }
 
-      // Scope check: staff can only create within assigned barangays
-      if (
-        req.authUser?.role === 'LGU_STAFF' &&
-        !(req.authUser.assignedBarangays ?? []).includes(barangay)
-      ) {
-        return res.status(403).json({
+      if (!Array.isArray(assignedBarangays) || assignedBarangays.length < 2 || assignedBarangays.length > 4) {
+        return res.status(400).json({
           success: false,
-          message: 'You do not have access to create distributions for this barangay',
+          message: 'Assigned barangays must contain 2 to 4 items',
         });
+      }
+
+      if (new Set(assignedBarangays).size !== assignedBarangays.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Assigned barangays must be unique',
+        });
+      }
+
+      if (assignedBarangays.includes(barangay)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Host barangay cannot also be an assigned barangay',
+        });
+      }
+
+      // Scope check: staff can only create within assigned barangays
+      if (req.authUser?.role === 'LGU_STAFF') {
+        const allowed = req.authUser.assignedBarangays ?? [];
+        const allTargets = [barangay, ...assignedBarangays];
+        const outOfScope = allTargets.find((b) => !allowed.includes(b));
+        if (outOfScope) {
+          return res.status(403).json({
+            success: false,
+            message: `You do not have access to create distributions for ${outOfScope}`,
+          });
+        }
       }
 
       // Validate scheduled
@@ -82,6 +113,7 @@ router.post(
 
       const distribution = new Distribution({
         barangay,
+        assignedBarangays,
         scheduled,
         households: householdsNum,
         notes: notes || '',
@@ -93,6 +125,7 @@ router.post(
 
       await logAudit(req, 'DISTRIBUTION_CREATED', 'Distribution', distribution._id.toString(), {
         barangay,
+        assignedBarangays,
         scheduled,
         households: householdsNum,
       });
@@ -102,7 +135,7 @@ router.post(
         title: 'New Distribution',
         message: `A relief distribution for ${barangay} has been scheduled on ${scheduled}.`,
         type: 'dispatch',
-        meta: { distributionId: distribution._id.toString(), barangay, scheduled },
+        meta: { distributionId: distribution._id.toString(), barangay, assignedBarangays, scheduled },
       });
 
       res.status(201).json({
@@ -133,7 +166,10 @@ router.get(
 
       if (req.authUser?.role === 'LGU_STAFF') {
         const assigned = req.authUser.assignedBarangays ?? [];
-        filter.barangay = { $in: assigned };
+        filter.$or = [
+          { barangay: { $in: assigned } },
+          { assignedBarangays: { $in: assigned } },
+        ];
       }
 
       const distributions = await Distribution.find(filter)
@@ -141,7 +177,13 @@ router.get(
         .lean();
 
       // Aggregate registered (approved) household counts per barangay
-      const barangays = [...new Set(distributions.map((d) => d.barangay))];
+      const barangays = [...new Set(
+        distributions.flatMap((d) =>
+          Array.isArray(d.assignedBarangays) && d.assignedBarangays.length > 0
+            ? d.assignedBarangays
+            : [d.barangay]
+        )
+      )];
       const counts = await Resident.aggregate([
         { $match: { barangay: { $in: barangays }, status: 'Approved' } },
         { $group: { _id: '$barangay', count: { $sum: 1 } } },
@@ -164,7 +206,10 @@ router.get(
 
       const data = distributions.map((d) => {
         const claimed = claimedCountMap[d._id.toString()] ?? 0;
-        const registered = countMap[d.barangay] ?? 0;
+        const targetBarangays = Array.isArray(d.assignedBarangays) && d.assignedBarangays.length > 0
+          ? d.assignedBarangays
+          : [d.barangay];
+        const registered = targetBarangays.reduce((sum, b) => sum + (countMap[b] ?? 0), 0);
 
         // Derive status from actual claims vs registered households
         let derivedStatus = d.status;
@@ -216,8 +261,7 @@ router.patch(
 
       // Scope check
       if (
-        req.authUser?.role === 'LGU_STAFF' &&
-        !(req.authUser.assignedBarangays ?? []).includes(distribution.barangay)
+        !hasDistributionAccess(req.authUser, distribution)
       ) {
         return res.status(403).json({
           success: false,
@@ -281,8 +325,7 @@ router.get(
 
       // 2) RBAC scope check
       if (
-        req.authUser?.role === 'LGU_STAFF' &&
-        !(req.authUser.assignedBarangays ?? []).includes(distribution.barangay)
+        !hasDistributionAccess(req.authUser, distribution)
       ) {
         return res.status(403).json({
           success: false,
@@ -290,11 +333,13 @@ router.get(
         });
       }
 
-      const targetBarangay = distribution.barangay;
+      const targetBarangays = distribution.assignedBarangays?.length
+        ? distribution.assignedBarangays
+        : [distribution.barangay];
 
-      // 3) Get all approved residents (registered households) in this barangay
+      // 3) Get all approved residents (registered households) in target barangays
       const registeredHouseholds = await Resident.find({
-        barangay: targetBarangay,
+        barangay: { $in: targetBarangays },
         status: 'Approved',
       })
         .select('_id fullName firstName lastName streetAddress barangay')
@@ -306,7 +351,8 @@ router.get(
           success: true,
           data: {
             distributionId: id,
-            barangay: targetBarangay,
+            barangay: distribution.barangay,
+            assignedBarangays: targetBarangays,
             totals: { registered: 0, claimed: 0, notYetClaimed: 0 },
             claimed: [],
             notYetClaimed: [],
@@ -363,7 +409,8 @@ router.get(
         success: true,
         data: {
           distributionId: id,
-          barangay: targetBarangay,
+          barangay: distribution.barangay,
+          assignedBarangays: targetBarangays,
           totals: {
             registered: registeredHouseholds.length,
             claimed: claimedList.length,

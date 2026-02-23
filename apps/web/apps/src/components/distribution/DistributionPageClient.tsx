@@ -35,6 +35,7 @@ export default function DistributionPageClient() {
         const mapped: DistributionRow[] = res.data.map((d) => ({
           id: d.id || d._id,
           barangay: d.barangay,
+          assignedBarangays: d.assignedBarangays ?? [],
           scheduled: d.scheduled,
           households: d.households,
           registeredHouseholds: d.registeredHouseholds ?? 0,
@@ -86,6 +87,7 @@ export default function DistributionPageClient() {
       setError(null)
       await api.createDistribution({
         barangay: payload.barangay,
+        assignedBarangays: payload.assignedBarangays,
         scheduled: payload.scheduled,
         households: payload.households,
         notes: payload.notes,

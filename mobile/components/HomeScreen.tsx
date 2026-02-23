@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { mobileAuthService } from '../services/auth/MobileAuthService';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +23,7 @@ interface HomeScreenProps {
   residentCode?: string;
   streetAddress?: string;
   onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
+  accountType?: 'resident' | 'volunteer';
 }
 
 interface AnnouncementItem {
@@ -41,6 +44,47 @@ const mockAnnouncements: AnnouncementItem[] = [
   },
 ];
 
+interface DistributionResponseItem {
+  id?: string;
+  _id?: string;
+  barangay: string;
+  assignedBarangays?: string[];
+  scheduled?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
+function formatTimeAgo(isoDate?: string): string {
+  if (!isoDate) return 'JUST NOW';
+
+  const parsed = new Date(isoDate);
+  if (Number.isNaN(parsed.getTime())) return 'JUST NOW';
+
+  const diffMinutes = Math.max(1, Math.floor((Date.now() - parsed.getTime()) / 60000));
+  if (diffMinutes < 60) return `${diffMinutes} MINS AGO`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} HRS AGO`;
+
+  return `${Math.floor(diffHours / 24)} DAYS AGO`;
+}
+
+function toAnnouncement(item: DistributionResponseItem): AnnouncementItem {
+  const targetAreas = item.assignedBarangays?.length
+    ? item.assignedBarangays.join(', ')
+    : item.barangay;
+  const scheduleText = item.scheduled ? ` Scheduled: ${item.scheduled}.` : '';
+  const notesText = item.notes ? ` ${item.notes}` : '';
+
+  return {
+    id: item.id || item._id || `${item.barangay}-${item.createdAt || Date.now()}`,
+    isUrgent: true,
+    title: `Relief Distribution - ${item.barangay}`,
+    description: `Coverage: ${targetAreas}.${scheduleText}${notesText}`.trim(),
+    timeAgo: formatTimeAgo(item.createdAt),
+  };
+}
+
 export default function HomeScreen({
   userName = 'Juan',
   barangayName = 'Barangay San Jose',
@@ -49,7 +93,45 @@ export default function HomeScreen({
   residentCode = 'N/A',
   streetAddress = 'Address not available',
   onNavigate,
+  accountType = 'resident',
 }: HomeScreenProps) {
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(mockAnnouncements);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+
+  const isVolunteer = accountType === 'volunteer';
+
+  const loadDistributions = useCallback(async () => {
+    if (!isVolunteer || !mobileAuthService.isLoggedIn()) {
+      setAnnouncements(mockAnnouncements);
+      return;
+    }
+
+    setAnnouncementsLoading(true);
+
+    const result = await mobileAuthService.authenticatedRequest<{
+      success: boolean;
+      data?: DistributionResponseItem[];
+    }>('/distributions', { method: 'GET' });
+
+    if (
+      result.success &&
+      result.data?.success &&
+      Array.isArray(result.data.data) &&
+      result.data.data.length > 0
+    ) {
+      setAnnouncements(result.data.data.slice(0, 5).map(toAnnouncement));
+      setAnnouncementsLoading(false);
+      return;
+    }
+
+    setAnnouncements(mockAnnouncements);
+    setAnnouncementsLoading(false);
+  }, [isVolunteer]);
+
+  useEffect(() => {
+    loadDistributions().catch(() => setAnnouncementsLoading(false));
+  }, [loadDistributions]);
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -126,14 +208,23 @@ export default function HomeScreen({
         {/* Announcement Feed Section */}
         <View style={styles.announcementSection}>
           <View style={styles.announcementHeader}>
-            <Text style={styles.announcementTitle}>ANNOUNCEMENT FEED</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>SEE ALL</Text>
+            <Text style={styles.announcementTitle}>
+              {isVolunteer ? 'LIVE DISTRIBUTIONS' : 'ANNOUNCEMENT FEED'}
+            </Text>
+            <TouchableOpacity onPress={() => loadDistributions().catch(() => undefined)}>
+              <Text style={styles.seeAllText}>REFRESH</Text>
             </TouchableOpacity>
           </View>
 
+          {announcementsLoading && (
+            <View style={styles.announcementsLoading}>
+              <ActivityIndicator size="small" color="#16A34A" />
+              <Text style={styles.announcementsLoadingText}>Fetching latest updates...</Text>
+            </View>
+          )}
+
           {/* Announcement Cards */}
-          {mockAnnouncements.map((announcement) => (
+          {announcements.map((announcement) => (
             <View key={announcement.id} style={styles.announcementCard}>
               <View style={styles.announcementCardHeader}>
                 {announcement.isUrgent && (
@@ -149,7 +240,7 @@ export default function HomeScreen({
                 {announcement.description}
               </Text>
               <TouchableOpacity style={styles.checkEligibilityButton}>
-                <Text style={styles.checkEligibilityText}>Check eligibility</Text>
+                <Text style={styles.checkEligibilityText}>View details</Text>
                 <Ionicons name="arrow-forward" size={16} color="#16A34A" />
               </TouchableOpacity>
             </View>
@@ -362,6 +453,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  announcementsLoading: {
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  announcementsLoadingText: {
+    marginLeft: 8,
+    color: '#166534',
+    fontSize: 13,
+    fontWeight: '500',
   },
   announcementTitle: {
     fontSize: 13,

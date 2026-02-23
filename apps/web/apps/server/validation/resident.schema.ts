@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { objectId, trimmedString, barangayEnum } from './shared';
+import { barangayEnum, objectId, trimmedString } from './shared';
 
 /* POST /api/residents/register */
 export const registerResidentBody = z.object({
@@ -46,9 +46,11 @@ export const residentIdParams = z.object({
   id: objectId,
 }).strict();
 
-/* PATCH /api/residents/:id/verify */
-export const verifyResidentBody = z.object({
-  status: z.enum(['Approved', 'Rejected']),
-  rejectionReason: z.string().max(1000).optional(),
-  verifiedBy: z.string().max(200).optional(),
-}).strict();
+/* POST /api/residents/codes/generate-batch */
+export const generateCodeBatchBody = z
+  .object({
+    barangay: barangayEnum,
+    quantity: z.number().int().min(1).max(100),
+  })
+  .strict();
+

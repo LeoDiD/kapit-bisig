@@ -10,6 +10,7 @@ export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed'
 export type DistributionRow = {
   id: string
   barangay: string
+  assignedBarangays: string[]
   scheduled: string
   households: number
   registeredHouseholds: number

@@ -77,6 +77,7 @@ export interface DistributionData {
   id: string;
   _id: string;
   barangay: string;
+  assignedBarangays?: string[];
   scheduled: string;
   households: number;
   notes?: string;
@@ -115,6 +116,7 @@ export interface UnclaimedHousehold {
 export interface DistributionHouseholdsData {
   distributionId: string;
   barangay: string;
+  assignedBarangays?: string[];
   totals: {
     registered: number;
     claimed: number;
@@ -280,6 +282,7 @@ export const api = {
    */
   async createDistribution(data: {
     barangay: string;
+    assignedBarangays: string[];
     scheduled: string;
     households: number;
     notes?: string;

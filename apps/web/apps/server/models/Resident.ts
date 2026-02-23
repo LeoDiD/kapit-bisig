@@ -390,7 +390,6 @@ ResidentSchema.set('toJSON', {
 /* ── Indexes for common queries ─────────────────────────────────── */
 ResidentSchema.index({ barangay: 1, createdAt: -1 });
 ResidentSchema.index({ status: 1, createdAt: -1 });
-ResidentSchema.index({ mobileNumber: 1 }, { unique: true });
 ResidentSchema.index({ idNumber: 1 }, { unique: true });
 
 export default mongoose.model<IResident>('Resident', ResidentSchema);

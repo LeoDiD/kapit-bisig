@@ -16,6 +16,11 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: 'Kapit-Bisig',
   description: 'Kapit-Bisig Web Application',
+  icons: {
+    icon: '/images/Logo1.png',
+    shortcut: '/images/Logo1.png',
+    apple: '/images/Logo1.png',
+  },
 }
 
 export default function RootLayout({

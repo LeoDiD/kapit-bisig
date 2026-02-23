@@ -94,14 +94,33 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
       .select('residentId createdAt updatedAt')
       .lean();
 
-    const claimedMap = new Map<string, Date>();
+    const claimedMap = new Map<string, number>();
     for (const c of confirmedClaims) {
-      const rid = (c as any).residentId;
+      const ridRaw = (c as any).residentId;
+      const rid =
+        typeof ridRaw === 'string'
+          ? ridRaw
+          : ridRaw && typeof ridRaw.toString === 'function'
+            ? ridRaw.toString()
+            : null;
       if (!rid) continue;
-      const cDate = (c.createdAt || c.updatedAt) as Date;
+
+      const rawDate = c.createdAt || c.updatedAt;
+      if (!rawDate) {
+        if (!claimedMap.has(rid)) claimedMap.set(rid, 0);
+        continue;
+      }
+
+      const cDate = rawDate instanceof Date ? rawDate : new Date(rawDate);
+      const cTime = cDate.getTime();
+      if (Number.isNaN(cTime)) {
+        if (!claimedMap.has(rid)) claimedMap.set(rid, 0);
+        continue;
+      }
+
       const existing = claimedMap.get(rid);
-      if (!existing || cDate > existing) {
-        claimedMap.set(rid, cDate);
+      if (existing === undefined || cTime > existing) {
+        claimedMap.set(rid, cTime);
       }
     }
 
@@ -109,7 +128,8 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let households = residents.map((r: any) => {
       const id = r._id.toString();
-      const hasClaim = claimedMap.has(id);
+      const claimTime = claimedMap.get(id);
+      const hasClaim = claimTime !== undefined;
       return {
         id,
         householdCode: `HH-${r.barangay?.substring(0, 2).toUpperCase() || 'XX'}-${id.slice(-4).toUpperCase()}`,
@@ -121,7 +141,7 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
         verificationStatus: r.verification?.aiVerificationStatus || '—',
         verificationScore: r.verification?.overallConfidence ?? null,
         claimStatus: hasClaim ? 'Claimed' as const : 'Not Claimed' as const,
-        lastClaimedAt: hasClaim ? claimedMap.get(id)!.toISOString() : null,
+        lastClaimedAt: typeof claimTime === 'number' && claimTime > 0 ? new Date(claimTime).toISOString() : null,
         registeredAt: r.createdAt ? new Date(r.createdAt).toISOString() : null,
       };
     });

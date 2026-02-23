@@ -10,22 +10,22 @@ Run in PowerShell:
 ipconfig
 ```
 
-Copy the `IPv4 Address` under your active Wi-Fi adapter (example: `10.51.176.83`).
+Copy the `IPv4 Address` under your active Wi-Fi adapter (example: `172.20.10.2`).
 
 ## 2. Update mobile app URLs (required)
 
 File: `mobile/.env`
 
 ```env
-EXPO_PUBLIC_API_URL=http://10.51.176.83:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://10.51.176.83:8000
+EXPO_PUBLIC_API_URL=http://172.20.10.2:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://172.20.10.2:8000
 ```
 
 Example:
 
 ```env
-EXPO_PUBLIC_API_URL=http://10.51.176.83:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://10.51.176.83:8000
+EXPO_PUBLIC_API_URL=http://172.20.10.2:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://172.20.10.2:8000
 ```
 
 ## 3. Update web frontend URL (only if opening web from another device)
@@ -33,7 +33,7 @@ EXPO_PUBLIC_FACE_API_URL=http://10.51.176.83:8000
 File: `apps/web/apps/.env.local`
 
 ```env
-NEXT_PUBLIC_API_URL=http://10.51.176.83:3001/api
+NEXT_PUBLIC_API_URL=http://172.20.10.2:3001/api
 ```
 
 If using web only on the same laptop browser, you can keep:
@@ -55,7 +55,7 @@ CORS_ORIGIN=*
 or a specific origin:
 
 ```env
-CORS_ORIGIN=http://10.51.176.83:3000
+CORS_ORIGIN=http://172.20.10.2:3000
 ```
 
 
@@ -75,7 +75,7 @@ CORS_ORIGIN=http://10.51.176.83:3000
 
 From phone browser (same Wi-Fi), open:
 
-- `http://10.51.176.83:3001/api/health`
-- `http://10.51.176.83:8000/docs`
+- `http://172.20.10.2:3001/api/health`
+- `http://172.20.10.2:8000/docs`
 
 If both open, your mobile app should connect.

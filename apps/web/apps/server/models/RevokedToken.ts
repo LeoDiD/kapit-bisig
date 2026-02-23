@@ -24,7 +24,6 @@ const RevokedTokenSchema = new Schema<IRevokedToken>(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
     },
     revokedAt: {
       type: Date,

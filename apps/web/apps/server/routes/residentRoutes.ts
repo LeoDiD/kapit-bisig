@@ -7,23 +7,21 @@
 
 import { Router, Request, Response } from 'express';
 import Resident from '../models/Resident';
-<<<<<<< Updated upstream
-import { requireAuth, requireStaffOrSuperadmin, AuthRequest } from '../middleware/unifiedAuth';
+import HouseholdToken from '../models/HouseholdToken';
+import { requireAuth, requireStaffOrSuperadmin, scopeBarangayGuard, AuthRequest } from '../middleware/unifiedAuth';
+import { householdTokenService } from '../services/householdTokenService';
 import { validateRequest } from '../validation/validateRequest';
 import { escapeRegex } from '../validation/mongoSanitize';
 import {
+  generateCodeBatchBody,
   registerResidentBody,
   listResidentsQuery,
   residentIdParams,
-  verifyResidentBody,
 } from '../validation/resident.schema';
-import { logAudit } from '../utils/audit';
-=======
 import {
   isValidPhilippineMobileNumber,
   normalizePhilippineMobileNumber,
 } from '../utils/mobileNumber';
->>>>>>> Stashed changes
 
 const router = Router();
 
@@ -311,6 +309,79 @@ router.get('/', requireAuth, requireStaffOrSuperadmin, validateRequest({ query: 
 });
 
 /**
+ * POST /api/residents/codes/generate-batch
+ * Generate household registration codes by barangay.
+ */
+router.post(
+  '/codes/generate-batch',
+  requireAuth,
+  requireStaffOrSuperadmin,
+  validateRequest({ body: generateCodeBatchBody }),
+  scopeBarangayGuard('body'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { barangay, quantity } = req.body as { barangay: string; quantity: number };
+
+      const issuedBy = req.authUser?.userId || req.authUser?.sub || 'system';
+      const generatedAt = new Date();
+      const expiresAt = new Date(generatedAt);
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      const tokens: Array<{
+        code: string;
+        barangay: string;
+        expiresAt: Date;
+        generatedAt: Date;
+      }> = [];
+
+      for (let i = 0; i < quantity; i++) {
+        const sequence = String(i + 1).padStart(3, '0');
+        const result = await householdTokenService.generateToken({
+          headOfHousehold: `Unassigned Household ${sequence}`,
+          address: barangay,
+          barangay,
+          expectedMembers: 1,
+          notes: `Bulk generated via Code Generation page (${quantity} token${quantity > 1 ? 's' : ''})`,
+          validityDays: 30,
+          issuedBy,
+        });
+
+        if (!result.success || !result.token) {
+          return res.status(500).json({
+            success: false,
+            message: `Failed to generate code at item ${i + 1}`,
+          });
+        }
+
+        tokens.push({
+          code: result.token,
+          barangay,
+          expiresAt: result.expiresAt || expiresAt,
+          generatedAt,
+        });
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: `Generated ${tokens.length} code${tokens.length > 1 ? 's' : ''}`,
+        data: {
+          barangay,
+          quantity: tokens.length,
+          generatedAt,
+          tokens,
+        },
+      });
+    } catch (error) {
+      console.error('[ResidentRoutes] Batch code generation error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate codes',
+      });
+    }
+  }
+);
+
+/**
  * GET /api/residents/:id
  * Get resident by ID with all details
  */
@@ -339,38 +410,59 @@ router.get('/:id', requireAuth, requireStaffOrSuperadmin, validateRequest({ para
 });
 
 /**
- * PATCH /api/residents/:id/verify
- * Approve or reject a resident application
+ * GET /api/residents/codes/active
+ * Returns active household token codes from MongoDB.
  */
-router.patch('/:id/verify', requireAuth, requireStaffOrSuperadmin, validateRequest({ params: residentIdParams, body: verifyResidentBody }), async (req: AuthRequest, res: Response) => {
+router.get('/codes/active', requireAuth, requireStaffOrSuperadmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { status, rejectionReason, verifiedBy } = req.body;
-    
-    if (!['Approved', 'Rejected'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status',
-      });
+    const query: Record<string, unknown> = {
+      status: 'UNUSED',
+    };
+
+    if (req.authUser?.role === 'LGU_STAFF') {
+      const assigned = req.authUser.assignedBarangays ?? [];
+      query['householdInfo.barangay'] = { $in: assigned };
     }
-    
-    if (status === 'Rejected' && !rejectionReason) {
-      return res.status(400).json({
-        success: false,
-        message: 'Rejection reason is required',
-      });
-    }
-    
-    const resident = await Resident.findByIdAndUpdate(
-      req.params.id,
-      {
-        status,
-        rejectionReason: status === 'Rejected' ? rejectionReason : undefined,
-        verifiedBy,
-        verifiedAt: new Date(),
-      },
-      { new: true }
-    ).select('-password');
-    
+
+    const tokens = await HouseholdToken.find(query)
+      .select('tokenPrefix status expiresAt issuedAt createdAt householdInfo')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const data = tokens.map((token) => ({
+      id: token._id.toString(),
+      code: token.tokenPrefix,
+      status: token.status,
+      barangay: token.householdInfo?.barangay || '',
+      headOfHousehold: token.householdInfo?.headOfHousehold || '',
+      address: token.householdInfo?.address || '',
+      expiresAt: token.expiresAt,
+      issuedAt: token.issuedAt,
+      createdAt: token.createdAt,
+    }));
+
+    res.json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error('[ResidentRoutes] Active codes fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch active codes',
+    });
+  }
+});
+
+/**
+ * POST /api/residents/:id/generate-code
+ * Generate a unique resident code for an approved resident.
+ */
+router.post('/:id/generate-code', requireAuth, requireStaffOrSuperadmin, validateRequest({ params: residentIdParams }), async (req: AuthRequest, res: Response) => {
+  try {
+    const resident = await Resident.findById(req.params.id).select('-password');
+
     if (!resident) {
       return res.status(404).json({
         success: false,
@@ -378,18 +470,45 @@ router.patch('/:id/verify', requireAuth, requireStaffOrSuperadmin, validateReque
       });
     }
 
-    await logAudit(req, 'RESIDENT_VERIFIED', 'Resident', req.params.id, {
-      status,
-      rejectionReason: status === 'Rejected' ? rejectionReason : undefined,
-    });
-    
+    if (resident.residentCode) {
+      return res.json({
+        success: true,
+        message: 'Code already generated',
+        data: {
+          id: resident._id,
+          residentCode: resident.residentCode,
+          alreadyGenerated: true,
+        },
+      });
+    }
+
+    if (resident.status !== 'Approved') {
+      return res.status(409).json({
+        success: false,
+        message: 'Only approved records can generate a code',
+      });
+    }
+
+    await resident.save();
+
+    if (!resident.residentCode) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate resident code',
+      });
+    }
+
     res.json({
       success: true,
-      message: `Application ${status.toLowerCase()}`,
-      data: resident,
+      message: 'Code generated successfully',
+      data: {
+        id: resident._id,
+        residentCode: resident.residentCode,
+        alreadyGenerated: false,
+      },
     });
   } catch (error) {
-    console.error('[ResidentRoutes] Verify resident error:', error);
+    console.error('[ResidentRoutes] Generate resident code error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

@@ -248,6 +248,7 @@ export default function LoginPage() {
               alt="Kapit-Bisig Logo"
               width={280}
               height={100}
+              style={{ height: 'auto' }}
               priority
             />
           </div>

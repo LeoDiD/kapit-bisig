@@ -69,7 +69,9 @@ const allowedOrigins = getAllowedCorsOrigins();
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      const allowAllOrigins = allowedOrigins.includes('*');
+
+      if (!origin || allowAllOrigins || allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }

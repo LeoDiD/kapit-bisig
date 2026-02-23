@@ -34,6 +34,7 @@ export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed';
 
 export interface IDistribution extends Document {
   barangay: Barangay;
+  assignedBarangays: Barangay[];
   scheduled: string;
   households: number;
   notes?: string;
@@ -52,6 +53,14 @@ const distributionSchema = new Schema<IDistribution>(
         values: BARANGAY_OPTIONS as unknown as string[],
         message: '{VALUE} is not a valid barangay',
       },
+    },
+    assignedBarangays: {
+      type: [String],
+      enum: {
+        values: BARANGAY_OPTIONS as unknown as string[],
+        message: '{VALUE} is not a valid barangay',
+      },
+      default: [],
     },
     scheduled: {
       type: String,

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 
 export type CreateDistributionPayload = {
   barangay: string
+  assignedBarangays: string[]
   scheduled: string
   households: number
   notes?: string
@@ -21,6 +22,7 @@ export default function NewDistributionModal({
   barangayOptions: string[]
 }) {
   const [barangay, setBarangay] = useState('')
+  const [assignedBarangays, setAssignedBarangays] = useState<string[]>([])
   const [barangayOpen, setBarangayOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
 
@@ -34,6 +36,7 @@ export default function NewDistributionModal({
   useEffect(() => {
     if (!open) return
     setBarangay('')
+    setAssignedBarangays([])
     setBarangayOpen(false)
     setScheduled('')
     setNotes('')
@@ -55,6 +58,8 @@ export default function NewDistributionModal({
 
   const canCreate =
     barangay.trim().length > 0 &&
+    assignedBarangays.length >= 2 &&
+    assignedBarangays.length <= 4 &&
     scheduled.trim().length > 0
 
   if (!open) return null
@@ -65,6 +70,7 @@ export default function NewDistributionModal({
     try {
       await onCreate({
         barangay,
+        assignedBarangays,
         scheduled,
         households,
         notes: notes.trim() ? notes.trim() : undefined,
@@ -105,10 +111,10 @@ export default function NewDistributionModal({
 
           {/* Body */}
           <div className="p-5 space-y-4 overflow-y-auto flex-1">
-            {/* Barangay */}
+            {/* Host Barangay */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-2">
-                Select Barangay
+                Relief Giving Location (Host Barangay)
               </label>
 
               <div className="relative">
@@ -121,7 +127,7 @@ export default function NewDistributionModal({
                   className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
                 >
                   <span className={`text-sm ${barangay ? 'text-gray-900' : 'text-gray-400'}`}>
-                    {barangay || 'Choose a barangay'}
+                    {barangay || 'Choose host barangay'}
                   </span>
                   <ChevronDownIcon />
                 </button>
@@ -139,6 +145,7 @@ export default function NewDistributionModal({
                           type="button"
                           onClick={() => {
                             setBarangay(b)
+                            setAssignedBarangays((prev) => prev.filter((x) => x !== b))
                             setBarangayOpen(false)
                           }}
                           className={[
@@ -156,6 +163,59 @@ export default function NewDistributionModal({
                   </div>
                 ) : null}
               </div>
+            </div>
+
+            {/* Assigned Barangays */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-2">
+                Assigned Barangays (2-4)
+              </label>
+              <div className="rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] p-2 space-y-1 max-h-44 overflow-y-auto">
+                {barangayOptions
+                  .filter((b) => b !== barangay)
+                  .map((b) => {
+                    const selected = assignedBarangays.includes(b)
+                    const disableSelect = !selected && assignedBarangays.length >= 4
+                    return (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => {
+                          setAssignedBarangays((prev) => {
+                            if (prev.includes(b)) return prev.filter((x) => x !== b)
+                            if (prev.length >= 4) return prev
+                            return [...prev, b]
+                          })
+                        }}
+                        className={[
+                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-colors',
+                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                          disableSelect ? 'opacity-50 cursor-not-allowed' : '',
+                        ].join(' ')}
+                      >
+                        <span className="w-5 flex items-center justify-center">
+                          {selected ? <CheckIcon /> : null}
+                        </span>
+                        <span className="truncate">{b}</span>
+                      </button>
+                    )
+                  })}
+              </div>
+              <div className="mt-2 text-[11px] text-gray-500">
+                Selected: {assignedBarangays.length}/4 (minimum 2)
+              </div>
+              {assignedBarangays.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {assignedBarangays.map((b) => (
+                    <span
+                      key={b}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 text-green-700 text-[11px] border border-green-100"
+                    >
+                      {b}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Date */}

@@ -23,14 +23,9 @@ import {
   SuperadminPayload,
   logSecurity,
 } from '../middleware/superadminAuth';
-<<<<<<< Updated upstream
 import { validateRequest } from '../validation/validateRequest';
 import { saLoginBody } from '../validation/auth.schema';
-=======
-import { validateRequest } from '../middleware/requestValidation';
-import { superadminLoginSchema } from '../schemas/authSchemas';
 import { revokeJWTByValue } from '../services/tokenRevocationService';
->>>>>>> Stashed changes
 
 const router = Router();
 
@@ -63,7 +58,6 @@ function setCookie(res: Response, token: string, rememberMe: boolean) {
 /**
  * POST /api/sa/login
  */
-<<<<<<< Updated upstream
 router.post('/login', loginRateLimiter, validateRequest({ body: saLoginBody }), async (req: Request, res: Response) => {
   try {
     const { username, password, rememberMe } = req.body;
@@ -75,13 +69,6 @@ router.post('/login', loginRateLimiter, validateRequest({ body: saLoginBody }), 
       res.status(401).json({ success: false, message: 'Invalid credentials.' });
       return;
     }
-
-=======
-router.post('/login', loginRateLimiter, validateRequest({ body: superadminLoginSchema }), async (req: Request, res: Response) => {
-  try {
-    const { username, password, rememberMe } = req.body;
-
->>>>>>> Stashed changes
     // Trim but don't over-sanitise (bcrypt handles arbitrary bytes)
     const trimmedUser = username.trim();
 
@@ -131,15 +118,6 @@ router.post('/login', loginRateLimiter, validateRequest({ body: superadminLoginS
 /**
  * POST /api/sa/logout
  */
-<<<<<<< Updated upstream
-router.post('/logout', (_req: Request, res: Response) => {
-  res.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-  });
-=======
 router.post('/logout', async (_req: Request, res: Response) => {
   const cookieToken = _req.cookies?.[COOKIE_NAME] as string | undefined;
   const authHeader = _req.headers.authorization;
@@ -150,8 +128,12 @@ router.post('/logout', async (_req: Request, res: Response) => {
     await revokeJWTByValue(token, 'session');
   }
 
-  res.clearCookie(COOKIE_NAME, { path: '/' });
->>>>>>> Stashed changes
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
   logSecurity('LOGOUT', { ip: _req.ip });
   res.json({ success: true, message: 'Logged out.' });
 });

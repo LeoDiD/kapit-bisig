@@ -6,6 +6,8 @@ import SplashScreen from './components/SplashScreen';
 import HomeScreen from './components/HomeScreen';
 import ProfileScreen from './components/ProfileScreen';
 import QRReceiptScreen from './components/QRReceiptScreen';
+import VolunteerQRScannerScreen from './components/VolunteerQRScannerScreen';
+import { mobileAuthService, User as VolunteerUser } from './services/auth/MobileAuthService';
 import {
   clearResidentSession,
   fetchResidentProfile,
@@ -14,34 +16,37 @@ import {
 } from './services/api/ResidentQrService';
 
 type Screen = 'home' | 'qr' | 'profile';
+type AccountType = 'resident' | 'volunteer' | null;
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [residentProfile, setResidentProfile] = useState<ResidentProfile | null>(null);
+  const [volunteerUser, setVolunteerUser] = useState<VolunteerUser | null>(null);
+  const [accountType, setAccountType] = useState<AccountType>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
 
-  const loadResidentProfile = async () => {
-    setIsProfileLoading(true);
+  const loadResidentProfile = async (): Promise<boolean> => {
     try {
       const token = await getResidentToken();
       if (!token) {
         setResidentProfile(null);
-        setShowSplash(true);
-        return;
+        return false;
       }
 
       const response = await fetchResidentProfile(token);
       if (!response.success || !response.data) {
         await clearResidentSession();
         setResidentProfile(null);
-        setShowSplash(true);
-        return;
+        return false;
       }
 
       setResidentProfile(response.data);
+      setAccountType('resident');
+      return true;
+    } catch {
+      return false;
     } finally {
-      setIsProfileLoading(false);
     }
   };
 
@@ -49,9 +54,24 @@ export default function App() {
     setShowSplash(false);
   };
 
-  const handleLogout = () => {
-    clearResidentSession().catch(() => undefined);
+  const handleVolunteerLoginSuccess = (user: VolunteerUser) => {
+    setVolunteerUser(user);
     setResidentProfile(null);
+    setAccountType('volunteer');
+    setCurrentScreen('home');
+    setShowSplash(false);
+  };
+
+  const handleLogout = () => {
+    if (accountType === 'volunteer') {
+      mobileAuthService.logout().catch(() => undefined);
+      setVolunteerUser(null);
+    } else {
+      clearResidentSession().catch(() => undefined);
+    }
+
+    setResidentProfile(null);
+    setAccountType(null);
     setShowSplash(true);
     setCurrentScreen('home');
   };
@@ -62,14 +82,36 @@ export default function App() {
 
   useEffect(() => {
     if (!showSplash) {
-      loadResidentProfile().catch(() => undefined);
+      const initializeSession = async () => {
+        setIsProfileLoading(true);
+
+        try {
+          const volunteerSessionActive = await mobileAuthService.initialize();
+          if (volunteerSessionActive) {
+            setVolunteerUser(mobileAuthService.getCurrentUser());
+            setResidentProfile(null);
+            setAccountType('volunteer');
+            return;
+          }
+
+          const residentSessionActive = await loadResidentProfile();
+          if (!residentSessionActive) {
+            setShowSplash(true);
+            setAccountType(null);
+          }
+        } finally {
+          setIsProfileLoading(false);
+        }
+      };
+
+      initializeSession().catch(() => undefined);
     }
   }, [showSplash]);
 
   if (showSplash) {
     return (
       <SafeAreaProvider>
-        <SplashScreen onGetStarted={handleGetStarted} />
+        <SplashScreen onGetStarted={handleGetStarted} onVolunteerLogin={handleVolunteerLoginSuccess} />
         <StatusBar style="dark" />
       </SafeAreaProvider>
     );
@@ -97,18 +139,39 @@ export default function App() {
           />
         );
       case 'qr':
+        if (accountType === 'volunteer') {
+          return <VolunteerQRScannerScreen onBack={() => handleNavigate('home')} onNavigate={handleNavigate} />;
+        }
+
         return <QRReceiptScreen onBack={() => handleNavigate('home')} onNavigate={handleNavigate} />;
       case 'home':
       default:
         return (
           <HomeScreen
             onNavigate={handleNavigate}
-            userName={residentProfile?.firstName || residentProfile?.fullName}
-            barangayName={residentProfile?.barangay ? `Barangay ${residentProfile.barangay}` : undefined}
-            isVerified={residentProfile?.status === 'Approved'}
+            accountType={accountType || undefined}
+            userName={
+              accountType === 'volunteer'
+                ? volunteerUser?.firstName || volunteerUser?.lastName || 'Volunteer'
+                : residentProfile?.firstName || residentProfile?.fullName
+            }
+            barangayName={
+              accountType === 'volunteer'
+                ? volunteerUser?.barangay
+                  ? `Barangay ${volunteerUser.barangay}`
+                  : 'Volunteer Operations'
+                : residentProfile?.barangay
+                  ? `Barangay ${residentProfile.barangay}`
+                  : undefined
+            }
+            isVerified={accountType === 'volunteer' ? true : residentProfile?.status === 'Approved'}
             claimStatus="not-claimed"
-            residentCode={residentProfile?.residentCode}
-            streetAddress={residentProfile?.streetAddress}
+            residentCode={accountType === 'volunteer' ? 'VOLUNTEER' : residentProfile?.residentCode}
+            streetAddress={
+              accountType === 'volunteer'
+                ? 'Use the QR button below to scan resident codes.'
+                : residentProfile?.streetAddress
+            }
           />
         );
     }

@@ -22,6 +22,8 @@
 import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 import { Request, Response } from 'express';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 /**
  * Custom key generator for rate limiting.
  * Uses X-Forwarded-For when behind a proxy, falls back to direct IP.
@@ -49,7 +51,8 @@ const getClientIP = (req: Request): string => {
  */
 export const generalRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
-  max: 100, // 100 requests per window
+  // Keep strict defaults in production; allow higher local traffic during dev/HMR.
+  max: isProduction ? 100 : 1000,
   message: {
     success: false,
     message: 'Too many requests. Please try again later.',

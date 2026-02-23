@@ -1,14 +1,6 @@
-import { DashboardLayout, Header } from '@/components/layout'
-import ResidentVerificationTable from '@/components/verifyResidents/ResidentVerificationTable'
+import { redirect } from 'next/navigation'
 
-export default function VerifyResidentsPage() {
-  return (
-    <DashboardLayout>
-      <Header
-        title="Verify Residents"
-        subtitle="Verify and approve resident applications"
-      />
-      <ResidentVerificationTable />
-    </DashboardLayout>
-  )
+export default function VerifyResidentsRedirectPage() {
+  redirect('/code-generation')
 }
+

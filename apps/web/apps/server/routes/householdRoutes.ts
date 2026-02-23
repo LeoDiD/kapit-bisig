@@ -38,29 +38,23 @@ import {
   householdRegistrationRateLimiter,
   mobileLookupRateLimiter,
 } from '../middleware/rateLimiter';
-<<<<<<< Updated upstream
 import { validateRequest } from '../validation/validateRequest';
 import {
   validateTokenBody,
   registerHouseholdBody,
   checkMobileBody,
 } from '../validation/household.schema';
-=======
 import { authMiddleware, generateToken, AuthenticatedRequest } from '../middleware/authMiddleware';
 import {
   isValidPhilippineMobileNumber,
   normalizePhilippineMobileNumber,
 } from '../utils/mobileNumber';
-import { validateRequest } from '../middleware/requestValidation';
 import { householdLoginSchema } from '../schemas/authSchemas';
 import { revokeJWTByValue } from '../services/tokenRevocationService';
->>>>>>> Stashed changes
 
 const router = Router();
 
 /**
-<<<<<<< Updated upstream
-=======
  * Debug endpoint to check tokens in database
  * Remove this in production!
  */
@@ -101,7 +95,6 @@ router.get('/debug-tokens', async (_req: Request, res: Response) => {
 });
 
 /**
->>>>>>> Stashed changes
  * Get client IP address
  * Handles X-Forwarded-For for proxy setups
  */

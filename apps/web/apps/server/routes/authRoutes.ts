@@ -20,14 +20,10 @@ import User from '../models/User';
 import { validatePassword, isCommonPassword } from '../utils/passwordValidator';
 import { generateToken } from '../middleware/authMiddleware';
 import { loginRateLimiter, registrationRateLimiter } from '../middleware/rateLimiter';
-<<<<<<< Updated upstream
 import { validateRequest } from '../validation/validateRequest';
 import { registerBody, validatePasswordBody } from '../validation/auth.schema';
-=======
-import { validateRequest } from '../middleware/requestValidation';
-import { userLoginSchema, userRegisterSchema } from '../schemas/authSchemas';
+import { userLoginSchema } from '../schemas/authSchemas';
 import { revokeJWTByValue } from '../services/tokenRevocationService';
->>>>>>> Stashed changes
 
 const router = Router();
 
@@ -160,11 +156,7 @@ function clearFailedAttempts(email: string): void {
  * 4. bcrypt hashing before storage
  * 5. Password never logged or returned
  */
-<<<<<<< Updated upstream
 router.post('/register', registrationRateLimiter, validateRequest({ body: registerBody }), async (req: Request, res: Response) => {
-=======
-router.post('/register', registrationRateLimiter, validateRequest({ body: userRegisterSchema }), async (req: Request, res: Response) => {
->>>>>>> Stashed changes
   try {
     const { email, password, firstName, lastName } = req.body;
     

@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import RegisterScreen from './RegisterScreen';
+import LoginScreen from './LoginScreen';
+import { User } from '../services/auth/MobileAuthService';
 import { residentLogin, saveResidentSession } from '../services/api/ResidentQrService';
 
 const { width } = Dimensions.get('window');
@@ -21,6 +23,7 @@ interface SplashScreenProps {
   onGetStarted: () => void;
   onLogin?: () => void;
   onRegister?: () => void;
+  onVolunteerLogin?: (user: User) => void;
 }
 
 const slides = [
@@ -41,11 +44,12 @@ const slides = [
   },
 ];
 
-export default function SplashScreen({ onGetStarted, onLogin, onRegister }: SplashScreenProps) {
+export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolunteerLogin }: SplashScreenProps) {
   const [showLandingScreen, setShowLandingScreen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showInitialSplash, setShowInitialSplash] = useState(false);
   const [showLoginScreen, setShowLoginScreen] = useState(false);
+  const [showVolunteerLoginScreen, setShowVolunteerLoginScreen] = useState(false);
   const [showRegisterScreen, setShowRegisterScreen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mobileNumber, setMobileNumber] = useState('');
@@ -161,6 +165,25 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
     );
   }
 
+  // Volunteer Login Screen
+  if (showVolunteerLoginScreen) {
+    return (
+      <LoginScreen
+        onBack={() => {
+          setShowVolunteerLoginScreen(false);
+          setShowInitialSplash(true);
+        }}
+        onLoginSuccess={(user) => {
+          if (onVolunteerLogin) {
+            onVolunteerLogin(user);
+          } else {
+            onGetStarted();
+          }
+        }}
+      />
+    );
+  }
+
   // Login Screen
   if (showLoginScreen) {
     return (
@@ -272,6 +295,15 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister }: Spla
             }}
           >
             <Text style={styles.initialLoginButtonText}>Login</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.initialVolunteerButton}
+            onPress={() => {
+              setShowInitialSplash(false);
+              setShowVolunteerLoginScreen(true);
+            }}
+          >
+            <Text style={styles.initialVolunteerButtonText}>Volunteer Login</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.initialRegisterButton} 
@@ -713,6 +745,20 @@ const styles = StyleSheet.create({
   initialLoginButtonText: {
     color: '#ECC323',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  initialVolunteerButton: {
+    backgroundColor: '#E6F4EA',
+    paddingVertical: 12,
+    borderRadius: 25,
+    width: width * 0.65,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2E7D32',
+  },
+  initialVolunteerButtonText: {
+    color: '#1F2937',
+    fontSize: 15,
     fontWeight: '600',
   },
   initialRegisterButton: {
