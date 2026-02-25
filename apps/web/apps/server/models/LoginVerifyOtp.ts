@@ -18,8 +18,10 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface ILoginVerifyOtp extends Document {
   userId: mongoose.Types.ObjectId;
   emailLower: string;
+  purpose: 'FIRST_LOGIN';
   otpHash: string;
   expiresAt: Date;
+  usedAt: Date | null;
   attemptsLeft: number;
   createdAt: Date;
   lastSentAt: Date;
@@ -38,6 +40,12 @@ const LoginVerifyOtpSchema = new Schema<ILoginVerifyOtp>(
       lowercase: true,
       trim: true,
     },
+    purpose: {
+      type: String,
+      required: true,
+      enum: ['FIRST_LOGIN'],
+      default: 'FIRST_LOGIN',
+    },
     otpHash: {
       type: String,
       required: true,
@@ -51,6 +59,10 @@ const LoginVerifyOtpSchema = new Schema<ILoginVerifyOtp>(
       required: true,
       default: 5,
       min: 0,
+    },
+    usedAt: {
+      type: Date,
+      default: null,
     },
     createdAt: {
       type: Date,
@@ -75,10 +87,10 @@ const LoginVerifyOtpSchema = new Schema<ILoginVerifyOtp>(
 LoginVerifyOtpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Fast lookup by email (one active OTP per email)
-LoginVerifyOtpSchema.index({ emailLower: 1 });
+LoginVerifyOtpSchema.index({ emailLower: 1, purpose: 1 });
 
 // Fast lookup by userId
-LoginVerifyOtpSchema.index({ userId: 1 });
+LoginVerifyOtpSchema.index({ userId: 1, purpose: 1 });
 
 /* ------------------------------------------------------------------ */
 /*  Export                                                              */

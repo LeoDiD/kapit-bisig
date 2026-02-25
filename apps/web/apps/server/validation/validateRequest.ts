@@ -1,6 +1,9 @@
 /**
  * validateRequest Middleware
  *
+ * [SECURITY CHECKLIST §2.1] All Inputs Validated Server-Side
+ * [SECURITY CHECKLIST §2.2] Schema Validation (Zod)
+ *
  * Generic Express middleware that validates req.body, req.query, and
  * req.params against Zod schemas.  Unknown keys are rejected (strict mode).
  *

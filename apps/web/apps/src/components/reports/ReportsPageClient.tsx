@@ -133,7 +133,7 @@ function Dropdown({
       {open ? (
         <div
           ref={menuRef}
-          className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
+          className="absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50"
         >
           {items.map((opt) => {
             const isSelected = opt.value === value
@@ -146,8 +146,8 @@ function Dropdown({
                   setOpen(false)
                 }}
                 className={[
-                  'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                  isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                  'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
+                  isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70',
                 ].join(' ')}
               >
                 <span className="w-5 flex items-center justify-center">

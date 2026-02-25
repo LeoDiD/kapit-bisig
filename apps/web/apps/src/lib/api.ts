@@ -26,6 +26,7 @@ export interface StaffUser {
   role: 'LGU_STAFF';
   assignedBarangays: string[];
   isActive: boolean;
+  forcePasswordReset?: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -37,7 +38,6 @@ export interface StaffUser {
 export interface CreateStaffData {
   username: string;
   email: string;
-  password: string;
   fullName: string;
   assignedBarangays: string[];
 }
@@ -68,6 +68,19 @@ export interface ApiResponse<T> {
   message?: string;
   data?: T;
   errors?: string[];
+}
+
+/**
+ * Paginated API response wrapper
+ */
+export interface PaginatedApiResponse<T> extends ApiResponse<T> {
+  total?: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    totalDocs: number;
+    totalPages: number;
+  };
 }
 
 /**
@@ -328,19 +341,23 @@ export const api = {
 
   /**
    * Get registered households list.
-   * Supports search, barangay, and status filters.
+   * Supports search, barangay, status, and pagination filters.
    */
   async getHouseholds(params?: {
     search?: string;
     barangay?: string;
     status?: string;
-  }): Promise<ApiResponse<any[]>> {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedApiResponse<any[]>> {
     const sp = new URLSearchParams();
     if (params?.search) sp.append('search', params.search);
     if (params?.barangay && params.barangay !== 'All Barangays')
       sp.append('barangay', params.barangay);
     if (params?.status && params.status !== 'All Status')
       sp.append('status', params.status);
+    if (typeof params?.page === 'number') sp.append('page', String(params.page));
+    if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
 
     const qs = sp.toString();
     const url = `${API_URL}/households${qs ? `?${qs}` : ''}`;
@@ -348,7 +365,7 @@ export const api = {
       headers: createHeaders(),
       credentials: 'include',
     });
-    return handleResponse<ApiResponse<any[]>>(response);
+    return handleResponse<PaginatedApiResponse<any[]>>(response);
   },
 
   // ==================== BLOCKCHAIN LEDGER ====================

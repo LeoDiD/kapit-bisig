@@ -135,7 +135,7 @@ export default function NewDistributionModal({
                 {barangayOpen ? (
                   <div
                     ref={barangayMenuRef}
-                    className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
+                    className="absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50 max-h-64 overflow-y-auto"
                   >
                     {barangayOptions.map((b) => {
                       const selected = b === barangay
@@ -149,8 +149,8 @@ export default function NewDistributionModal({
                             setBarangayOpen(false)
                           }}
                           className={[
-                            'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-colors',
-                            selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                            'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
+                            selected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70',
                           ].join(' ')}
                         >
                           <span className="w-5 flex items-center justify-center">
@@ -170,7 +170,7 @@ export default function NewDistributionModal({
               <label className="block text-xs font-semibold text-gray-700 mb-2">
                 Assigned Barangays (2-4)
               </label>
-              <div className="rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] p-2 space-y-1 max-h-44 overflow-y-auto">
+              <div className="rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 space-y-1 max-h-44 overflow-y-auto shadow-[0_10px_30px_rgba(0,0,0,0.14)]">
                 {barangayOptions
                   .filter((b) => b !== barangay)
                   .map((b) => {
@@ -188,8 +188,8 @@ export default function NewDistributionModal({
                           })
                         }}
                         className={[
-                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-colors',
-                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                          'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
+                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70',
                           disableSelect ? 'opacity-50 cursor-not-allowed' : '',
                         ].join(' ')}
                       >

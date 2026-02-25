@@ -1,6 +1,9 @@
 /**
  * Authentication Middleware
  * 
+ * [SECURITY CHECKLIST §1.5] Validated Tokens (JWT)
+ * [SECURITY CHECKLIST §1.2] Secure Sessions with Expiry
+ * 
  * Protects routes that require user authentication.
  * 
  * Security Features:
@@ -51,6 +54,7 @@ interface JWTPayload {
  * - Never commit secrets to version control
  * - Use different secrets for different environments
  */
+// [SECURITY CHECKLIST §1.5] JWT_SECRET minimum 32 chars enforced at runtime
 const getJWTSecret = (): string => {
   const secret = process.env.JWT_SECRET;
   
@@ -111,9 +115,10 @@ export const authMiddleware = async (
       return;
     }
     
-    // Verify and decode the token
+    // [SECURITY CHECKLIST §1.5] HS256-only algorithm — prevents algorithm-switching attacks
     const decoded = jwt.verify(token, getJWTSecret(), { algorithms: ['HS256'] }) as JWTPayload;
 
+    // [SECURITY CHECKLIST §1.7] Token revocation check — logout invalidates session
     if (await isJWTRevoked(decoded.jti)) {
       res.status(401).json({
         success: false,

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { getTxExplorerUrl } from '@/lib/chain'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -25,7 +26,9 @@ export interface LedgerRow {
   eventHash: string
   staffSigner: string
   blockNumber: number
-  status: 'Confirmed' | 'Pending' | 'Failed'
+  chainId?: number
+  contractAddress?: string
+  status: 'Confirmed' | 'Pending/Confirming' | 'Chain Failed'
   offChainMatch?: LedgerOffChainMatch | null
 }
 
@@ -64,8 +67,8 @@ export function groupByBarangay(rows: LedgerRow[]): BarangayGroup[] {
       barangay,
       rows: sorted,
       claimed: sorted.filter((r) => r.status === 'Confirmed').length,
-      pending: sorted.filter((r) => r.status === 'Pending').length,
-      failed: sorted.filter((r) => r.status === 'Failed').length,
+      pending: sorted.filter((r) => r.status === 'Pending/Confirming').length,
+      failed: sorted.filter((r) => r.status === 'Chain Failed').length,
       lastActivity: sorted[0] ? formatShort(sorted[0].dateTimeISO) : '',
     })
   }
@@ -242,7 +245,18 @@ export default function BlockchainLedgerTable({ groups, onViewClaim }: Props) {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-gray-600">
-                                {shortenHash(row.txHash)}
+                                {getTxExplorerUrl(row.txHash) ? (
+                                  <a
+                                    href={getTxExplorerUrl(row.txHash)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="hover:underline"
+                                  >
+                                    {shortenHash(row.txHash)}
+                                  </a>
+                                ) : (
+                                  shortenHash(row.txHash)
+                                )}
                                 <CopyBtn
                                   value={row.txHash}
                                   id={`tx-${row.id}`}
@@ -293,11 +307,11 @@ export default function BlockchainLedgerTable({ groups, onViewClaim }: Props) {
 /*  Sub-components                                                     */
 /* ------------------------------------------------------------------ */
 
-export function StatusBadge({ status }: { status: 'Confirmed' | 'Pending' | 'Failed' }) {
+export function StatusBadge({ status }: { status: 'Confirmed' | 'Pending/Confirming' | 'Chain Failed' }) {
   const cls =
     status === 'Confirmed'
       ? 'bg-green-600 text-white'
-      : status === 'Pending'
+      : status === 'Pending/Confirming'
         ? 'bg-yellow-500 text-white'
         : 'bg-red-500 text-white'
 

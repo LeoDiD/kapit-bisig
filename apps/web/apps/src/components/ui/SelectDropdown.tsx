@@ -1,0 +1,168 @@
+'use client'
+
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
+
+export type SelectDropdownOption = {
+  value: string
+  label: string
+}
+
+type SelectDropdownProps = {
+  id?: string
+  value: string
+  options: SelectDropdownOption[]
+  onChange: (value: string) => void
+  placeholder?: string
+  ariaLabel?: string
+  disabled?: boolean
+  className?: string
+  buttonClassName?: string
+  menuClassName?: string
+}
+
+const BASE_BUTTON_CLASS =
+  'inline-flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm shadow-[0_2px_10px_rgba(0,0,0,0.06)] outline-none transition focus:ring-2 focus:ring-[#0F533A]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400'
+
+const BASE_MENU_CLASS =
+  'absolute left-0 top-full z-50 mt-2 w-full max-h-64 overflow-y-auto rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)]'
+
+const BASE_OPTION_CLASS =
+  'w-full flex items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm transition-colors'
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ')
+}
+
+export default function SelectDropdown({
+  id,
+  value,
+  options,
+  onChange,
+  placeholder = 'Select option',
+  ariaLabel,
+  disabled = false,
+  className,
+  buttonClassName,
+  menuClassName,
+}: SelectDropdownProps) {
+  const [open, setOpen] = useState(false)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const generatedId = useId()
+
+  const controlId = useMemo(
+    () => id || `select-dropdown-${generatedId.replace(/:/g, '')}`,
+    [id, generatedId]
+  )
+  const menuId = `${controlId}-menu`
+
+  const selectedOption = options.find((opt) => opt.value === value)
+  const selectedLabel = selectedOption?.label || placeholder
+  const hasSelection = value.trim().length > 0
+
+  useEffect(() => {
+    if (!open) return
+
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node
+      const inButton = buttonRef.current?.contains(target)
+      const inMenu = menuRef.current?.contains(target)
+      if (!inButton && !inMenu) setOpen(false)
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (disabled) setOpen(false)
+  }, [disabled])
+
+  return (
+    <div className={cx('relative', className)}>
+      <button
+        id={controlId}
+        ref={buttonRef}
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={menuId}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((prev) => !prev)}
+        className={cx(BASE_BUTTON_CLASS, buttonClassName)}
+      >
+        <span className={cx('truncate', hasSelection ? 'text-gray-900' : 'text-gray-500')}>
+          {selectedLabel}
+        </span>
+        <ChevronDownIcon open={open} />
+      </button>
+
+      {open ? (
+        <div
+          id={menuId}
+          ref={menuRef}
+          role="listbox"
+          aria-labelledby={controlId}
+          className={cx(BASE_MENU_CLASS, menuClassName)}
+        >
+          {options.map((opt) => {
+            const isSelected = opt.value === value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onChange(opt.value)
+                  setOpen(false)
+                }}
+                className={cx(
+                  BASE_OPTION_CLASS,
+                  isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70'
+                )}
+              >
+                <span className="w-5 flex items-center justify-center text-gray-900">
+                  {isSelected ? <CheckIcon /> : null}
+                </span>
+                <span className="truncate">{opt.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={cx('h-4 w-4 text-gray-500 transition-transform', open ? 'rotate-180' : '')}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}

@@ -1,6 +1,13 @@
 /**
  * SuperAdmin Auth Routes
  *
+ * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt compare against env hash)
+ * [SECURITY CHECKLIST §1.2] Secure Sessions with Expiry (httpOnly cookie)
+ * [SECURITY CHECKLIST §1.3] Generic Login Errors ("Invalid credentials.")
+ * [SECURITY CHECKLIST §1.4] Rate Limiting (loginRateLimiter)
+ * [SECURITY CHECKLIST §1.7] Logout Invalidates Session (revokeJWTByValue)
+ * [SECURITY CHECKLIST §3.1] Secure Credential Storage (env-based superadmin)
+ *
  * POST /api/sa/login   – authenticate the fixed SUPERADMIN account
  * POST /api/sa/logout  – clear the auth cookie
  * GET  /api/sa/me      – return the currently authenticated user

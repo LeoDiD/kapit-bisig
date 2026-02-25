@@ -4,30 +4,25 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
-/** Role type matching backend AppRole */
 export type AppRole = 'SUPERADMIN' | 'LGU_STAFF'
 
-/** Authenticated user shape – works for both SUPERADMIN and LGU_STAFF */
 export interface AppUser {
   username: string
   role: AppRole
-  /** Only present for LGU_STAFF */
   id?: string
   fullName?: string
   assignedBarangays?: string[]
+  forcePasswordReset?: boolean
 }
 
-/** @deprecated use AppUser instead */
 export type SAUser = AppUser
 
-/** Result returned by login when OTP is required */
 export interface LoginOtpResult {
   otpRequired: true
   otpToken: string
   message: string
 }
 
-/** Result returned by login when no OTP is needed */
 export interface LoginSuccessResult {
   otpRequired: false
 }
@@ -37,11 +32,11 @@ export type LoginResult = LoginOtpResult | LoginSuccessResult
 interface AuthContextValue {
   user: AppUser | null
   loading: boolean
-  login: (username: string, password: string, rememberMe?: boolean) => Promise<LoginResult>
+  login: (username: string, password?: string, rememberMe?: boolean, otp?: string) => Promise<LoginResult>
   verifyLoginOtp: (otpToken: string, otp: string) => Promise<void>
   resendLoginOtp: (otpToken: string) => Promise<void>
+  setInitialPassword: (newPassword: string) => Promise<void>
   logout: () => Promise<void>
-  /** True when the current user is SUPERADMIN */
   isSuperadmin: boolean
 }
 
@@ -51,7 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  /** Check session on mount via GET /api/auth/me */
+  const getCsrfToken = useCallback(() => {
+    return document.cookie
+      .split('; ')
+      .find((c) => c.startsWith('XSRF-TOKEN='))
+      ?.split('=')[1]
+  }, [])
+
   const initAuth = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' })
@@ -64,11 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: json.data.id,
             fullName: json.data.fullName,
             assignedBarangays: json.data.assignedBarangays,
+            forcePasswordReset: !!json.data.forcePasswordReset,
           })
           return
         }
       }
-      // Not authenticated
       setUser(null)
     } catch {
       setUser(null)
@@ -81,22 +82,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
   }, [initAuth])
 
-  /** POST /api/auth/login – supports both SUPERADMIN and LGU_STAFF */
-  const login = useCallback(async (username: string, password: string, rememberMe?: boolean): Promise<LoginResult> => {
+  const login = useCallback(async (username: string, password?: string, rememberMe?: boolean, otp?: string): Promise<LoginResult> => {
     const res = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ username, password, rememberMe: !!rememberMe }),
+      body: JSON.stringify({ username, password, rememberMe: !!rememberMe, otp }),
     })
 
     const json = await res.json()
-
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Login failed')
     }
 
-    // OTP required — don't set user yet
     if (json.otpRequired) {
       return {
         otpRequired: true,
@@ -105,7 +103,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Normal login success
     const u = json.data.user
     setUser({
       username: u.username,
@@ -113,12 +110,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: u.id,
       fullName: u.fullName,
       assignedBarangays: u.assignedBarangays,
+      forcePasswordReset: !!u.forcePasswordReset,
     })
 
     return { otpRequired: false }
   }, [])
 
-  /** POST /api/auth/login/verify-otp */
   const verifyLoginOtp = useCallback(async (otpToken: string, otp: string) => {
     const res = await fetch(`${API_URL}/auth/login/verify-otp`, {
       method: 'POST',
@@ -128,7 +125,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     const json = await res.json()
-
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Verification failed')
     }
@@ -140,10 +136,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: u.id,
       fullName: u.fullName,
       assignedBarangays: u.assignedBarangays,
+      forcePasswordReset: !!u.forcePasswordReset,
     })
   }, [])
 
-  /** POST /api/auth/login/resend-otp */
   const resendLoginOtp = useCallback(async (otpToken: string) => {
     const res = await fetch(`${API_URL}/auth/login/resend-otp`, {
       method: 'POST',
@@ -153,21 +149,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     const json = await res.json()
-
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Failed to resend OTP')
     }
   }, [])
 
-  /** POST /api/auth/logout */
+  const setInitialPassword = useCallback(async (newPassword: string) => {
+    const csrfToken = getCsrfToken()
+    const res = await fetch(`${API_URL}/auth/set-password`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
+      body: JSON.stringify({ newPassword }),
+    })
+
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Failed to set password')
+    }
+
+    setUser((prev) => (prev ? { ...prev, forcePasswordReset: false } : prev))
+  }, [getCsrfToken])
+
   const logout = useCallback(async () => {
     try {
-      // Read CSRF token from cookie
-      const csrfToken = document.cookie
-        .split('; ')
-        .find((c) => c.startsWith('XSRF-TOKEN='))
-        ?.split('=')[1]
-
+      const csrfToken = getCsrfToken()
       await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
@@ -176,12 +185,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null)
     }
-  }, [])
+  }, [getCsrfToken])
 
   const isSuperadmin = user?.role === 'SUPERADMIN'
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyLoginOtp, resendLoginOtp, logout, isSuperadmin }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyLoginOtp, resendLoginOtp, setInitialPassword, logout, isSuperadmin }}>
       {children}
     </AuthContext.Provider>
   )

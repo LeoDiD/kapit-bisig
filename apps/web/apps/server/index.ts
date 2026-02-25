@@ -13,10 +13,9 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-
 import { connectDB } from './config/database';
-
 import userRoutes from './routes/userRoutes';
+import profileRoutes from './routes/profileRoutes';
 import residentRoutes from './routes/residentRoutes';
 import faceRoutes from './routes/faceRoutes';
 import householdRoutes from './routes/householdRoutes';
@@ -29,23 +28,23 @@ import forgotPasswordRoutes from './routes/forgotPasswordRoutes';
 import claimRoutes from './routes/claimRoutes';
 import householdListRoutes from './routes/householdListRoutes';
 import notificationRoutes from './routes/notificationRoutes';
-import profileRoutes from './routes/profileRoutes';
-
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
 import { mongoSanitize } from './validation/mongoSanitize';
 import { csrfProtect } from './middleware/csrf';
-
 import {
   enforceHTTPSInProduction,
   getAllowedCorsOrigins,
   rejectNoSQLInjection,
 } from './middleware/securityHardening';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { assertBlockchainReady } from './services/blockchainService';
+import { startClaimConfirmationWorker } from './services/claimConfirmationWorker';
 
 const app: Express = express();
 const PORT = env.PORT;
 
+// [SECURITY CHECKLIST §2.3] Security headers via Helmet (HSTS, X-Content-Type, etc.)
 app.use(
   helmet({
     hsts:
@@ -62,9 +61,10 @@ app.use(
 app.set('trust proxy', 1);
 
 app.use(cookieParser());
+// [SECURITY CHECKLIST §3.4] Enforce HTTPS in production (TLS transport security)
 app.use(enforceHTTPSInProduction);
 
-// CORS configuration
+// [SECURITY CHECKLIST §2.3] CORS origin whitelist — blocks cross-origin abuse
 const allowedOrigins = getAllowedCorsOrigins();
 app.use(
   cors({
@@ -85,46 +85,40 @@ app.use(
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
+// [SECURITY CHECKLIST §2.3] NoSQL Injection Protection — Layer 1: reject $-prefixed / dot keys
 app.use(rejectNoSQLInjection);
 
-// Serve uploaded files (avatars, etc.)
-app.use('/uploads', express.static(path.resolve(__dirname, '..', 'public', 'uploads')));
-
-// NoSQL injection sanitizer — strip $ and . keys from body/query/params
+// [SECURITY CHECKLIST §2.3] NoSQL Injection Protection — Layer 2: strip $-prefixed / dot keys
 app.use(mongoSanitize);
 
-// Apply general rate limiting to all routes
+// [SECURITY CHECKLIST §1.4] Rate Limiting — global 500 req / 15 min per IP
 app.use(generalRateLimiter);
 
-// CSRF protection (double-submit cookie)
+// [SECURITY CHECKLIST §2.4] CSRF Protection — double-submit cookie pattern
 app.use(csrfProtect);
 
 /**
  * Routes
- *
+ * 
  * Authentication routes have additional rate limiting
  * applied at the route level (see authRoutes.ts)
  */
-app.use('/api/auth', unifiedAuthRoutes); // unified login / logout / me
+app.use('/api/auth', unifiedAuthRoutes);       // unified login / logout / me
 app.use('/api/auth/forgot-password', forgotPasswordRoutes); // forgot password OTP flow
-app.use('/api/sa', superadminAuthRoutes); // legacy superadmin-only routes (kept for compat)
-app.use('/api/admin/users', adminStaffRoutes); // SUPERADMIN manage staff
-
-app.use('/api/users', profileRoutes); // /api/users/me/* (must be before userRoutes)
+app.use('/api/sa', superadminAuthRoutes);        // legacy superadmin-only routes (kept for compat)
+app.use('/api/admin/users', adminStaffRoutes);   // SUPERADMIN manage staff
+// [RISK-5 UI FIX] Mount self-service profile routes before generic /api/users/:id routes.
+app.use('/api/users', profileRoutes);
 app.use('/api/users', userRoutes);
-
-app.use('/api/residents', residentRoutes); // route-level auth (register is public)
-app.use('/api/face', faceRoutes); // route-level auth where needed
+app.use('/api/residents', residentRoutes);       // route-level auth (register is public)
+app.use('/api/face', faceRoutes);                // route-level auth where needed
 app.use('/api/household', householdRoutes);
-
 app.use('/api/admin/tokens', adminTokenRoutes);
-
+// [SECURITY CHECKLIST §3.2] RBAC — mount-level auth + role guards on protected routes
 app.use('/api/distributions', requireAuth, requireStaffOrSuperadmin, distributionRoutes);
 app.use('/api/claims', requireAuth, requireStaffOrSuperadmin, claimRoutes);
 app.use('/api/households', requireAuth, requireStaffOrSuperadmin, householdListRoutes);
-
-app.use('/api/notifications', notificationRoutes); // auth applied inside router
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
@@ -134,12 +128,15 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
+// [SECURITY CHECKLIST §1.3] Error handling — generic messages, no stack traces leaked
 app.use(notFoundHandler);
 app.use(errorHandler);
 
 const startServer = async () => {
   try {
     await connectDB();
+    await assertBlockchainReady();
+    startClaimConfirmationWorker();
 
     app.listen(PORT, () => {
       console.log(`⚡️ Server is running on port ${PORT} [${env.NODE_ENV}]`);

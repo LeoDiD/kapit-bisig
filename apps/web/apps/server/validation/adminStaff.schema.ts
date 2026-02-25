@@ -10,7 +10,6 @@ export const createStaffBody = z.object({
   username: trimmedString(3, 50),
   fullName: trimmedString(2, 100),
   email: z.string().trim().toLowerCase().email('Invalid email format').max(255),
-  password: z.string().min(1, 'Password is required').max(200),
   assignedBarangays: z
     .array(barangayEnum)
     .min(1, 'At least one barangay is required')

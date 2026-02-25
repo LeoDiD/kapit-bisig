@@ -1,6 +1,8 @@
 /**
  * Password Validation Utility
  * 
+ * [SECURITY CHECKLIST §1.6] Strong Password Policy
+ * 
  * Implements a strong password policy with the following requirements:
  * - Minimum 8 characters
  * - At least one uppercase letter (A-Z)
@@ -23,7 +25,7 @@ export interface PasswordValidationResult {
   strength: 'weak' | 'medium' | 'strong';
 }
 
-// Password policy configuration - easy to modify if requirements change
+// [SECURITY CHECKLIST §1.6] Password policy configuration — 16-char min, complexity rules
 const PASSWORD_POLICY = {
   minLength: 16,
   requireUppercase: true,
@@ -163,6 +165,7 @@ export function validatePasswordStrength(password: string): { ok: boolean; reaso
 
 /**
  * Common weak passwords / patterns to reject.
+ * [SECURITY CHECKLIST §1.6] Common password blacklist (25 patterns)
  * Checked case-insensitively as substrings — more thorough than exact-match.
  *
  * In production, consider also using:

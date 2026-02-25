@@ -1,6 +1,12 @@
 /**
  * Forgot Password Routes (OTP-based — Option A)
  *
+ * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt OTP hash + password reset hash)
+ * [SECURITY CHECKLIST §1.3] Generic Login Errors (anti-enumeration responses)
+ * [SECURITY CHECKLIST §1.4] Rate Limiting (passwordResetRateLimiter)
+ * [SECURITY CHECKLIST §1.6] Strong Password Policy (validatePasswordStrength on reset)
+ * [SECURITY CHECKLIST §3.3] Audit Logging (all forgot-password events)
+ *
  * POST /api/auth/forgot-password/send-otp   – request a password-reset OTP
  * POST /api/auth/forgot-password/verify-otp – verify OTP and get reset token
  * POST /api/auth/forgot-password/reset      – reset password with reset token

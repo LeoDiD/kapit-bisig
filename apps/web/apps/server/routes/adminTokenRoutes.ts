@@ -26,6 +26,7 @@ import RegistrationAuditLog from '../models/RegistrationAuditLog';
 import { generateRequestId } from '../services/householdTokenService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tokenGenerationRateLimiter, strictRateLimiter } from '../middleware/rateLimiter';
+import { maskIpAddress } from '../utils/logSanitizer';
 import { validateRequest } from '../validation/validateRequest';
 import {
   generateTokenBody,
@@ -482,7 +483,8 @@ router.get(
           eventType: log.eventType,
           severity: log.severity,
           message: log.details.message,
-          ipAddress: log.ipAddress,
+          // [RISK-2 MITIGATION] Return masked IP to reduce log data exposure.
+          ipAddress: maskIpAddress(log.ipAddress),
           success: log.success,
           errorCode: log.errorCode,
           timestamp: log.timestamp,

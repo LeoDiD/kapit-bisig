@@ -1,6 +1,11 @@
 /**
  * Admin Staff-User Management Routes  (SUPERADMIN only)
  *
+ * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt on create/reset)
+ * [SECURITY CHECKLIST §1.6] Strong Password Policy (validatePasswordStrength)
+ * [SECURITY CHECKLIST §3.2] RBAC — all routes require SUPERADMIN
+ * [SECURITY CHECKLIST §3.3] Audit Logging (logAudit on all staff events)
+ *
  * POST   /api/admin/users                 – create LGU_STAFF account
  * GET    /api/admin/users                 – list staff users (search, barangay, status)
  * GET    /api/admin/users/stats           – aggregate counts
@@ -9,8 +14,10 @@
  */
 
 import { Router, Response } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import StaffUser from '../models/StaffUser';
+import LoginVerifyOtp from '../models/LoginVerifyOtp';
 import { BARANGAY_OPTIONS } from '../models/Distribution';
 import {
   requireAuth,
@@ -29,9 +36,12 @@ import {
   resetPasswordBody,
 } from '../validation/adminStaff.schema';
 import { logAudit } from '../utils/audit';
+import { sendFirstLoginOtpEmail } from '../utils/mailer';
 
 const router = Router();
 const SALT_ROUNDS = 12;
+const OTP_EXPIRY_MINUTES = 10;
+const OTP_MAX_ATTEMPTS = 5;
 
 /* ------------------------------------------------------------------ */
 /*  Password strength validator – delegates to shared utility         */
@@ -40,6 +50,11 @@ function validateStrongPassword(pw: string): { ok: boolean; errors: string[] } {
   const result = validatePasswordStrength(pw);
   if (result.ok) return { ok: true, errors: [] };
   return { ok: false, errors: result.reason ? result.reason.split('; ') : ['Password is too weak'] };
+}
+
+function generateOtp(): string {
+  const num = crypto.randomInt(0, 1_000_000);
+  return num.toString().padStart(6, '0');
 }
 
 /* ------------------------------------------------------------------ */
@@ -52,7 +67,7 @@ router.use(requireAuth, requireSuperadmin);
 /* ------------------------------------------------------------------ */
 router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
-    const { username, fullName, email, password, assignedBarangays } = req.body;
+    const { username, fullName, email, assignedBarangays } = req.body;
 
     // --- validation ---
     if (!username || typeof username !== 'string' || username.trim().length < 3) {
@@ -67,21 +82,6 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
 
     if (!email || typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
       res.status(400).json({ success: false, message: 'A valid email is required.' });
-      return;
-    }
-
-    if (!password || typeof password !== 'string') {
-      res.status(400).json({ success: false, message: 'Password is required.' });
-      return;
-    }
-
-    const pwCheck = validateStrongPassword(password);
-    if (!pwCheck.ok) {
-      res.status(400).json({
-        success: false,
-        message: 'Password is too weak.',
-        errors: pwCheck.errors,
-      });
       return;
     }
 
@@ -118,17 +118,40 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
       return;
     }
 
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
     const user = new StaffUser({
       username: username.trim().toLowerCase(),
       email: email.trim(),
-      passwordHash,
+      forcePasswordReset: true,
       fullName: fullName.trim(),
       assignedBarangays,
     });
 
     await user.save();
+
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+
+    await LoginVerifyOtp.findOneAndUpdate(
+      { emailLower: user.emailLower, purpose: 'FIRST_LOGIN' },
+      {
+        userId: user._id,
+        emailLower: user.emailLower,
+        purpose: 'FIRST_LOGIN',
+        otpHash,
+        expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
+        usedAt: null,
+        attemptsLeft: OTP_MAX_ATTEMPTS,
+        lastSentAt: new Date(),
+        createdAt: new Date(),
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    try {
+      await sendFirstLoginOtpEmail(user.email, otp);
+    } catch (mailErr) {
+      console.error('[MAILER] Failed to send first-login OTP email:', (mailErr as Error).message);
+    }
 
     logSecurity('ADMIN_CREATE_STAFF', {
       admin: req.authUser?.sub,
@@ -138,11 +161,17 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
     await logAudit(req, 'STAFF_CREATED', 'StaffUser', user._id.toString(), {
       username: user.username,
       assignedBarangays: user.assignedBarangays,
+      forcePasswordReset: true,
+    });
+    await logAudit(req, 'LOGIN_OTP_SENT', 'Auth', user._id.toString(), {
+      username: user.username,
+      emailLower: user.emailLower,
+      flow: 'FIRST_LOGIN',
     });
 
     res.status(201).json({
       success: true,
-      message: 'Staff user created.',
+      message: 'Staff user created. OTP sent to email.',
       data: user.toJSON(),
     });
   } catch (err) {
@@ -300,7 +329,12 @@ router.patch('/:id/reset-password', validateRequest({ params: staffIdParams, bod
     }
 
     user.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    user.forcePasswordReset = false;
     await user.save();
+    await LoginVerifyOtp.deleteMany({
+      $or: [{ userId: user._id }, { emailLower: user.emailLower }],
+      purpose: 'FIRST_LOGIN',
+    });
 
     logSecurity('ADMIN_RESET_PASSWORD', {
       admin: req.authUser?.sub,

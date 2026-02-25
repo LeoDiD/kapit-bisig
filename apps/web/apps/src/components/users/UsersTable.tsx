@@ -240,7 +240,7 @@ export default function UsersTable() {
               {statusDropdownOpen && (
                 <div
                   ref={statusMenuRef}
-                  className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
+                  className="absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50"
                 >
                   {STATUS_OPTIONS.map(opt => {
                     const selected = opt.value === filterStatus
@@ -253,8 +253,8 @@ export default function UsersTable() {
                           setStatusDropdownOpen(false)
                         }}
                         className={[
-                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                          'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
+                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70',
                         ].join(' ')}
                       >
                         <span className="w-5 flex items-center justify-center">
@@ -289,15 +289,15 @@ export default function UsersTable() {
               {brgyDropdownOpen && (
                 <div
                   ref={brgyMenuRef}
-                  className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50 max-h-60 overflow-y-auto"
+                  className="absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50 max-h-60 overflow-y-auto"
                 >
                   {/* All option */}
                   <button
                     type="button"
                     onClick={() => { setFilterBarangay(''); setBrgyDropdownOpen(false) }}
                     className={[
-                      'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                      !filterBarangay ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                      'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
+                      !filterBarangay ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70',
                     ].join(' ')}
                   >
                     <span className="w-5 flex items-center justify-center">
@@ -317,8 +317,8 @@ export default function UsersTable() {
                         type="button"
                         onClick={() => { setFilterBarangay(b); setBrgyDropdownOpen(false) }}
                         className={[
-                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                          'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
+                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70',
                         ].join(' ')}
                       >
                         <span className="w-5 flex items-center justify-center">

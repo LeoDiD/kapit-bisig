@@ -1,6 +1,8 @@
 /**
  * Resident Model
  * 
+ * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt 12 rounds, pre-save hook)
+ * 
  * MongoDB schema for registered residents from mobile app.
  * Stores personal info, household data, ID verification, and AI confidence scores.
  */
@@ -166,8 +168,6 @@ const ResidentSchema: Schema = new Schema(
       type: String,
       required: [true, 'Mobile number is required'],
       trim: true,
-      unique: true,
-      index: true,
       validate: {
         validator: function(value: string) {
           return isValidPhilippineMobileNumber(value);

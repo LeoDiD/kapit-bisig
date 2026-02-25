@@ -8,6 +8,7 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import SelectDropdown from '@/components/ui/SelectDropdown'
 import { BARANGAY_OPTIONS } from '@/lib/api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
@@ -58,6 +59,10 @@ export default function ApprovedUsersByBarangayTable() {
   }, [])
 
   const barangayOptions = useMemo(() => ['All Barangays', ...BARANGAY_OPTIONS], [])
+  const barangayDropdownOptions = useMemo(
+    () => barangayOptions.map((option) => ({ value: option, label: option })),
+    [barangayOptions]
+  )
 
   const filteredRows = useMemo(() => {
     if (barangay === 'All Barangays') return rows
@@ -109,18 +114,15 @@ export default function ApprovedUsersByBarangayTable() {
           <label htmlFor="dashboard-barangay-filter" className="mb-1 block text-xs font-medium text-gray-600">
             Filter by Barangay
           </label>
-          <select
+          <SelectDropdown
             id="dashboard-barangay-filter"
             value={barangay}
-            onChange={(e) => setBarangay(e.target.value)}
-            className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-[#226538] focus:outline-none focus:ring-2 focus:ring-[#226538]/25"
-          >
-            {barangayOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            onChange={setBarangay}
+            options={barangayDropdownOptions}
+            ariaLabel="Filter by barangay"
+            buttonClassName="h-10"
+            menuClassName="max-h-72"
+          />
         </div>
       </div>
 

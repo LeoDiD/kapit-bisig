@@ -1,6 +1,8 @@
 /**
  * Centralised Environment Configuration
  *
+ * [SECURITY CHECKLIST §3.1] Secure Credential Storage (.env)
+ *
  * Validates ALL required env vars at startup using Zod.
  * If any required variable is missing the server exits immediately
  * with a clear error message — no silent fallbacks for secrets.
@@ -14,6 +16,9 @@
  */
 
 import { z } from 'zod';
+
+const ETH_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
+const ETH_PRIVATE_KEY_REGEX = /^(0x)?[a-fA-F0-9]{64}$/;
 
 /* ------------------------------------------------------------------ */
 /*  Schema                                                             */
@@ -35,6 +40,7 @@ const envSchema = z.object({
     .min(1, 'MONGODB_URI must not be empty'),
 
   /* ---- JWT ---- */
+  // [SECURITY CHECKLIST §1.5] JWT_SECRET min 32 chars validated at boot
   JWT_SECRET: z
     .string({ message: 'JWT_SECRET is required' })
     .min(32, 'JWT_SECRET must be at least 32 characters'),
@@ -64,10 +70,41 @@ const envSchema = z.object({
       return undefined; // will be derived from NODE_ENV
     }),
 
-  /* ---- Blockchain (Hardhat / Ganache) ---- */
-  GANACHE_URL: z.string().optional(),
-  CONTRACT_ADDRESS: z.string().optional(),
-  DEPLOYER_PRIVATE_KEY: z.string().optional(),
+  /* ---- Blockchain (Sepolia) ---- */
+  CHAIN_ID: z
+    .string()
+    .default('11155111')
+    .transform((v) => parseInt(v, 10))
+    .refine((v) => Number.isFinite(v) && v > 0, 'CHAIN_ID must be a positive integer'),
+  RPC_URL: z
+    .string({ message: 'RPC_URL is required' })
+    .min(1, 'RPC_URL must not be empty'),
+  CONTRACT_ADDRESS: z
+    .string({ message: 'CONTRACT_ADDRESS is required' })
+    .min(1, 'CONTRACT_ADDRESS must not be empty')
+    .refine(
+      (v) => ETH_ADDRESS_REGEX.test(v.trim()),
+      'CONTRACT_ADDRESS must be a valid Ethereum address (0x + 40 hex chars)',
+    ),
+  PRIVATE_KEY: z
+    .string({ message: 'PRIVATE_KEY is required' })
+    .min(1, 'PRIVATE_KEY must not be empty')
+    .refine(
+      (v) => ETH_PRIVATE_KEY_REGEX.test(v.trim()),
+      'PRIVATE_KEY must be a valid 32-byte hex key',
+    )
+    .transform((v) => {
+      const normalized = v.trim();
+      return normalized.startsWith('0x') ? normalized : `0x${normalized}`;
+    }),
+  CONFIRMATIONS_REQUIRED: z
+    .string()
+    .default('2')
+    .transform((v) => parseInt(v, 10))
+    .refine(
+      (v) => Number.isFinite(v) && v >= 1,
+      'CONFIRMATIONS_REQUIRED must be an integer >= 1',
+    ),
 
   /* ---- Face recognition backend ---- */
   FACE_RECOGNITION_API_URL: z.string().optional(),

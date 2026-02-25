@@ -126,7 +126,7 @@ const FAQS = [
   },
   {
     q: 'How is blockchain used in the system?',
-    a: 'Every confirmed relief claim is recorded on a local Ethereum blockchain (Ganache), creating an immutable and auditable ledger of all distributions.',
+    a: 'Every confirmed relief claim is recorded on Ethereum Sepolia, creating an immutable and auditable ledger of all distributions.',
   },
 ]
 

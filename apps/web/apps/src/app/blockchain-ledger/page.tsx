@@ -34,7 +34,7 @@ const BARANGAY_OPTIONS = [
 
 type BarangayFilter = (typeof BARANGAY_OPTIONS)[number]
 
-const STATUS_OPTIONS = ['All Status', 'Confirmed', 'Pending', 'Failed'] as const
+const STATUS_OPTIONS = ['All Status', 'Confirmed', 'Pending/Confirming', 'Chain Failed'] as const
 type StatusFilter = (typeof STATUS_OPTIONS)[number]
 
 /* ------------------------------------------------------------------ */
@@ -58,8 +58,8 @@ function computeStats(rows: LedgerRow[]): LedgerStatsData {
     if (d >= startOfToday) claimsToday++
     if (d >= startOfWeek) claimsThisWeek++
     householdSet.add(r.householdHash)
-    if (r.status === 'Pending') pendingWrites++
-    if (r.status === 'Failed') failedWrites++
+    if (r.status === 'Pending/Confirming') pendingWrites++
+    if (r.status === 'Chain Failed') failedWrites++
   }
 
   return {
@@ -119,6 +119,15 @@ export default function BlockchainLedgerPage() {
   useEffect(() => {
     fetchLedger()
   }, [fetchLedger])
+
+  // Auto-refresh while pending confirmations are visible.
+  useEffect(() => {
+    if (!allRows.some((r) => r.status === 'Pending/Confirming')) return
+    const id = window.setInterval(() => {
+      fetchLedger()
+    }, 12000)
+    return () => window.clearInterval(id)
+  }, [allRows, fetchLedger])
 
   // Close dropdowns on outside click
   const handleClickOutside = useCallback((e: MouseEvent) => {
@@ -335,7 +344,7 @@ function DropdownMenu({
   return (
     <div
       ref={menuRef}
-      className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50 max-h-64 overflow-y-auto"
+      className="absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50 max-h-64 overflow-y-auto"
     >
       {items.map((opt) => {
         const isSelected = opt.value === selected
@@ -345,10 +354,10 @@ function DropdownMenu({
             type="button"
             onClick={() => onSelect(opt.value)}
             className={[
-              'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
+              'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
               isSelected
                 ? 'bg-[#EAB308] text-gray-900'
-                : 'text-gray-700 hover:bg-gray-50',
+                : 'text-slate-700 hover:bg-white/70',
             ].join(' ')}
           >
             <span className="w-5 flex items-center justify-center">

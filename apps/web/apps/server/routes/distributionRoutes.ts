@@ -10,6 +10,7 @@
  */
 
 import { Router, Response } from 'express';
+import mongoose from 'mongoose';
 import Distribution, { BARANGAY_OPTIONS } from '../models/Distribution';
 import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
@@ -166,13 +167,14 @@ router.get(
 
       if (req.authUser?.role === 'LGU_STAFF') {
         const assigned = req.authUser.assignedBarangays ?? [];
-        filter.$or = [
-          { barangay: { $in: assigned } },
-          { assignedBarangays: { $in: assigned } },
-        ];
+        filter.$or = mongoose.trusted([
+          { barangay: mongoose.trusted({ $in: assigned }) },
+          { assignedBarangays: mongoose.trusted({ $in: assigned }) },
+        ]);
       }
 
       const distributions = await Distribution.find(filter)
+        .setOptions({ sanitizeFilter: false })
         .sort({ createdAt: -1 })
         .lean();
 
@@ -339,9 +341,10 @@ router.get(
 
       // 3) Get all approved residents (registered households) in target barangays
       const registeredHouseholds = await Resident.find({
-        barangay: { $in: targetBarangays },
+        barangay: mongoose.trusted({ $in: targetBarangays }),
         status: 'Approved',
       })
+        .setOptions({ sanitizeFilter: false })
         .select('_id fullName firstName lastName streetAddress barangay')
         .lean();
 

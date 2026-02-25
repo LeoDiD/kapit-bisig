@@ -11,6 +11,10 @@ import { faceRecognitionService, FaceCompareResult } from './faceRecognitionServ
 // Configuration
 const DUPLICATE_THRESHOLD = 0.6;  // Euclidean distance threshold
 
+function shouldLogDebug(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.ALLOW_SECURITY_CONSOLE_LOGS === 'true';
+}
+
 export interface DuplicateCheckResult {
   isDuplicate: boolean;
   descriptor: number[] | null;
@@ -65,7 +69,7 @@ export async function checkDuplicateFace(base64Image: string): Promise<Duplicate
   
   try {
     // Step 1: Generate face descriptor for the new image
-    console.log('[DuplicateCheck] Generating face descriptor...');
+    if (shouldLogDebug()) console.log('[DuplicateCheck] Generating descriptor...');
     const newDescriptorData = await faceRecognitionService.generateDescriptor(base64Image);
     
     if (!newDescriptorData) {
@@ -73,15 +77,17 @@ export async function checkDuplicateFace(base64Image: string): Promise<Duplicate
     }
     
     const newDescriptor = newDescriptorData.descriptor;
-    console.log('[DuplicateCheck] Descriptor generated successfully');
+    if (shouldLogDebug()) console.log('[DuplicateCheck] Descriptor generated');
     
     // Step 2: Fetch all existing residents with face descriptors
-    console.log('[DuplicateCheck] Fetching existing residents...');
+    if (shouldLogDebug()) console.log('[DuplicateCheck] Fetching resident descriptors...');
     const existingResidents = await Resident.find({
       faceDescriptor: { $exists: true, $ne: null }
     }).select('firstName lastName barangay streetAddress faceDescriptor createdAt').lean();
     
-    console.log(`[DuplicateCheck] Found ${existingResidents.length} existing residents to compare`);
+    if (shouldLogDebug()) {
+      console.log(`[DuplicateCheck] Candidate descriptor count: ${existingResidents.length}`);
+    }
     
     // Step 3: Compare against each existing resident
     let closestMatch: FaceDescriptorRecord | null = null;
@@ -97,8 +103,6 @@ export async function checkDuplicateFace(base64Image: string): Promise<Duplicate
         resident.faceDescriptor
       );
       
-      console.log(`[DuplicateCheck] Distance to ${resident.firstName} ${resident.lastName}: ${distance.toFixed(4)}`);
-      
       // Track closest match
       if (distance < smallestDistance) {
         smallestDistance = distance;
@@ -108,7 +112,10 @@ export async function checkDuplicateFace(base64Image: string): Promise<Duplicate
       // Early exit if duplicate found
       if (distance < DUPLICATE_THRESHOLD) {
         const processingTime = Date.now() - startTime;
-        console.log(`[DuplicateCheck] DUPLICATE FOUND! Distance: ${distance.toFixed(4)}`);
+        if (shouldLogDebug()) {
+          // [RISK-2 MITIGATION] Avoid logging resident identity during biometric comparison.
+          console.log(`[DuplicateCheck] Duplicate detected at distance=${distance.toFixed(4)}`);
+        }
         
         return {
           isDuplicate: true,
@@ -130,7 +137,11 @@ export async function checkDuplicateFace(base64Image: string): Promise<Duplicate
     
     // Step 4: No duplicate found - return the descriptor for storage
     const processingTime = Date.now() - startTime;
-    console.log(`[DuplicateCheck] No duplicate found. Closest distance: ${smallestDistance.toFixed(4)}`);
+    if (shouldLogDebug()) {
+      console.log(
+        `[DuplicateCheck] No duplicate found. Closest distance=${smallestDistance.toFixed(4)}`,
+      );
+    }
     
     return {
       isDuplicate: false,
@@ -143,7 +154,7 @@ export async function checkDuplicateFace(base64Image: string): Promise<Duplicate
     };
     
   } catch (error) {
-    console.error('[DuplicateCheck] Error:', error);
+    console.error('[DuplicateCheck] Error:', (error as Error).message);
     throw error;
   }
 }

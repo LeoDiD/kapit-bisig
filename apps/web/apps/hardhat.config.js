@@ -5,8 +5,9 @@ require('@nomicfoundation/hardhat-toolbox');
 module.exports = {
   solidity: '0.8.19',
   networks: {
-    ganache: {
-      url: process.env.GANACHE_RPC_URL || 'http://127.0.0.1:7545',
+    sepolia: {
+      url: process.env.RPC_URL || '',
+      chainId: Number(process.env.CHAIN_ID || 11155111),
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
   },

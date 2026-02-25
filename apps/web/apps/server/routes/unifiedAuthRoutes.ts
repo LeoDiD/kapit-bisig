@@ -1,14 +1,12 @@
 /**
  * Unified Auth Routes
  *
- * POST /api/auth/login            – authenticate SUPERADMIN (env) OR LGU_STAFF (DB)
- * POST /api/auth/login/verify-otp – verify login OTP and complete authentication
- * POST /api/auth/login/resend-otp – resend login OTP
- * POST /api/auth/logout           – clear the auth cookie
- * GET  /api/auth/me               – return the currently authenticated user
- *
- * Both account types get a JWT stored in an httpOnly cookie (`sa_token`).
- * LGU_STAFF accounts that have not verified email get OTP challenge on login.
+ * POST /api/auth/login            - authenticate SUPERADMIN or LGU_STAFF
+ * POST /api/auth/login/verify-otp - verify first-login OTP and complete auth
+ * POST /api/auth/login/resend-otp - resend first-login OTP
+ * POST /api/auth/set-password     - first-time password setup
+ * POST /api/auth/logout           - clear auth cookie
+ * GET  /api/auth/me               - return current authenticated user
  */
 
 import { Router, Request, Response } from 'express';
@@ -16,8 +14,11 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
-import { loginRateLimiter } from '../middleware/rateLimiter';
-import { loginOtpRateLimiter } from '../middleware/rateLimiter';
+import {
+  loginRateLimiter,
+  loginOtpRateLimiter,
+  strictRateLimiter,
+} from '../middleware/rateLimiter';
 import {
   requireAuth,
   AuthRequest,
@@ -27,10 +28,16 @@ import {
 import StaffUser from '../models/StaffUser';
 import LoginVerifyOtp from '../models/LoginVerifyOtp';
 import { validateRequest } from '../validation/validateRequest';
-import { loginBody, loginVerifyOtpBody, loginResendOtpBody } from '../validation/auth.schema';
+import {
+  loginBody,
+  loginVerifyOtpBody,
+  loginResendOtpBody,
+  setPasswordBody,
+} from '../validation/auth.schema';
 import { logAudit } from '../utils/audit';
-import { sendLoginVerifyOtpEmail } from '../utils/mailer';
+import { sendFirstLoginOtpEmail } from '../utils/mailer';
 import { setCsrfCookie, generateCsrfToken } from '../middleware/csrf';
+import { validatePasswordStrength } from '../utils/passwordValidator';
 
 const router = Router();
 
@@ -42,6 +49,12 @@ const OTP_EXPIRY_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_PENDING_TOKEN_EXPIRY = '10m';
 
+type OtpPendingPayload = {
+  sub?: string;
+  purpose?: 'otp_pending_first_login';
+  rememberMe?: boolean;
+};
+
 function getJWTSecret(): string {
   const s = process.env.JWT_SECRET;
   if (!s) throw new Error('JWT_SECRET not set');
@@ -49,9 +62,6 @@ function getJWTSecret(): string {
   return s;
 }
 
-/**
- * Generate a cryptographically random 6-digit OTP.
- */
 function generateOtp(): string {
   const num = crypto.randomInt(0, 1_000_000);
   return num.toString().padStart(6, '0');
@@ -75,191 +85,238 @@ function setCookie(res: Response, token: string, rememberMe: boolean) {
 /* ------------------------------------------------------------------ */
 /*  POST /api/auth/login                                              */
 /* ------------------------------------------------------------------ */
-router.post('/login', loginRateLimiter, validateRequest({ body: loginBody }), async (req: Request, res: Response) => {
-  try {
-    const { username, password, rememberMe } = req.body;
+router.post(
+  '/login',
+  loginRateLimiter,
+  validateRequest({ body: loginBody }),
+  async (req: Request, res: Response) => {
+    try {
+      const { username, password, otp, rememberMe } = req.body;
 
-    if (
-      !username ||
-      !password ||
-      typeof username !== 'string' ||
-      typeof password !== 'string'
-    ) {
-      logSecurity('LOGIN_FAIL', { reason: 'bad_input', ip: req.ip });
-      // GENERIC error — do not reveal which field is missing
-      res
-        .status(401)
-        .json({ success: false, message: 'Invalid credentials.' });
-      return;
-    }
-
-    const trimmedUser = username.trim().toLowerCase();
-    const isEmail = trimmedUser.includes('@');
-    const remember = !!rememberMe;
-    const expiry = (remember
-      ? `${REMEMBER_ME_EXPIRY_DAYS}d`
-      : `${TOKEN_EXPIRY_HOURS}h`) as SignOptions['expiresIn'];
-    const secret: Secret = getJWTSecret();
-    const options: SignOptions = { expiresIn: expiry, algorithm: 'HS256' };
-
-    /* ---------- Try SUPERADMIN first ---------- */
-    const saUser = process.env.SUPERADMIN_USERNAME?.toLowerCase();
-    const saHash = process.env.SUPERADMIN_PASSWORD_HASH;
-
-    if (saUser && saHash && trimmedUser === saUser) {
-      const match = await bcrypt.compare(password, saHash);
-      if (!match) {
-        logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'SUPERADMIN' });
-        await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', { username: trimmedUser, reason: 'bad_password' });
+      if (!username || typeof username !== 'string') {
+        logSecurity('LOGIN_FAIL', { reason: 'bad_input', ip: req.ip });
         res.status(401).json({ success: false, message: 'Invalid credentials.' });
         return;
       }
 
+      const trimmedUser = username.trim().toLowerCase();
+      const isEmail = trimmedUser.includes('@');
+      const remember = !!rememberMe;
+      const expiry = (remember
+        ? `${REMEMBER_ME_EXPIRY_DAYS}d`
+        : `${TOKEN_EXPIRY_HOURS}h`) as SignOptions['expiresIn'];
+      const secret: Secret = getJWTSecret();
+      const options: SignOptions = { expiresIn: expiry, algorithm: 'HS256' };
+      const candidatePassword = typeof password === 'string' ? password : 'invalid-password';
+
+      /* ---------- SUPERADMIN ---------- */
+      const saUser = process.env.SUPERADMIN_USERNAME?.toLowerCase();
+      const saHash = process.env.SUPERADMIN_PASSWORD_HASH;
+      if (saUser && saHash && trimmedUser === saUser) {
+        const match = await bcrypt.compare(candidatePassword, saHash);
+        if (!match || typeof password !== 'string') {
+          logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'SUPERADMIN' });
+          await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
+            username: trimmedUser,
+            reason: 'bad_password',
+          });
+          res.status(401).json({ success: false, message: 'Invalid credentials.' });
+          return;
+        }
+
+        const payload: AuthPayload = {
+          sub: saUser,
+          role: 'SUPERADMIN',
+          jti: randomUUID(),
+        };
+        const token = jwt.sign(payload, secret, options);
+        setCookie(res, token, remember);
+        setCsrfCookie(res, generateCsrfToken());
+
+        logSecurity('LOGIN_SUCCESS', { username: saUser, role: 'SUPERADMIN', ip: req.ip });
+        await logAudit(req, 'LOGIN_SUCCESS', 'Auth', saUser, { role: 'SUPERADMIN' });
+
+        res.json({
+          success: true,
+          data: {
+            user: {
+              username: saUser,
+              role: 'SUPERADMIN',
+              assignedBarangays: [],
+              forcePasswordReset: false,
+            },
+          },
+        });
+        return;
+      }
+
+      /* ---------- LGU_STAFF ---------- */
+      const staffQuery = isEmail
+        ? { emailLower: trimmedUser }
+        : { username: trimmedUser };
+      const staffUser = await StaffUser.findOne(staffQuery).select('+passwordHash');
+
+      const isFirstLoginOtpFlow =
+        !!staffUser &&
+        staffUser.isActive &&
+        staffUser.forcePasswordReset === true &&
+        !staffUser.passwordHash;
+
+      // First-time staff login uses the OTP sent on account creation.
+      if (isFirstLoginOtpFlow) {
+        if (!isEmail || typeof otp !== 'string') {
+          logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedUser, reason: 'first_login_otp_required' });
+          await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
+            username: trimmedUser,
+            reason: 'invalid_credentials',
+          });
+          res.status(401).json({ success: false, message: 'Invalid credentials.' });
+          return;
+        }
+
+        const record = await LoginVerifyOtp.findOne({
+          emailLower: staffUser.emailLower,
+          purpose: 'FIRST_LOGIN',
+          usedAt: null,
+        });
+
+        if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
+          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
+            emailLower: staffUser.emailLower,
+            reason: !record ? 'no_record' : record.attemptsLeft <= 0 ? 'no_attempts' : 'expired',
+            flow: 'FIRST_LOGIN',
+          });
+          res.status(401).json({ success: false, message: 'Invalid credentials.' });
+          return;
+        }
+
+        const otpMatch = await bcrypt.compare(otp, record.otpHash);
+        if (!otpMatch) {
+          record.attemptsLeft = Math.max(0, record.attemptsLeft - 1);
+          await record.save();
+
+          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
+            emailLower: staffUser.emailLower,
+            reason: 'wrong_otp',
+            attemptsLeft: record.attemptsLeft,
+            flow: 'FIRST_LOGIN',
+          });
+
+          res.status(401).json({ success: false, message: 'Invalid credentials.' });
+          return;
+        }
+
+        record.usedAt = new Date();
+        record.attemptsLeft = 0;
+        await record.save();
+
+        staffUser.lastOtpVerifiedAt = new Date();
+        staffUser.lastLoginAt = new Date();
+        await staffUser.save();
+
+        const firstLoginPayload: AuthPayload = {
+          sub: staffUser.username,
+          role: 'LGU_STAFF',
+          userId: staffUser._id.toString(),
+          assignedBarangays: staffUser.assignedBarangays,
+          jti: randomUUID(),
+        };
+        const firstLoginToken = jwt.sign(firstLoginPayload, secret, options);
+        setCookie(res, firstLoginToken, remember);
+        setCsrfCookie(res, generateCsrfToken());
+
+        logSecurity('LOGIN_SUCCESS', {
+          username: staffUser.username,
+          role: 'LGU_STAFF',
+          ip: req.ip,
+          otpVerified: true,
+          flow: 'FIRST_LOGIN',
+        });
+        await logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', staffUser._id.toString(), {
+          username: staffUser.username,
+          flow: 'FIRST_LOGIN',
+        });
+
+        res.json({
+          success: true,
+          data: {
+            user: {
+              id: staffUser._id.toString(),
+              username: staffUser.username,
+              fullName: staffUser.fullName,
+              role: 'LGU_STAFF',
+              assignedBarangays: staffUser.assignedBarangays,
+              forcePasswordReset: staffUser.forcePasswordReset,
+            },
+          },
+        });
+        return;
+      }
+
+      // Password-based login for accounts with password set
+      const dummyHash = '$2b$12$KIXTOzaOGBy05XHs9hLKyuBP7dsQVG4x5vjXPMNGSBKLVoKJGxbW6';
+      const hashToCompare = staffUser?.passwordHash || dummyHash;
+      const pwMatch = await bcrypt.compare(candidatePassword, hashToCompare);
+
+      if (
+        !staffUser ||
+        !staffUser.isActive ||
+        !staffUser.passwordHash ||
+        typeof password !== 'string' ||
+        !pwMatch
+      ) {
+        logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedUser });
+        await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
+          username: trimmedUser,
+          reason: 'invalid_credentials',
+        });
+        res.status(401).json({ success: false, message: 'Invalid credentials.' });
+        return;
+      }
+
+      staffUser.lastLoginAt = new Date();
+      await staffUser.save();
+
       const payload: AuthPayload = {
-        sub: saUser,
-        role: 'SUPERADMIN',
+        sub: staffUser.username,
+        role: 'LGU_STAFF',
+        userId: staffUser._id.toString(),
+        assignedBarangays: staffUser.assignedBarangays,
         jti: randomUUID(),
       };
       const token = jwt.sign(payload, secret, options);
       setCookie(res, token, remember);
       setCsrfCookie(res, generateCsrfToken());
 
-      logSecurity('LOGIN_SUCCESS', { username: saUser, role: 'SUPERADMIN', ip: req.ip });
-      await logAudit(req, 'LOGIN_SUCCESS', 'Auth', saUser, { role: 'SUPERADMIN' });
+      logSecurity('LOGIN_SUCCESS', {
+        username: staffUser.username,
+        role: 'LGU_STAFF',
+        ip: req.ip,
+      });
+      await logAudit(req, 'LOGIN_SUCCESS', 'Auth', staffUser._id.toString(), {
+        username: staffUser.username,
+        role: 'LGU_STAFF',
+      });
 
       res.json({
         success: true,
         data: {
           user: {
-            username: saUser,
-            role: 'SUPERADMIN',
-            assignedBarangays: [],
+            id: staffUser._id.toString(),
+            username: staffUser.username,
+            fullName: staffUser.fullName,
+            role: 'LGU_STAFF',
+            assignedBarangays: staffUser.assignedBarangays,
+            forcePasswordReset: staffUser.forcePasswordReset,
           },
         },
       });
-      return;
+    } catch (err) {
+      console.error('[AUTH_LOGIN_ERROR]', err);
+      res.status(500).json({ success: false, message: 'Internal server error.' });
     }
-
-    /* ---------- Try LGU_STAFF from DB ---------- */
-    // If identifier looks like an email, match by emailLower; otherwise by username
-    const staffQuery = isEmail
-      ? { emailLower: trimmedUser }
-      : { username: trimmedUser };
-    const staffUser = await StaffUser.findOne(staffQuery).select(
-      '+passwordHash',
-    );
-
-    // Always run bcrypt.compare even when user not found (timing-attack mitigation)
-    const dummyHash = '$2b$12$KIXTOzaOGBy05XHs9hLKyuBP7dsQVG4x5vjXPMNGSBKLVoKJGxbW6';
-    const hashToCompare = staffUser?.passwordHash || dummyHash;
-    const pwMatch = await bcrypt.compare(password, hashToCompare);
-
-    if (!staffUser || !pwMatch || !staffUser.isActive) {
-      logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedUser });
-      await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', { username: trimmedUser, reason: 'invalid_credentials' });
-      // GENERIC error — never reveal whether user exists, is inactive, or password is wrong
-      res.status(401).json({ success: false, message: 'Invalid credentials.' });
-      return;
-    }
-
-    /* ---------- OTP challenge for unverified staff ---------- */
-    if (!staffUser.emailVerified) {
-      // Generate OTP and send via email
-      const otp = generateOtp();
-      const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
-
-      // Upsert: one active login-verify OTP per email at a time
-      await LoginVerifyOtp.findOneAndUpdate(
-        { emailLower: staffUser.emailLower },
-        {
-          userId: staffUser._id,
-          emailLower: staffUser.emailLower,
-          otpHash,
-          expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
-          attemptsLeft: OTP_MAX_ATTEMPTS,
-          lastSentAt: new Date(),
-          createdAt: new Date(),
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
-      );
-
-      // Send OTP email (best-effort)
-      try {
-        await sendLoginVerifyOtpEmail(staffUser.email, otp);
-      } catch (mailErr) {
-        console.error('[MAILER] Failed to send login OTP email:', (mailErr as Error).message);
-      }
-
-      // Issue a short-lived pre-auth token (NOT the session cookie)
-      const otpPendingPayload = {
-        sub: staffUser._id.toString(),
-        purpose: 'otp_pending_login',
-        rememberMe: remember,
-      };
-      const otpToken = jwt.sign(
-        otpPendingPayload,
-        getJWTSecret(),
-        { expiresIn: OTP_PENDING_TOKEN_EXPIRY, algorithm: 'HS256' } as SignOptions,
-      );
-
-      await logAudit(req, 'LOGIN_OTP_SENT', 'Auth', staffUser._id.toString(), {
-        username: staffUser.username,
-        emailLower: staffUser.emailLower,
-      });
-
-      logSecurity('LOGIN_OTP_REQUIRED', {
-        username: staffUser.username,
-        ip: req.ip,
-      });
-
-      res.json({
-        success: true,
-        otpRequired: true,
-        otpToken,
-        message: 'OTP sent to your registered email.',
-      });
-      return;
-    }
-
-    // Update lastLoginAt
-    staffUser.lastLoginAt = new Date();
-    await staffUser.save();
-
-    const payload: AuthPayload = {
-      sub: staffUser.username,
-      role: 'LGU_STAFF',
-      userId: staffUser._id.toString(),
-      assignedBarangays: staffUser.assignedBarangays,
-      jti: randomUUID(),
-    };
-    const token = jwt.sign(payload, secret, options);
-    setCookie(res, token, remember);
-    setCsrfCookie(res, generateCsrfToken());
-
-    logSecurity('LOGIN_SUCCESS', {
-      username: staffUser.username,
-      role: 'LGU_STAFF',
-      ip: req.ip,
-    });
-    await logAudit(req, 'LOGIN_SUCCESS', 'Auth', staffUser._id.toString(), { username: staffUser.username, role: 'LGU_STAFF' });
-
-    res.json({
-      success: true,
-      data: {
-        user: {
-          id: staffUser._id.toString(),
-          username: staffUser.username,
-          fullName: staffUser.fullName,
-          role: 'LGU_STAFF',
-          assignedBarangays: staffUser.assignedBarangays,
-        },
-      },
-    });
-  } catch (err) {
-    console.error('[AUTH_LOGIN_ERROR]', err);
-    res.status(500).json({ success: false, message: 'Internal server error.' });
-  }
-});
+  },
+);
 
 /* ------------------------------------------------------------------ */
 /*  POST /api/auth/login/verify-otp                                   */
@@ -272,42 +329,48 @@ router.post(
     try {
       const { otpToken, otp } = req.body;
 
-      // Verify the pre-auth token
-      let pending: { sub?: string; purpose?: string; rememberMe?: boolean };
+      let pending: OtpPendingPayload;
       try {
-        pending = jwt.verify(otpToken, getJWTSecret()) as typeof pending;
+        pending = jwt.verify(otpToken, getJWTSecret()) as OtpPendingPayload;
       } catch {
         res.status(400).json({ success: false, message: 'Invalid or expired OTP session.' });
         return;
       }
 
-      if (pending.purpose !== 'otp_pending_login' || !pending.sub) {
+      if (pending.purpose !== 'otp_pending_first_login' || !pending.sub) {
         res.status(400).json({ success: false, message: 'Invalid or expired OTP session.' });
         return;
       }
 
       const userId = pending.sub;
       const staffUser = await StaffUser.findById(userId);
-      if (!staffUser || !staffUser.isActive) {
+      if (
+        !staffUser ||
+        !staffUser.isActive ||
+        !staffUser.forcePasswordReset ||
+        !!staffUser.passwordHash
+      ) {
         res.status(400).json({ success: false, message: 'Invalid or expired code.' });
         return;
       }
 
-      // Find OTP record
-      const record = await LoginVerifyOtp.findOne({ emailLower: staffUser.emailLower });
+      const record = await LoginVerifyOtp.findOne({
+        emailLower: staffUser.emailLower,
+        purpose: 'FIRST_LOGIN',
+        usedAt: null,
+      });
 
       if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
         await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', userId, {
           emailLower: staffUser.emailLower,
           reason: !record ? 'no_record' : record.attemptsLeft <= 0 ? 'no_attempts' : 'expired',
+          flow: 'FIRST_LOGIN',
         });
         res.status(400).json({ success: false, message: 'Invalid or expired code.' });
         return;
       }
 
-      // Compare OTP
       const match = await bcrypt.compare(otp, record.otpHash);
-
       if (!match) {
         record.attemptsLeft = Math.max(0, record.attemptsLeft - 1);
         await record.save();
@@ -316,22 +379,21 @@ router.post(
           emailLower: staffUser.emailLower,
           reason: 'wrong_otp',
           attemptsLeft: record.attemptsLeft,
+          flow: 'FIRST_LOGIN',
         });
 
         res.status(400).json({ success: false, message: 'Invalid or expired code.' });
         return;
       }
 
-      // OTP valid — mark email as verified
-      staffUser.emailVerified = true;
+      record.usedAt = new Date();
+      record.attemptsLeft = 0;
+      await record.save();
+
       staffUser.lastOtpVerifiedAt = new Date();
       staffUser.lastLoginAt = new Date();
       await staffUser.save();
 
-      // Delete OTP record
-      await LoginVerifyOtp.deleteOne({ _id: record._id });
-
-      // Issue the real session cookie
       const remember = !!pending.rememberMe;
       const expiry = remember
         ? `${REMEMBER_ME_EXPIRY_DAYS}d`
@@ -341,6 +403,7 @@ router.post(
         role: 'LGU_STAFF',
         userId: staffUser._id.toString(),
         assignedBarangays: staffUser.assignedBarangays,
+        jti: randomUUID(),
       };
       const sessionToken = jwt.sign(payload, getJWTSecret(), {
         expiresIn: expiry,
@@ -354,9 +417,11 @@ router.post(
         role: 'LGU_STAFF',
         ip: req.ip,
         otpVerified: true,
+        flow: 'FIRST_LOGIN',
       });
       await logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', userId, {
         username: staffUser.username,
+        flow: 'FIRST_LOGIN',
       });
 
       res.json({
@@ -368,6 +433,7 @@ router.post(
             fullName: staffUser.fullName,
             role: 'LGU_STAFF',
             assignedBarangays: staffUser.assignedBarangays,
+            forcePasswordReset: staffUser.forcePasswordReset,
           },
         },
       });
@@ -389,23 +455,26 @@ router.post(
     try {
       const { otpToken } = req.body;
 
-      // Verify the pre-auth token
-      let pending: { sub?: string; purpose?: string };
+      let pending: OtpPendingPayload;
       try {
-        pending = jwt.verify(otpToken, getJWTSecret()) as typeof pending;
+        pending = jwt.verify(otpToken, getJWTSecret()) as OtpPendingPayload;
       } catch {
         res.status(400).json({ success: false, message: 'Invalid or expired OTP session.' });
         return;
       }
 
-      if (pending.purpose !== 'otp_pending_login' || !pending.sub) {
+      if (pending.purpose !== 'otp_pending_first_login' || !pending.sub) {
         res.status(400).json({ success: false, message: 'Invalid or expired OTP session.' });
         return;
       }
 
       const staffUser = await StaffUser.findById(pending.sub);
-      if (!staffUser || !staffUser.isActive) {
-        // Generic response
+      if (
+        !staffUser ||
+        !staffUser.isActive ||
+        !staffUser.forcePasswordReset ||
+        !!staffUser.passwordHash
+      ) {
         res.json({ success: true, message: 'If valid, a new OTP was sent.' });
         return;
       }
@@ -414,12 +483,14 @@ router.post(
       const otpHash = await bcrypt.hash(newOtp, SALT_ROUNDS);
 
       await LoginVerifyOtp.findOneAndUpdate(
-        { emailLower: staffUser.emailLower },
+        { emailLower: staffUser.emailLower, purpose: 'FIRST_LOGIN' },
         {
           userId: staffUser._id,
           emailLower: staffUser.emailLower,
+          purpose: 'FIRST_LOGIN',
           otpHash,
           expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
+          usedAt: null,
           attemptsLeft: OTP_MAX_ATTEMPTS,
           lastSentAt: new Date(),
           createdAt: new Date(),
@@ -428,19 +499,84 @@ router.post(
       );
 
       try {
-        await sendLoginVerifyOtpEmail(staffUser.email, newOtp);
+        await sendFirstLoginOtpEmail(staffUser.email, newOtp);
       } catch (mailErr) {
-        console.error('[MAILER] Failed to resend login OTP:', (mailErr as Error).message);
+        console.error('[MAILER] Failed to resend first-login OTP:', (mailErr as Error).message);
       }
 
       await logAudit(req, 'LOGIN_OTP_RESEND', 'Auth', staffUser._id.toString(), {
         username: staffUser.username,
         emailLower: staffUser.emailLower,
+        flow: 'FIRST_LOGIN',
       });
 
       res.json({ success: true, message: 'A new OTP has been sent.' });
     } catch (err) {
       console.error('[AUTH_RESEND_OTP_ERROR]', err);
+      res.status(500).json({ success: false, message: 'Internal server error.' });
+    }
+  },
+);
+
+/* ------------------------------------------------------------------ */
+/*  POST /api/auth/set-password                                       */
+/* ------------------------------------------------------------------ */
+router.post(
+  '/set-password',
+  requireAuth,
+  strictRateLimiter,
+  validateRequest({ body: setPasswordBody }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { role, userId } = req.authUser ?? {};
+      const { newPassword } = req.body;
+
+      if (role !== 'LGU_STAFF' || !userId) {
+        res.status(403).json({ success: false, message: 'Forbidden' });
+        return;
+      }
+
+      const staff = await StaffUser.findById(userId).select('+passwordHash');
+      if (!staff || !staff.isActive) {
+        res.status(404).json({ success: false, message: 'User not found' });
+        return;
+      }
+
+      if (!staff.forcePasswordReset) {
+        res.status(400).json({
+          success: false,
+          message: 'Password setup is not required.',
+        });
+        return;
+      }
+
+      const pwCheck = validatePasswordStrength(newPassword);
+      if (!pwCheck.ok) {
+        res.status(400).json({
+          success: false,
+          message: 'Password is too weak.',
+          errors: pwCheck.reason ? pwCheck.reason.split('; ') : ['Password is too weak'],
+        });
+        return;
+      }
+
+      staff.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      staff.forcePasswordReset = false;
+      await staff.save();
+
+      await LoginVerifyOtp.deleteMany({
+        $or: [{ userId: staff._id }, { emailLower: staff.emailLower }],
+        purpose: 'FIRST_LOGIN',
+      });
+
+      await logAudit(req, 'STAFF_PASSWORD_RESET', 'StaffUser', staff._id.toString(), {
+        username: staff.username,
+        flow: 'FIRST_LOGIN_SETUP',
+      });
+
+      res.json({ success: true, message: 'Password set successfully.' });
+    } catch (err) {
+      console.error('[AUTH_SET_PASSWORD_ERROR]', err);
       res.status(500).json({ success: false, message: 'Internal server error.' });
     }
   },
@@ -478,7 +614,6 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
   const { sub, role, assignedBarangays, userId } = req.authUser;
 
   if (role === 'LGU_STAFF' && userId) {
-    // Fetch fresh data from DB (in case barangays were updated)
     const staff = await StaffUser.findById(userId);
     if (!staff || !staff.isActive) {
       res.clearCookie(COOKIE_NAME, { path: '/' });
@@ -493,18 +628,19 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
         fullName: staff.fullName,
         role: 'LGU_STAFF',
         assignedBarangays: staff.assignedBarangays,
+        forcePasswordReset: staff.forcePasswordReset,
       },
     });
     return;
   }
 
-  // SUPERADMIN
   res.json({
     success: true,
     data: {
       username: sub,
       role: role,
       assignedBarangays: assignedBarangays ?? [],
+      forcePasswordReset: false,
     },
   });
 });

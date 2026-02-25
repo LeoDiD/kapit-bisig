@@ -24,6 +24,17 @@ const LOCK_DURATION_SECONDS = 60; // 60-second lock for registration
 // Token format: XXXX-XXXX-XXXX (12 alphanumeric characters)
 const TOKEN_LENGTH = 12;
 
+function shouldLogDebug(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.ALLOW_SECURITY_CONSOLE_LOGS === 'true';
+}
+
+function maskTokenForLog(token: string): string {
+  const normalized = (token || '').trim().toUpperCase();
+  if (!normalized) return '[MASKED]';
+  if (normalized.length <= 8) return '****';
+  return `${normalized.slice(0, 4)}...${normalized.slice(-4)}`;
+}
+
 export interface TokenGenerationParams {
   headOfHousehold: string;
   address: string;
@@ -176,7 +187,7 @@ export class HouseholdTokenService {
       };
       
     } catch (error) {
-      console.error('[TokenService] Error generating token:', error);
+      console.error('[TokenService] Error generating token:', (error as Error).message);
       return {
         success: false,
         error: 'Failed to generate token',
@@ -208,12 +219,18 @@ export class HouseholdTokenService {
     try {
       // Normalize token format
       const normalizedToken = plainToken.trim().toUpperCase();
-      
-      console.log('[TokenService] Validating token:', normalizedToken, barangay ? `for barangay: ${barangay}` : '');
+      if (shouldLogDebug()) {
+        // [RISK-2 MITIGATION] Never log raw token values.
+        console.log(
+          '[TokenService] Validating token:',
+          maskTokenForLog(normalizedToken),
+          barangay ? `for barangay: ${barangay}` : '',
+        );
+      }
       
       // Basic format validation
       if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(normalizedToken)) {
-        console.log('[TokenService] Invalid format');
+        if (shouldLogDebug()) console.log('[TokenService] Invalid token format');
         await RegistrationAuditLog.log({
           eventType: 'TOKEN_INVALID',
           severity: 'WARNING',
@@ -245,27 +262,29 @@ export class HouseholdTokenService {
       // Filter by barangay for barangay-specific token validation
       if (barangay && barangay.trim()) {
         query['householdInfo.barangay'] = barangay.trim();
-        console.log('[TokenService] Filtering tokens by barangay:', barangay);
+        if (shouldLogDebug()) {
+          console.log('[TokenService] Filtering token candidates by barangay:', barangay);
+        }
       }
       
       // Find tokens matching criteria
       const tokens = await HouseholdToken.find(query).setOptions({ sanitizeFilter: false });
-      
-      console.log('[TokenService] Found', tokens.length, 'candidate tokens');
+      if (shouldLogDebug()) {
+        console.log('[TokenService] Candidate token count:', tokens.length);
+      }
       
       let matchedToken: IHouseholdToken | null = null;
       
       for (const token of tokens) {
-        console.log('[TokenService] Checking against:', token.tokenPrefix);
         const isMatch = await bcrypt.compare(normalizedToken, token.tokenHash);
-        console.log('[TokenService] Match result:', isMatch);
         if (isMatch) {
           matchedToken = token;
           break;
         }
       }
-      
-      console.log('[TokenService] Final match:', matchedToken ? matchedToken.tokenPrefix : 'none');
+      if (shouldLogDebug()) {
+        console.log('[TokenService] Token match found:', matchedToken ? matchedToken.tokenPrefix : 'none');
+      }
       
       if (!matchedToken) {
         await RegistrationAuditLog.log({
@@ -336,7 +355,7 @@ export class HouseholdTokenService {
       };
       
     } catch (error) {
-      console.error('[TokenService] Error validating token:', error);
+      console.error('[TokenService] Error validating token:', (error as Error).message);
       
       await RegistrationAuditLog.log({
         eventType: 'TOKEN_INVALID',
@@ -485,7 +504,7 @@ export class HouseholdTokenService {
       };
       
     } catch (error) {
-      console.error('[TokenService] Error acquiring lock:', error);
+      console.error('[TokenService] Error acquiring lock:', (error as Error).message);
       
       await RegistrationAuditLog.log({
         eventType: 'TOKEN_LOCK_FAILED',
@@ -591,7 +610,7 @@ export class HouseholdTokenService {
       };
       
     } catch (error) {
-      console.error('[TokenService] Error completing registration:', error);
+      console.error('[TokenService] Error completing registration:', (error as Error).message);
       
       return {
         success: false,
@@ -647,7 +666,7 @@ export class HouseholdTokenService {
       return { success: true };
       
     } catch (error) {
-      console.error('[TokenService] Error releasing lock:', error);
+      console.error('[TokenService] Error releasing lock:', (error as Error).message);
       return { success: false, error: 'Failed to release lock' };
     }
   }

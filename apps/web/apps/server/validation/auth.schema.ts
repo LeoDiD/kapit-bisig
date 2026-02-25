@@ -1,5 +1,7 @@
 /**
  * Zod schemas for Unified Auth routes (/api/auth)
+ * [SECURITY CHECKLIST §2.1] All Inputs Validated Server-Side
+ * [SECURITY CHECKLIST §2.2] Schema Validation (Zod) — .strict() rejects unknown keys
  */
 
 import { z } from 'zod';
@@ -7,7 +9,8 @@ import { z } from 'zod';
 /* POST /api/auth/login — accepts username OR email as the "username" field */
 export const loginBody = z.object({
   username: z.string().trim().min(1, 'Username or email is required').max(255),
-  password: z.string().min(1, 'Password is required').max(200),
+  password: z.string().min(1, 'Password is required').max(200).optional(),
+  otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must be 6 digits').optional(),
   rememberMe: z.boolean().optional(),
 }).strict();
 
@@ -61,4 +64,9 @@ export const loginVerifyOtpBody = z.object({
 /* POST /api/auth/login/resend-otp */
 export const loginResendOtpBody = z.object({
   otpToken: z.string().min(1, 'OTP token is required'),
+}).strict();
+
+/* POST /api/auth/set-password */
+export const setPasswordBody = z.object({
+  newPassword: z.string().min(1, 'New password is required').max(200),
 }).strict();

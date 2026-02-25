@@ -1,6 +1,9 @@
 /**
  * StaffUser Model
  *
+ * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt 12 rounds)
+ * [SECURITY CHECKLIST §3.2] RBAC — LGU_STAFF role + assignedBarangays
+ *
  * MongoDB schema for LGU Staff accounts that can log in via the web app.
  * SUPERADMIN is NOT stored in the DB; it lives in env vars.
  *
@@ -25,7 +28,8 @@ export interface IStaffUser extends Document {
   username: string;
   email: string;
   emailLower: string;
-  passwordHash: string;
+  passwordHash?: string;
+  forcePasswordReset: boolean;
   fullName: string;
   avatarUrl: string | null;
   role: 'LGU_STAFF';
@@ -65,8 +69,12 @@ const staffUserSchema = new Schema<IStaffUser>(
     },
     passwordHash: {
       type: String,
-      required: [true, 'Password hash is required'],
+      required: false,
       select: false, // never include by default
+    },
+    forcePasswordReset: {
+      type: Boolean,
+      default: false,
     },
     fullName: {
       type: String,
@@ -125,6 +133,7 @@ const staffUserSchema = new Schema<IStaffUser>(
 staffUserSchema.methods.comparePassword = async function (
   candidate: string,
 ): Promise<boolean> {
+  if (!this.passwordHash) return false;
   return bcrypt.compare(candidate, this.passwordHash);
 };
 
