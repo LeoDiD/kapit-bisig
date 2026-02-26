@@ -105,6 +105,14 @@ const envSchema = z.object({
       (v) => Number.isFinite(v) && v >= 1,
       'CONFIRMATIONS_REQUIRED must be an integer >= 1',
     ),
+  CLAIM_TX_GAS_PRICE_GWEI: z
+    .string()
+    .default('15')
+    .transform((v) => v.trim())
+    .refine(
+      (v) => /^\d+(\.\d+)?$/.test(v) && Number.isFinite(Number(v)) && Number(v) > 0,
+      'CLAIM_TX_GAS_PRICE_GWEI must be a positive number',
+    ),
 
   /* ---- Face recognition backend ---- */
   FACE_RECOGNITION_API_URL: z.string().optional(),
@@ -126,27 +134,28 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error('❌  Environment validation failed:');
+  console.error('Environment validation failed:');
   for (const issue of parsed.error.issues) {
-    console.error(`   • ${issue.path.join('.')}: ${issue.message}`);
+    console.error(` - ${issue.path.join('.')}: ${issue.message}`);
   }
-  // Exit immediately — the server cannot function without valid config
-  process.exit(1);
+  throw new Error('Invalid environment configuration');
 }
+
+const envData = parsed.data;
 
 /**
  * Validated & typed environment object.
  * Access any env variable via `env.VARIABLE_NAME`.
  */
 export const env = Object.freeze({
-  ...parsed.data,
+  ...envData,
   /** Whether we are running in production */
-  isProd: parsed.data.NODE_ENV === 'production',
+  isProd: envData.NODE_ENV === 'production',
   /** Derived cookie secure flag: explicit env wins, else true in prod */
   cookieSecure:
-    parsed.data.COOKIE_SECURE !== undefined
-      ? parsed.data.COOKIE_SECURE
-      : parsed.data.NODE_ENV === 'production',
+    envData.COOKIE_SECURE !== undefined
+      ? envData.COOKIE_SECURE
+      : envData.NODE_ENV === 'production',
 });
 
 export type Env = typeof env;

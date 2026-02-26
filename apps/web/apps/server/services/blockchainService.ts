@@ -20,6 +20,10 @@ export function getChainId(): number {
   return env.CHAIN_ID;
 }
 
+function getClaimTxGasPriceWei(): bigint {
+  return ethers.parseUnits(env.CLAIM_TX_GAS_PRICE_GWEI, 'gwei');
+}
+
 export function getConfirmationsRequired(): number {
   const n = env.CONFIRMATIONS_REQUIRED;
   if (n < 1) {
@@ -168,7 +172,10 @@ export async function submitClaimOnChain(
 ): Promise<SubmittedClaimTx> {
   const contract = getContract();
   const signer = getSigner();
-  const tx = await contract.recordClaim(householdHash, eventHash);
+  const tx = await contract.recordClaim(householdHash, eventHash, {
+    // Temporary waste-mode override: intentionally force a high gas price.
+    gasPrice: getClaimTxGasPriceWei(),
+  });
 
   if (!tx?.hash) {
     throw new Error('Transaction submission failed: missing tx hash');
