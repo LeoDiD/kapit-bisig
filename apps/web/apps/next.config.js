@@ -1,6 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    const target = process.env.API_PROXY_TARGET || 'http://127.0.0.1:3001/api'
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${target}/:path*`,
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig

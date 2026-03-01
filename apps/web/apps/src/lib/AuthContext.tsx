@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api'
 
 /** Role type matching backend AppRole */
 export type AppRole = 'SUPERADMIN' | 'LGU_STAFF'
@@ -192,3 +192,6 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>')
   return ctx
 }
+
+
+

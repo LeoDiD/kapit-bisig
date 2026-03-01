@@ -4,7 +4,7 @@
  * Centralized API client with authentication support and type safety.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 
 // ========================== TYPES ==========================
 
@@ -24,7 +24,6 @@ export interface StaffUser {
   email?: string;
   fullName: string;
   role: 'LGU_STAFF';
-  assignedBarangays: string[];
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -39,7 +38,6 @@ export interface CreateStaffData {
   email: string;
   password: string;
   fullName: string;
-  assignedBarangays: string[];
 }
 
 /**
@@ -47,7 +45,6 @@ export interface CreateStaffData {
  */
 export interface UpdateStaffData {
   fullName?: string;
-  assignedBarangays?: string[];
   isActive?: boolean;
 }
 
@@ -78,6 +75,7 @@ export interface DistributionData {
   _id: string;
   barangay: string;
   assignedBarangays?: string[];
+  assignedStaffIds?: string[];
   scheduled: string;
   households: number;
   notes?: string;
@@ -124,6 +122,19 @@ export interface DistributionHouseholdsData {
   };
   claimed: ClaimedHousehold[];
   notYetClaimed: UnclaimedHousehold[];
+}
+
+export interface ScanEligibleUser {
+  id: string;
+  fullName: string;
+  role: 'VOLUNTEER' | 'LGU_STAFF' | 'SUPERADMIN';
+  scopesSummary: string[];
+  inScope: boolean;
+}
+
+export interface ScanEligibleResponse {
+  items: ScanEligibleUser[];
+  nextCursor: number | null;
 }
 
 // ========================== HELPERS ==========================
@@ -186,12 +197,10 @@ export const api = {
    */
   async getStaffUsers(params?: {
     search?: string;
-    barangay?: string;
     status?: 'active' | 'inactive';
   }): Promise<ApiResponse<StaffUser[]>> {
     const sp = new URLSearchParams();
     if (params?.search) sp.append('search', params.search);
-    if (params?.barangay) sp.append('barangay', params.barangay);
     if (params?.status) sp.append('status', params.status);
     
     const qs = sp.toString();
@@ -283,17 +292,48 @@ export const api = {
   async createDistribution(data: {
     barangay: string;
     assignedBarangays: string[];
+    assignedStaffIds: string[];
     scheduled: string;
     households: number;
     notes?: string;
-  }): Promise<ApiResponse<DistributionData>> {
+  }, options?: { idempotencyKey?: string }): Promise<ApiResponse<DistributionData>> {
+    const headers = createHeaders('POST') as Record<string, string>;
+    if (options?.idempotencyKey) {
+      headers['Idempotency-Key'] = options.idempotencyKey;
+    }
     const response = await fetch(`${API_URL}/distributions`, {
       method: 'POST',
-      headers: createHeaders('POST'),
+      headers,
       credentials: 'include',
       body: JSON.stringify(data),
     });
     return handleResponse<ApiResponse<DistributionData>>(response);
+  },
+
+  /**
+   * Search eligible scanner staff for a distribution scope.
+   */
+  async getScanEligibleUsers(params: {
+    hostBarangayId: string;
+    assignedBarangayIds: string[];
+    q?: string;
+    cursor?: number;
+    limit?: number;
+  }): Promise<ApiResponse<ScanEligibleResponse>> {
+    const sp = new URLSearchParams();
+    sp.append('hostBarangayId', params.hostBarangayId);
+    for (const barangay of params.assignedBarangayIds) {
+      sp.append('assignedBarangayIds', barangay);
+    }
+    if (params.q) sp.append('q', params.q);
+    if (typeof params.cursor === 'number') sp.append('cursor', String(params.cursor));
+    if (typeof params.limit === 'number') sp.append('limit', String(params.limit));
+
+    const response = await fetch(`${API_URL}/users/scan-eligible?${sp.toString()}`, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<ScanEligibleResponse>>(response);
   },
 
   /**
@@ -577,3 +617,6 @@ export const forgotPasswordApi = {
     return handleResponse<ApiResponse<void>>(response);
   },
 };
+
+
+

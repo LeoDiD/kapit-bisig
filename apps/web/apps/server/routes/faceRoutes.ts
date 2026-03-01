@@ -197,8 +197,7 @@ router.post('/check-duplicate', validateRequest({ body: faceCheckDuplicateBody }
       return res.status(409).json({
         success: false,
         isDuplicate: true,
-        message: 'This face is already registered in the system',
-        existingResident: result.matchedResident,
+        message: 'Face already registered',
         similarity: result.similarity,
         distance: result.distance,
         totalCompared: result.totalCompared,

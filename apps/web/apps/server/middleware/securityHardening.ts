@@ -56,11 +56,13 @@ export function enforceHTTPSInProduction(
 
 export function getAllowedCorsOrigins(): string[] {
   const envValue = process.env.CORS_ORIGIN;
-  if (!envValue) return ['http://localhost:3000'];
+  if (!envValue) return ['http://192.168.1.72:3000'];
 
   return envValue
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 }
+
+
 

@@ -17,6 +17,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import User from '../models/User';
+import StaffUser from '../models/StaffUser';
 import { validatePassword, isCommonPassword } from '../utils/passwordValidator';
 import { generateToken } from '../middleware/authMiddleware';
 import { loginRateLimiter, registrationRateLimiter } from '../middleware/rateLimiter';
@@ -26,6 +27,16 @@ import { userLoginSchema } from '../schemas/authSchemas';
 import { revokeJWTByValue } from '../services/tokenRevocationService';
 
 const router = Router();
+
+function splitFullName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: 'LGU', lastName: 'Staff' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  };
+}
 
 /**
  * bcrypt Salt Rounds Configuration
@@ -233,7 +244,9 @@ router.post('/register', registrationRateLimiter, validateRequest({ body: regist
     await user.save();
     
     // Generate JWT token for immediate login
-    const token = generateToken(user._id.toString(), user.email, user.role);
+    const scopedBarangays =
+      user.role === 'Volunteer' && user.barangay ? [user.barangay] : undefined;
+    const token = generateToken(user._id.toString(), user.email, user.role, scopedBarangays);
     
     // Return success WITHOUT the password
     res.status(201).json({
@@ -304,7 +317,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
       });
     }
     
-    // Find user by email (explicitly select password since it's excluded by default)
+    // Find legacy user by email (explicitly select password since it's excluded by default)
     const user = await User.findOne({ email: normalizedEmail }).select('+password');
     
     /**
@@ -315,17 +328,74 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
      * reveal whether an email is registered.
      */
     if (!user) {
-      // Dummy comparison to maintain constant response time
-      await bcrypt.compare(password, '$2b$12$dummyhashtopreventtimingattacks');
-      recordFailedAttempt(normalizedEmail);
-      
-      // Generic message - same as wrong password
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password',
+      // Fallback: allow LGU_STAFF accounts created from web admin.
+      const staffUser = (await StaffUser.findOne({ emailLower: normalizedEmail }).select('+passwordHash'))
+        || (await StaffUser.findOne({ email: normalizedEmail }).select('+passwordHash'));
+
+      if (!staffUser) {
+        await bcrypt.compare(password, '$2b$12$dummyhashtopreventtimingattacks');
+        recordFailedAttempt(normalizedEmail);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+        });
+      }
+
+      const isStaffPasswordValid = await bcrypt.compare(password, staffUser.passwordHash);
+      if (!isStaffPasswordValid) {
+        recordFailedAttempt(normalizedEmail);
+        const attempts = loginAttempts.get(normalizedEmail);
+        console.warn(`[SECURITY] Failed login attempt for: ${normalizedEmail} (${attempts?.attempts || 1}/${MAX_LOGIN_ATTEMPTS})`);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+        });
+      }
+
+      clearFailedAttempts(normalizedEmail);
+
+      if (!staffUser.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account is inactive. Please contact an administrator.',
+          code: 'ACCOUNT_INACTIVE',
+        });
+      }
+
+      staffUser.lastLoginAt = new Date();
+      await staffUser.save();
+
+      const token = generateToken(
+        staffUser._id.toString(),
+        staffUser.emailLower || normalizedEmail,
+        'LGU_STAFF',
+        staffUser.assignedBarangays,
+      );
+      const names = splitFullName(staffUser.fullName || '');
+
+      console.log(`[AUTH] Successful login: ${normalizedEmail} (LGU_STAFF)`);
+
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: {
+            id: staffUser._id,
+            email: staffUser.email,
+            firstName: names.firstName,
+            lastName: names.lastName,
+            role: 'LGU_STAFF',
+            status: staffUser.isActive ? 'Active' : 'Inactive',
+            assignedBarangays: staffUser.assignedBarangays,
+            barangay: Array.isArray(staffUser.assignedBarangays) && staffUser.assignedBarangays.length > 0
+              ? staffUser.assignedBarangays[0]
+              : undefined,
+          },
+          token,
+        },
       });
     }
-    
+
     /**
      * Compare password with stored hash using bcrypt.compare
      * 
@@ -372,7 +442,9 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
     await user.save();
     
     // Generate JWT token with role
-    const token = generateToken(user._id.toString(), user.email, user.role);
+    const scopedBarangays =
+      user.role === 'Volunteer' && user.barangay ? [user.barangay] : undefined;
+    const token = generateToken(user._id.toString(), user.email, user.role, scopedBarangays);
     
     // Log successful login (for audit trail)
     console.log(`[AUTH] Successful login: ${normalizedEmail} (${user.role})`);
@@ -389,6 +461,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
           lastName: user.lastName,
           role: user.role,
           status: user.status,
+          assignedBarangays: scopedBarangays || [],
           barangay: user.barangay,
         },
         token,
@@ -478,6 +551,7 @@ import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddlewa
 router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
+    const role = req.user?.role;
     
     if (!userId) {
       return res.status(401).json({
@@ -487,8 +561,36 @@ router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
       });
     }
     
+    if (role === 'LGU_STAFF') {
+      const staff = await StaffUser.findById(userId).select('-passwordHash');
+      if (!staff) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+      const names = splitFullName(staff.fullName || '');
+      return res.json({
+        success: true,
+        data: {
+          id: staff._id,
+          email: staff.email,
+          firstName: names.firstName,
+          lastName: names.lastName,
+          role: 'LGU_STAFF',
+          status: staff.isActive ? 'Active' : 'Inactive',
+          assignedBarangays: staff.assignedBarangays,
+          barangay: Array.isArray(staff.assignedBarangays) && staff.assignedBarangays.length > 0
+            ? staff.assignedBarangays[0]
+            : undefined,
+          createdAt: staff.createdAt,
+          updatedAt: staff.updatedAt,
+        },
+      });
+    }
+
     const user = await User.findById(userId).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -505,6 +607,7 @@ router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
         lastName: user.lastName,
         role: user.role,
         status: user.status,
+        assignedBarangays: user.role === 'Volunteer' && user.barangay ? [user.barangay] : [],
         barangay: user.barangay,
         phoneNumber: user.phoneNumber,
         lastLogin: user.lastLogin,

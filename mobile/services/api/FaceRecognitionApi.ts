@@ -19,7 +19,7 @@ import { resolveApiBaseUrl } from '../config/apiSecurity';
 // ============================================
 
 // Default API URL - Update this with your server IP
-const DEFAULT_API_URL = 'http://localhost:8000';
+const DEFAULT_API_URL = 'http://192.168.1.72:8000';
 
 // Get API URL from environment or use default
 const API_BASE_URL = resolveApiBaseUrl(
@@ -317,3 +317,6 @@ export default {
   clearAllUsers,
   imageUriToBase64,
 };
+
+
+

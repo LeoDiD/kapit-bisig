@@ -81,7 +81,7 @@ export default function HouseholdsPage() {
       } else if (typeof err?.status === 'number') {
         setError(err.message || 'Failed to fetch households.')
       } else {
-        setError('Unable to connect to the server. Make sure the backend is running on http://localhost:3001.')
+        setError('Unable to connect to the server. Please make sure the backend is running.')
       }
       setAllRows([])
     } finally {
@@ -154,3 +154,5 @@ export default function HouseholdsPage() {
     </DashboardLayout>
   )
 }
+
+

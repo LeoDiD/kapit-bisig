@@ -30,6 +30,7 @@ import RegistrationAuditLog from '../models/RegistrationAuditLog';
 import { generateRequestId } from '../services/householdTokenService';
 import HouseholdToken from '../models/HouseholdToken';
 import Resident from '../models/Resident';
+import Distribution from '../models/Distribution';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
 import bcrypt from 'bcrypt';
 import {
@@ -676,6 +677,77 @@ router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Re
     return res.status(500).json({
       success: false,
       message: 'Unable to fetch resident profile.',
+    });
+  }
+});
+
+/**
+ * Resident Distribution Feed Endpoint
+ *
+ * GET /api/household/distributions
+ *
+ * Returns distributions that cover the authenticated resident's barangay.
+ */
+router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'Resident') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only resident accounts can access this feed.',
+      });
+    }
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const resident = await Resident.findById(userId).select('barangay status');
+    if (!resident) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resident not found',
+      });
+    }
+
+    if (resident.status !== 'Approved') {
+      return res.status(403).json({
+        success: false,
+        message: 'Resident account is not approved.',
+        code: 'REGISTRATION_NOT_APPROVED',
+      });
+    }
+
+    const residentBarangay = resident.barangay;
+    const allDistributions = await Distribution.find({})
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    const data = allDistributions
+      .filter((d) => d.barangay === residentBarangay || (d.assignedBarangays ?? []).some((b) => b === residentBarangay))
+      .map((d) => ({
+        id: d._id.toString(),
+        barangay: d.barangay,
+        assignedBarangays: d.assignedBarangays ?? [],
+        scheduled: d.scheduled,
+        notes: d.notes || '',
+        status: d.status,
+        createdAt: d.createdAt,
+      }));
+
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('[HouseholdRoutes] Resident /distributions error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to fetch distributions.',
     });
   }
 });

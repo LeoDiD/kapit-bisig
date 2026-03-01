@@ -4,7 +4,7 @@
  * POST   /api/admin/users                 – create LGU_STAFF account
  * GET    /api/admin/users                 – list staff users (search, barangay, status)
  * GET    /api/admin/users/stats           – aggregate counts
- * PATCH  /api/admin/users/:id             – update fullName, assignedBarangays, isActive
+ * PATCH  /api/admin/users/:id             – update fullName, isActive
  * PATCH  /api/admin/users/:id/reset-password – reset password
  */
 
@@ -52,7 +52,7 @@ router.use(requireAuth, requireSuperadmin);
 /* ------------------------------------------------------------------ */
 router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
-    const { username, fullName, email, password, assignedBarangays } = req.body;
+    const { username, fullName, email, password } = req.body;
 
     // --- validation ---
     if (!username || typeof username !== 'string' || username.trim().length < 3) {
@@ -85,23 +85,9 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
       return;
     }
 
-    if (
-      !Array.isArray(assignedBarangays) ||
-      assignedBarangays.length === 0 ||
-      !assignedBarangays.every((b: string) =>
-        (BARANGAY_OPTIONS as readonly string[]).includes(b),
-      )
-    ) {
-      res.status(400).json({
-        success: false,
-        message:
-          'assignedBarangays must be a non-empty array from: ' +
-          (BARANGAY_OPTIONS as readonly string[]).join(', '),
-      });
-      return;
-    }
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Duplicate check
+    // Duplicate username check
     const exists = await StaffUser.findOne({
       username: username.trim().toLowerCase(),
     });
@@ -118,14 +104,11 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
       return;
     }
 
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
     const user = new StaffUser({
       username: username.trim().toLowerCase(),
       email: email.trim(),
       passwordHash,
       fullName: fullName.trim(),
-      assignedBarangays,
     });
 
     await user.save();
@@ -137,7 +120,6 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
     });
     await logAudit(req, 'STAFF_CREATED', 'StaffUser', user._id.toString(), {
       username: user.username,
-      assignedBarangays: user.assignedBarangays,
     });
 
     res.status(201).json({
@@ -156,7 +138,7 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
 /* ------------------------------------------------------------------ */
 router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequest, res: Response) => {
   try {
-    const { search, barangay, status } = req.query;
+    const { search, status } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: any = {};
@@ -164,9 +146,6 @@ router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequ
     if (search && typeof search === 'string') {
       const re = new RegExp(escapeRegex(search), 'i');
       filter.$or = [{ username: re }, { fullName: re }, { email: re }];
-    }
-    if (barangay && typeof barangay === 'string') {
-      filter.assignedBarangays = barangay;
     }
     if (status === 'active') filter.isActive = true;
     else if (status === 'inactive') filter.isActive = false;
@@ -211,7 +190,7 @@ router.get('/stats', async (_req: AuthRequest, res: Response) => {
 router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { fullName, assignedBarangays, isActive } = req.body;
+    const { fullName, isActive } = req.body;
 
     const user = await StaffUser.findById(id);
     if (!user) {
@@ -225,25 +204,6 @@ router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffB
         return;
       }
       user.fullName = fullName.trim();
-    }
-
-    if (assignedBarangays !== undefined) {
-      if (
-        !Array.isArray(assignedBarangays) ||
-        assignedBarangays.length === 0 ||
-        !assignedBarangays.every((b: string) =>
-          (BARANGAY_OPTIONS as readonly string[]).includes(b),
-        )
-      ) {
-        res.status(400).json({
-          success: false,
-          message:
-            'assignedBarangays must be a non-empty array from: ' +
-            (BARANGAY_OPTIONS as readonly string[]).join(', '),
-        });
-        return;
-      }
-      user.assignedBarangays = assignedBarangays;
     }
 
     if (isActive !== undefined) {
@@ -260,7 +220,7 @@ router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffB
     const auditAction = isActive === false ? 'STAFF_DISABLED' : 'STAFF_UPDATED';
     await logAudit(req, auditAction as any, 'StaffUser', user._id.toString(), {
       username: user.username,
-      changes: { fullName, assignedBarangays, isActive },
+      changes: { fullName, isActive },
     });
 
     res.json({ success: true, message: 'Staff user updated.', data: user.toJSON() });

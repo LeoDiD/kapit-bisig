@@ -30,6 +30,7 @@ import claimRoutes from './routes/claimRoutes';
 import householdListRoutes from './routes/householdListRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import profileRoutes from './routes/profileRoutes';
+import authRoutes from './routes/authRoutes';
 
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
@@ -107,6 +108,7 @@ app.use(csrfProtect);
  * applied at the route level (see authRoutes.ts)
  */
 app.use('/api/auth', unifiedAuthRoutes); // unified login / logout / me
+app.use('/api/mobile-auth', authRoutes); // token-based auth for mobile Volunteer app
 app.use('/api/auth/forgot-password', forgotPasswordRoutes); // forgot password OTP flow
 app.use('/api/sa', superadminAuthRoutes); // legacy superadmin-only routes (kept for compat)
 app.use('/api/admin/users', adminStaffRoutes); // SUPERADMIN manage staff

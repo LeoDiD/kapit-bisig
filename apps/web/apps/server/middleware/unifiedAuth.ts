@@ -23,7 +23,7 @@ import { isJWTRevoked } from '../services/tokenRevocationService';
 
 const COOKIE_NAME = 'sa_token';
 
-export type AppRole = 'SUPERADMIN' | 'LGU_STAFF';
+export type AppRole = 'SUPERADMIN' | 'LGU_STAFF' | 'Volunteer';
 
 /** Shape stored inside every JWT we issue. */
 export interface AuthPayload {
@@ -142,7 +142,7 @@ export const requireStaffOrSuperadmin = (
   next: NextFunction,
 ): void => {
   const role = req.authUser?.role;
-  if (role !== 'SUPERADMIN' && role !== 'LGU_STAFF') {
+  if (role !== 'SUPERADMIN' && role !== 'LGU_STAFF' && role !== 'Volunteer') {
     logSecurity('ACCESS_DENIED', { reason: 'insufficient_role', ip: req.ip, role });
     res.status(403).json({ success: false, message: 'Forbidden' });
     return;

@@ -27,31 +27,19 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     const unreadOnly = req.query.unreadOnly === 'true';
 
     const userId = req.authUser?.userId || null;
-
-    // Build filter: user's own + global notifications
-    const filter: Record<string, unknown> = {
-      $or: [
-        { userId: userId },
-        { userId: null },
-      ],
-    };
-
-    if (unreadOnly) {
-      filter.isRead = false;
-    }
-
-    const [notifications, total, unreadCount] = await Promise.all([
-      Notification.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(offset)
-        .limit(limit)
-        .lean(),
-      Notification.countDocuments(filter),
-      Notification.countDocuments({
-        ...filter,
-        isRead: false,
-      }),
+    const [userNotifications, globalNotifications] = await Promise.all([
+      userId
+        ? Notification.find({ userId }).sort({ createdAt: -1 }).lean()
+        : Promise.resolve([]),
+      Notification.find({ userId: null }).sort({ createdAt: -1 }).lean(),
     ]);
+
+    const scoped = [...userNotifications, ...globalNotifications]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const unreadCount = scoped.filter((n) => !n.isRead).length;
+    const filtered = unreadOnly ? scoped.filter((n) => !n.isRead) : scoped;
+    const total = filtered.length;
+    const notifications = filtered.slice(offset, offset + limit);
 
     return res.json({
       success: true,
@@ -74,13 +62,18 @@ router.patch('/mark-all-read', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.authUser?.userId || null;
 
-    await Notification.updateMany(
-      {
-        $or: [{ userId }, { userId: null }],
-        isRead: false,
-      },
-      { $set: { isRead: true } },
-    );
+    await Promise.all([
+      userId
+        ? Notification.updateMany(
+          { userId, isRead: false },
+          { $set: { isRead: true } },
+        )
+        : Promise.resolve(),
+      Notification.updateMany(
+        { userId: null, isRead: false },
+        { $set: { isRead: true } },
+      ),
+    ]);
 
     return res.json({ success: true, message: 'All notifications marked as read' });
   } catch (err) {

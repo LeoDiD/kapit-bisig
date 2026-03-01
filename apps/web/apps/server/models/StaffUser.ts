@@ -86,18 +86,7 @@ const staffUserSchema = new Schema<IStaffUser>(
     },
     assignedBarangays: {
       type: [String],
-      required: [true, 'At least one assigned barangay is required'],
-      validate: {
-        validator: function (arr: string[]) {
-          if (!arr || arr.length === 0) return false;
-          return arr.every((b) =>
-            (BARANGAY_OPTIONS as readonly string[]).includes(b),
-          );
-        },
-        message:
-          'Each assigned barangay must be one of: ' +
-          (BARANGAY_OPTIONS as readonly string[]).join(', '),
-      },
+      default: [],
     },
     isActive: {
       type: Boolean,
@@ -160,6 +149,11 @@ staffUserSchema.set('toJSON', {
     return ret;
   },
 });
+
+/* Indexes for search/eligibility queries */
+staffUserSchema.index({ role: 1, isActive: 1 });
+staffUserSchema.index({ assignedBarangays: 1, isActive: 1 });
+staffUserSchema.index({ fullName: 1 });
 
 const StaffUser = mongoose.model<IStaffUser>('StaffUser', staffUserSchema);
 

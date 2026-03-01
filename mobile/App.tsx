@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SplashScreen from './components/SplashScreen';
 import HomeScreen from './components/HomeScreen';
 import ProfileScreen from './components/ProfileScreen';
+import VolunteerDashboardScreen from './components/VolunteerDashboardScreen';
 import QRReceiptScreen from './components/QRReceiptScreen';
 import VolunteerQRScannerScreen from './components/VolunteerQRScannerScreen';
 import { mobileAuthService, User as VolunteerUser } from './services/auth/MobileAuthService';
@@ -55,6 +56,8 @@ export default function App() {
   };
 
   const handleVolunteerLoginSuccess = (user: VolunteerUser) => {
+    // Ensure volunteer login is the only active session type.
+    clearResidentSession().catch(() => undefined);
     setVolunteerUser(user);
     setResidentProfile(null);
     setAccountType('volunteer');
@@ -66,9 +69,9 @@ export default function App() {
     if (accountType === 'volunteer') {
       mobileAuthService.logout().catch(() => undefined);
       setVolunteerUser(null);
-    } else {
-      clearResidentSession().catch(() => undefined);
     }
+
+    clearResidentSession().catch(() => undefined);
 
     setResidentProfile(null);
     setAccountType(null);
@@ -135,7 +138,9 @@ export default function App() {
           <ProfileScreen
             onNavigate={handleNavigate}
             onLogout={handleLogout}
+            accountType={accountType || undefined}
             residentProfile={residentProfile}
+            volunteerUser={volunteerUser}
           />
         );
       case 'qr':
@@ -146,32 +151,30 @@ export default function App() {
         return <QRReceiptScreen onBack={() => handleNavigate('home')} onNavigate={handleNavigate} />;
       case 'home':
       default:
+        // Show VolunteerDashboardScreen for volunteers, HomeScreen for residents
+        if (accountType === 'volunteer') {
+          return (
+            <VolunteerDashboardScreen
+              volunteerUser={volunteerUser}
+              onNavigate={handleNavigate}
+              onLogout={handleLogout}
+            />
+          );
+        }
         return (
           <HomeScreen
             onNavigate={handleNavigate}
             accountType={accountType || undefined}
-            userName={
-              accountType === 'volunteer'
-                ? volunteerUser?.firstName || volunteerUser?.lastName || 'Volunteer'
-                : residentProfile?.firstName || residentProfile?.fullName
-            }
+            userName={residentProfile?.firstName || residentProfile?.fullName}
             barangayName={
-              accountType === 'volunteer'
-                ? volunteerUser?.barangay
-                  ? `Barangay ${volunteerUser.barangay}`
-                  : 'Volunteer Operations'
-                : residentProfile?.barangay
-                  ? `Barangay ${residentProfile.barangay}`
-                  : undefined
+              residentProfile?.barangay
+                ? `Barangay ${residentProfile.barangay}`
+                : undefined
             }
-            isVerified={accountType === 'volunteer' ? true : residentProfile?.status === 'Approved'}
+            isVerified={residentProfile?.status === 'Approved'}
             claimStatus="not-claimed"
-            residentCode={accountType === 'volunteer' ? 'VOLUNTEER' : residentProfile?.residentCode}
-            streetAddress={
-              accountType === 'volunteer'
-                ? 'Use the QR button below to scan resident codes.'
-                : residentProfile?.streetAddress
-            }
+            residentCode={residentProfile?.residentCode}
+            streetAddress={residentProfile?.streetAddress}
           />
         );
     }

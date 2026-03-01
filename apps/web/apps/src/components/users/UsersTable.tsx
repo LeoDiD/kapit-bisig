@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import AddUserModal from './AddUserModal'
-import { api, StaffUser, StaffStats, BARANGAY_OPTIONS } from '@/lib/api'
+import { api, StaffUser, StaffStats } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 
@@ -18,7 +18,6 @@ export default function UsersTable() {
   // --- STATE ---
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
-  const [filterBarangay, setFilterBarangay] = useState<string>('')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   
   // Data state
@@ -37,11 +36,6 @@ export default function UsersTable() {
   const statusMenuRef = useRef<HTMLDivElement>(null)
   const statusButtonRef = useRef<HTMLButtonElement>(null)
 
-  // Barangay filter dropdown
-  const [brgyDropdownOpen, setBrgyDropdownOpen] = useState(false)
-  const brgyMenuRef = useRef<HTMLDivElement>(null)
-  const brgyButtonRef = useRef<HTMLButtonElement>(null)
-
   // Reset password modal
   const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; name: string } | null>(null)
   const [newPassword, setNewPassword] = useState('')
@@ -53,10 +47,9 @@ export default function UsersTable() {
       setIsLoading(true)
       setError(null)
       
-      const params: { search?: string; status?: 'active' | 'inactive'; barangay?: string } = {}
+      const params: { search?: string; status?: 'active' | 'inactive' } = {}
       if (filterStatus !== 'all') params.status = filterStatus
       if (searchQuery) params.search = searchQuery
-      if (filterBarangay) params.barangay = filterBarangay
       
       const response = await api.getStaffUsers(params)
       
@@ -69,7 +62,7 @@ export default function UsersTable() {
     } finally {
       setIsLoading(false)
     }
-  }, [filterStatus, searchQuery, filterBarangay])
+  }, [filterStatus, searchQuery])
 
   const fetchStats = useCallback(async () => {
     try {
@@ -103,12 +96,6 @@ export default function UsersTable() {
       const clickedStatusMenu = statusMenuRef.current?.contains(target)
       if (!clickedStatusButton && !clickedStatusMenu) {
         setStatusDropdownOpen(false)
-      }
-
-      const clickedBrgyButton = brgyButtonRef.current?.contains(target)
-      const clickedBrgyMenu = brgyMenuRef.current?.contains(target)
-      if (!clickedBrgyButton && !clickedBrgyMenu) {
-        setBrgyDropdownOpen(false)
       }
     }
 
@@ -271,70 +258,6 @@ export default function UsersTable() {
                 </div>
               )}
             </div>
-
-            {/* Barangay Filter */}
-            <div className="relative min-w-[170px]">
-              <button
-                ref={brgyButtonRef}
-                type="button"
-                onClick={() => setBrgyDropdownOpen(v => !v)}
-                className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
-              >
-                <span className="text-xs">{filterBarangay || 'All Barangays'}</span>
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {brgyDropdownOpen && (
-                <div
-                  ref={brgyMenuRef}
-                  className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50 max-h-60 overflow-y-auto"
-                >
-                  {/* All option */}
-                  <button
-                    type="button"
-                    onClick={() => { setFilterBarangay(''); setBrgyDropdownOpen(false) }}
-                    className={[
-                      'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                      !filterBarangay ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
-                    ].join(' ')}
-                  >
-                    <span className="w-5 flex items-center justify-center">
-                      {!filterBarangay && (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                    <span>All Barangays</span>
-                  </button>
-                  {BARANGAY_OPTIONS.map(b => {
-                    const selected = filterBarangay === b
-                    return (
-                      <button
-                        key={b}
-                        type="button"
-                        onClick={() => { setFilterBarangay(b); setBrgyDropdownOpen(false) }}
-                        className={[
-                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
-                        ].join(' ')}
-                      >
-                        <span className="w-5 flex items-center justify-center">
-                          {selected && (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </span>
-                        <span>{b}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Add User */}
@@ -367,12 +290,11 @@ export default function UsersTable() {
             <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
               <thead className="bg-gray-50 text-gray-500 text-sm">
                 <tr>
-                  <th className="px-4 py-3 font-medium w-[15%]">Full Name</th>
-                  <th className="px-4 py-3 font-medium w-[12%]">Username</th>
-                  <th className="px-4 py-3 font-medium w-[18%]">Email</th>
-                  <th className="px-4 py-3 font-medium w-[20%]">Assigned Barangays</th>
-                  <th className="px-4 py-3 font-medium w-[8%]">Status</th>
-                  <th className="px-4 py-3 font-medium w-[15%]">Created</th>
+                  <th className="px-4 py-3 font-medium w-[20%]">Full Name</th>
+                  <th className="px-4 py-3 font-medium w-[15%]">Username</th>
+                  <th className="px-4 py-3 font-medium w-[25%]">Email</th>
+                  <th className="px-4 py-3 font-medium w-[10%]">Status</th>
+                  <th className="px-4 py-3 font-medium w-[18%]">Created</th>
                   <th className="px-4 py-3 font-medium text-right w-[12%]"></th>
                 </tr>
               </thead>
@@ -391,19 +313,6 @@ export default function UsersTable() {
 
                       <td className="px-4 py-3 text-gray-600 whitespace-normal break-words">
                         {user.email || '—'}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {user.assignedBarangays.map(b => (
-                            <span
-                              key={b}
-                              className="inline-block px-2 py-0.5 rounded-full bg-[#0F533A]/10 text-[#0F533A] text-[11px] font-medium"
-                            >
-                              {b}
-                            </span>
-                          ))}
-                        </div>
                       </td>
 
                       <td className="px-4 py-3">
@@ -428,7 +337,7 @@ export default function UsersTable() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                       No staff users found.
                     </td>
                   </tr>

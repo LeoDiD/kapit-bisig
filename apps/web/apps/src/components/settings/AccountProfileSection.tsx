@@ -5,7 +5,11 @@ import { profileApi } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_ORIGIN = (() => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()
+  if (!apiUrl || apiUrl.startsWith('/')) return ''
+  return apiUrl.replace(/\/api\/?$/, '')
+})()
 
 export default function AccountProfileSection() {
   const [loading, setLoading] = useState(true)
@@ -19,7 +23,6 @@ export default function AccountProfileSection() {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-  const [assignedBarangays, setAssignedBarangays] = useState<string[]>([])
 
   useEffect(() => {
     loadProfile()
@@ -35,7 +38,6 @@ export default function AccountProfileSection() {
         setEmail(res.data.email || '')
         setRole(res.data.role || '')
         setAvatarUrl(res.data.avatarUrl || null)
-        setAssignedBarangays(res.data.assignedBarangays || [])
       }
     } catch {
       showToast.error('Failed to load profile')
@@ -128,7 +130,7 @@ export default function AccountProfileSection() {
       <div className="flex items-center gap-4 mt-6">
         {avatarUrl ? (
           <img
-            src={`${API_URL}${avatarUrl}`}
+            src={`${API_ORIGIN}${avatarUrl}`}
             alt="Avatar"
             className="w-16 h-16 rounded-full object-cover border-2 border-gray-100"
           />
@@ -181,23 +183,6 @@ export default function AccountProfileSection() {
             </span>
           </div>
         </div>
-
-        {/* Assigned Barangays (read-only, only for LGU_STAFF) */}
-        {!isSuperadmin && assignedBarangays.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Assigned Barangays</label>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {assignedBarangays.map((b) => (
-                <span
-                  key={b}
-                  className="inline-block px-2.5 py-1 text-xs font-medium text-[#0F533A] bg-[#0F533A]/10 rounded-lg"
-                >
-                  {b}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Save */}
@@ -296,3 +281,6 @@ function CameraIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+
+

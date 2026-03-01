@@ -219,15 +219,15 @@ File: `mobile/.env`
 Update both variables to your current laptop IP:
 
 ```env
-EXPO_PUBLIC_API_URL=http://172.20.10.2:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://172.20.10.2:8000
+EXPO_PUBLIC_API_URL=http://10.202.8.83:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://10.202.8.83:8000
 ```
 
 Example:
 
 ```env
-EXPO_PUBLIC_API_URL=http://172.20.10.2:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://172.20.10.2:8000
+EXPO_PUBLIC_API_URL=http://10.202.8.83:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://10.202.8.83:8000
 ```
 
 ### B. Web App Frontend (Optional, if opening web app from another device)
@@ -237,7 +237,7 @@ File: `apps/web/apps/.env.local`
 Update:
 
 ```env
-NEXT_PUBLIC_API_URL=http://172.20.10.2:3001/api
+NEXT_PUBLIC_API_URL=http://10.202.8.83:3001/api
 ```
 
 If you only use web app on the same laptop browser, `http://localhost:3001/api` is fine.
@@ -255,7 +255,7 @@ CORS_ORIGIN=*
 Or restrict to specific origin:
 
 ```env
-CORS_ORIGIN=http://172.20.10.2:3000
+CORS_ORIGIN=http://10.202.8.83:3000
 ```
 
 ### D. Backend Host Binding
@@ -293,7 +293,7 @@ Use the `IPv4 Address` of your active Wi-Fi adapter.
 **Solution:** Activate virtual environment first
 
 ```powershell
-cd d:\kapit-bisig\backend
+cd d:\kapit-bisig\backend  
 .\venv\Scripts\Activate
 pip install -r requirements.txt
 ```
@@ -360,3 +360,4 @@ node server/scripts/generateTestTokenSimple.js 10
 ---
 
 *Last Updated: February 2026*
+

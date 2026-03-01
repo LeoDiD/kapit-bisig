@@ -35,6 +35,7 @@ export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed';
 export interface IDistribution extends Document {
   barangay: Barangay;
   assignedBarangays: Barangay[];
+  assignedStaffIds: mongoose.Types.ObjectId[];
   scheduled: string;
   households: number;
   notes?: string;
@@ -61,6 +62,11 @@ const distributionSchema = new Schema<IDistribution>(
         message: '{VALUE} is not a valid barangay',
       },
       default: [],
+    },
+    assignedStaffIds: {
+      type: [Schema.Types.ObjectId],
+      default: [],
+      index: true,
     },
     scheduled: {
       type: String,
@@ -105,6 +111,7 @@ distributionSchema.set('toJSON', {
 /* ── Indexes for common queries ─────────────────────────────────── */
 distributionSchema.index({ barangay: 1, createdAt: -1 });
 distributionSchema.index({ status: 1, createdAt: -1 });
+distributionSchema.index({ assignedStaffIds: 1, createdAt: -1 });
 
 const Distribution = mongoose.model<IDistribution>('Distribution', distributionSchema);
 

@@ -10,14 +10,31 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   TextInput,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import RegisterScreen from './RegisterScreen';
 import LoginScreen from './LoginScreen';
-import { User } from '../services/auth/MobileAuthService';
-import { residentLogin, saveResidentSession } from '../services/api/ResidentQrService';
+import { mobileAuthService, User } from '../services/auth/MobileAuthService';
+import { clearResidentSession, residentLogin, saveResidentSession } from '../services/api/ResidentQrService';
 
 const { width } = Dimensions.get('window');
+const SMS_API_URL = 'https://smsapiph.onrender.com/api/v1/send/sms';
+const SMS_API_KEY = process.env.EXPO_PUBLIC_SMS_API_KEY;
+const SMS_TIMEOUT_MS = 15000;
+const SMS_MAX_RETRIES = 2;
+
+type SmsProviderError = {
+  code?: number;
+  message?: string;
+  details?: string;
+};
+
+type SmsProviderResponse = {
+  success?: boolean;
+  message?: string;
+  error?: string | SmsProviderError;
+};
 
 interface SplashScreenProps {
   onGetStarted: () => void;
@@ -58,6 +75,17 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [showForgotPasswordScreen, setShowForgotPasswordScreen] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'contact' | 'verification' | 'reset'>('contact');
+  const [forgotContactNumber, setForgotContactNumber] = useState('');
+  const [forgotVerificationCode, setForgotVerificationCode] = useState('');
+  const [sentVerificationCode, setSentVerificationCode] = useState('');
+  const [verificationCodeExpiresAt, setVerificationCodeExpiresAt] = useState<number | null>(null);
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -80,6 +108,10 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
 
     setIsLoggingIn(true);
     try {
+      // Ensure resident login is the only active session type.
+      await mobileAuthService.logout();
+      await clearResidentSession();
+
       const response = await residentLogin(mobileNumber.trim(), password);
       if (!response.success || !response.data) {
         setLoginError(response.message || 'Login failed. Please try again.');
@@ -105,6 +137,199 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
     setShowLoginScreen(false);
     setShowInitialSplash(false);
     setShowRegisterScreen(true);
+  };
+
+  const openVolunteerLoginFromResidentLogin = () => {
+    setShowLoginScreen(false);
+    setShowVolunteerLoginScreen(true);
+  };
+
+  const normalizeContactNumber = (raw: string): string => {
+    const digits = raw.replace(/\D/g, '');
+
+    if (digits.startsWith('63') && digits.length === 12) {
+      return `+${digits}`;
+    }
+    if (digits.startsWith('09') && digits.length === 11) {
+      return `+63${digits.slice(1)}`;
+    }
+    if (digits.startsWith('9') && digits.length === 10) {
+      return `+63${digits}`;
+    }
+
+    return '';
+  };
+
+  const generateVerificationCode = (): string =>
+    Math.floor(100000 + Math.random() * 900000).toString();
+
+  const sleep = (ms: number): Promise<void> =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+
+  const parseProviderErrorMessage = (status: number, payload: SmsProviderResponse | null): string => {
+    const fallback = `SMS provider returned HTTP ${status}.`;
+    if (!payload) return fallback;
+
+    if (typeof payload.error === 'string' && payload.error.trim()) {
+      return payload.error.trim();
+    }
+
+    if (payload.error && typeof payload.error === 'object') {
+      const code = payload.error.code ? `Code ${payload.error.code}: ` : '';
+      const message = payload.error.message || payload.error.details || '';
+      if (message) return `${code}${message}`.trim();
+    }
+
+    if (payload.message && payload.message.trim()) {
+      return payload.message.trim();
+    }
+
+    return fallback;
+  };
+
+  const sendSmsWithRetry = async (recipient: string, message: string): Promise<void> => {
+    let lastError = 'Failed to send verification code.';
+
+    for (let attempt = 0; attempt <= SMS_MAX_RETRIES; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), SMS_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(SMS_API_URL, {
+          method: 'POST',
+          headers: {
+            'x-api-key': SMS_API_KEY as string,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ recipient, message }),
+          signal: controller.signal,
+        });
+
+        let data: SmsProviderResponse | null = null;
+        try {
+          data = (await response.json()) as SmsProviderResponse;
+        } catch {
+          data = null;
+        }
+
+        if (response.ok && data?.success !== false) {
+          clearTimeout(timeoutId);
+          return;
+        }
+
+        const parsedError = parseProviderErrorMessage(response.status, data);
+        lastError = parsedError;
+
+        // Retry only transient failures / rate limit.
+        if (attempt < SMS_MAX_RETRIES && (response.status === 429 || response.status >= 500)) {
+          await sleep(800 * (attempt + 1));
+          continue;
+        }
+
+        clearTimeout(timeoutId);
+        throw new Error(parsedError);
+      } catch (error) {
+        clearTimeout(timeoutId);
+
+        if (error instanceof Error && error.name === 'AbortError') {
+          lastError = 'SMS request timed out. Please try again.';
+        } else {
+          lastError = error instanceof Error ? error.message : 'Failed to send verification code.';
+        }
+
+        if (attempt < SMS_MAX_RETRIES) {
+          await sleep(800 * (attempt + 1));
+          continue;
+        }
+      }
+    }
+
+    throw new Error(lastError);
+  };
+
+  const handleSendResetCode = async () => {
+    if (!forgotContactNumber.trim()) {
+      Alert.alert('Missing Contact Number', 'Please enter your contact number.');
+      return;
+    }
+
+    const recipient = normalizeContactNumber(forgotContactNumber);
+    if (!recipient) {
+      Alert.alert('Invalid Contact Number', 'Use a valid PH mobile number (ex: 09XXXXXXXXX).');
+      return;
+    }
+
+    if (!SMS_API_KEY) {
+      Alert.alert(
+        'SMS API Key Missing',
+        'Set EXPO_PUBLIC_SMS_API_KEY in mobile/.env to send verification SMS.'
+      );
+      return;
+    }
+
+    const code = generateVerificationCode();
+    const message = `Kapit-Bisig verification code: ${code}. Expires in 10 minutes.`;
+
+    setIsSendingSms(true);
+    try {
+      await sendSmsWithRetry(recipient, message);
+
+      setSentVerificationCode(code);
+      setVerificationCodeExpiresAt(Date.now() + 10 * 60 * 1000);
+      setForgotVerificationCode('');
+      setForgotStep('verification');
+      Alert.alert('Code Sent', `Verification code sent to ${recipient}.`);
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Failed to send verification code.';
+      Alert.alert('SMS Send Failed', messageText);
+    } finally {
+      setIsSendingSms(false);
+    }
+  };
+
+  const handleVerifyCode = () => {
+    if (!forgotVerificationCode.trim()) {
+      Alert.alert('Missing Code', 'Please enter the verification code.');
+      return;
+    }
+
+    if (!sentVerificationCode) {
+      Alert.alert('No Code Sent', 'Please send a verification code first.');
+      return;
+    }
+
+    if (verificationCodeExpiresAt && Date.now() > verificationCodeExpiresAt) {
+      Alert.alert('Code Expired', 'Your code has expired. Please request a new one.');
+      return;
+    }
+
+    if (forgotVerificationCode.trim() !== sentVerificationCode) {
+      Alert.alert('Invalid Code', 'The verification code is incorrect.');
+      return;
+    }
+
+    setForgotStep('reset');
+  };
+
+  const handleChangePassword = () => {
+    if (!forgotNewPassword.trim() || !forgotConfirmPassword.trim()) {
+      Alert.alert('Missing Password', 'Please enter and confirm your new password.');
+      return;
+    }
+
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      Alert.alert('Password Mismatch', 'Passwords do not match.');
+      return;
+    }
+
+    Alert.alert('Password Updated', 'Your password has been changed.');
+    setShowForgotPasswordScreen(false);
+    setForgotStep('contact');
+    setSentVerificationCode('');
+    setVerificationCodeExpiresAt(null);
+    setForgotVerificationCode('');
+    setForgotNewPassword('');
+    setForgotConfirmPassword('');
   };
 
   const handleRegisterBack = () => {
@@ -171,7 +396,7 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
       <LoginScreen
         onBack={() => {
           setShowVolunteerLoginScreen(false);
-          setShowInitialSplash(true);
+          setShowLoginScreen(true);
         }}
         onLoginSuccess={(user) => {
           if (onVolunteerLogin) {
@@ -186,21 +411,181 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
 
   // Login Screen
   if (showLoginScreen) {
+    if (showForgotPasswordScreen) {
+      return (
+        <View style={styles.container}>
+          <View style={styles.forgotCard}>
+            <TouchableOpacity
+              style={styles.forgotBackButton}
+              onPress={() => {
+                if (forgotStep === 'reset') {
+                  setForgotStep('verification');
+                  return;
+                }
+                if (forgotStep === 'verification') {
+                  setForgotStep('contact');
+                  return;
+                }
+                setShowForgotPasswordScreen(false);
+              }}
+            >
+              <Ionicons name="arrow-back" size={22} color="#226538" />
+            </TouchableOpacity>
+
+            {forgotStep === 'contact' ? (
+              <>
+                <Image
+                  source={require('../assets/forgot.png')}
+                  style={styles.forgotIllustration}
+                  resizeMode="contain"
+                />
+
+                <Text style={styles.forgotTitle}>
+                  <Text style={styles.welcomeGreen}>Reset </Text>
+                  <Text style={styles.welcomeYellow}>Password</Text>
+                </Text>
+
+                <View style={styles.forgotInputContainer}>
+                  <Ionicons name="call-outline" size={18} color="#888" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Contact Number"
+                    placeholderTextColor="#888"
+                    value={forgotContactNumber}
+                    onChangeText={setForgotContactNumber}
+                    keyboardType="phone-pad"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.forgotSendButton, isSendingSms && styles.forgotSendButtonDisabled]}
+                  onPress={handleSendResetCode}
+                  disabled={isSendingSms}
+                >
+                  <Text style={styles.forgotSendButtonText}>
+                    {isSendingSms ? 'Sending...' : 'Send Verification Code'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
+
+            {forgotStep === 'verification' ? (
+              <>
+                <Image
+                  source={require('../assets/forgotp.png')}
+                  style={styles.forgotIllustration}
+                  resizeMode="contain"
+                />
+
+                <Text style={styles.forgotTitle}>
+                  <Text style={styles.welcomeGreen}>Reset </Text>
+                  <Text style={styles.welcomeYellow}>Password</Text>
+                </Text>
+
+                <View style={styles.forgotInputContainer}>
+                  <Ionicons name="key-outline" size={18} color="#888" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter Verification Code"
+                    placeholderTextColor="#888"
+                    value={forgotVerificationCode}
+                    onChangeText={setForgotVerificationCode}
+                    keyboardType="number-pad"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <TouchableOpacity style={styles.forgotSendButton} onPress={handleVerifyCode}>
+                  <Text style={styles.forgotSendButtonText}>Verify Code</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.forgotBackToLoginLink}
+                  onPress={() => setShowForgotPasswordScreen(false)}
+                >
+                  <Text style={styles.forgotBackToLoginText}>
+                    Back to <Text style={styles.forgotBackToLoginStrong}>Login</Text>
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
+
+            {forgotStep === 'reset' ? (
+              <>
+                <Image
+                  source={require('../assets/forgotpa.png')}
+                  style={styles.forgotIllustration}
+                  resizeMode="contain"
+                />
+
+                <Text style={styles.forgotTitle}>
+                  <Text style={styles.welcomeGreen}>Reset </Text>
+                  <Text style={styles.welcomeYellow}>Password</Text>
+                </Text>
+
+                <View style={styles.forgotInputContainer}>
+                  <Ionicons name="lock-closed-outline" size={18} color="#888" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter New Password"
+                    placeholderTextColor="#888"
+                    value={forgotNewPassword}
+                    onChangeText={setForgotNewPassword}
+                    secureTextEntry={!showForgotNewPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowForgotNewPassword(!showForgotNewPassword)} style={styles.eyeIcon}>
+                    <Ionicons name={showForgotNewPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color="#888" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.forgotInputContainer}>
+                  <Ionicons name="lock-closed-outline" size={18} color="#888" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm Password"
+                    placeholderTextColor="#888"
+                    value={forgotConfirmPassword}
+                    onChangeText={setForgotConfirmPassword}
+                    secureTextEntry={!showForgotConfirmPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)} style={styles.eyeIcon}>
+                    <Ionicons name={showForgotConfirmPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color="#888" />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.forgotSendButton} onPress={handleChangePassword}>
+                  <Text style={styles.forgotSendButtonText}>Change Password</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.forgotBackToLoginLink}
+                  onPress={() => setShowForgotPasswordScreen(false)}
+                >
+                  <View style={styles.forgotBackToLoginRow}>
+                    <Ionicons name="time-outline" size={13} color="#6B7280" />
+                    <Text style={styles.forgotBackToLoginText}>
+                      {' '}Back to <Text style={styles.forgotBackToLoginStrong}>Login</Text>
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : null}
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.container}>
-        <View style={styles.loginLogoContainer}>
-          <Image
-            source={require('../assets/Logo1.png')}
-            style={styles.loginLogo}
-            resizeMode="contain"
-          />
-        </View>
-
         <View style={styles.welcomeContainer}>
           <Text style={styles.welcomeText}>
             <Text style={styles.welcomeGreen}>Welcome </Text>
             <Text style={styles.welcomeYellow}>Back!</Text>
           </Text>
+          <Text style={styles.brandTagline}>Community Relief Platform</Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -246,7 +631,17 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
               </View>
               <Text style={styles.rememberText}>Remember me</Text>
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setForgotStep('contact');
+                setSentVerificationCode('');
+                setVerificationCodeExpiresAt(null);
+                setForgotVerificationCode('');
+                setForgotNewPassword('');
+                setForgotConfirmPassword('');
+                setShowForgotPasswordScreen(true);
+              }}
+            >
               <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
           </View>
@@ -257,6 +652,10 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
             disabled={isLoggingIn}
           >
             <Text style={styles.loginButtonMainText}>{isLoggingIn ? 'Signing In...' : 'Login'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.volunteerLoginSwitch} onPress={openVolunteerLoginFromResidentLogin}>
+            <Text style={styles.volunteerLoginSwitchText}>Volunteer account? Sign in here</Text>
           </TouchableOpacity>
 
           <View style={styles.registerContainer}>
@@ -276,15 +675,11 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
       <View style={styles.initialSplashContainer}>
         <View style={styles.initialLogoWrapper}>
           <Image
-            source={require('../assets/graphics5.png')}
-            style={styles.initialGraphic}
-            resizeMode="contain"
-          />
-          <Image
             source={require('../assets/textual.png')}
             style={styles.initialTextualLogo}
             resizeMode="contain"
           />
+          <Text style={styles.initialSubtitle}>Choose how you want to continue</Text>
         </View>
         <View style={styles.initialButtonsContainer}>
           <TouchableOpacity 
@@ -295,15 +690,6 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
             }}
           >
             <Text style={styles.initialLoginButtonText}>Login</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.initialVolunteerButton}
-            onPress={() => {
-              setShowInitialSplash(false);
-              setShowVolunteerLoginScreen(true);
-            }}
-          >
-            <Text style={styles.initialVolunteerButtonText}>Volunteer Login</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.initialRegisterButton} 
@@ -363,17 +749,16 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
 
         {/* Continue Button - only shows on last slide */}
         {isLastSlide && (
-          <View style={styles.getStartedContainer}>
-            <TouchableOpacity 
-              style={styles.getStartedButton} 
-              onPress={() => {
-                setShowOnboarding(false);
-                setShowInitialSplash(true);
-              }}
-            >
-              <Text style={styles.getStartedButtonText}>Continue</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.onboardingContinueButton}
+            onPress={() => {
+              setShowOnboarding(false);
+              setShowInitialSplash(true);
+            }}
+            accessibilityLabel="Continue onboarding"
+          >
+            <Ionicons name="arrow-forward" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
         )}
       </View>
     );
@@ -396,6 +781,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   logoContainer: {
     marginBottom: 20,
@@ -473,6 +859,26 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     marginBottom: 16,
   },
+  onboardingContinueButton: {
+    position: 'absolute',
+    top: 52,
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#16A34A',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
   getStartedButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
@@ -533,17 +939,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  loginLogoContainer: {
-    marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loginLogo: {
-    width: width * 0.55,
-    height: width * 0.55,
+  brandTagline: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#6B7280',
+    letterSpacing: 0.2,
   },
   welcomeContainer: {
-    marginBottom: 30,
+    marginBottom: 20,
     alignItems: 'center',
   },
   welcomeText: {
@@ -560,6 +963,12 @@ const styles = StyleSheet.create({
   formContainer: {
     width: '100%',
     paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EEF2F7',
+    paddingTop: 22,
+    paddingBottom: 18,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -615,6 +1024,79 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2E7D32',
   },
+  forgotCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EEF2F7',
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 24,
+    alignItems: 'center',
+  },
+  forgotBackButton: {
+    width: '100%',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  forgotIllustration: {
+    width: width * 0.52,
+    height: width * 0.52,
+    marginBottom: 10,
+  },
+  forgotTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    marginBottom: 18,
+  },
+  forgotInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D8D8D8',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 16,
+  },
+  forgotSendButton: {
+    backgroundColor: '#226538',
+    borderRadius: 10,
+    width: '100%',
+    paddingVertical: 13,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  forgotSendButtonDisabled: {
+    opacity: 0.7,
+  },
+  forgotSendButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  forgotBackToLoginLink: {
+    marginTop: 12,
+    paddingVertical: 4,
+  },
+  forgotBackToLoginRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  forgotBackToLoginText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  forgotBackToLoginStrong: {
+    color: '#226538',
+    fontWeight: '700',
+  },
   loginErrorText: {
     color: '#B00020',
     fontSize: 13,
@@ -643,6 +1125,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  volunteerLoginSwitch: {
+    alignItems: 'center',
+    marginTop: -10,
+    marginBottom: 20,
+  },
+  volunteerLoginSwitchText: {
+    color: '#2E7D32',
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   registerContainer: {
     flexDirection: 'row',
@@ -717,16 +1210,16 @@ const styles = StyleSheet.create({
   initialLogoWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 60,
-  },
-  initialGraphic: {
-    width: width * 0.85,
-    height: width * 0.65,
-    marginBottom: 10,
+    marginBottom: 36,
   },
   initialTextualLogo: {
-    width: width * 0.55,
-    height: width * 0.55,
+    width: width * 0.9,
+    height: width * 0.34,
+  },
+  initialSubtitle: {
+    marginTop: 8,
+    color: '#6B7280',
+    fontSize: 14,
   },
   initialButtonsContainer: {
     width: '100%',
@@ -735,37 +1228,23 @@ const styles = StyleSheet.create({
   },
   initialLoginButton: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 25,
     borderWidth: 2,
     borderColor: '#2E7D32',
-    width: width * 0.45,
+    width: '100%',
     alignItems: 'center',
   },
   initialLoginButtonText: {
-    color: '#ECC323',
+    color: '#2E7D32',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  initialVolunteerButton: {
-    backgroundColor: '#E6F4EA',
-    paddingVertical: 12,
-    borderRadius: 25,
-    width: width * 0.65,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2E7D32',
-  },
-  initialVolunteerButtonText: {
-    color: '#1F2937',
-    fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   initialRegisterButton: {
     backgroundColor: '#2E7D32',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 25,
-    width: width * 0.45,
+    width: '100%',
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',

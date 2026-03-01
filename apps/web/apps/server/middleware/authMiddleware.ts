@@ -26,6 +26,7 @@ export interface AuthenticatedRequest extends Request {
     userId: string;
     email: string;
     role?: string;    // User role (Admin, User, etc.)
+    assignedBarangays?: string[];
     iat?: number;
     exp?: number;
   };
@@ -38,6 +39,7 @@ interface JWTPayload {
   userId: string;
   email: string;
   role?: string;
+  assignedBarangays?: string[];
   jti?: string;
   iat: number;
   exp: number;
@@ -129,6 +131,7 @@ export const authMiddleware = async (
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role,
+      assignedBarangays: decoded.assignedBarangays,
       iat: decoded.iat,
       exp: decoded.exp,
     };
@@ -196,6 +199,7 @@ export const optionalAuthMiddleware = async (
             userId: decoded.userId,
             email: decoded.email,
             role: decoded.role,
+            assignedBarangays: decoded.assignedBarangays,
             iat: decoded.iat,
             exp: decoded.exp,
           };
@@ -226,7 +230,12 @@ export const optionalAuthMiddleware = async (
  * - Contains userId, email, and role claims
  * - Signed with HS256 algorithm
  */
-export const generateToken = (userId: string, email: string, role?: string): string => {
+export const generateToken = (
+  userId: string,
+  email: string,
+  role?: string,
+  assignedBarangays?: string[],
+): string => {
   const secret: Secret = getJWTSecret();
   const expiresIn = (process.env.JWT_EXPIRES_IN || '24h') as SignOptions['expiresIn'];
   const options: SignOptions = { 
@@ -234,13 +243,25 @@ export const generateToken = (userId: string, email: string, role?: string): str
     algorithm: 'HS256',
   };
   
+  const payload: {
+    userId: string;
+    email: string;
+    role?: string;
+    assignedBarangays?: string[];
+    jti: string;
+  } = {
+    userId,
+    email,
+    role,
+    jti: randomUUID(),
+  };
+
+  if (Array.isArray(assignedBarangays) && assignedBarangays.length > 0) {
+    payload.assignedBarangays = assignedBarangays;
+  }
+
   return jwt.sign(
-    { 
-      userId, 
-      email,
-      role,
-      jti: randomUUID(),
-    },
+    payload,
     secret,
     options
   );

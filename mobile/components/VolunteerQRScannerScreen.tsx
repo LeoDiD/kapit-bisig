@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Vibration,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Audio } from 'expo-av';
 import { mobileAuthService } from '../services/auth/MobileAuthService';
 
 interface VolunteerQRScannerScreenProps {
@@ -43,6 +45,51 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   const [resolvedResident, setResolvedResident] = useState<ResolvedResident | null>(null);
   const [resolveLatencyMs, setResolveLatencyMs] = useState<number | null>(null);
   const lastScanRef = useRef<{ data: string; at: number } | null>(null);
+  const successSoundRef = useRef<Audio.Sound | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSound = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+        });
+        const { sound } = await Audio.Sound.createAsync(
+          require('../assets/sounds/qr-success.wav'),
+          { shouldPlay: false, volume: 1.0 }
+        );
+        if (isMounted) {
+          successSoundRef.current = sound;
+        } else {
+          await sound.unloadAsync();
+        }
+      } catch (err) {
+        console.warn('[VolunteerQRScannerScreen] Failed to load success sound', err);
+      }
+    };
+
+    loadSound();
+
+    return () => {
+      isMounted = false;
+      if (successSoundRef.current) {
+        successSoundRef.current.unloadAsync().catch(() => undefined);
+        successSoundRef.current = null;
+      }
+    };
+  }, []);
+
+  const playSuccessFeedback = async () => {
+    try {
+      Vibration.vibrate(80);
+      if (successSoundRef.current) {
+        await successSoundRef.current.replayAsync();
+      }
+    } catch (err) {
+      console.warn('[VolunteerQRScannerScreen] Failed to play feedback', err);
+    }
+  };
 
   const handleQrScanned = async ({ data }: { data: string }) => {
     if (!data || isResolving || hasScanned) {
@@ -58,6 +105,7 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
       return;
     }
     lastScanRef.current = { data, at: now };
+    Vibration.vibrate(40);
 
     setHasScanned(true);
     setIsResolving(true);
@@ -86,6 +134,7 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     }
 
     setResolvedResident(response.data.data);
+    await playSuccessFeedback();
     setResolveLatencyMs(Date.now() - startedAt);
     setIsResolving(false);
   };
@@ -155,6 +204,12 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
               onBarcodeScanned={hasScanned ? undefined : handleQrScanned}
             />
             <View style={styles.overlayBox}>
+              <View style={styles.scanFrame}>
+                <View style={[styles.corner, styles.cornerTopLeft]} />
+                <View style={[styles.corner, styles.cornerTopRight]} />
+                <View style={[styles.corner, styles.cornerBottomLeft]} />
+                <View style={[styles.corner, styles.cornerBottomRight]} />
+              </View>
               <Text style={styles.overlayText}>Align resident QR inside this box</Text>
             </View>
           </View>
@@ -260,13 +315,53 @@ const styles = StyleSheet.create({
     right: 18,
     top: 18,
     bottom: 18,
-    borderWidth: 2,
-    borderColor: '#22C55E',
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     paddingBottom: 10,
-    backgroundColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
+  scanFrame: {
+    width: '82%',
+    aspectRatio: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    position: 'relative',
+  },
+  corner: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderColor: '#22C55E',
+  },
+  cornerTopLeft: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 10,
+  },
+  cornerTopRight: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 10,
+  },
+  cornerBottomLeft: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 10,
+  },
+  cornerBottomRight: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 10,
   },
   overlayText: {
     color: '#FFFFFF',
@@ -276,6 +371,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
+    position: 'absolute',
+    bottom: 10,
   },
   loadingBlock: {
     flex: 1,

@@ -928,7 +928,7 @@ async def register_face(request: FaceRegisterRequest):
             if similarity > DUPLICATE_THRESHOLD:
                 return FaceRegisterResponse(
                     success=False,
-                    message=f"This face is already registered under '{data['name']}'. Duplicate registration not allowed."
+                    message="This face is already registered. Duplicate registration not allowed."
                 )
         
         # Save to database
@@ -1171,7 +1171,7 @@ async def check_duplicate_face(request: DuplicateCheckRequest):
         if best_match and best_similarity >= DUPLICATE_THRESHOLD:
             # BLOCK - Duplicate detected
             decision = "BLOCK"
-            message = f"Duplicate detected! This face matches '{best_match['name']}' with {best_similarity*100:.1f}% similarity."
+            message = "Face already registered."
             
             log_entry.update({
                 "attempt_type": "BLOCK",
@@ -1198,7 +1198,7 @@ async def check_duplicate_face(request: DuplicateCheckRequest):
                 face_detected=True,
                 decision="BLOCK",
                 best_match_id=best_match["id"],
-                best_match_name=best_match["name"],
+                best_match_name=None,
                 similarity=round(best_similarity, 4),
                 threshold=DUPLICATE_THRESHOLD,
                 processing_time_ms=processing_time,

@@ -10,7 +10,7 @@ import { resolveApiBaseUrl } from '../config/apiSecurity';
 
 const API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://localhost:3001/api',
+  'http://192.168.1.72:3001/api',
   'FaceRecognitionService',
 );
 
@@ -831,3 +831,6 @@ class FaceRecognitionService {
 // Export singleton instance
 export const faceRecognitionService = new FaceRecognitionService();
 export default FaceRecognitionService;
+
+
+

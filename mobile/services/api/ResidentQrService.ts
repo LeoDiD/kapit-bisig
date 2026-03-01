@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const API_BASE_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://localhost:3001/api',
+  'http://192.168.1.72:3001/api',
   'ResidentQrService',
 );
 
@@ -50,6 +50,16 @@ export interface ResidentProfile {
   streetAddress: string;
   householdSize: number;
   status: string;
+}
+
+export interface ResidentDistributionItem {
+  id: string;
+  barangay: string;
+  assignedBarangays?: string[];
+  scheduled?: string;
+  notes?: string;
+  status?: string;
+  createdAt?: string;
 }
 
 interface ApiResponse<T> {
@@ -226,3 +236,38 @@ export async function fetchResidentProfile(
     };
   }
 }
+
+export async function fetchResidentDistributions(
+  token: string
+): Promise<{ success: boolean; message?: string; data?: ResidentDistributionItem[] }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/distributions`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const payload = await parseApiResponse<ResidentDistributionItem[]>(response);
+    if (!response.ok || !payload.success || !payload.data) {
+      return {
+        success: false,
+        message: payload.message || 'Failed to fetch distributions.',
+      };
+    }
+
+    return {
+      success: true,
+      data: payload.data,
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while fetching distributions.',
+    };
+  }
+}
+
+
+

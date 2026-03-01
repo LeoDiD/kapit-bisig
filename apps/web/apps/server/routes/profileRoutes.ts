@@ -14,13 +14,20 @@ import fs from 'fs';
 import multer from 'multer';
 import { z } from 'zod';
 import StaffUser from '../models/StaffUser';
-import { AuthRequest, requireAuth } from '../middleware/unifiedAuth';
+import { AuthRequest, requireAuth, requireStaffOrSuperadmin } from '../middleware/unifiedAuth';
 import { validatePassword } from '../utils/passwordValidator';
+import { validateRequest } from '../validation/validateRequest';
+import { scanEligibleUsersQuery } from '../validation/scanEligible.schema';
+import { escapeRegex } from '../validation/mongoSanitize';
 
 const router = Router();
 
 // All routes require authentication
 router.use(requireAuth);
+
+function hasCoverage(scopes: string[], targets: string[]): boolean {
+  return targets.every((target) => scopes.includes(target));
+}
 
 /* ------------------------------------------------------------------ */
 /*  Zod schemas                                                       */
@@ -313,5 +320,99 @@ router.patch('/me/preferences', async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ success: false, message: 'Failed to save preferences' });
   }
 });
+
+/* ------------------------------------------------------------------ */
+/*  GET /api/users/scan-eligible                                      */
+/* ------------------------------------------------------------------ */
+
+router.get(
+  '/scan-eligible',
+  requireStaffOrSuperadmin,
+  validateRequest({ query: scanEligibleUsersQuery }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const {
+        hostBarangayId,
+        assignedBarangayIds,
+        q,
+        limit,
+        cursor,
+      } = req.query as unknown as {
+        hostBarangayId: string;
+        assignedBarangayIds: string[];
+        q: string;
+        limit: number;
+        cursor: number;
+      };
+
+      const requestedScope = [hostBarangayId, ...assignedBarangayIds];
+      const requesterScope = req.authUser?.assignedBarangays ?? [];
+
+      if (req.authUser?.role === 'LGU_STAFF') {
+        const outOfScope = requestedScope.find((barangay) => !requesterScope.includes(barangay));
+        if (outOfScope) {
+          return res.status(403).json({
+            success: false,
+            code: 'OUT_OF_SCOPE_STAFF',
+            message: `You do not have access to ${outOfScope}.`,
+          });
+        }
+      }
+
+      const search = q?.trim() || '';
+      const filter: Record<string, unknown> = { isActive: true };
+
+      if (search) {
+        const safe = escapeRegex(search);
+        const searchRegex = new RegExp(safe, 'i');
+        filter.$or = [
+          { fullName: searchRegex },
+          { email: searchRegex },
+          { username: searchRegex },
+        ];
+      }
+
+      const candidates = await StaffUser.find(filter)
+        .select('_id fullName role assignedBarangays')
+        .sort({ fullName: 1, _id: 1 })
+        .limit(200)
+        .lean();
+
+      const items = candidates
+        .map((candidate) => {
+          const scopes = Array.isArray(candidate.assignedBarangays)
+            ? candidate.assignedBarangays
+            : [];
+          const inScope = hasCoverage(scopes, requestedScope);
+          return {
+            id: candidate._id.toString(),
+            fullName: candidate.fullName,
+            role: candidate.role,
+            scopesSummary: scopes,
+            inScope,
+          };
+        })
+        .filter((candidate) =>
+          req.authUser?.role === 'LGU_STAFF'
+            ? candidate.inScope && hasCoverage(requesterScope, candidate.scopesSummary)
+            : true
+        );
+
+      const paged = items.slice(cursor, cursor + limit);
+      const nextCursor = cursor + limit < items.length ? cursor + limit : null;
+
+      return res.json({
+        success: true,
+        data: {
+          items: paged,
+          nextCursor,
+        },
+      });
+    } catch (err) {
+      console.error('[Profile] GET /scan-eligible error:', err);
+      return res.status(500).json({ success: false, message: 'Failed to fetch eligible staff' });
+    }
+  },
+);
 
 export default router;

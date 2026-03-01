@@ -10,7 +10,7 @@ interface QuickAction {
 const actions: QuickAction[] = [
   { 
     label: 'Add Household', 
-    href: '/households/add',
+    href: '/households',
     icon: <HouseIcon className="w-5 h-5" />
   },
   { 

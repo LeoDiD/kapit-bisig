@@ -9,7 +9,7 @@
  * - Secure login with JWT tokens
  * - Token storage using SecureStore
  * - Auto token refresh
- * - Role validation (only Volunteer role allowed)
+ * - Role validation (Volunteer or LGU staff)
  */
 
 import * as SecureStore from 'expo-secure-store';
@@ -19,7 +19,7 @@ import { resolveApiBaseUrl } from '../config/apiSecurity';
 const API_CONFIG = {
   baseUrl: resolveApiBaseUrl(
     process.env.EXPO_PUBLIC_API_URL,
-    'http://localhost:3001/api',
+    'http://192.168.1.72:3001/api',
     'MobileAuthService',
   ),
   timeout: 15000,
@@ -27,6 +27,12 @@ const API_CONFIG = {
 
 // Storage keys
 const STORAGE_KEYS = {
+  AUTH_TOKEN: 'kapit_bisig_auth_token',
+  USER_DATA: 'kapit_bisig_user_data',
+};
+
+// Legacy invalid keys (had "@" prefix and can throw on some platforms)
+const LEGACY_STORAGE_KEYS = {
   AUTH_TOKEN: '@kapit_bisig_auth_token',
   USER_DATA: '@kapit_bisig_user_data',
 };
@@ -34,7 +40,7 @@ const STORAGE_KEYS = {
 /**
  * User Role type
  */
-export type UserRole = 'Admin' | 'Staff' | 'Volunteer';
+export type UserRole = 'Admin' | 'Staff' | 'Volunteer' | 'LGU_STAFF';
 
 /**
  * User Status type
@@ -52,6 +58,7 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   barangay?: string;
+  assignedBarangays?: string[];
   phoneNumber?: string;
   lastLogin?: string;
 }
@@ -92,6 +99,8 @@ class MobileAuthService {
    */
   async initialize(): Promise<boolean> {
     try {
+      await this.migrateLegacyKeys();
+
       const [storedToken, storedUser] = await Promise.all([
         this.getStoredItem(STORAGE_KEYS.AUTH_TOKEN),
         this.getStoredItem(STORAGE_KEYS.USER_DATA),
@@ -145,7 +154,7 @@ class MobileAuthService {
 
   /**
    * Login with email and password
-   * Only allows Volunteer role users
+   * Allows Volunteer and LGU staff users
    */
   async login(email: string, password: string): Promise<AuthResponse> {
     try {
@@ -157,7 +166,7 @@ class MobileAuthService {
         };
       }
 
-      const response = await fetch(`${API_CONFIG.baseUrl}/auth/login`, {
+      const response = await fetch(`${API_CONFIG.baseUrl}/mobile-auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -184,11 +193,11 @@ class MobileAuthService {
 
       const { user, token } = data.data;
 
-      // Validate role - only Volunteers can use mobile app
-      if (user.role !== 'Volunteer') {
+      // Validate role - mobile supports Volunteer and LGU staff accounts
+      if (user.role !== 'Volunteer' && user.role !== 'LGU_STAFF') {
         return {
           success: false,
-          message: 'This app is only for volunteers. Please use the web application.',
+          message: 'This account is not allowed to use the mobile app.',
           code: 'INVALID_ROLE',
         };
       }
@@ -205,7 +214,7 @@ class MobileAuthService {
       console.error('[MobileAuthService] Login error:', error);
       return {
         success: false,
-        message: 'Network error. Please check your connection.',
+        message: `Unable to reach API server at ${API_CONFIG.baseUrl}. Make sure backend is running and EXPO_PUBLIC_API_URL is reachable from your device.`,
         code: 'NETWORK_ERROR',
       };
     }
@@ -235,7 +244,7 @@ class MobileAuthService {
     if (!this.token) return false;
 
     try {
-      const response = await fetch(`${API_CONFIG.baseUrl}/auth/me`, {
+      const response = await fetch(`${API_CONFIG.baseUrl}/mobile-auth/me`, {
         headers: {
           'Authorization': `Bearer ${this.token}`,
         },
@@ -286,6 +295,43 @@ class MobileAuthService {
 
   private async deleteStoredItem(key: string): Promise<void> {
     await SecureStore.deleteItemAsync(key);
+  }
+
+  /**
+   * Migrate old key names to the SecureStore-compliant key format.
+   * This keeps existing dev sessions working after key rename.
+   */
+  private async migrateLegacyKeys(): Promise<void> {
+    const [legacyToken, legacyUser] = await Promise.all([
+      this.safeGetStoredItem(LEGACY_STORAGE_KEYS.AUTH_TOKEN),
+      this.safeGetStoredItem(LEGACY_STORAGE_KEYS.USER_DATA),
+    ]);
+
+    if (legacyToken) {
+      await this.setStoredItem(STORAGE_KEYS.AUTH_TOKEN, legacyToken);
+      await this.safeDeleteStoredItem(LEGACY_STORAGE_KEYS.AUTH_TOKEN);
+    }
+
+    if (legacyUser) {
+      await this.setStoredItem(STORAGE_KEYS.USER_DATA, legacyUser);
+      await this.safeDeleteStoredItem(LEGACY_STORAGE_KEYS.USER_DATA);
+    }
+  }
+
+  private async safeGetStoredItem(key: string): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch {
+      return null;
+    }
+  }
+
+  private async safeDeleteStoredItem(key: string): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {
+      // Ignore cleanup failures for legacy invalid keys
+    }
   }
 
   /**
@@ -347,3 +393,6 @@ class MobileAuthService {
 export const mobileAuthService = new MobileAuthService();
 
 export default mobileAuthService;
+
+
+

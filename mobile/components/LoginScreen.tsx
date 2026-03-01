@@ -1,8 +1,7 @@
 /**
- * Volunteer Login Screen
- * 
- * Login screen for volunteers to access the mobile app.
- * Only users with the 'Volunteer' role can log in.
+ * Mobile Login Screen
+ *
+ * Login screen for volunteers and LGU staff to access the mobile app.
  */
 
 import React, { useState } from 'react';
@@ -16,9 +15,9 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Image,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { mobileAuthService, User } from '../services/auth/MobileAuthService';
 
 interface LoginScreenProps {
@@ -33,7 +32,6 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Validation states
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
@@ -65,10 +63,8 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   };
 
   const handleLogin = async () => {
-    // Clear previous errors
     setError(null);
 
-    // Validate inputs
     const isEmailValid = validateEmail(email);
     const isPasswordValid = validatePassword(password);
 
@@ -84,11 +80,10 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
       if (response.success && response.data) {
         onLoginSuccess(response.data.user);
       } else {
-        // Handle specific error codes
         if (response.code === 'INVALID_ROLE') {
           Alert.alert(
             'Access Denied',
-            'This app is only for volunteers. Admin and Staff accounts should use the web application.',
+            'This account is not allowed to use the mobile app.',
             [{ text: 'OK' }]
           );
         } else if (response.code === 'ACCOUNT_INACTIVE') {
@@ -118,45 +113,27 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
-        <View style={styles.header}>
-          {onBack && (
-            <TouchableOpacity onPress={onBack} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-          )}
-          
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>KB</Text>
-            </View>
-            <Text style={styles.appName}>Kapit-Bisig</Text>
-            <Text style={styles.subtitle}>Volunteer Portal</Text>
-          </View>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backButtonText}>{'< Back'}</Text>
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.welcomeContainer}>
+          <Text style={styles.welcomeText}>
+            <Text style={styles.welcomeGreen}>Welcome </Text>
+            <Text style={styles.welcomeYellow}>Back!</Text>
+          </Text>
+          <Text style={styles.volunteerSubtitle}>Volunteer / LGU Staff Portal</Text>
         </View>
 
-        {/* Login Form */}
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.description}>
-            Sign in with your volunteer account to continue
-          </Text>
-
-          {/* Error Message */}
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
+          <View style={[styles.inputContainer, emailError && styles.inputContainerError]}>
+            <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
-              style={[styles.input, emailError && styles.inputError]}
-              placeholder="Enter your email"
-              placeholderTextColor="#9CA3AF"
+              style={styles.input}
+              placeholder="Email Address"
+              placeholderTextColor="#888"
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
@@ -167,56 +144,47 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
               autoCorrect={false}
               editable={!isLoading}
             />
-            {emailError && <Text style={styles.fieldError}>{emailError}</Text>}
           </View>
+          {emailError && <Text style={styles.fieldError}>{emailError}</Text>}
 
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.input, styles.passwordInput, passwordError && styles.inputError]}
-                placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (passwordError) validatePassword(text);
-                }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-              <TouchableOpacity
-                style={styles.showPasswordButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Text style={styles.showPasswordText}>
-                  {showPassword ? 'Hide' : 'Show'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
+          <View style={[styles.inputContainer, passwordError && styles.inputContainerError]}>
+            <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#888"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) validatePassword(text);
+              }}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              editable={!isLoading}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+              <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color="#888" />
+            </TouchableOpacity>
           </View>
+          {passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
 
-          {/* Login Button */}
+          {!!error && <Text style={styles.loginErrorText}>{error}</Text>}
+
           <TouchableOpacity
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+            style={[styles.loginButtonMain, isLoading && styles.loginButtonMainDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <Text style={styles.loginButtonMainText}>Sign In</Text>
             )}
           </TouchableOpacity>
 
-          {/* Info Text */}
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
-              Don't have an account?{'\n'}
-              Contact your barangay administrator to register as a volunteer.
+              Don't have an account? Contact your barangay administrator.
             </Text>
           </View>
         </View>
@@ -229,154 +197,122 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    paddingHorizontal: 40,
   },
   scrollContent: {
     flexGrow: 1,
-  },
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 24,
-    alignItems: 'center',
+    justifyContent: 'center',
   },
   backButton: {
     position: 'absolute',
-    left: 24,
+    left: 20,
     top: Platform.OS === 'ios' ? 60 : 40,
+    zIndex: 1,
   },
   backButtonText: {
-    fontSize: 16,
-    color: '#0F533A',
+    fontSize: 15,
+    color: '#2E7D32',
     fontWeight: '500',
   },
-  logoContainer: {
+  welcomeContainer: {
+    marginBottom: 20,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 40,
   },
-  logoPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: '#0F533A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  logoText: {
+  welcomeText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontStyle: 'italic',
   },
-  appName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#0F533A',
+  welcomeGreen: {
+    color: '#2E7D32',
   },
-  subtitle: {
-    fontSize: 16,
+  welcomeYellow: {
+    color: '#ECC323',
+  },
+  volunteerSubtitle: {
     color: '#6B7280',
-    marginTop: 4,
+    marginTop: 6,
+    fontSize: 14,
   },
   formContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 24,
-  },
-  errorContainer: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    width: '100%',
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#EEF2F7',
+    paddingTop: 22,
+    paddingBottom: 18,
   },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 15,
     marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  inputContainerError: {
+    borderColor: '#B00020',
+  },
+  inputIcon: {
+    marginRight: 10,
   },
   input: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    flex: 1,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#111827',
+    color: '#333',
   },
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 70,
-  },
-  showPasswordButton: {
-    position: 'absolute',
-    right: 16,
-    top: 14,
-  },
-  showPasswordText: {
-    color: '#0F533A',
-    fontSize: 14,
-    fontWeight: '500',
+  eyeIcon: {
+    padding: 5,
   },
   fieldError: {
-    color: '#EF4444',
-    fontSize: 12,
-    marginTop: 4,
+    color: '#B00020',
+    fontSize: 13,
+    marginBottom: 10,
+    marginLeft: 2,
   },
-  loginButton: {
-    backgroundColor: '#0F533A',
-    borderRadius: 12,
-    paddingVertical: 16,
+  loginErrorText: {
+    color: '#B00020',
+    fontSize: 13,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  loginButtonMain: {
+    backgroundColor: '#2E7D32',
+    paddingVertical: 14,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 12,
-    shadowColor: '#0F533A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: 8,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  loginButtonDisabled: {
+  loginButtonMainDisabled: {
     opacity: 0.7,
   },
-  loginButtonText: {
+  loginButtonMainText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
   infoContainer: {
-    marginTop: 24,
-    paddingVertical: 16,
+    marginTop: 2,
     alignItems: 'center',
   },
   infoText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#333',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
 });

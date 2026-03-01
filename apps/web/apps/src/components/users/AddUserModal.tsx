@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { api, BARANGAY_OPTIONS, CreateStaffData } from '@/lib/api'
+import { api, CreateStaffData } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import PasswordStrengthMeter, {
   getPasswordStrength,
@@ -20,7 +20,6 @@ interface FormErrors {
   email?: string
   fullName?: string
   password?: string
-  assignedBarangays?: string
   general?: string
 }
 
@@ -31,8 +30,6 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [assignedBarangays, setAssignedBarangays] = useState<string[]>([])
-  const [brgyDropdownOpen, setBrgyDropdownOpen] = useState(false)
   
   // UI state
   const [isLoading, setIsLoading] = useState(false)
@@ -51,8 +48,6 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
     setFullName('')
     setPassword('')
     setConfirmPassword('')
-    setAssignedBarangays([])
-    setBrgyDropdownOpen(false)
     setErrors({})
     setShowPassword(false)
   }
@@ -62,14 +57,6 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
     onClose()
   }
 
-  const toggleBarangay = (brgy: string) => {
-    setAssignedBarangays(prev =>
-      prev.includes(brgy)
-        ? prev.filter(b => b !== brgy)
-        : [...prev, brgy]
-    )
-  }
-  
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
     
@@ -106,11 +93,6 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
       }
     }
     
-    // Assigned barangays
-    if (assignedBarangays.length === 0) {
-      newErrors.assignedBarangays = 'Select at least one barangay'
-    }
-    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -129,7 +111,6 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
         email: email.trim().toLowerCase(),
         password,
         fullName: fullName.trim(),
-        assignedBarangays,
       }
       
       const response = await api.createStaffUser(staffData)
@@ -142,13 +123,51 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
       }
     } catch (error: unknown) {
       console.error('Failed to create user:', error)
-      const err = error as { response?: { message?: string; errors?: string[] } }
-      if (err.response?.message) {
+      const err = error as {
+        response?: {
+          message?: string
+          errors?: Array<{ location?: string; path?: string; message?: string } | string>
+        }
+      }
+      
+      // Extract validation errors from server response
+      if (err.response?.errors?.length) {
+        const newErrors: FormErrors = {}
+        const errorMessages: string[] = []
+        
+        for (const e of err.response.errors) {
+          if (typeof e === 'string') {
+            errorMessages.push(e)
+          } else if (e.path && e.message) {
+            // Map path to form field
+            const fieldMap: Record<string, keyof FormErrors> = {
+              username: 'username',
+              email: 'email',
+              fullName: 'fullName',
+              password: 'password',
+            }
+            const field = fieldMap[e.path]
+            if (field) {
+              newErrors[field] = e.message
+            } else {
+              errorMessages.push(e.message)
+            }
+          }
+        }
+        
+        if (errorMessages.length > 0) {
+          newErrors.general = errorMessages.join(', ')
+        }
+        
+        if (Object.keys(newErrors).length > 0) {
+          setErrors(newErrors)
+        }
+        
+        const displayMessage = err.response.message || 'Validation failed'
+        showToast.error(displayMessage)
+      } else if (err.response?.message) {
         setErrors({ general: err.response.message })
         showToast.error(err.response.message)
-      } else if (err.response?.errors?.length) {
-        setErrors({ general: err.response.errors.join(', ') })
-        showToast.error('Failed to create user.')
       } else {
         setErrors({ general: 'Failed to create user. Please try again.' })
         showToast.error('Failed to create user.')
@@ -322,88 +341,10 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               )}
             </div>
 
-            {/* Assigned Barangays */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-900 mb-2">
-                Assigned Barangays <span className="text-red-500">*</span>
-              </label>
-              
-              {/* Selected barangay chips */}
-              {assignedBarangays.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {assignedBarangays.map(b => (
-                    <span
-                      key={b}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#0F533A]/10 text-[#0F533A] text-xs font-medium"
-                    >
-                      {b}
-                      <button
-                        type="button"
-                        onClick={() => toggleBarangay(b)}
-                        className="hover:text-red-500 transition-colors"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Dropdown trigger */}
-              <button
-                type="button"
-                onClick={() => setBrgyDropdownOpen(prev => !prev)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border ${
-                  errors.assignedBarangays ? 'border-red-500' : 'border-gray-300'
-                } bg-white text-sm text-gray-600 focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] transition-colors`}
-                disabled={isLoading}
-              >
-                <span>
-                  {assignedBarangays.length === 0
-                    ? 'Select barangays...'
-                    : `${assignedBarangays.length} barangay${assignedBarangays.length > 1 ? 's' : ''} selected`}
-                </span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${brgyDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {/* Dropdown list */}
-              {brgyDropdownOpen && (
-                <div className="mt-1 max-h-40 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-                  {BARANGAY_OPTIONS.map(b => {
-                    const checked = assignedBarangays.includes(b)
-                    return (
-                      <button
-                        key={b}
-                        type="button"
-                        onClick={() => toggleBarangay(b)}
-                        className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
-                          checked ? 'bg-[#0F533A]/5 text-[#0F533A] font-medium' : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className={`w-4 h-4 flex items-center justify-center rounded border ${
-                          checked ? 'bg-[#0F533A] border-[#0F533A]' : 'border-gray-300'
-                        }`}>
-                          {checked && (
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </span>
-                        {b}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-
-              {errors.assignedBarangays && (
-                <p className="mt-1 text-sm text-red-500">{errors.assignedBarangays}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-400">Staff can only manage distributions in their assigned barangays.</p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-xs text-amber-800">
+                New staff will be created and can be assigned in Distribution immediately.
+              </p>
             </div>
 
           </div>

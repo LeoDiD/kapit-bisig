@@ -10,9 +10,11 @@
  */
 
 import { Router, Response } from 'express';
-import Distribution, { BARANGAY_OPTIONS } from '../models/Distribution';
+import mongoose from 'mongoose';
+import Distribution from '../models/Distribution';
 import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
+import StaffUser from '../models/StaffUser';
 import { AuthRequest } from '../middleware/unifiedAuth';
 import { validateRequest } from '../validation/validateRequest';
 import {
@@ -24,8 +26,34 @@ import { broadcastNotification } from '../utils/createNotification';
 
 const router = Router();
 
+const IDEMPOTENCY_TTL_MS = 10 * 60 * 1000;
+const idempotencyStore = new Map<string, {
+  expiresAt: number;
+  distributionId: string;
+  response: Record<string, unknown>;
+}>();
+
+function cleanIdempotencyStore(): void {
+  const now = Date.now();
+  for (const [key, entry] of idempotencyStore.entries()) {
+    if (entry.expiresAt <= now) {
+      idempotencyStore.delete(key);
+    }
+  }
+}
+
+function idempotencyCacheKey(userKey: string, key: string): string {
+  return `${userKey}::${key}`;
+}
+
+function hasCoverage(scopes: string[], targets: string[]): boolean {
+  return targets.every((target) => scopes.includes(target));
+}
+
+const isScopedRole = (role?: string) => role === 'LGU_STAFF' || role === 'Volunteer';
+
 const hasDistributionAccess = (user: AuthRequest['authUser'], distribution: { barangay: string; assignedBarangays?: string[] }) => {
-  if (!user || user.role !== 'LGU_STAFF') return true;
+  if (!user || !isScopedRole(user.role)) return true;
   const assigned = user.assignedBarangays ?? [];
   if (assigned.includes(distribution.barangay)) return true;
   const targetBarangays = distribution.assignedBarangays ?? [];
@@ -40,45 +68,41 @@ const hasDistributionAccess = (user: AuthRequest['authUser'], distribution: { ba
  */
 router.post(
   '/',
-  validateRequest({ body: createDistributionBody }),
   async (req: AuthRequest, res: Response) => {
     try {
-      const { barangay, assignedBarangays, scheduled, households, notes } = req.body;
-
-      // Validate barangay
-      if (!barangay || typeof barangay !== 'string') {
+      let parsed;
+      try {
+        parsed = createDistributionBody.safeParse(req.body);
+      } catch (parseError) {
         return res.status(400).json({
           success: false,
-          message: 'Barangay is required',
+          code: 'VALIDATION_ERROR',
+          message: parseError instanceof Error ? parseError.message : 'Validation failed',
+        });
+      }
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: parsed.error.issues.map((issue) => ({
+            path: issue.path.join('.'),
+            message: issue.message,
+          })),
         });
       }
 
-      if (!(BARANGAY_OPTIONS as readonly string[]).includes(barangay)) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid barangay. Must be one of: ${BARANGAY_OPTIONS.join(', ')}`,
-        });
-      }
+      const { barangay, assignedBarangays, assignedStaffIds, scheduled, households, notes } = parsed.data;
 
-      if (!Array.isArray(assignedBarangays) || assignedBarangays.length < 2 || assignedBarangays.length > 4) {
-        return res.status(400).json({
-          success: false,
-          message: 'Assigned barangays must contain 2 to 4 items',
-        });
-      }
-
-      if (new Set(assignedBarangays).size !== assignedBarangays.length) {
-        return res.status(400).json({
-          success: false,
-          message: 'Assigned barangays must be unique',
-        });
-      }
-
-      if (assignedBarangays.includes(barangay)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Host barangay cannot also be an assigned barangay',
-        });
+      cleanIdempotencyStore();
+      const idempotencyKeyHeader = req.header('Idempotency-Key')?.trim();
+      if (idempotencyKeyHeader) {
+        const actorId = req.authUser?.userId ?? req.authUser?.sub ?? 'anonymous';
+        const key = idempotencyCacheKey(actorId, idempotencyKeyHeader);
+        const existing = idempotencyStore.get(key);
+        if (existing && existing.expiresAt > Date.now()) {
+          return res.status(200).json(existing.response);
+        }
       }
 
       // Scope check: staff can only create within assigned barangays
@@ -89,24 +113,61 @@ router.post(
         if (outOfScope) {
           return res.status(403).json({
             success: false,
+            code: 'OUT_OF_SCOPE_STAFF',
             message: `You do not have access to create distributions for ${outOfScope}`,
           });
         }
       }
 
-      // Validate scheduled
-      if (!scheduled || typeof scheduled !== 'string') {
+      const uniqueStaffIds = [...new Set(assignedStaffIds)];
+      const activeStaffDocs = await StaffUser.find({ isActive: true })
+        .select('_id role assignedBarangays')
+        .lean();
+
+      const requestedIdSet = new Set(uniqueStaffIds);
+      const staffDocs = activeStaffDocs.filter((doc) => requestedIdSet.has(doc._id.toString()));
+
+      const foundIds = new Set(staffDocs.map((doc) => doc._id.toString()));
+      const missingStaffIds = uniqueStaffIds.filter((id) => !foundIds.has(id));
+      if (missingStaffIds.length > 0) {
         return res.status(400).json({
           success: false,
-          message: 'Scheduled date is required',
+          code: 'STAFF_NOT_FOUND',
+          message: 'One or more selected staff members were not found',
+          missingStaffIds,
         });
       }
 
-      // Validate households
-      const householdsNum = Number(households);
-      if (!households || isNaN(householdsNum) || householdsNum < 1) {
+      const invalidRole = staffDocs.find((doc) => !['LGU_STAFF'].includes(doc.role));
+      if (invalidRole) {
         return res.status(400).json({
           success: false,
+          code: 'INVALID_ASSIGNED_STAFF',
+          message: 'Only VOLUNTEER, LGU_STAFF, or SUPERADMIN can be assigned',
+        });
+      }
+
+      if (req.authUser?.role === 'LGU_STAFF') {
+        const targetScope = [barangay, ...assignedBarangays];
+        const outOfScopeAssignees = staffDocs
+          .filter((doc) => !hasCoverage(doc.assignedBarangays ?? [], targetScope))
+          .map((doc) => doc._id.toString());
+
+        if (outOfScopeAssignees.length > 0) {
+          return res.status(403).json({
+            success: false,
+            code: 'OUT_OF_SCOPE_STAFF',
+            message: 'Some selected staff are out of scope for this distribution.',
+            outOfScopeStaffIds: outOfScopeAssignees,
+          });
+        }
+      }
+
+      const householdsNum = Number(households);
+      if (Number.isNaN(householdsNum) || householdsNum < 1) {
+        return res.status(400).json({
+          success: false,
+          code: 'VALIDATION_ERROR',
           message: 'Households must be a number >= 1',
         });
       }
@@ -114,6 +175,7 @@ router.post(
       const distribution = new Distribution({
         barangay,
         assignedBarangays,
+        assignedStaffIds: uniqueStaffIds,
         scheduled,
         households: householdsNum,
         notes: notes || '',
@@ -128,6 +190,7 @@ router.post(
         assignedBarangays,
         scheduled,
         households: householdsNum,
+        assignedStaffCount: uniqueStaffIds.length,
       });
 
       // Notify all staff about the new distribution
@@ -143,10 +206,24 @@ router.post(
         message: 'Distribution created successfully',
         data: distribution.toJSON(),
       });
+
+      if (idempotencyKeyHeader) {
+        const actorId = req.authUser?.userId ?? req.authUser?.sub ?? 'anonymous';
+        const key = idempotencyCacheKey(actorId, idempotencyKeyHeader);
+        idempotencyStore.set(key, {
+          expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
+          distributionId: distribution._id.toString(),
+          response: {
+            success: true,
+            message: 'Distribution created successfully',
+            data: distribution.toJSON(),
+          },
+        });
+      }
     } catch (error: unknown) {
       console.error('Error creating distribution:', error);
       const message = error instanceof Error ? error.message : 'Failed to create distribution';
-      res.status(500).json({ success: false, message });
+      res.status(500).json({ success: false, code: 'VALIDATION_ERROR', message });
     }
   }
 );
@@ -160,21 +237,17 @@ router.get(
   '/',
   async (req: AuthRequest, res: Response) => {
     try {
-      // Build filter: scope to assigned barangays for staff
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const filter: any = {};
-
-      if (req.authUser?.role === 'LGU_STAFF') {
-        const assigned = req.authUser.assignedBarangays ?? [];
-        filter.$or = [
-          { barangay: { $in: assigned } },
-          { assignedBarangays: { $in: assigned } },
-        ];
-      }
-
-      const distributions = await Distribution.find(filter)
+      let distributions = await Distribution.find({})
         .sort({ createdAt: -1 })
         .lean();
+
+      if (isScopedRole(req.authUser?.role)) {
+        const assigned = new Set(req.authUser.assignedBarangays ?? []);
+        distributions = distributions.filter((d) => {
+          if (assigned.has(d.barangay)) return true;
+          return (d.assignedBarangays ?? []).some((b) => assigned.has(b));
+        });
+      }
 
       // Aggregate registered (approved) household counts per barangay
       const barangays = [...new Set(
@@ -185,7 +258,7 @@ router.get(
         )
       )];
       const counts = await Resident.aggregate([
-        { $match: { barangay: { $in: barangays }, status: 'Approved' } },
+        { $match: { barangay: mongoose.trusted({ $in: barangays }), status: 'Approved' } },
         { $group: { _id: '$barangay', count: { $sum: 1 } } },
       ]);
       const countMap: Record<string, number> = {};
@@ -196,7 +269,7 @@ router.get(
       // Aggregate claimed household counts per distribution from DistributionClaim
       const distIds = distributions.map((d) => d._id);
       const claimedCounts = await DistributionClaim.aggregate([
-        { $match: { distributionId: { $in: distIds } } },
+        { $match: { distributionId: mongoose.trusted({ $in: distIds }) } },
         { $group: { _id: '$distributionId', count: { $sum: 1 } } },
       ]);
       const claimedCountMap: Record<string, number> = {};
@@ -339,7 +412,7 @@ router.get(
 
       // 3) Get all approved residents (registered households) in target barangays
       const registeredHouseholds = await Resident.find({
-        barangay: { $in: targetBarangays },
+        barangay: mongoose.trusted({ $in: targetBarangays }),
         status: 'Approved',
       })
         .select('_id fullName firstName lastName streetAddress barangay')

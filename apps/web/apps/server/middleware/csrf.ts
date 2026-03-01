@@ -63,6 +63,7 @@ const CSRF_EXEMPT_PATHS: string[] = [
   '/api/auth/login',
   '/api/auth/login/verify-otp',
   '/api/auth/login/resend-otp',
+  '/api/mobile-auth/login',
   '/api/auth/forgot-password/send-otp',
   '/api/auth/forgot-password/verify-otp',
   '/api/auth/forgot-password/reset',

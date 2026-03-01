@@ -12,6 +12,7 @@ import { notificationsApi, type NotificationData } from '@/lib/api'
 /* ================================================================== */
 
 export function NotificationBell() {
+  const { user, loading: authLoading } = useAuth()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -22,6 +23,8 @@ export function NotificationBell() {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const fetchNotifications = useCallback(async () => {
+    // Don't fetch if not authenticated
+    if (authLoading || !user) return
     if (Date.now() < rateLimitedUntilRef.current) return
     if (inFlightRef.current) return
 
@@ -49,12 +52,13 @@ export function NotificationBell() {
     if (open) fetchNotifications()
   }, [open, fetchNotifications])
 
-  // Poll for unread count every 60 seconds
+  // Poll for unread count every 60 seconds (only when authenticated)
   useEffect(() => {
+    if (authLoading || !user) return
     fetchNotifications()
     const interval = setInterval(fetchNotifications, 60000)
     return () => clearInterval(interval)
-  }, [fetchNotifications])
+  }, [fetchNotifications, authLoading, user])
 
   // Close on outside click
   useEffect(() => {
@@ -201,8 +205,9 @@ export function ProfileDropdown() {
     return ch ? ch.toUpperCase() : 'U'
   }, [displayName])
 
-  // Fetch email from profile on mount
+  // Fetch email from profile on mount (only when authenticated)
   useEffect(() => {
+    if (!user) return
     import('@/lib/api').then(({ profileApi }) => {
       profileApi.getProfile().then((res) => {
         if (res.success && res.data?.email) {
@@ -210,7 +215,7 @@ export function ProfileDropdown() {
         }
       }).catch(() => {})
     })
-  }, [])
+  }, [user])
 
   // Close on outside click / Esc
   useEffect(() => {

@@ -9,8 +9,9 @@ import {
 } from '@tanstack/react-table'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { BARANGAY_OPTIONS } from '@/lib/api'
+import { useAuth } from '@/lib/AuthContext'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api'
 
 type ApprovedResident = {
   _id: string
@@ -28,12 +29,18 @@ function maskName(fullName: string): string {
 }
 
 export default function ApprovedUsersByBarangayTable() {
+  const { user, loading: authLoading } = useAuth()
   const [rows, setRows] = useState<ApprovedResident[]>([])
   const [barangay, setBarangay] = useState('All Barangays')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Don't fetch if not authenticated
+    if (authLoading || !user) {
+      setLoading(false)
+      return
+    }
     let mounted = true
     const load = async () => {
       setLoading(true)
@@ -55,7 +62,7 @@ export default function ApprovedUsersByBarangayTable() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [authLoading, user])
 
   const barangayOptions = useMemo(() => ['All Barangays', ...BARANGAY_OPTIONS], [])
 
@@ -173,3 +180,6 @@ export default function ApprovedUsersByBarangayTable() {
     </section>
   )
 }
+
+
+

@@ -8,6 +8,7 @@
  */
 
 import { Router, Response } from 'express';
+import mongoose from 'mongoose';
 import crypto from 'crypto';
 import Claim, { IClaim } from '../models/Claim';
 import HouseholdToken from '../models/HouseholdToken';
@@ -314,7 +315,7 @@ router.get('/ledger', validateRequest({ query: ledgerQuery }), async (req: AuthR
     // RBAC: LGU_STAFF can only see claims in their assigned barangays
     if (req.authUser?.role === 'LGU_STAFF') {
       const assigned = req.authUser.assignedBarangays ?? [];
-      filter.barangay = { $in: assigned };
+      filter.barangay = mongoose.trusted({ $in: assigned });
     }
 
     if (barangay && barangay !== 'All Barangays') {

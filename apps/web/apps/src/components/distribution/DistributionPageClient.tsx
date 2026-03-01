@@ -7,6 +7,7 @@ import NewDistributionModal, { CreateDistributionPayload } from './NewDistributi
 import { api } from '../../lib/api'
 import { showToast } from '@/lib/toast'
 import { TableSkeleton } from '@/components/ui/Skeleton'
+import { useAuth } from '@/lib/AuthContext'
 
 const BARANGAY_OPTIONS = [
   'Bolo',
@@ -22,6 +23,7 @@ const BARANGAY_OPTIONS = [
 ]
 
 export default function DistributionPageClient() {
+  const { user, loading: authLoading } = useAuth()
   const [rows, setRows] = useState<DistributionRow[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -56,8 +58,13 @@ export default function DistributionPageClient() {
   }, [])
 
   useEffect(() => {
+    // Don't fetch if not authenticated
+    if (authLoading || !user) {
+      setLoading(false)
+      return
+    }
     fetchDistributions()
-  }, [fetchDistributions])
+  }, [fetchDistributions, authLoading, user])
 
   const unclaimedCount = useMemo(
     () => rows.filter((r) => r.status === 'Unclaimed').length,
@@ -88,9 +95,12 @@ export default function DistributionPageClient() {
       await api.createDistribution({
         barangay: payload.barangay,
         assignedBarangays: payload.assignedBarangays,
+        assignedStaffIds: payload.assignedStaffIds,
         scheduled: payload.scheduled,
         households: payload.households,
         notes: payload.notes,
+      }, {
+        idempotencyKey: crypto.randomUUID(),
       })
       setCreateOpen(false)
       showToast.success('Distribution created.')
@@ -99,6 +109,7 @@ export default function DistributionPageClient() {
       const message = err instanceof Error ? err.message : 'Failed to create distribution'
       setError(message)
       showToast.error(message)
+      throw err
     }
   }
 

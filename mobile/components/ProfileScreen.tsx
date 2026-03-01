@@ -10,43 +10,80 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ResidentProfile } from '../services/api/ResidentQrService';
+import { User as VolunteerUser } from '../services/auth/MobileAuthService';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
   onLogout?: () => void;
+  accountType?: 'resident' | 'volunteer';
   residentProfile?: ResidentProfile | null;
+  volunteerUser?: VolunteerUser | null;
 }
 
-interface MenuItemProps {
+interface SettingsItemProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress?: () => void;
-  isDestructive?: boolean;
 }
 
-const MenuItem = ({ icon, label, onPress, isDestructive }: MenuItemProps) => (
-  <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-    <View style={[styles.menuIconContainer, isDestructive && styles.menuIconDestructive]}>
-      <Ionicons name={icon} size={20} color={isDestructive ? '#EF4444' : '#16A34A'} />
+const SettingsItem = ({ icon, label, onPress }: SettingsItemProps) => (
+  <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
+    <View style={styles.settingsIconWrapper}>
+      <Ionicons name={icon} size={20} color="#6B7280" />
     </View>
-    <Text style={[styles.menuLabel, isDestructive && styles.menuLabelDestructive]}>{label}</Text>
-    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+    <Text style={styles.settingsLabel}>{label}</Text>
+    <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
   </TouchableOpacity>
 );
 
-export default function ProfileScreen({ onNavigate, onLogout, residentProfile }: ProfileScreenProps) {
-  const displayName = residentProfile?.fullName || 'Resident';
-  const secondaryLine = residentProfile?.mobileNumber || 'No mobile number';
-  const isVerified = residentProfile?.status === 'Approved';
-  const locationLine = [residentProfile?.streetAddress, residentProfile?.barangay, residentProfile?.city]
-    .filter(Boolean)
-    .join(', ');
+interface InfoRowProps {
+  label: string;
+  value: string;
+  showDivider?: boolean;
+}
+
+const InfoRow = ({ label, value, showDivider = true }: InfoRowProps) => (
+  <>
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+    {showDivider && <View style={styles.infoDivider} />}
+  </>
+);
+
+export default function ProfileScreen({
+  onNavigate,
+  onLogout,
+  accountType = 'resident',
+  residentProfile,
+  volunteerUser,
+}: ProfileScreenProps) {
+  const isVolunteer = accountType === 'volunteer';
+  const displayName = isVolunteer
+    ? `${volunteerUser?.firstName || ''} ${volunteerUser?.lastName || ''}`.trim() || 'Volunteer'
+    : residentProfile?.fullName || 'Juan Dela Cruz';
+  const isVerified = isVolunteer ? true : residentProfile?.status === 'Approved';
+  const residentCode = residentProfile?.residentCode || 'SJ-10293';
+  const fullAddress = isVolunteer
+    ? volunteerUser?.barangay || 'No address'
+    : [residentProfile?.streetAddress || '123 Maple St', residentProfile?.barangay || 'San Jose']
+        .filter(Boolean)
+        .join(', ');
+  const householdSize = residentProfile?.householdSize || 4;
+  const coverageArea = 'Sector 7-B';
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Top Navigation Bar */}
+      <View style={styles.topNav}>
+        <TouchableOpacity style={styles.navButton} onPress={() => onNavigate?.('home')}>
+          <Ionicons name="chevron-back" size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text style={styles.topNavTitle}>Profile</Text>
+        <TouchableOpacity style={styles.navButton}>
+          <Ionicons name="settings-outline" size={22} color="#374151" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -54,82 +91,77 @@ export default function ProfileScreen({ onNavigate, onLogout, residentProfile }:
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.profileImageContainer}>
+        {/* Profile Identity Section */}
+        <View style={styles.identitySection}>
+          {/* Avatar */}
+          <View style={styles.avatarContainer}>
             <Image
               source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }}
-              style={styles.profileImage}
+              style={styles.avatar}
             />
-            <TouchableOpacity style={styles.editImageButton}>
-              <Ionicons name="camera" size={16} color="#FFFFFF" />
+            <TouchableOpacity style={styles.editAvatarButton}>
+              <Ionicons name="pencil" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
+
+          {/* Name */}
           <Text style={styles.profileName}>{displayName}</Text>
-          <Text style={styles.profileEmail}>{secondaryLine}</Text>
+
+          {/* Verified Badge */}
           <View style={styles.verifiedBadge}>
-            <Ionicons name={isVerified ? 'checkmark-circle' : 'time-outline'} size={16} color={isVerified ? '#16A34A' : '#F59E0B'} />
+            <Ionicons 
+              name={isVerified ? 'checkmark-circle' : 'time-outline'} 
+              size={16} 
+              color={isVerified ? '#16A34A' : '#F59E0B'} 
+            />
             <Text style={styles.verifiedText}>
-              {isVerified ? 'Verified Household' : 'Pending Verification'}
+              {isVolunteer ? 'Active Staff' : isVerified ? 'Verified Household' : 'Pending Verification'}
             </Text>
           </View>
+
+          {/* Resident Code */}
+          <Text style={styles.residentCode}>Resident Code: {residentCode}</Text>
         </View>
 
-        {/* Account Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>ACCOUNT</Text>
-          <View style={styles.menuCard}>
-            <MenuItem icon="person-outline" label={`Resident Code: ${residentProfile?.residentCode || 'N/A'}`} />
-            <View style={styles.menuDivider} />
-            <MenuItem icon="home-outline" label={locationLine || 'Address not available'} />
-            <View style={styles.menuDivider} />
-            <MenuItem icon="people-outline" label={`Household Size: ${residentProfile?.householdSize || 0}`} />
-          </View>
+        {/* Account Information Card */}
+        <View style={styles.infoCard}>
+          <InfoRow label="Full Address" value={fullAddress} />
+          <InfoRow label="Household Size" value={`${householdSize} members`} />
+          <InfoRow label="Coverage Area" value={coverageArea} showDivider={false} />
         </View>
 
-        {/* Settings Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>SETTINGS</Text>
-          <View style={styles.menuCard}>
-            <MenuItem icon="notifications-outline" label="Notifications" />
-            <View style={styles.menuDivider} />
-            <MenuItem icon="lock-closed-outline" label="Privacy & Security" />
-            <View style={styles.menuDivider} />
-            <MenuItem icon="help-circle-outline" label="Help & Support" />
-          </View>
+        {/* Settings Section Card */}
+        <View style={styles.settingsCard}>
+          <SettingsItem icon="notifications-outline" label="Notifications" />
+          <View style={styles.settingsDivider} />
+          <SettingsItem icon="shield-checkmark-outline" label="Privacy & Security" />
+          <View style={styles.settingsDivider} />
+          <SettingsItem icon="help-circle-outline" label="Help & Support" />
         </View>
 
-        {/* Logout Section */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.menuCard}>
-            <MenuItem 
-              icon="log-out-outline" 
-              label="Log Out" 
-              isDestructive 
-              onPress={onLogout}
-            />
-          </View>
-        </View>
-
-        {/* App Version */}
-        <Text style={styles.versionText}>Kapit-Bisig v1.0.0</Text>
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+          <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNavContainer}>
         <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem} onPress={() => onNavigate?.('home')}>
-            <Ionicons name="home-outline" size={24} color="#9CA3AF" />
-            <Text style={styles.navText}>Home</Text>
+          <TouchableOpacity style={styles.bottomNavItem} onPress={() => onNavigate?.('home')}>
+            <Ionicons name="home-outline" size={22} color="#9CA3AF" />
+            <Text style={styles.bottomNavText}>HOME</Text>
           </TouchableOpacity>
-          <View style={styles.navItemPlaceholder} />
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="person" size={24} color="#16A34A" />
-            <Text style={[styles.navText, styles.navTextActive]}>Profile</Text>
+          <View style={styles.bottomNavPlaceholder} />
+          <TouchableOpacity style={styles.bottomNavItem}>
+            <Ionicons name="person" size={22} color="#16A34A" />
+            <Text style={[styles.bottomNavText, styles.bottomNavTextActive]}>PROFILE</Text>
           </TouchableOpacity>
         </View>
+        
+        {/* Floating QR Button */}
         <TouchableOpacity style={styles.floatingQrButton} onPress={() => onNavigate?.('qr')}>
-          <MaterialCommunityIcons name="qrcode-scan" size={28} color="#FFFFFF" />
+          <MaterialCommunityIcons name="qrcode-scan" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -137,202 +169,237 @@ export default function ProfileScreen({ onNavigate, onLogout, residentProfile }:
 }
 
 const styles = StyleSheet.create({
+  // Main Container
   container: {
     flex: 1,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#F8FAF9',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+
+  // Top Navigation
+  topNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: 'transparent',
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+  navButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topNavTitle: {
+    fontSize: 17,
+    fontWeight: '600',
     color: '#1F2937',
-    textAlign: 'center',
+    letterSpacing: -0.3,
   },
+
+  // Scroll Content
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 120,
   },
-  profileCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    marginTop: 20,
+
+  // Profile Identity Section
+  identitySection: {
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    paddingTop: 16,
+    paddingBottom: 32,
   },
-  profileImageContainer: {
+  avatarContainer: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 24,
   },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     borderWidth: 3,
-    borderColor: '#16A34A',
+    borderColor: '#BBF7D0',
   },
-  editImageButton: {
+  editAvatarButton: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 4,
+    right: 4,
     width: 32,
     height: 32,
     borderRadius: 16,
     backgroundColor: '#16A34A',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#F8FAF9',
   },
   profileName: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '500',
     color: '#1F2937',
-    marginBottom: 4,
-  },
-  profileEmail: {
-    fontSize: 14,
-    color: '#6B7280',
     marginBottom: 12,
+    letterSpacing: -0.5,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
+    marginBottom: 12,
   },
   verifiedText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#16A34A',
     marginLeft: 6,
   },
-  sectionContainer: {
-    marginTop: 24,
+  residentCode: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontWeight: '400',
   },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6B7280',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  menuCard: {
+
+  // Information Card
+  infoCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    overflow: 'hidden',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 24,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
-  menuItem: {
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  infoLabel: {
+    fontSize: 15,
+    color: '#9CA3AF',
+    fontWeight: '400',
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#1F2937',
+    fontWeight: '500',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 16,
+  },
+  infoDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+  },
+
+  // Settings Card
+  settingsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 24,
+    elevation: 2,
+  },
+  settingsItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 18,
+    minHeight: 56,
   },
-  menuIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#DCFCE7',
+  settingsIconWrapper: {
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  menuIconDestructive: {
-    backgroundColor: '#FEE2E2',
-  },
-  menuLabel: {
+  settingsLabel: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 16,
     color: '#1F2937',
+    fontWeight: '400',
   },
-  menuLabelDestructive: {
+  settingsDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+  },
+
+  // Logout Button
+  logoutButton: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginBottom: 24,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '500',
     color: '#EF4444',
   },
-  menuDivider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginLeft: 64,
-  },
-  versionText: {
-    textAlign: 'center',
-    fontSize: 13,
-    color: '#9CA3AF',
-    marginTop: 24,
-    marginBottom: 20,
-  },
+
+  // Bottom Navigation
   bottomNavContainer: {
-    position: 'relative',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#F3F4F6',
   },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingBottom: 24,
+    paddingTop: 12,
+    paddingBottom: 28,
   },
-  navItem: {
+  bottomNavItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+    minWidth: 56,
   },
-  navItemPlaceholder: {
-    width: 70,
+  bottomNavPlaceholder: {
+    width: 64,
+  },
+  bottomNavText: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 4,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  bottomNavTextActive: {
+    color: '#16A34A',
   },
   floatingQrButton: {
     position: 'absolute',
     top: -28,
     left: '50%',
-    marginLeft: -35,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    marginLeft: -32,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#16A34A',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#16A34A',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 8,
-  },
-  navText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  navTextActive: {
-    color: '#16A34A',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
   },
 });

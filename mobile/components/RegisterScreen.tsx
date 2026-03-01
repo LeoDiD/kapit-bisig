@@ -28,12 +28,12 @@ const { width } = Dimensions.get('window');
 // API Configuration
 const API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://localhost:3001/api',
+  'http://192.168.1.72:3001/api',
   'RegisterScreen API',
 );
 const FACE_API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_FACE_API_URL,
-  'http://localhost:8000',
+  'http://192.168.1.72:8000',
   'RegisterScreen Face API',
 );
 
@@ -765,7 +765,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             isValid: false,
             matchConfidence: duplicateResult.similarity,
             livenessConfidence: 0.90,
-            warnings: [`Duplicate face detected - matches ${duplicateResult.best_match_name}`],
+            warnings: ["Duplicate face detected - already registered"],
           },
           dataMatchVerification: {
             isMatch: false,
@@ -780,8 +780,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         
         // Show alert but don't submit to main database
         Alert.alert(
-          '⚠️ Registration Blocked',
-          `This face is already registered under "${duplicateResult.best_match_name}".\n\nDuplicate registrations are not allowed.`,
+          'Registration Blocked',
+          'This face is already registered.\n\nDuplicate registrations are not allowed.',
           [{ text: 'OK' }]
         );
         
@@ -855,7 +855,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             similarity: duplicateResult.similarity,
             threshold: duplicateResult.threshold,
             processingTime: duplicateResult.processing_time_ms,
-            bestMatch: duplicateResult.best_match_name || 'None',
+            bestMatch: 'Hidden',
           },
           warnings: [],
           riskFactors: [],
@@ -1898,7 +1898,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <>
                 <Ionicons name="alert-circle" size={24} color="#E74C3C" />
                 <Text style={[styles.statusMessageText, { color: '#E74C3C' }]}>
-                  Registration blocked. This face is already registered under "{duplicateCheckResult.best_match_name}".
+                  Registration blocked. This face is already registered.
                 </Text>
               </>
             ) : duplicateCheckResult?.decision === 'ERROR' ? (
@@ -3905,3 +3905,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
 });
+
+
+

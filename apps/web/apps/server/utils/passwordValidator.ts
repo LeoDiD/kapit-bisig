@@ -25,7 +25,7 @@ export interface PasswordValidationResult {
 
 // Password policy configuration - easy to modify if requirements change
 const PASSWORD_POLICY = {
-  minLength: 16,
+  minLength: 8,
   requireUppercase: true,
   requireLowercase: true,
   requireNumber: true,
@@ -116,17 +116,17 @@ export function validatePassword(password: string): PasswordValidationResult {
  * This provides additional feedback beyond just pass/fail validation.
  * 
  * Strength criteria:
- * - weak: Less than 16 chars or fails basic requirements
- * - medium: Meets minimum requirements (16-19 chars)
- * - strong: Exceeds requirements (20+ chars with all character types)
+ * - weak: Less than 8 chars or fails basic requirements
+ * - medium: Meets minimum requirements (8-11 chars)
+ * - strong: Exceeds requirements (12+ chars with all character types)
  */
 function calculatePasswordStrength(password: string): 'weak' | 'medium' | 'strong' {
   let score = 0;
 
   // Length scoring
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
   if (password.length >= 16) score++;
-  if (password.length >= 20) score++;
-  if (password.length >= 24) score++;
 
   // Character variety scoring
   if (PATTERNS.uppercase.test(password)) score++;

@@ -9,6 +9,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Resident from '../models/Resident';
 import Claim from '../models/Claim';
 import { AuthRequest } from '../middleware/unifiedAuth';
@@ -37,7 +38,7 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
     // RBAC: LGU_STAFF can only see their assigned barangays
     if (req.authUser?.role === 'LGU_STAFF') {
       const assigned = req.authUser.assignedBarangays ?? [];
-      filter.barangay = { $in: assigned };
+      filter.barangay = mongoose.trusted({ $in: assigned });
     }
 
     if (barangay && barangay !== 'All Barangays') {
@@ -88,7 +89,7 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
     // Build a Set of resident IDs that have at least one CONFIRMED claim
     const residentIds = residents.map((r) => r._id.toString());
     const confirmedClaims = await Claim.find({
-      residentId: { $in: residentIds },
+      residentId: mongoose.trusted({ $in: residentIds }),
       status: 'CONFIRMED',
     })
       .select('residentId createdAt updatedAt')

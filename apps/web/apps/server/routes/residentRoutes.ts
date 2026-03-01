@@ -6,6 +6,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Resident from '../models/Resident';
 import HouseholdToken from '../models/HouseholdToken';
 import { requireAuth, requireStaffOrSuperadmin, scopeBarangayGuard, AuthRequest } from '../middleware/unifiedAuth';
@@ -253,7 +254,7 @@ router.get('/', requireAuth, requireStaffOrSuperadmin, validateRequest({ query: 
     // RBAC: LGU_STAFF can only see residents in their assigned barangays
     if (req.authUser?.role === 'LGU_STAFF') {
       const assigned = req.authUser.assignedBarangays ?? [];
-      query.barangay = { $in: assigned };
+      query.barangay = mongoose.trusted({ $in: assigned });
     }
     
     if (status && status !== 'All') {
@@ -421,7 +422,7 @@ router.get('/codes/active', requireAuth, requireStaffOrSuperadmin, async (req: A
 
     if (req.authUser?.role === 'LGU_STAFF') {
       const assigned = req.authUser.assignedBarangays ?? [];
-      query['householdInfo.barangay'] = { $in: assigned };
+      query['householdInfo.barangay'] = mongoose.trusted({ $in: assigned });
     }
 
     const tokens = await HouseholdToken.find(query)

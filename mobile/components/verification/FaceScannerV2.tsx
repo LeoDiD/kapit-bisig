@@ -98,7 +98,7 @@ export default function FaceScannerV2({
   onCancel,
   apiBaseUrl = resolveApiBaseUrl(
     process.env.EXPO_PUBLIC_FACE_API_URL,
-    'http://localhost:8000',
+    'http://192.168.1.72:8000',
     'FaceScannerV2',
   ),
   userId,
@@ -819,3 +819,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+
+

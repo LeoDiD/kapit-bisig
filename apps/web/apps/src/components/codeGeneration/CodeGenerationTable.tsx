@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { BARANGAY_OPTIONS } from '@/lib/api'
@@ -11,7 +11,7 @@ import SecurityNotes from './SecurityNotes'
 import { copyToClipboard, downloadCsv, downloadPdf } from './utils'
 import type { BatchHistoryItem, CodeStatus, GeneratedCodeRow, NormalizedGenerationResult } from './types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api'
 const EXPIRY_DAYS = 30
 const SWEETALERT_SCRIPT_ID = 'sweetalert2-cdn-script'
 
@@ -454,4 +454,7 @@ export default function CodeGenerationTable() {
     </div>
   )
 }
+
+
+
 
