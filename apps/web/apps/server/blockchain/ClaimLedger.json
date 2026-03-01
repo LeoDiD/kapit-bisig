@@ -1,5 +1,5 @@
 {
-  "address": "0x52f7ac70B90EAE0100C9b85a889Ed1093F2069D7",
+  "address": "0x67059129d70EcAB2D6DaFfFE21Db25c9D8496BbB",
   "abi": [
     {
       "anonymous": false,
@@ -30,6 +30,25 @@
         }
       ],
       "name": "ClaimRecorded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
       "type": "event"
     },
     {
@@ -71,6 +90,19 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "bytes32",
@@ -87,8 +119,23 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     }
   ],
-  "deployedAt": "2026-02-18T01:51:56.738Z",
-  "network": "ganache"
+  "deployedAt": "2026-02-26T05:22:25.638Z",
+  "network": "sepolia",
+  "chainId": 11155111,
+  "owner": "0xF9798f11fc3736D988FC721e6bC5dEB71b6bD10d"
 }

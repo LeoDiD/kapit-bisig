@@ -12,8 +12,12 @@
     "server:dev": "nodemon --watch server --ext ts,js,json --exec ts-node --project tsconfig.server.json server/index.ts",
     "seed:optiona": "node server/scripts/seedOptionA.js",
     "seed:optiona:reset": "node server/scripts/resetOptionA.js",
+    "seed:brgy5x10": "node server/scripts/seedBrgy5x10.js",
+    "seed:link-claim-tokens": "node server/scripts/linkSeededClaimTokens.js",
+    "test:risk2-logs": "ts-node --project tsconfig.server.json server/scripts/testRisk2Logging.ts",
     "test:auth:newman": "npx newman run ../../../docs/postman/KapitBisig_Auth_Security.postman_collection.json -e ../../../docs/postman/KapitBisig_Local.postman_environment.json --reporters cli",
-    "test:auth:newman:insecure": "npx newman run ../../../docs/postman/KapitBisig_Auth_Security.postman_collection.json -e ../../../docs/postman/KapitBisig_Local.postman_environment.json --reporters cli --insecure"
+    "test:auth:newman:insecure": "npx newman run ../../../docs/postman/KapitBisig_Auth_Security.postman_collection.json -e ../../../docs/postman/KapitBisig_Local.postman_environment.json --reporters cli --insecure",
+    "test:claim-security": "hardhat test test/ClaimLedger.security.test.js"
   },
   "dependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",

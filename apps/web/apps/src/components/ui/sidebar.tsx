@@ -50,7 +50,7 @@ export function Sidebar({
     <aside
       data-state={open ? 'expanded' : 'collapsed'}
       className={cn(
-        'fixed inset-y-0 left-0 z-40 hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-in-out md:flex md:flex-col',
+        'fixed inset-y-0 left-0 z-50 hidden overflow-visible border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-in-out md:flex md:flex-col',
         open ? 'w-56' : 'w-16',
         className
       )}

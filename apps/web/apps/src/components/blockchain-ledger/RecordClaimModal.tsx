@@ -3,10 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import api from '@/lib/api'
 import { showToast } from '@/lib/toast'
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+import SelectDropdown from '@/components/ui/SelectDropdown'
 
 interface RecordClaimModalProps {
   open: boolean
@@ -32,16 +29,12 @@ const STEP_LABELS = [
   'Check duplicate on-chain',
   'Store claim in DB',
   'Write hashes to blockchain',
-  'Confirm transaction',
+  'Submit transaction (tx hash)',
 ]
 
 function initialSteps(): StepState[] {
   return STEP_LABELS.map((label) => ({ label, status: 'idle' }))
 }
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 
 export default function RecordClaimModal({ open, onClose, onSuccess }: RecordClaimModalProps) {
   const [token, setToken] = useState('')
@@ -51,37 +44,43 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
   const [distLoading, setDistLoading] = useState(false)
   const [steps, setSteps] = useState<StepState[]>(initialSteps)
   const [processing, setProcessing] = useState(false)
-  const [resultMsg, setResultMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [resultMsg, setResultMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null,
+  )
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Fetch distributions when modal opens
   useEffect(() => {
     if (!open) return
     let cancelled = false
     setDistLoading(true)
-    api.getDistributions().then((res) => {
-      if (cancelled) return
-      if (res.success && Array.isArray(res.data)) {
-        const opts: DistOption[] = res.data
-          .filter((d) => d.status !== 'Claimed')
-          .map((d) => ({
-            id: d.id || d._id,
-            label: `${d.barangay} — ${d.scheduled}`,
-            barangay: d.barangay,
-          }))
-        setDistOptions(opts)
-        if (opts.length > 0 && !distributionId) setDistributionId(opts[0].id)
-      }
-    }).catch(() => {
-      // silently fail — user will see empty dropdown
-    }).finally(() => {
-      if (!cancelled) setDistLoading(false)
-    })
-    return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    api
+      .getDistributions()
+      .then((res) => {
+        if (cancelled) return
+        if (res.success && Array.isArray(res.data)) {
+          const opts: DistOption[] = res.data
+            .filter((d) => d.status !== 'Claimed')
+            .map((d) => ({
+              id: d.id || d._id,
+              label: `${d.barangay} - ${d.scheduled}`,
+              barangay: d.barangay,
+            }))
+          setDistOptions(opts)
+          if (opts.length > 0 && !distributionId) setDistributionId(opts[0].id)
+        }
+      })
+      .catch(() => {
+        // User will see empty dropdown state.
+      })
+      .finally(() => {
+        if (!cancelled) setDistLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // Reset state when modal closes
   useEffect(() => {
     if (!open) {
       setToken('')
@@ -93,21 +92,17 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
     }
   }, [open])
 
-  // Focus input when modal opens
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [open])
 
-  /* ── Step helpers ── */
   const setStepStatus = useCallback((index: number, status: StepStatus) => {
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status } : s)))
   }, [])
 
-  /* ── Record Claim ── */
   const handleRecord = useCallback(async () => {
-    // Validate inputs
     const trimmedToken = token.trim()
     if (!trimmedToken) {
       setTokenError('Token is required')
@@ -131,12 +126,9 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
     setSteps(initialSteps())
 
     try {
-      // Step 1 — Validate token (mark active, then call API)
       setStepStatus(0, 'active')
-      await sleep(300) // brief UX delay so user sees the spinner
+      await sleep(300)
 
-      // Steps 2-5 are handled server-side inside POST /api/claims/record-claim
-      // We advance steps optimistically while the request is in flight.
       setStepStatus(0, 'done')
       setStepStatus(1, 'active')
       await sleep(200)
@@ -147,22 +139,31 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
         distributionSite,
       })
 
-      // If we get here (no thrown error), the API returned 2xx
       if (res.success) {
-        // Determine how far the backend got from the claim status
         const claim = (res as any).claim || res.data
         const claimStatus: string = claim?.status || ''
 
-        if (claimStatus === 'CONFIRMED') {
-          // Full success — all steps done
+        if (claimStatus === 'CHAIN_SUBMITTED' || claimStatus === 'PENDING_CHAIN') {
+          const txHash = (res as any).txHash || claim?.blockchain?.txHash || ''
           setStepStatus(1, 'done')
           setStepStatus(2, 'done')
           setStepStatus(3, 'done')
           setStepStatus(4, 'done')
-          setResultMsg({ type: 'success', text: 'Claim recorded and confirmed on-chain!' })
-          showToast.success('Claim confirmed on-chain!')
+          setResultMsg({
+            type: 'success',
+            text: txHash
+              ? `Submitted. Awaiting confirmations. Tx: ${shortHash(txHash)}`
+              : 'Submitted. Awaiting confirmations.',
+          })
+          showToast.success('Claim submitted. Awaiting confirmations.')
+        } else if (claimStatus === 'CONFIRMED') {
+          setStepStatus(1, 'done')
+          setStepStatus(2, 'done')
+          setStepStatus(3, 'done')
+          setStepStatus(4, 'done')
+          setResultMsg({ type: 'success', text: 'Claim confirmed on-chain.' })
+          showToast.success('Claim confirmed on-chain.')
         } else if (claimStatus === 'CHAIN_FAILED') {
-          // DB saved but blockchain write failed
           setStepStatus(1, 'done')
           setStepStatus(2, 'done')
           setStepStatus(3, 'error')
@@ -173,16 +174,9 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
           })
           showToast.error('Blockchain write failed. Retry later.')
         } else {
-          // Pending or other
-          setStepStatus(1, 'done')
-          setStepStatus(2, 'done')
-          setStepStatus(3, 'done')
-          setStepStatus(4, 'active')
-          setResultMsg({ type: 'success', text: res.message || 'Claim recorded.' })
-          showToast.success('Claim recorded.')
+          throw new Error(res.message || 'Unexpected claim status returned by server')
         }
 
-        // Trigger ledger refresh
         onSuccess?.()
       } else {
         throw new Error(res.message || 'Claim recording failed')
@@ -191,7 +185,6 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
       const e = err as { message?: string; response?: { message?: string } }
       const msg = e?.response?.message || e?.message || 'An error occurred'
 
-      // Map error messages to specific steps
       if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('expired')) {
         setStepStatus(0, 'error')
         setTokenError(msg)
@@ -202,11 +195,12 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
         setResultMsg({ type: 'error', text: msg })
         showToast.error(msg)
       } else {
-        // Generic error on current active step
         setSteps((prev) => {
           const activeIdx = prev.findIndex((s) => s.status === 'active')
           if (activeIdx >= 0) {
-            return prev.map((s, i) => (i === activeIdx ? { ...s, status: 'error' as StepStatus } : s))
+            return prev.map((s, i) =>
+              i === activeIdx ? { ...s, status: 'error' as StepStatus } : s,
+            )
           }
           return prev.map((s, i) => (i === 0 ? { ...s, status: 'error' as StepStatus } : s))
         })
@@ -224,18 +218,15 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
 
   return (
     <div className="fixed inset-0 z-[60] pointer-events-auto">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 pointer-events-auto"
         onClick={!processing ? onClose : undefined}
       />
-      {/* Center container */}
       <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
         <div
           className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-gray-100 pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           <div className="flex items-start justify-between p-5 border-b border-gray-100">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-[#004A1C]/10 text-[#004A1C] flex items-center justify-center shrink-0">
@@ -244,7 +235,7 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
               <div>
                 <h2 className="text-base font-bold text-gray-900">Record Claim</h2>
                 <p className="text-xs text-gray-500">
-                  Enter QR token to record a relief claim on-chain.
+                  Enter the household claim token from QR to record a relief claim on-chain.
                 </p>
               </div>
             </div>
@@ -259,38 +250,30 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
             </button>
           </div>
 
-          {/* Body */}
           <div className="px-5 py-4 space-y-4">
-            {/* Distribution Dropdown */}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5">
                 Distribution <span className="text-red-500">*</span>
               </label>
               {distLoading ? (
                 <div className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-400">
-                  Loading distributions…
+                  Loading distributions...
                 </div>
               ) : distOptions.length === 0 ? (
                 <div className="w-full px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-sm text-red-600">
                   No unclaimed distributions found. Create one first.
                 </div>
               ) : (
-                <select
+                <SelectDropdown
                   value={distributionId}
-                  onChange={(e) => setDistributionId(e.target.value)}
+                  onChange={setDistributionId}
+                  options={distOptions.map((d) => ({ value: d.id, label: d.label }))}
+                  ariaLabel="Select distribution"
                   disabled={processing}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:ring-2 focus:ring-[#004A1C] focus:border-[#004A1C] outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                >
-                  {distOptions.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
+                />
               )}
             </div>
 
-            {/* Token Input */}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1.5">
                 QR Token <span className="text-red-500">*</span>
@@ -304,7 +287,8 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
                   if (tokenError) setTokenError(null)
                 }}
                 disabled={processing}
-                placeholder="e.g. TEST-BL-0001-1234"
+                // [RISK-5 MITIGATION] Show supported token formats for reliable staff input.
+                placeholder="e.g. CLM-BL-0005-7005 or J7K2-4D8Q-2M1P"
                 className={[
                   'w-full px-4 py-2.5 rounded-xl border outline-none text-sm text-gray-900 placeholder-gray-400',
                   'focus:ring-2 focus:ring-[#004A1C] focus:border-[#004A1C]',
@@ -312,19 +296,16 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
                   tokenError ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white',
                 ].join(' ')}
               />
-              {tokenError && (
-                <p className="mt-1 text-xs text-red-600">{tokenError}</p>
-              )}
+              <p className="mt-1 text-[11px] text-gray-500">
+                Accepted formats: <code>CLM-XX-0000-0000</code> or <code>XXXX-XXXX-XXXX</code>
+              </p>
+              {tokenError && <p className="mt-1 text-xs text-red-600">{tokenError}</p>}
             </div>
 
-            {/* Steps */}
             <div className="space-y-2 pt-1">
               <p className="text-xs font-medium text-gray-700 mb-1">Progress</p>
               {steps.map((step, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-3 py-1 select-none"
-                >
+                <div key={idx} className="flex items-center gap-3 py-1 select-none">
                   <StepIndicator status={step.status} />
                   <span
                     className={[
@@ -332,10 +313,10 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
                       step.status === 'done'
                         ? 'text-green-700 font-medium'
                         : step.status === 'error'
-                        ? 'text-red-600 font-medium'
-                        : step.status === 'active'
-                        ? 'text-gray-900 font-medium'
-                        : 'text-gray-500',
+                          ? 'text-red-600 font-medium'
+                          : step.status === 'active'
+                            ? 'text-gray-900 font-medium'
+                            : 'text-gray-500',
                     ].join(' ')}
                   >
                     {step.label}
@@ -344,7 +325,6 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
               ))}
             </div>
 
-            {/* Result message */}
             {resultMsg && (
               <div
                 className={[
@@ -359,7 +339,6 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
             )}
           </div>
 
-          {/* Footer */}
           <div className="px-5 pb-5 flex gap-3">
             {resultMsg?.type === 'success' ? (
               <button
@@ -368,7 +347,7 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
                 className="w-full py-2.5 rounded-xl bg-[#004A1C] hover:bg-[#003A16] text-white text-sm font-semibold flex items-center justify-center gap-2"
               >
                 <CheckCircleIcon className="w-4 h-4" />
-                Done — View Ledger
+                Done - View Ledger
               </button>
             ) : (
               <>
@@ -394,7 +373,7 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
                   {processing ? (
                     <>
                       <Spinner className="w-4 h-4" />
-                      Processing…
+                      Processing...
                     </>
                   ) : (
                     <>
@@ -411,10 +390,6 @@ export default function RecordClaimModal({ open, onClose, onSuccess }: RecordCla
     </div>
   )
 }
-
-/* ------------------------------------------------------------------ */
-/*  Step indicator                                                     */
-/* ------------------------------------------------------------------ */
 
 function StepIndicator({ status }: { status: StepStatus }) {
   if (status === 'done') {
@@ -438,23 +413,18 @@ function StepIndicator({ status }: { status: StepStatus }) {
   if (status === 'active') {
     return <Spinner className="w-5 h-5 text-[#004A1C] shrink-0" />
   }
-  // idle
-  return (
-    <span className="w-5 h-5 rounded-full border-2 border-gray-300 shrink-0" />
-  )
+  return <span className="w-5 h-5 rounded-full border-2 border-gray-300 shrink-0" />
 }
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/* ------------------------------------------------------------------ */
-/*  Icons                                                              */
-/* ------------------------------------------------------------------ */
+function shortHash(value: string): string {
+  if (!value) return ''
+  if (value.length <= 14) return value
+  return `${value.slice(0, 8)}...${value.slice(-6)}`
+}
 
 function Spinner({ className }: { className?: string }) {
   return (

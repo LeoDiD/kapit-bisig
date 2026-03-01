@@ -143,3 +143,51 @@ export async function sendLoginVerifyOtpEmail(
 
   await transporter.sendMail({ from, to, subject, html, text });
 }
+
+/* ------------------------------------------------------------------ */
+/*  Send first-login OTP email                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Send a first-login OTP to newly created staff users.
+ * The OTP is included in the email body; it is NOT logged.
+ */
+export async function sendFirstLoginOtpEmail(
+  to: string,
+  otp: string,
+): Promise<void> {
+  const transporter = getTransporter();
+  const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
+
+  const subject = `${APP_NAME} First Login OTP`;
+
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+      <h2 style="color: #0F533A; margin-bottom: 8px;">${APP_NAME}</h2>
+      <p style="color: #374151; font-size: 14px;">Your staff account has been created. Use this one-time code to sign in and set your password:</p>
+
+      <div style="text-align: center; margin: 24px 0;">
+        <span style="display: inline-block; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #0F533A; background: #f0fdf4; padding: 16px 32px; border-radius: 8px; border: 2px dashed #0F533A;">
+          ${otp}
+        </span>
+      </div>
+
+      <p style="color: #6b7280; font-size: 13px;">This code expires in <strong>10 minutes</strong> and can only be used once.</p>
+      <p style="color: #6b7280; font-size: 13px;">If you were not expecting this email, contact your administrator.</p>
+
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+      <p style="color: #9ca3af; font-size: 11px; text-align: center;">&copy; ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.</p>
+    </div>
+  `;
+
+  const text = [
+    `${APP_NAME} - First Login OTP`,
+    '',
+    `Your one-time code: ${otp}`,
+    '',
+    'This code expires in 10 minutes and can only be used once.',
+    'If you were not expecting this email, contact your administrator.',
+  ].join('\n');
+
+  await transporter.sendMail({ from, to, subject, html, text });
+}

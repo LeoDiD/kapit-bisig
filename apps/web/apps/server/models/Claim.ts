@@ -6,14 +6,19 @@
  * so the UI can cross-reference on-chain proof with local data.
  *
  * Status flow:
- *   PENDING_CHAIN → CONFIRMED   (happy path)
- *   PENDING_CHAIN → CHAIN_FAILED (tx reverted or timed out)
- *   CHAIN_FAILED  → CONFIRMED   (manual retry succeeds)
+ *   PENDING_CHAIN   → CHAIN_SUBMITTED → CONFIRMED
+ *   PENDING_CHAIN   → CHAIN_FAILED
+ *   CHAIN_SUBMITTED → CHAIN_FAILED
+ *   CHAIN_FAILED    → CHAIN_SUBMITTED (manual retry)
  */
 
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type ClaimStatus = 'PENDING_CHAIN' | 'CONFIRMED' | 'CHAIN_FAILED';
+export type ClaimStatus =
+  | 'PENDING_CHAIN'
+  | 'CHAIN_SUBMITTED'
+  | 'CONFIRMED'
+  | 'CHAIN_FAILED';
 
 export interface IClaim extends Document {
   claimId: string;
@@ -29,6 +34,8 @@ export interface IClaim extends Document {
   blockchain: {
     txHash?: string;
     blockNumber?: number;
+    chainId?: number;
+    contractAddress?: string;
     householdHash: string;
     eventHash: string;
     staffSigner?: string;
@@ -83,13 +90,15 @@ const ClaimSchema = new Schema<IClaim>(
     },
     status: {
       type: String,
-      enum: ['PENDING_CHAIN', 'CONFIRMED', 'CHAIN_FAILED'],
+      enum: ['PENDING_CHAIN', 'CHAIN_SUBMITTED', 'CONFIRMED', 'CHAIN_FAILED'],
       default: 'PENDING_CHAIN',
       index: true,
     },
     blockchain: {
       txHash: { type: String, default: '' },
       blockNumber: { type: Number, default: 0 },
+      chainId: { type: Number, default: 0 },
+      contractAddress: { type: String, default: '' },
       householdHash: { type: String, required: true },
       eventHash: { type: String, required: true },
       staffSigner: { type: String, default: '' },

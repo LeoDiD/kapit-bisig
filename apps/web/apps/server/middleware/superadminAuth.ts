@@ -1,40 +1,45 @@
 /**
  * SuperAdmin Authentication Middleware
  *
+ * [SECURITY CHECKLIST §1.5] Validated Tokens (JWT) - HS256 + revocation check
+ * [SECURITY CHECKLIST §3.2] RBAC - superadmin role guard
+ *
  * Provides JWT-based auth guards for the single SUPERADMIN account.
- *
- * - Reads the token from the `sa_token` httpOnly cookie first,
- *   then falls back to the Authorization: Bearer header.
- * - requireAuth: ensures a valid JWT is present.
- * - requireSuperadmin: ensures role === "superadmin".
- *
- * Security: tokens are verified with HS256 using JWT_SECRET.
  */
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { isJWTRevoked } from '../services/tokenRevocationService';
+import { sanitizeForLogs } from '../utils/logSanitizer';
 
 const COOKIE_NAME = 'sa_token';
 
-/** Shape of the JWT payload we issue */
+/** Shape of the JWT payload we issue. */
 export interface SuperadminPayload {
-  sub: string;       // username
+  sub: string; // username
   role: 'superadmin';
   jti?: string;
   iat?: number;
   exp?: number;
 }
 
-/** Extends Express Request to carry the verified user info */
+/** Extends Express Request to carry the verified user info. */
 export interface SARequest extends Request {
   saUser?: SuperadminPayload;
 }
 
-/** Security event logger (simple console – swap for a real logger in prod) */
+/** Security event logger (sanitized + production-safe). */
 export function logSecurity(event: string, meta?: Record<string, unknown>) {
+  // [RISK-2 MITIGATION] In production, disable console security logs unless explicitly enabled.
+  const shouldConsoleLog =
+    process.env.NODE_ENV !== 'production' ||
+    process.env.ALLOW_SECURITY_CONSOLE_LOGS === 'true';
+
+  if (!shouldConsoleLog) return;
+
   const ts = new Date().toISOString();
-  console.log(`[SECURITY ${ts}] ${event}`, meta ? JSON.stringify(meta) : '');
+  const safeMeta = meta ? sanitizeForLogs(meta) : undefined;
+  console.log(`[SECURITY ${ts}] ${event}`, safeMeta ? JSON.stringify(safeMeta) : '');
 }
 
 function getJWTSecret(): string {
@@ -62,7 +67,7 @@ function extractToken(req: Request): string | null {
 }
 
 /**
- * requireAuth – verifies a valid JWT is present.
+ * requireAuth - verifies a valid JWT is present.
  * Attaches `req.saUser` on success.
  */
 export const requireAuth = async (
@@ -99,7 +104,7 @@ export const requireAuth = async (
 };
 
 /**
- * requireSuperadmin – must be placed AFTER requireAuth.
+ * requireSuperadmin - must be placed AFTER requireAuth.
  * Ensures role is "superadmin".
  */
 export const requireSuperadmin = (
@@ -114,3 +119,4 @@ export const requireSuperadmin = (
   }
   next();
 };
+

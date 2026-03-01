@@ -1,21 +1,19 @@
 /**
  * Unified Authentication & RBAC Middleware
  *
- * Supports two account types via a single JWT cookie (`sa_token`):
- *   1. SUPERADMIN – fixed env-based account   (role = "SUPERADMIN")
- *   2. LGU_STAFF  – DB-backed staff accounts  (role = "LGU_STAFF")
+ * [SECURITY CHECKLIST §1.5] Validated Tokens (JWT) - cookie-first verification
+ * [SECURITY CHECKLIST §1.2] Secure Sessions with Expiry
+ * [SECURITY CHECKLIST §3.2] Role-Based Access Control (RBAC)
  *
- * Middleware stack (compose as needed):
- *   requireAuth            – verifies JWT, sets req.authUser
- *   requireSuperadmin      – role === "SUPERADMIN"
- *   requireStaffOrSuperadmin – role in ["SUPERADMIN","LGU_STAFF"]
- *   scopeBarangayGuard(field) – ensures the request barangay is within
- *                              req.authUser.assignedBarangays (SUPERADMIN exempt)
+ * Supports two account types via a single JWT cookie (`sa_token`):
+ *   1. SUPERADMIN - fixed env-based account   (role = "SUPERADMIN")
+ *   2. LGU_STAFF  - DB-backed staff accounts  (role = "LGU_STAFF")
  */
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { isJWTRevoked } from '../services/tokenRevocationService';
+import { sanitizeForLogs } from '../utils/logSanitizer';
 
 /* ------------------------------------------------------------------ */
 /*  Constants & types                                                 */
@@ -27,9 +25,9 @@ export type AppRole = 'SUPERADMIN' | 'LGU_STAFF' | 'Volunteer';
 
 /** Shape stored inside every JWT we issue. */
 export interface AuthPayload {
-  sub: string;                // username
+  sub: string; // username
   role: AppRole;
-  userId?: string;            // DB _id for staff users
+  userId?: string; // DB _id for staff users
   assignedBarangays?: string[];
   jti?: string;
   iat?: number;
@@ -41,7 +39,7 @@ export interface AuthRequest extends Request {
   authUser?: AuthPayload;
 }
 
-// Keep backward-compat aliases so existing imports still compile
+// Keep backward-compat aliases so existing imports still compile.
 export type SuperadminPayload = AuthPayload;
 export type SARequest = AuthRequest;
 
@@ -49,10 +47,18 @@ export type SARequest = AuthRequest;
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Security-event logger (swap for a proper logger in prod). */
+/** Security-event logger (sanitized + production-safe). */
 export function logSecurity(event: string, meta?: Record<string, unknown>) {
+  // [RISK-2 MITIGATION] In production, disable console security logs unless explicitly enabled.
+  const shouldConsoleLog =
+    process.env.NODE_ENV !== 'production' ||
+    process.env.ALLOW_SECURITY_CONSOLE_LOGS === 'true';
+
+  if (!shouldConsoleLog) return;
+
   const ts = new Date().toISOString();
-  console.log(`[SECURITY ${ts}] ${event}`, meta ? JSON.stringify(meta) : '');
+  const safeMeta = meta ? sanitizeForLogs(meta) : undefined;
+  console.log(`[SECURITY ${ts}] ${event}`, safeMeta ? JSON.stringify(safeMeta) : '');
 }
 
 function getJWTSecret(): string {
@@ -78,7 +84,8 @@ function extractToken(req: Request): string | null {
 /* ------------------------------------------------------------------ */
 
 /**
- * requireAuth – verifies a valid JWT is present.
+ * requireAuth - verifies a valid JWT is present.
+ * [SECURITY CHECKLIST §1.5] JWT verification (HS256 + revocation check)
  * Attaches `req.authUser` (and legacy `req.saUser`).
  */
 export const requireAuth = async (
@@ -117,7 +124,8 @@ export const requireAuth = async (
 };
 
 /**
- * requireSuperadmin – role must be "SUPERADMIN".
+ * requireSuperadmin - role must be "SUPERADMIN".
+ * [SECURITY CHECKLIST §3.2] RBAC - superadmin-only guard
  * Place AFTER requireAuth.
  */
 export const requireSuperadmin = (
@@ -127,14 +135,15 @@ export const requireSuperadmin = (
 ): void => {
   if (req.authUser?.role !== 'SUPERADMIN') {
     logSecurity('ACCESS_DENIED', { reason: 'insufficient_role', ip: req.ip, role: req.authUser?.role });
-    res.status(403).json({ success: false, message: 'Forbidden – superadmin only' });
+    res.status(403).json({ success: false, message: 'Forbidden - superadmin only' });
     return;
   }
   next();
 };
 
 /**
- * requireStaffOrSuperadmin – role must be "SUPERADMIN" or "LGU_STAFF".
+ * requireStaffOrSuperadmin - role must be "SUPERADMIN" or "LGU_STAFF".
+ * [SECURITY CHECKLIST §3.2] RBAC - staff/superadmin guard
  */
 export const requireStaffOrSuperadmin = (
   req: AuthRequest,
@@ -151,13 +160,14 @@ export const requireStaffOrSuperadmin = (
 };
 
 /**
- * scopeBarangayGuard – ensures the barangay in the request is within
- * the user's assigned scope.  SUPERADMIN is always exempt.
+ * scopeBarangayGuard - ensures the barangay in the request is within
+ * the user's assigned scope. SUPERADMIN is always exempt.
+ * [SECURITY CHECKLIST §3.2] RBAC - barangay-level data scoping
  *
  * @param field  Where to read the barangay value from:
- *               'body'   → req.body.barangay
- *               'params' → req.params.barangay
- *               'query'  → req.query.barangay
+ *               'body'   -> req.body.barangay
+ *               'params' -> req.params.barangay
+ *               'query'  -> req.query.barangay
  */
 export function scopeBarangayGuard(field: 'body' | 'params' | 'query' = 'body') {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -173,8 +183,7 @@ export function scopeBarangayGuard(field: 'body' | 'params' | 'query' = 'body') 
     else if (field === 'params') target = req.params?.barangay;
     else target = req.query?.barangay as string | undefined;
 
-    // If no target barangay specified in the request we let later
-    // route logic inject the scope filter (e.g. GET list endpoints).
+    // If no target barangay specified in the request, route logic can inject scope filter.
     if (!target) {
       next();
       return;
@@ -197,3 +206,4 @@ export function scopeBarangayGuard(field: 'body' | 'params' | 'query' = 'body') 
     next();
   };
 }
+

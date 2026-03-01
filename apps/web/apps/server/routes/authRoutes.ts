@@ -1,6 +1,13 @@
 /**
  * Authentication Routes
  * 
+ * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt 12 rounds)
+ * [SECURITY CHECKLIST §1.3] Generic Login Errors ("Invalid email or password")
+ * [SECURITY CHECKLIST §1.4] Rate Limiting for Logins (loginRateLimiter + account lockout)
+ * [SECURITY CHECKLIST §1.5] Validated Tokens (JWT via generateToken)
+ * [SECURITY CHECKLIST §1.6] Strong Password Policy (validatePassword)
+ * [SECURITY CHECKLIST §1.7] Logout Invalidates Session (revokeJWTByValue)
+ * 
  * Secure endpoints for user registration and login.
  * 
  * Security Features Implemented:
@@ -40,6 +47,7 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
 
 /**
  * bcrypt Salt Rounds Configuration
+ * [SECURITY CHECKLIST §1.1] bcrypt cost factor = 12 (industry standard)
  * 
  * Security Explanation:
  * - Salt rounds determine the computational cost of hashing
@@ -61,6 +69,7 @@ const SALT_ROUNDS = 12;
 
 /**
  * Account lockout tracking (in-memory for demo)
+ * [SECURITY CHECKLIST §1.4] Account lockout — 5 attempts / 15 min lockout
  * 
  * In production, use Redis or database for:
  * - Persistence across server restarts

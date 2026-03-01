@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
+// [SECURITY CHECKLIST §1.3] Generic error messages — no path leakage on 404
 export function notFoundHandler(_req: Request, res: Response): void {
   res.status(404).json({
     success: false,
@@ -7,6 +8,7 @@ export function notFoundHandler(_req: Request, res: Response): void {
   });
 }
 
+// [SECURITY CHECKLIST §1.3] Generic error messages — no stack traces leaked to client
 export function errorHandler(
   err: unknown,
   _req: Request,

@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import React, { useEffect, useMemo, useRef } from 'react'
+import SelectDropdown from '@/components/ui/SelectDropdown'
 
 const EXPIRY_DAYS = 30
 
@@ -167,6 +168,13 @@ export default function CodeGenerationForm({
     () => `Expires in ${EXPIRY_DAYS} days • Expiration date: ${expirationLabel}`,
     [expirationLabel]
   )
+  const barangayDropdownOptions = useMemo(
+    () => [
+      { value: '', label: 'Select barangay' },
+      ...barangayOptions.map((option) => ({ value: option, label: option })),
+    ],
+    [barangayOptions]
+  )
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -175,20 +183,13 @@ export default function CodeGenerationForm({
           <label htmlFor="code-generation-barangay" className="mb-2 block text-sm font-medium text-slate-700">
             Barangay
           </label>
-          <select
+          <SelectDropdown
             id="code-generation-barangay"
             value={barangay}
-            onChange={(event) => setBarangay(event.target.value)}
-            className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            aria-label="Select barangay"
-          >
-            <option value="">Select barangay</option>
-            {barangayOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            onChange={setBarangay}
+            options={barangayDropdownOptions}
+            ariaLabel="Select barangay"
+          />
           <p className="mt-2 text-xs text-slate-600">{activeUnusedLabel}</p>
         </div>
 

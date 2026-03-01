@@ -1,6 +1,8 @@
 /**
  * MongoDB / NoSQL Injection Sanitizer Middleware
  *
+ * [SECURITY CHECKLIST §2.3] NoSQL Injection Protection — Layer 2 (strip)
+ *
  * Recursively strips keys that start with `$` or contain `.` from
  * req.body, req.query, and req.params.  This blocks common NoSQL
  * injection vectors such as `{ "$gt": "" }` or `{ "field.nested": ... }`.

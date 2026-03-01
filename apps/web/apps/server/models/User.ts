@@ -1,6 +1,9 @@
 /**
  * User Model
  * 
+ * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt 12 rounds, pre-save hook)
+ * [SECURITY CHECKLIST §3.2] Role-Based Access Control (RBAC) — permission mapping
+ * 
  * MongoDB schema for user authentication with security features:
  * - Password hashing with bcrypt (pre-save hook)
  * - Password comparison method

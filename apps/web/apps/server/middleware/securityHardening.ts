@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
+// [SECURITY CHECKLIST §2.3] NoSQL Injection Protection — recursive key inspection
 const hasUnsafeKey = (value: unknown): boolean => {
   if (value === null || value === undefined) return false;
   if (Array.isArray(value)) return value.some(hasUnsafeKey);
@@ -16,6 +17,7 @@ const hasUnsafeKey = (value: unknown): boolean => {
   return false;
 };
 
+// [SECURITY CHECKLIST §2.3] NoSQL Injection Protection — first-pass rejection middleware
 export function rejectNoSQLInjection(req: Request, res: Response, next: NextFunction): void {
   if (hasUnsafeKey(req.body) || hasUnsafeKey(req.query) || hasUnsafeKey(req.params)) {
     res.status(400).json({
@@ -28,6 +30,7 @@ export function rejectNoSQLInjection(req: Request, res: Response, next: NextFunc
   next();
 }
 
+// [SECURITY CHECKLIST §3.4] HTTPS enforcement in production
 export function enforceHTTPSInProduction(
   req: Request,
   res: Response,

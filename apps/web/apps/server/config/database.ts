@@ -7,6 +7,8 @@
 import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI;
+const DEFAULT_DB_NAME = 'kapit-bisig';
+const MONGODB_DB_NAME = (process.env.MONGODB_DB_NAME || DEFAULT_DB_NAME).trim();
 
 function validateMongoConfig(uri: string): void {
   const isProd = process.env.NODE_ENV === 'production';
@@ -42,6 +44,7 @@ export const connectDB = async (): Promise<void> => {
     mongoose.set('debug', !isProd);
 
     const options: mongoose.ConnectOptions = {
+      dbName: MONGODB_DB_NAME,
       maxPoolSize: 15,
       minPoolSize: 2,
       serverSelectionTimeoutMS: 5_000,

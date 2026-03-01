@@ -1,3 +1,4 @@
+// [SECURITY CHECKLIST §1.7] Logout Invalidates Session — revoked token storage
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IRevokedToken extends Document {
@@ -34,7 +35,7 @@ const RevokedTokenSchema = new Schema<IRevokedToken>(
   { timestamps: false }
 );
 
-// TTL index: MongoDB automatically removes expired revoked-token entries.
+// [SECURITY CHECKLIST §1.7] TTL index: auto-clean expired revoked tokens
 RevokedTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.model<IRevokedToken>('RevokedToken', RevokedTokenSchema);

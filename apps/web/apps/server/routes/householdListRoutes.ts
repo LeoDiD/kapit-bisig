@@ -57,14 +57,14 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
 
     if (search) {
       const re = new RegExp(escapeRegex(search), 'i');
-      filter.$or = [
+      filter.$or = mongoose.trusted([
         { fullName: re },
         { firstName: re },
         { lastName: re },
         { barangay: re },
         { streetAddress: re },
         { mobileNumber: re },
-      ];
+      ]);
     }
 
     // ── Pagination ──────────────────────────────────────────────
@@ -74,8 +74,9 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
     const skip = (page - 1) * limit;
 
     // Fetch residents (exclude heavy fields like images)
-    const total = await Resident.countDocuments(filter);
+    const total = await Resident.countDocuments(filter).setOptions({ sanitizeFilter: false });
     const residents = await Resident.find(filter)
+      .setOptions({ sanitizeFilter: false })
       .select(
         'firstName lastName fullName barangay streetAddress city householdSize ' +
         'mobileNumber status verification.overallConfidence verification.isVerified ' +
@@ -92,6 +93,7 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
       residentId: mongoose.trusted({ $in: residentIds }),
       status: 'CONFIRMED',
     })
+      .setOptions({ sanitizeFilter: false })
       .select('residentId createdAt updatedAt')
       .lean();
 

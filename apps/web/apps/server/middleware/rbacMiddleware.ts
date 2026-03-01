@@ -1,6 +1,8 @@
 /**
  * Role-Based Access Control (RBAC) Middleware
  * 
+ * [SECURITY CHECKLIST §3.2] Role-Based Access Control
+ * 
  * Provides middleware functions to protect routes based on user roles and permissions.
  * 
  * Security Features:

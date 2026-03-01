@@ -1,6 +1,8 @@
 /**
  * Rate Limiting Middleware
  * 
+ * [SECURITY CHECKLIST §1.4] Rate Limiting for Logins (and all endpoints)
+ * 
  * Protects against brute-force attacks and DoS by limiting request rates.
  * 
  * Security Features:
@@ -43,6 +45,7 @@ const getClientIP = (req: Request): string => {
 
 /**
  * General Rate Limiter
+ * [SECURITY CHECKLIST §1.4] Global rate limiting — 500 req / 15 min per IP
  * 
  * Applied to all API routes to prevent abuse.
  * Allows 100 requests per 15 minutes per IP.
@@ -72,6 +75,7 @@ export const generalRateLimiter: RateLimitRequestHandler = rateLimit({
 
 /**
  * Login Rate Limiter (STRICT)
+ * [SECURITY CHECKLIST §1.4] Login rate limiting — 5 attempts / 15 min per IP
  * 
  * Critical security measure to prevent:
  * - Brute-force password attacks

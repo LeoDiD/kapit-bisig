@@ -1,3 +1,4 @@
+// [SECURITY CHECKLIST §1.7] Logout Invalidates Session — JWT revocation service
 import jwt from 'jsonwebtoken';
 import RevokedToken from '../models/RevokedToken';
 
@@ -6,6 +7,7 @@ interface TokenPayload {
   exp?: number;
 }
 
+// [SECURITY CHECKLIST §1.7] Revoke JWT by storing its jti in the database
 export async function revokeJWTByValue(
   token: string,
   tokenType: 'access' | 'session' = 'access'
@@ -34,6 +36,7 @@ export async function revokeJWTByValue(
   }
 }
 
+// [SECURITY CHECKLIST §1.7] Check if a JWT has been revoked (called by auth middleware)
 export async function isJWTRevoked(jti?: string): Promise<boolean> {
   if (!jti) return false;
   const revoked = await RevokedToken.exists({ jti });

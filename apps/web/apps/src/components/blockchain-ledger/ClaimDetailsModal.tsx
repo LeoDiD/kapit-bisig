@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { getTxExplorerUrl } from '@/lib/chain'
 import {
   type LedgerRow,
   shortenHash,
@@ -24,6 +25,7 @@ export default function ClaimDetailsModal({ open, claim, onClose }: ClaimDetails
   if (!open || !claim) return null
 
   const hasOffChain = !!claim.offChainMatch
+  const txExplorerUrl = getTxExplorerUrl(claim.txHash)
 
   const handleCopyTxHash = () => {
     copy(claim.txHash, 'footer-tx')
@@ -214,6 +216,17 @@ export default function ClaimDetailsModal({ open, claim, onClose }: ClaimDetails
               <CopyIcon className="w-4 h-4" />
               Copy Tx Hash
             </button>
+            {txExplorerUrl && (
+              <a
+                href={txExplorerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium inline-flex items-center gap-2"
+              >
+                <ChainIcon className="w-4 h-4" />
+                View on Explorer
+              </a>
+            )}
             <button
               type="button"
               className="ml-auto px-4 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold inline-flex items-center gap-2"

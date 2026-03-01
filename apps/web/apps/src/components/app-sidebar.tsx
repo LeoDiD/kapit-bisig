@@ -6,6 +6,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
   Users,
   ShieldCheck,
@@ -35,7 +37,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { logout, isSuperadmin } = useAuth()
-  const { open } = useSidebar()
+  const { open, toggleSidebar } = useSidebar()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -55,6 +57,16 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="bg-[linear-gradient(to_bottom,#004A1C_0%,#2F7F6A_50%,#8FAE6A_100%)] text-white shadow-xl">
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
+        title={open ? 'Collapse sidebar' : 'Expand sidebar'}
+        className="absolute right-0 top-6 z-50 inline-flex h-6 w-6 translate-x-1/2 cursor-pointer items-center justify-center rounded-full border border-yellow-400 bg-yellow-500 text-green-900 shadow-sm transition-colors duration-200 hover:bg-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/70"
+      >
+        {open ? <ChevronLeft className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+      </button>
+
       <div className="flex items-center border-b border-white/10 px-2 py-2">
         <span className="flex w-12 shrink-0 items-center justify-center">
           <Image

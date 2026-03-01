@@ -1,6 +1,8 @@
 /**
  * CSRF Protection Middleware (Double-Submit Cookie)
  *
+ * [SECURITY CHECKLIST §2.4] CSRF Tokens Enabled
+ *
  * How it works:
  *   1. On successful login, the server sets a non-httpOnly cookie `XSRF-TOKEN`
  *      containing a random token. This cookie IS readable by JavaScript.

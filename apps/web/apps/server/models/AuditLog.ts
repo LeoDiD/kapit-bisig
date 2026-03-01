@@ -1,6 +1,8 @@
 /**
  * AuditLog Model
  *
+ * [SECURITY CHECKLIST §3.3] Audit Logging Enabled — immutable, append-only collection
+ *
  * General-purpose, immutable audit trail for security-relevant events.
  * Complements the domain-specific RegistrationAuditLog with a broader
  * scope: auth events, admin actions, distribution/claim operations, etc.
@@ -87,7 +89,7 @@ AuditLogSchema.index({ actorId: 1, createdAt: -1 });
 AuditLogSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });
 AuditLogSchema.index({ createdAt: -1 });
 
-// TTL — keep audit entries for 2 years
+// [SECURITY CHECKLIST §3.3] TTL — keep audit entries for 2 years
 AuditLogSchema.index(
   { createdAt: 1 },
   { expireAfterSeconds: 2 * 365 * 24 * 60 * 60 },
@@ -95,6 +97,7 @@ AuditLogSchema.index(
 
 /* ------------------------------------------------------------------ */
 /*  Immutability guards                                                */
+/*  [SECURITY CHECKLIST §3.3] Records are immutable — no update/delete  */
 /* ------------------------------------------------------------------ */
 
 for (const op of [

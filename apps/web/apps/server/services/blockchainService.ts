@@ -1,46 +1,48 @@
 /**
  * Blockchain Service
  *
- * Connects to Ganache via ethers, signs and sends transactions
- * to the on-chain ClaimLedger contract.
- *
- * All heavy crypto stays here — the rest of the backend only calls:
- *   • recordClaim(householdHash, eventHash)
- *   • isClaimed(householdHash)
+ * Sepolia-only runtime for reading/writing ClaimLedger.
+ * - Writer: backend signer from PRIVATE_KEY
+ * - RPC: RPC_URL
+ * - Contract address: CONTRACT_ADDRESS
  */
 
 import { ethers } from 'ethers';
 import path from 'path';
 import fs from 'fs';
-
-/* ------------------------------------------------------------------ */
-/*  Config helpers                                                     */
-/* ------------------------------------------------------------------ */
-
-function env(key: string, fallback = ''): string {
-  return process.env[key] || fallback;
-}
+import { env } from '../config/env';
 
 interface ContractArtifact {
-  address: string;
   abi: ethers.InterfaceAbi;
 }
 
-function loadArtifact(): ContractArtifact {
-  // Prefer CONTRACT_ADDRESS from env (set after deploy)
-  const envAddress = env('CONTRACT_ADDRESS');
+export function getChainId(): number {
+  return env.CHAIN_ID;
+}
 
-  // Try to load the deploy-generated JSON
-  const jsonPath = path.join(__dirname, '..', 'blockchain', 'ClaimLedger.json');
-  if (fs.existsSync(jsonPath)) {
-    const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    return {
-      address: envAddress || raw.address,
-      abi: raw.abi,
-    };
+function getClaimTxGasPriceWei(): bigint {
+  return ethers.parseUnits(env.CLAIM_TX_GAS_PRICE_GWEI, 'gwei');
+}
+
+export function getConfirmationsRequired(): number {
+  const n = env.CONFIRMATIONS_REQUIRED;
+  if (n < 1) {
+    throw new Error('CONFIRMATIONS_REQUIRED must be >= 1');
   }
+  return n;
+}
 
-  // Fallback: load from Hardhat artifacts
+export function getContractAddress(): string {
+  try {
+    return ethers.getAddress(env.CONTRACT_ADDRESS);
+  } catch {
+    throw new Error(
+      `Invalid CONTRACT_ADDRESS "${env.CONTRACT_ADDRESS}". Expected 0x + 40 hex characters.`,
+    );
+  }
+}
+
+function loadArtifact(): ContractArtifact {
   const artifactPath = path.join(
     __dirname,
     '..',
@@ -52,131 +54,194 @@ function loadArtifact(): ContractArtifact {
   );
   if (fs.existsSync(artifactPath)) {
     const raw = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
-    return {
-      address: envAddress,
-      abi: raw.abi,
-    };
+    if (raw?.abi) {
+      return { abi: raw.abi };
+    }
+  }
+
+  const runtimeJsonPath = path.join(__dirname, '..', 'blockchain', 'ClaimLedger.json');
+  if (fs.existsSync(runtimeJsonPath)) {
+    const raw = JSON.parse(fs.readFileSync(runtimeJsonPath, 'utf8'));
+    if (raw?.abi) {
+      return { abi: raw.abi };
+    }
   }
 
   throw new Error(
-    'ClaimLedger ABI not found. Run `npx hardhat run scripts/deploy.js --network ganache` first.',
+    'ClaimLedger ABI not found. Run `npx hardhat compile` and deploy script first.',
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Singleton provider / signer / contract                             */
-/* ------------------------------------------------------------------ */
 
 let _provider: ethers.JsonRpcProvider | null = null;
 let _signer: ethers.Wallet | null = null;
 let _contract: ethers.Contract | null = null;
+let _startupValidated = false;
 
-function getProvider(): ethers.JsonRpcProvider {
+export function getProvider(): ethers.JsonRpcProvider {
   if (!_provider) {
-    const rpcUrl = env('GANACHE_RPC_URL', 'http://127.0.0.1:7545');
-    _provider = new ethers.JsonRpcProvider(rpcUrl);
+    _provider = new ethers.JsonRpcProvider(env.RPC_URL);
   }
   return _provider;
 }
 
 function getSigner(): ethers.Wallet {
   if (!_signer) {
-    const pk = env('PRIVATE_KEY');
-    if (!pk) throw new Error('PRIVATE_KEY env var is not set');
-    _signer = new ethers.Wallet(pk, getProvider());
+    _signer = new ethers.Wallet(env.PRIVATE_KEY, getProvider());
   }
   return _signer;
 }
 
 function getContract(): ethers.Contract {
   if (!_contract) {
-    const { address, abi } = loadArtifact();
-    if (!address) {
-      throw new Error(
-        'Contract address not found. Deploy the contract and set CONTRACT_ADDRESS in .env.local',
-      );
-    }
-    _contract = new ethers.Contract(address, abi, getSigner());
+    const { abi } = loadArtifact();
+    _contract = new ethers.Contract(getContractAddress(), abi, getSigner());
   }
   return _contract;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Public API                                                         */
-/* ------------------------------------------------------------------ */
+async function assertChainIdOrThrow(): Promise<void> {
+  const provider = getProvider();
+  const network = await provider.getNetwork();
+  const actual = Number(network.chainId);
+  const expected = getChainId();
+  if (actual !== expected) {
+    throw new Error(
+      `RPC chain mismatch: expected chainId=${expected}, got chainId=${actual}. Check RPC_URL/CHAIN_ID.`,
+    );
+  }
+}
 
-export interface RecordClaimResult {
+async function assertContractDeployedOrThrow(): Promise<void> {
+  const code = await getProvider().getCode(getContractAddress());
+  if (!code || code === '0x') {
+    throw new Error(
+      `No contract bytecode found at CONTRACT_ADDRESS=${getContractAddress()} on configured chain.`,
+    );
+  }
+}
+
+async function assertOwnerMatchesSignerOrThrow(): Promise<void> {
+  const contract = getContract();
+  const hasOwnerFn =
+    typeof contract.interface.hasFunction === 'function' &&
+    contract.interface.hasFunction('owner()');
+
+  // Some legacy deployments may not expose owner(); skip strict owner check in that case.
+  if (!hasOwnerFn) return;
+
+  const signer = getSigner();
+  const signerAddress = (await signer.getAddress()).toLowerCase();
+  const owner = String(await contract.owner()).toLowerCase();
+
+  if (owner !== signerAddress) {
+    throw new Error(
+      `Contract owner mismatch: owner=${owner}, signer=${signerAddress}. Set PRIVATE_KEY to the owner key.`,
+    );
+  }
+}
+
+/**
+ * Fail-fast startup validation:
+ * - correct Sepolia chain
+ * - contract exists at CONTRACT_ADDRESS
+ * - owner matches signer (when owner() exists)
+ */
+export async function assertBlockchainReady(): Promise<void> {
+  if (_startupValidated) return;
+
+  await assertChainIdOrThrow();
+  await assertContractDeployedOrThrow();
+  await assertOwnerMatchesSignerOrThrow();
+  _startupValidated = true;
+}
+
+export interface SubmittedClaimTx {
   txHash: string;
-  blockNumber: number;
+  chainId: number;
+  contractAddress: string;
   staffSigner: string;
 }
 
 /**
- * Write a claim to the ClaimLedger contract.
- *
- * @param householdHash  bytes32 keccak256 hash
- * @param eventHash      bytes32 keccak256 hash
- * @returns Transaction receipt info
+ * Submit claim tx and return immediately after tx hash is available.
+ * No confirmation waiting here (non-blocking mode).
  */
-export async function recordClaimOnChain(
+export async function submitClaimOnChain(
   householdHash: string,
   eventHash: string,
-): Promise<RecordClaimResult> {
+): Promise<SubmittedClaimTx> {
   const contract = getContract();
   const signer = getSigner();
+  const tx = await contract.recordClaim(householdHash, eventHash, {
+    // Temporary waste-mode override: intentionally force a high gas price.
+    gasPrice: getClaimTxGasPriceWei(),
+  });
 
-  const tx = await contract.recordClaim(householdHash, eventHash);
-  const receipt = await tx.wait();
+  if (!tx?.hash) {
+    throw new Error('Transaction submission failed: missing tx hash');
+  }
 
   return {
-    txHash: receipt.hash,
-    blockNumber: receipt.blockNumber,
-    staffSigner: signer.address,
+    txHash: tx.hash,
+    chainId: getChainId(),
+    contractAddress: getContractAddress(),
+    staffSigner: await signer.getAddress(),
   };
 }
 
-/**
- * Read-only check whether a household hash is already claimed on-chain.
- */
 export async function isClaimedOnChain(householdHash: string): Promise<boolean> {
   const contract = getContract();
   return contract.isClaimed(householdHash);
 }
 
-/**
- * Health check — returns true when the provider is reachable
- * and the contract is deployed (code size > 0).
- */
+export async function getTransactionReceipt(
+  txHash: string,
+): Promise<ethers.TransactionReceipt | null> {
+  return getProvider().getTransactionReceipt(txHash);
+}
+
 export async function blockchainHealthCheck(): Promise<{
   connected: boolean;
   network?: string;
+  chainId?: number;
   blockNumber?: number;
   contractDeployed?: boolean;
+  ownerMatchesSigner?: boolean;
   error?: string;
 }> {
   try {
     const provider = getProvider();
     const network = await provider.getNetwork();
     const blockNumber = await provider.getBlockNumber();
+    const chainId = Number(network.chainId);
 
-    let contractDeployed = false;
+    const code = await provider.getCode(getContractAddress());
+    const contractDeployed = code !== '0x';
+
+    let ownerMatchesSigner: boolean | undefined;
     try {
-      const { address } = loadArtifact();
-      if (address) {
-        const code = await provider.getCode(address);
-        contractDeployed = code !== '0x';
+      const contract = getContract();
+      const hasOwnerFn =
+        typeof contract.interface.hasFunction === 'function' &&
+        contract.interface.hasFunction('owner()');
+      if (hasOwnerFn) {
+        const owner = String(await contract.owner()).toLowerCase();
+        const signer = (await getSigner().getAddress()).toLowerCase();
+        ownerMatchesSigner = owner === signer;
       }
     } catch {
-      // Contract not yet deployed — that's OK
+      ownerMatchesSigner = undefined;
     }
 
     return {
       connected: true,
       network: network.name,
+      chainId,
       blockNumber,
       contractDeployed,
+      ownerMatchesSigner,
     };
   } catch (err: any) {
-    return { connected: false, error: err.message };
+    return { connected: false, error: err?.message || 'Unknown blockchain health error' };
   }
 }

@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react'
 import { profileApi } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import SelectDropdown from '@/components/ui/SelectDropdown'
 
 type Theme = 'light' | 'dark' | 'system'
 
 export default function AppearanceSection() {
   const [theme, setTheme] = useState<Theme>('light')
+  const [textSize, setTextSize] = useState('medium')
   const [saving, setSaving] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -59,6 +61,11 @@ export default function AppearanceSection() {
     { value: 'dark', label: 'Dark' },
     { value: 'system', label: 'System' },
   ]
+  const textSizeOptions = [
+    { value: 'medium', label: 'Medium (Default)' },
+    { value: 'small', label: 'Small' },
+    { value: 'large', label: 'Large' },
+  ]
 
   return (
     <div>
@@ -91,11 +98,14 @@ export default function AppearanceSection() {
 
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Text Size</label>
-          <select className="w-full max-w-xs px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none">
-            <option>Medium (Default)</option>
-            <option>Small</option>
-            <option>Large</option>
-          </select>
+          <SelectDropdown
+            value={textSize}
+            onChange={setTextSize}
+            options={textSizeOptions}
+            ariaLabel="Select text size"
+            className="w-full max-w-xs"
+            buttonClassName="py-2.5"
+          />
         </div>
       </div>
 

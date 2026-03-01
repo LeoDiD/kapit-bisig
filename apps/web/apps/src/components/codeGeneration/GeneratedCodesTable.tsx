@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { CodeStatus, GeneratedCodeRow, BatchSummary } from './types'
+import SelectDropdown from '@/components/ui/SelectDropdown'
 
 type Props = {
   rows: GeneratedCodeRow[]
@@ -27,6 +28,14 @@ function StatusBadge({ status }: { status: CodeStatus }) {
 
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass}`}>{status}</span>
 }
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All' },
+  { value: 'UNUSED', label: 'UNUSED' },
+  { value: 'USED', label: 'USED' },
+  { value: 'LOCKED', label: 'LOCKED' },
+  { value: 'EXPIRED', label: 'EXPIRED' },
+] as const
 
 export default function GeneratedCodesTable({
   rows,
@@ -56,18 +65,14 @@ export default function GeneratedCodesTable({
             aria-label="Search generated codes"
             className="h-10 w-48 rounded-xl border border-slate-300 px-3 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
           />
-          <select
+          <SelectDropdown
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as 'ALL' | CodeStatus)}
-            aria-label="Filter by status"
-            className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-          >
-            <option value="ALL">All</option>
-            <option value="UNUSED">UNUSED</option>
-            <option value="USED">USED</option>
-            <option value="LOCKED">LOCKED</option>
-            <option value="EXPIRED">EXPIRED</option>
-          </select>
+            onChange={(value) => setStatusFilter(value as 'ALL' | CodeStatus)}
+            options={STATUS_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+            ariaLabel="Filter by status"
+            className="min-w-[140px]"
+            buttonClassName="h-10"
+          />
         </div>
       </div>
 
