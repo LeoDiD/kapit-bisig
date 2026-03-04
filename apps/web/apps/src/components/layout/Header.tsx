@@ -38,12 +38,12 @@ export default function Header({ title, subtitle }: HeaderProps) {
   }, [mobileSearchOpen])
 
   return (
-    <header className="sticky top-0 z-40 bg-gray-100/80 backdrop-blur-md pb-4 -mx-6 px-6 pt-2 mb-4 border-b border-gray-200/60">
+    <header className="sticky top-0 z-40 bg-gray-100/80 dark:bg-slate-900/80 backdrop-blur-md pb-4 -mx-6 px-6 pt-2 mb-4 border-b border-gray-200/60 dark:border-slate-700/60">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Title Section */}
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{title}</h1>
-          {subtitle && <p className="hidden md:block text-sm text-gray-500 mt-1">{subtitle}</p>}
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">{title}</h1>
+          {subtitle && <p className="hidden md:block text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>}
         </div>
 
         {/* Right Section */}
@@ -56,7 +56,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
             <input
               type="text"
               placeholder="Search..."
-              className="pl-9 pr-3 py-2 w-56 border border-gray-200 rounded-xl bg-white text-sm text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+              className="pl-9 pr-3 py-2 w-56 border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
             />
           </div>
 
@@ -64,7 +64,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
           <button
             type="button"
             onClick={() => setMobileSearchOpen(true)}
-            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             aria-label="Open search"
           >
             <SearchIcon className="w-5 h-5" />

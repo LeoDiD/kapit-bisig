@@ -221,14 +221,13 @@ export default function HouseholdsTable({
             <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
               <thead className="bg-gray-50 text-gray-500 text-sm">
                 <tr>
-                  <th className="px-4 py-4 font-medium w-[22%]">Family Head</th>
-                  <th className="px-4 py-4 font-medium w-[15%]">Barangay</th>
-                  <th className="px-4 py-4 font-medium w-[10%] leading-tight">
+                  <th className="px-4 py-4 font-medium w-[28%]">Family Head</th>
+                  <th className="px-4 py-4 font-medium w-[16%]">Barangay</th>
+                  <th className="px-4 py-4 font-medium w-[12%] leading-tight">
                     Family<br />Members
                   </th>
-                  <th className="px-4 py-4 font-medium w-[13%]">Verification</th>
-                  <th className="px-4 py-4 font-medium w-[12%]">Status</th>
-                  <th className="px-4 py-4 font-medium w-[14%] leading-tight">
+                  <th className="px-4 py-4 font-medium w-[14%]">Status</th>
+                  <th className="px-4 py-4 font-medium w-[18%] leading-tight">
                     Last<br />Claimed
                   </th>
                   <th className="px-4 py-4 font-medium w-[6%]"></th>
@@ -258,10 +257,7 @@ export default function HouseholdsTable({
                             {item.familyMembersCount}
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-gray-600 text-xs">
-                          {item.verificationStatus}
-                        </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 overflow-hidden">
                           <ClaimStatusBadge status={item.claimStatus} />
                         </td>
                         <td className="px-4 py-4 text-gray-600">
@@ -281,7 +277,7 @@ export default function HouseholdsTable({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                       No households found matching your criteria.
                     </td>
                   </tr>
@@ -399,7 +395,13 @@ function MenuItem({
 function ClaimStatusBadge({ status }: { status: 'Claimed' | 'Not Claimed' }) {
   const style = status === 'Claimed' ? 'bg-green-600 text-white' : 'bg-[#EAB308] text-white'
   return (
-    <span className={`inline-flex items-center justify-center h-6 px-3 rounded-full text-xs font-medium ${style}`}>
+    <span
+      className={[
+        'inline-flex max-w-full items-center justify-center rounded-full px-3 py-1 text-xs font-medium',
+        'leading-tight text-center whitespace-normal break-words',
+        style,
+      ].join(' ')}
+    >
       {status}
     </span>
   )

@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Montserrat } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/AuthContext'
+import { ThemeProvider } from '@/lib/ThemeContext'
 import { RouteLoadingProvider } from '@/lib/RouteLoadingContext'
 import TopLoadingBar from '@/components/layout/TopLoadingBar'
 import './globals.css'
@@ -23,32 +24,54 @@ export const metadata: Metadata = {
   },
 }
 
+// Inline script to prevent theme FOUC (runs before React hydration)
+const themeInitScript = `
+(function(){
+  try {
+    var t = localStorage.getItem('kb-theme') || 'light';
+    var s = localStorage.getItem('kb-text-size') || 'medium';
+    var resolved = t;
+    if (t === 'system') {
+      resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    if (resolved === 'dark') document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-theme', resolved);
+    document.documentElement.setAttribute('data-text-size', s);
+  } catch(e) {}
+})();
+`
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className={montserrat.className}>
-        <AuthProvider>
-          <RouteLoadingProvider>
-          <TopLoadingBar />
-          {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                fontFamily: 'inherit',
-                borderRadius: '0.75rem',
-                fontSize: '0.875rem',
-              },
-            }}
-            richColors
-            closeButton
-          />
-          </RouteLoadingProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <RouteLoadingProvider>
+            <TopLoadingBar />
+            {children}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  fontFamily: 'inherit',
+                  borderRadius: '0.75rem',
+                  fontSize: '0.875rem',
+                },
+              }}
+              richColors
+              closeButton
+            />
+            </RouteLoadingProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

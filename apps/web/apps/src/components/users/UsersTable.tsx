@@ -2,22 +2,41 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import AddUserModal from './AddUserModal'
-import { api, StaffUser, StaffStats } from '@/lib/api'
+import { api, BARANGAY_OPTIONS, getScopedBarangays, StaffUser, StaffStats } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import { TableSkeleton } from '@/components/ui/Skeleton'
+import { useAuth } from '@/lib/AuthContext'
 
 type FilterStatus = 'all' | 'active' | 'inactive'
+type FilterBarangay = string
 
 const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'all', label: 'All Status' },
   { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
+  { value: 'inactive', label: 'Not Active' },
 ]
 
+// Barangay filter options are now computed dynamically via getScopedBarangays()
+
+type AccountStatus = 'active' | 'pending' | 'inactive'
+
+function getAccountStatus(user: Pick<StaffUser, 'isActive' | 'lastLoginAt'>): AccountStatus {
+  if (!user.isActive) return 'inactive'
+  if (!user.lastLoginAt) return 'pending'
+  return 'active'
+}
+
 export default function UsersTable() {
+  const { user } = useAuth()
+  const BARANGAY_FILTER_OPTIONS = useMemo(() => [
+    { value: 'all' as const, label: 'All Barangays' },
+    ...getScopedBarangays(user?.role, user?.assignedBarangays).map((b) => ({ value: b, label: b })),
+  ], [user?.role, user?.assignedBarangays])
+
   // --- STATE ---
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [filterBarangay, setFilterBarangay] = useState<FilterBarangay>('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   
   // Data state
@@ -36,10 +55,10 @@ export default function UsersTable() {
   const statusMenuRef = useRef<HTMLDivElement>(null)
   const statusButtonRef = useRef<HTMLButtonElement>(null)
 
-  // Reset password modal
-  const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; name: string } | null>(null)
-  const [newPassword, setNewPassword] = useState('')
-  const [isResetting, setIsResetting] = useState(false)
+  // Barangay filter dropdown
+  const [barangayDropdownOpen, setBarangayDropdownOpen] = useState(false)
+  const barangayMenuRef = useRef<HTMLDivElement>(null)
+  const barangayButtonRef = useRef<HTMLButtonElement>(null)
 
   // --- FETCH DATA ---
   const fetchUsers = useCallback(async () => {
@@ -47,8 +66,9 @@ export default function UsersTable() {
       setIsLoading(true)
       setError(null)
       
-      const params: { search?: string; status?: 'active' | 'inactive' } = {}
+      const params: { search?: string; status?: 'active' | 'inactive'; barangay?: string } = {}
       if (filterStatus !== 'all') params.status = filterStatus
+      if (filterBarangay !== 'all') params.barangay = filterBarangay
       if (searchQuery) params.search = searchQuery
       
       const response = await api.getStaffUsers(params)
@@ -62,7 +82,7 @@ export default function UsersTable() {
     } finally {
       setIsLoading(false)
     }
-  }, [filterStatus, searchQuery])
+  }, [filterBarangay, filterStatus, searchQuery])
 
   const fetchStats = useCallback(async () => {
     try {
@@ -96,6 +116,12 @@ export default function UsersTable() {
       const clickedStatusMenu = statusMenuRef.current?.contains(target)
       if (!clickedStatusButton && !clickedStatusMenu) {
         setStatusDropdownOpen(false)
+      }
+
+      const clickedBarangayButton = barangayButtonRef.current?.contains(target)
+      const clickedBarangayMenu = barangayMenuRef.current?.contains(target)
+      if (!clickedBarangayButton && !clickedBarangayMenu) {
+        setBarangayDropdownOpen(false)
       }
     }
 
@@ -149,39 +175,23 @@ export default function UsersTable() {
     }
   }
 
-  const handleResetPassword = async () => {
-    if (!resetPasswordTarget || !newPassword) return
-    
-    try {
-      setIsResetting(true)
-      await api.resetStaffPassword(resetPasswordTarget.id, newPassword)
-      setResetPasswordTarget(null)
-      setNewPassword('')
-      setActiveDropdown(null)
-      showToast.success('Password reset successfully.')
-    } catch (err) {
-      console.error('Failed to reset password:', err)
-      const e = err as { message?: string }
-      showToast.error(e.message || 'Failed to reset password.')
-    } finally {
-      setIsResetting(false)
-    }
-  }
-
   // --- SUMMARY DATA ---
   const summary = useMemo(() => {
     if (stats) {
       return { total: stats.total, active: stats.active, inactive: stats.inactive }
     }
+    const activeCount = users.filter(u => getAccountStatus(u) === 'active').length
     return {
       total: users.length,
-      active: users.filter(u => u.isActive).length,
-      inactive: users.filter(u => !u.isActive).length,
+      active: activeCount,
+      inactive: users.length - activeCount,
     }
   }, [stats, users])
 
   const selectedStatusLabel =
     STATUS_OPTIONS.find(o => o.value === filterStatus)?.label ?? 'All Status'
+  const selectedBarangayLabel =
+    BARANGAY_FILTER_OPTIONS.find(o => o.value === filterBarangay)?.label ?? 'All Barangays'
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -192,10 +202,10 @@ export default function UsersTable() {
     <>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)]">
         {/* Header Actions */}
-        <div className="p-4 border-b border-gray-100 flex flex-col lg:flex-row gap-3 justify-between items-center">
-          <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto flex-1">
+        <div className="p-4 border-b border-gray-100 flex flex-col lg:flex-row gap-2 justify-between items-center">
+          <div className="flex flex-col md:flex-row gap-2 w-full lg:w-auto flex-1">
             {/* Search */}
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 max-w-sm">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -211,11 +221,14 @@ export default function UsersTable() {
             </div>
 
             {/* Status Filter */}
-            <div className="relative min-w-[150px]">
+            <div className="relative min-w-[140px]">
               <button
                 ref={statusButtonRef}
                 type="button"
-                onClick={() => setStatusDropdownOpen(v => !v)}
+                onClick={() => {
+                  setBarangayDropdownOpen(false)
+                  setStatusDropdownOpen(v => !v)
+                }}
                 className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
               >
                 <span className="text-xs">{selectedStatusLabel}</span>
@@ -252,6 +265,58 @@ export default function UsersTable() {
                           ) : null}
                         </span>
                         <span>{opt.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Barangay Filter */}
+            <div className="relative min-w-[170px]">
+              <button
+                ref={barangayButtonRef}
+                type="button"
+                onClick={() => {
+                  setStatusDropdownOpen(false)
+                  setBarangayDropdownOpen(v => !v)
+                }}
+                className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+              >
+                <span className="text-xs truncate">{selectedBarangayLabel}</span>
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {barangayDropdownOpen && (
+                <div
+                  ref={barangayMenuRef}
+                  className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
+                >
+                  {BARANGAY_FILTER_OPTIONS.map(opt => {
+                    const selected = opt.value === filterBarangay
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setFilterBarangay(opt.value)
+                          setBarangayDropdownOpen(false)
+                        }}
+                        className={[
+                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                        ].join(' ')}
+                      >
+                        <span className="w-5 flex items-center justify-center">
+                          {selected ? (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : null}
+                        </span>
+                        <span className="truncate">{opt.label}</span>
                       </button>
                     )
                   })}
@@ -316,7 +381,7 @@ export default function UsersTable() {
                       </td>
 
                       <td className="px-4 py-3">
-                        <StatusBadge isActive={user.isActive} />
+                        <StatusBadge status={getAccountStatus(user)} />
                       </td>
 
                       <td className="px-4 py-3 text-gray-600 whitespace-normal">
@@ -352,7 +417,7 @@ export default function UsersTable() {
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <SummaryCard value={summary.total} label="Total Staff" color="green" />
         <SummaryCard value={summary.active} label="Active" color="yellow" />
-        <SummaryCard value={summary.inactive} label="Inactive" color="gray" />
+        <SummaryCard value={summary.inactive} label="Not Active" color="gray" />
       </div>
 
       {/* Fixed position dropdown menu */}
@@ -382,53 +447,6 @@ export default function UsersTable() {
                 onClick={() => handleToggleActive(activeDropdown, false)}
               />
             )}
-            <MenuItem 
-              icon={<KeyIcon />} 
-              label="Reset Password" 
-              onClick={() => {
-                const user = users.find(u => u.id === activeDropdown)
-                if (user) {
-                  setResetPasswordTarget({ id: user.id, name: user.fullName })
-                  setActiveDropdown(null)
-                }
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Reset Password Modal */}
-      {resetPasswordTarget && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setResetPasswordTarget(null); setNewPassword('') }} />
-          <div className="relative bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Reset Password</h3>
-            <p className="text-gray-600 mb-4">
-              Set a new password for <strong>{resetPasswordTarget.name}</strong>.
-            </p>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value.replace(/\s/g, ''))}
-              placeholder="New password (min. 16 characters)"
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] mb-4"
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => { setResetPasswordTarget(null); setNewPassword('') }}
-                className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
-                disabled={isResetting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleResetPassword}
-                className="px-4 py-2 rounded-xl bg-[#0F533A] text-white hover:bg-[#0a3f2c] disabled:opacity-50"
-                disabled={isResetting || !newPassword}
-              >
-                {isResetting ? 'Resetting...' : 'Reset'}
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -483,21 +501,19 @@ function MenuItem({
   )
 }
 
-function StatusBadge({ isActive }: { isActive: boolean }) {
-  return (
-    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-      isActive ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'
-    }`}>
-      {isActive ? 'Active' : 'Inactive'}
-    </span>
-  )
-}
+function StatusBadge({ status }: { status: AccountStatus }) {
+  const style =
+    status === 'active'
+      ? 'bg-green-500 text-white'
+      : status === 'pending'
+      ? 'bg-amber-500 text-white'
+      : 'bg-gray-400 text-white'
+  const label = status === 'active' ? 'Active' : status === 'pending' ? 'Pending' : 'Inactive'
 
-function KeyIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-    </svg>
+    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${style}`}>
+      {label}
+    </span>
   )
 }
 

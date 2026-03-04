@@ -256,8 +256,8 @@ export default function DistributionsTable({
                 <th className="px-4 py-3 font-medium w-[14%]">Households</th>
                 <th className="px-4 py-3 font-medium w-[14%]">Claimed</th>
                 <th className="px-4 py-3 font-medium w-[16%]">Scheduled</th>
-                <th className="px-4 py-3 font-medium w-[12%]">Status</th>
-                <th className="px-4 py-3 font-medium w-[18%]">Claimed At</th>
+                <th className="px-4 py-3 font-medium w-[15%]">Status</th>
+                <th className="px-4 py-3 font-medium w-[15%]">Claimed At</th>
                 <th className="px-4 py-3 font-medium w-[6%]"></th>
               </tr>
             </thead>
@@ -302,7 +302,7 @@ export default function DistributionsTable({
 
                       <td className="px-4 py-3 text-gray-600">{r.scheduled}</td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 overflow-hidden">
                         <StatusPill status={r.status} />
                       </td>
 
@@ -436,7 +436,13 @@ function StatusPill({ status }: { status: DistributionStatus }) {
         : 'bg-[#EAB308] text-white'
 
   return (
-    <span className={`inline-flex items-center justify-center h-6 px-3 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
+    <span
+      className={[
+        'inline-flex max-w-full items-center justify-center rounded-full px-3 py-1 text-xs font-medium',
+        'leading-tight text-center whitespace-normal break-words',
+        cls,
+      ].join(' ')}
+    >
       {status}
     </span>
   )

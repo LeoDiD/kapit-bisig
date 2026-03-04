@@ -4,26 +4,20 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import DistributionStats from './DistributionStats'
 import DistributionsTable, { DistributionRow } from './DistributionsTable'
 import NewDistributionModal, { CreateDistributionPayload } from './NewDistributionModal'
-import { api } from '../../lib/api'
+import { api, getScopedBarangays } from '../../lib/api'
 import { showToast } from '@/lib/toast'
 import { TableSkeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/lib/AuthContext'
 
-const BARANGAY_OPTIONS = [
-  'Bolo',
-  'Bongalon',
-  'Dulig',
-  'Laois',
-  'Magsaysay',
-  'Poblacion',
-  'San Gonzalo',
-  'San Jose',
-  'Tobuan',
-  'Uyong',
-]
+// Barangay options are now computed dynamically per-user
 
 export default function DistributionPageClient() {
   const { user, loading: authLoading } = useAuth()
+  const scopedBarangays = useMemo(
+    () => getScopedBarangays(user?.role, user?.assignedBarangays),
+    [user?.role, user?.assignedBarangays],
+  )
+
   const [rows, setRows] = useState<DistributionRow[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -182,7 +176,7 @@ export default function DistributionPageClient() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreate={handleCreate}
-        barangayOptions={BARANGAY_OPTIONS}
+        barangayOptions={scopedBarangays}
       />
     </div>
   )

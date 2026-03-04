@@ -36,7 +36,7 @@ function SettingsContent() {
     <div className="flex flex-col lg:flex-row gap-6">
       {/* Left nav */}
       <aside className="lg:w-56 shrink-0">
-        <nav className="bg-white rounded-2xl border border-gray-100 shadow-sm p-2 space-y-0.5 lg:sticky lg:top-24">
+        <nav className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm p-2 space-y-0.5 lg:sticky lg:top-24">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.key
             return (
@@ -46,7 +46,7 @@ function SettingsContent() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   active
                     ? 'bg-[#0F533A] text-white'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-gray-100'
                 }`}
               >
                 <item.icon className="w-4 h-4 shrink-0" />
@@ -58,7 +58,7 @@ function SettingsContent() {
       </aside>
 
       {/* Right content */}
-      <section className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 min-h-[500px]">
+      <section className="flex-1 bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6 min-h-[500px]">
         {activeTab === 'account' && <AccountProfileSection />}
         {activeTab === 'security' && <SecuritySection />}
         {activeTab === 'appearance' && <AppearanceSection />}

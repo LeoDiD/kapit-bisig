@@ -39,16 +39,16 @@ export default function ConfirmModal({
       />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
-        <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-        <p className="mt-2 text-sm text-gray-600">{body}</p>
+      <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{title}</h3>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{body}</p>
 
         <div className="flex justify-end gap-3 mt-6">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
           >
             {cancelLabel}
           </button>

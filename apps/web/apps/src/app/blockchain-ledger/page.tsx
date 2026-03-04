@@ -11,28 +11,17 @@ import {
   type LedgerRow,
 } from '@/components/blockchain-ledger'
 import type { LedgerStatsData } from '@/components/blockchain-ledger/BlockchainLedgerStats'
-import api from '@/lib/api'
+import api, { getScopedBarangays } from '@/lib/api'
 import { showToast } from '@/lib/toast'
+import { useAuth } from '@/lib/AuthContext'
 
 /* ------------------------------------------------------------------ */
 /*  Barangay & Status options                                          */
 /* ------------------------------------------------------------------ */
 
-const BARANGAY_OPTIONS = [
-  'All Barangays',
-  'Bolo',
-  'Bongalon',
-  'Dulig',
-  'Laois',
-  'Magsaysay',
-  'Poblacion',
-  'San Gonzalo',
-  'San Jose',
-  'Tobuan',
-  'Uyong',
-] as const
+// Barangay options are now computed dynamically per-user
 
-type BarangayFilter = (typeof BARANGAY_OPTIONS)[number]
+type BarangayFilter = string
 
 const STATUS_OPTIONS = ['All Status', 'Confirmed', 'Pending/Confirming', 'Chain Failed'] as const
 type StatusFilter = (typeof STATUS_OPTIONS)[number]
@@ -77,6 +66,12 @@ function computeStats(rows: LedgerRow[]): LedgerStatsData {
 /* ------------------------------------------------------------------ */
 
 export default function BlockchainLedgerPage() {
+  const { user } = useAuth()
+  const BARANGAY_OPTIONS = useMemo(
+    () => ['All Barangays', ...getScopedBarangays(user?.role, user?.assignedBarangays)],
+    [user?.role, user?.assignedBarangays],
+  )
+
   const [query, setQuery] = useState('')
   const [barangay, setBarangay] = useState<BarangayFilter>('All Barangays')
   const [status, setStatus] = useState<StatusFilter>('All Status')
@@ -175,7 +170,7 @@ export default function BlockchainLedgerPage() {
     <DashboardLayout>
       <Header
         title="Blockchain Claim Ledger"
-        subtitle="Immutable record of claimed relief packs (hash-based, no personal data stored on-chain)."
+        subtitle="Immutable record of claimed relief packs"
       />
 
       <BlockchainLedgerStats data={stats} />

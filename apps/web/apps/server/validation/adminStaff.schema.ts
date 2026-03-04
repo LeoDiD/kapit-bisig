@@ -7,15 +7,13 @@ import { BARANGAY_VALUES, barangayEnum, objectId, trimmedString } from './shared
 
 /* POST /api/admin/users — create staff */
 export const createStaffBody = z.object({
-  username: trimmedString(3, 50),
+  username: trimmedString(3, 64),
   fullName: trimmedString(2, 100),
   email: z.string().trim().toLowerCase().email('Invalid email format').max(255),
-  password: z.string().min(1, 'Password is required').max(200),
   assignedBarangays: z
     .array(barangayEnum)
     .min(1, 'At least one barangay is required')
-    .max(BARANGAY_VALUES.length)
-    .optional(),
+    .max(BARANGAY_VALUES.length),
 }).strict();
 
 /* GET /api/admin/users — list staff */

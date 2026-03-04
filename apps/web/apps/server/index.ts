@@ -28,9 +28,14 @@ import adminStaffRoutes from './routes/adminStaffRoutes';
 import forgotPasswordRoutes from './routes/forgotPasswordRoutes';
 import claimRoutes from './routes/claimRoutes';
 import householdListRoutes from './routes/householdListRoutes';
+import reportRoutes from './routes/reportRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import profileRoutes from './routes/profileRoutes';
 import authRoutes from './routes/authRoutes';
+import {
+  startClaimConfirmationWorker,
+  stopClaimConfirmationWorker,
+} from './services/claimConfirmationWorker';
 
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
@@ -125,6 +130,7 @@ app.use('/api/admin/tokens', adminTokenRoutes);
 app.use('/api/distributions', requireAuth, requireStaffOrSuperadmin, distributionRoutes);
 app.use('/api/claims', requireAuth, requireStaffOrSuperadmin, claimRoutes);
 app.use('/api/households', requireAuth, requireStaffOrSuperadmin, householdListRoutes);
+app.use('/api/reports', requireAuth, requireStaffOrSuperadmin, reportRoutes);
 
 app.use('/api/notifications', notificationRoutes); // auth applied inside router
 
@@ -148,6 +154,7 @@ const startServer = async () => {
       console.log(`🔐 Authentication endpoints available at /api/auth`);
       console.log(`🏠 Household registration available at /api/household`);
       console.log(`🎫 Admin token management available at /api/admin/tokens`);
+      startClaimConfirmationWorker();
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -156,5 +163,15 @@ const startServer = async () => {
 };
 
 startServer();
+
+process.on('SIGINT', () => {
+  stopClaimConfirmationWorker();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  stopClaimConfirmationWorker();
+  process.exit(0);
+});
 
 export default app;

@@ -1,7 +1,7 @@
 /**
  * Admin Staff-User Management Routes  (SUPERADMIN only)
  *
- * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt on create/reset)
+ * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt on OTP/reset flows)
  * [SECURITY CHECKLIST §1.6] Strong Password Policy (validatePasswordStrength)
  * [SECURITY CHECKLIST §3.2] RBAC — all routes require SUPERADMIN
  * [SECURITY CHECKLIST §3.3] Audit Logging (logAudit on all staff events)
@@ -18,7 +18,6 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import StaffUser from '../models/StaffUser';
 import LoginVerifyOtp from '../models/LoginVerifyOtp';
-import { BARANGAY_OPTIONS } from '../models/Distribution';
 import {
   requireAuth,
   requireSuperadmin,
@@ -67,7 +66,7 @@ router.use(requireAuth, requireSuperadmin);
 /* ------------------------------------------------------------------ */
 router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
-    const { username, fullName, email, password, assignedBarangays } = req.body;
+    const { username, fullName, email, assignedBarangays } = req.body;
 
     // --- validation ---
     if (!username || typeof username !== 'string' || username.trim().length < 3) {
@@ -84,8 +83,6 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
       res.status(400).json({ success: false, message: 'A valid email is required.' });
       return;
     }
-
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     // Duplicate username check
     const exists = await StaffUser.findOne({
@@ -109,6 +106,7 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
       email: email.trim(),
       forcePasswordReset: true,
       fullName: fullName.trim(),
+      assignedBarangays,
     });
 
     await user.save();
@@ -164,7 +162,7 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
 /* ------------------------------------------------------------------ */
 router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequest, res: Response) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, barangay } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: any = {};
@@ -173,8 +171,20 @@ router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequ
       const re = new RegExp(escapeRegex(search), 'i');
       filter.$or = [{ username: re }, { fullName: re }, { email: re }];
     }
-    if (status === 'active') filter.isActive = true;
-    else if (status === 'inactive') filter.isActive = false;
+    if (barangay && typeof barangay === 'string') {
+      filter.assignedBarangays = barangay;
+    }
+    // "Active" means account is enabled and has logged in at least once.
+    if (status === 'active') {
+      filter.isActive = true;
+      filter.lastLoginAt = { $ne: null };
+    } else if (status === 'inactive') {
+      // Inactive includes disabled accounts and never-logged-in accounts.
+      filter.$and = [
+        ...(filter.$and ?? []),
+        { $or: [{ isActive: false }, { lastLoginAt: null }] },
+      ];
+    }
 
     const users = await StaffUser.find(filter).sort({ createdAt: -1 }).limit(50).lean();
 
@@ -197,7 +207,11 @@ router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequ
 router.get('/stats', async (_req: AuthRequest, res: Response) => {
   try {
     const total = await StaffUser.countDocuments();
-    const active = await StaffUser.countDocuments({ isActive: true });
+    // Match list/status semantics: active only after first successful login.
+    const active = await StaffUser.countDocuments({
+      isActive: true,
+      lastLoginAt: { $ne: null },
+    });
     const inactive = total - active;
 
     res.json({

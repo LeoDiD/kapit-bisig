@@ -21,10 +21,10 @@ type SelectDropdownProps = {
 }
 
 const BASE_BUTTON_CLASS =
-  'inline-flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-left text-sm shadow-[0_2px_10px_rgba(0,0,0,0.06)] outline-none transition focus:ring-2 focus:ring-[#0F533A]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400'
+  'inline-flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 text-left text-sm shadow-[0_2px_10px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.2)] outline-none transition focus:ring-2 focus:ring-[#0F533A]/20 dark:focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:bg-gray-50 dark:disabled:bg-slate-700 disabled:text-gray-400 dark:disabled:text-gray-500'
 
 const BASE_MENU_CLASS =
-  'absolute left-0 top-full z-50 mt-2 w-full max-h-64 overflow-y-auto rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)]'
+  'absolute left-0 top-full z-50 mt-2 w-full max-h-64 overflow-y-auto rounded-2xl border border-[#DCDCDC] dark:border-slate-600 bg-[#ECECEC] dark:bg-slate-700 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.4)]'
 
 const BASE_OPTION_CLASS =
   'w-full flex items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm transition-colors'
@@ -101,7 +101,7 @@ export default function SelectDropdown({
         onClick={() => setOpen((prev) => !prev)}
         className={cx(BASE_BUTTON_CLASS, buttonClassName)}
       >
-        <span className={cx('truncate', hasSelection ? 'text-gray-900' : 'text-gray-500')}>
+        <span className={cx('truncate', hasSelection ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400')}>
           {selectedLabel}
         </span>
         <ChevronDownIcon open={open} />
@@ -129,7 +129,7 @@ export default function SelectDropdown({
                 }}
                 className={cx(
                   BASE_OPTION_CLASS,
-                  isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70'
+                  isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 dark:text-gray-200 hover:bg-white/70 dark:hover:bg-slate-600/70'
                 )}
               >
                 <span className="w-5 flex items-center justify-center text-gray-900">

@@ -9,8 +9,33 @@ import {
 } from './blockchainService';
 
 const PENDING_STATUSES = ['PENDING_CHAIN', 'CHAIN_SUBMITTED'] as const;
-const POLL_INTERVAL_MS = Number(process.env.CHAIN_CONFIRMATION_POLL_MS || 15000);
-const MAX_BATCH_SIZE = Number(process.env.CHAIN_CONFIRMATION_BATCH_SIZE || 100);
+const DEFAULT_POLL_INTERVAL_MS = 15000;
+const DEFAULT_BATCH_SIZE = 100;
+
+function parsePositiveNumber(
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+): number {
+  const raw = (value || '').trim();
+  if (!raw) return fallback;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < minimum) return fallback;
+
+  return Math.floor(parsed);
+}
+
+const POLL_INTERVAL_MS = parsePositiveNumber(
+  process.env.CHAIN_CONFIRMATION_POLL_MS,
+  DEFAULT_POLL_INTERVAL_MS,
+  1000,
+);
+const MAX_BATCH_SIZE = parsePositiveNumber(
+  process.env.CHAIN_CONFIRMATION_BATCH_SIZE,
+  DEFAULT_BATCH_SIZE,
+  1,
+);
 
 let workerTimer: NodeJS.Timeout | null = null;
 let isRunning = false;

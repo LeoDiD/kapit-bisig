@@ -22,7 +22,7 @@ import {
   distributionIdParams,
 } from '../validation/distribution.schema';
 import { logAudit } from '../utils/audit';
-import { broadcastNotification } from '../utils/createNotification';
+import { broadcastScopedNotification } from '../utils/createNotification';
 
 const router = Router();
 
@@ -194,11 +194,12 @@ router.post(
       });
 
       // Notify all staff about the new distribution
-      broadcastNotification({
+      broadcastScopedNotification({
         title: 'New Distribution',
         message: `A relief distribution for ${barangay} has been scheduled on ${scheduled}.`,
         type: 'dispatch',
         meta: { distributionId: distribution._id.toString(), barangay, assignedBarangays, scheduled },
+        targetBarangays: [barangay, ...assignedBarangays],
       });
 
       res.status(201).json({

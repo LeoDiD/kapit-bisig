@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-table'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import SelectDropdown from '@/components/ui/SelectDropdown'
-import { BARANGAY_OPTIONS } from '@/lib/api'
+import { BARANGAY_OPTIONS, getScopedBarangays } from '@/lib/api'
 import { useAuth } from '@/lib/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api'
@@ -65,7 +65,10 @@ export default function ApprovedUsersByBarangayTable() {
     }
   }, [authLoading, user])
 
-  const barangayOptions = useMemo(() => ['All Barangays', ...BARANGAY_OPTIONS], [])
+  const barangayOptions = useMemo(
+    () => ['All Barangays', ...getScopedBarangays(user?.role, user?.assignedBarangays)],
+    [user?.role, user?.assignedBarangays],
+  )
   const barangayDropdownOptions = useMemo(
     () => barangayOptions.map((option) => ({ value: option, label: option })),
     [barangayOptions]

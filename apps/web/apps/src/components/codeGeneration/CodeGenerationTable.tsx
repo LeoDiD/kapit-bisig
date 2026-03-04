@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { BARANGAY_OPTIONS } from '@/lib/api'
+import { BARANGAY_OPTIONS, getScopedBarangays } from '@/lib/api'
 import { showToast } from '@/lib/toast'
+import { useAuth } from '@/lib/AuthContext'
 import BatchHistory from './BatchHistory'
 import CodeGenerationForm from './CodeGenerationForm'
 import DownloadActions from './DownloadActions'
@@ -194,6 +195,12 @@ async function loadBatchHistoryFromApi(): Promise<BatchHistoryItem[]> {
 }
 
 export default function CodeGenerationTable() {
+  const { user } = useAuth()
+  const scopedBarangays = useMemo(
+    () => getScopedBarangays(user?.role, user?.assignedBarangays),
+    [user?.role, user?.assignedBarangays],
+  )
+
   const [barangay, setBarangay] = useState('')
   const [quantity, setQuantity] = useState('10')
   const [isLoading, setIsLoading] = useState(false)
@@ -426,7 +433,7 @@ export default function CodeGenerationTable() {
         confirmOpen={confirmOpen}
         onCloseConfirm={() => setConfirmOpen(false)}
         onConfirmGenerate={submitGeneration}
-        barangayOptions={BARANGAY_OPTIONS}
+        barangayOptions={scopedBarangays}
       />
 
       <GeneratedCodesTable

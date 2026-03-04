@@ -25,7 +25,7 @@ import {
   retryChainParams,
 } from '../validation/claim.schema';
 import { logAudit } from '../utils/audit';
-import { broadcastNotification } from '../utils/createNotification';
+import { broadcastScopedNotification } from '../utils/createNotification';
 
 const router = Router();
 
@@ -294,11 +294,12 @@ router.post(
         );
         logHeader('RECORD CLAIM END');
 
-        broadcastNotification({
+        broadcastScopedNotification({
           title: 'Claim Submitted',
           message: `Relief claim submitted on-chain for household ${householdCode} in ${barangay}.`,
           type: 'dispatch',
           meta: { claimId, householdCode, barangay, distributionId, txHash: submitted.txHash },
+          targetBarangays: [barangay],
         });
 
         return res.status(202).json({

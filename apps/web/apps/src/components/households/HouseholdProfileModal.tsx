@@ -53,13 +53,9 @@ export default function HouseholdProfileModal({ isOpen, onClose, data }: Househo
                 <p className="text-xs text-gray-500 mb-1">Contact</p>
                 <p className="text-sm font-medium text-gray-900">{data.contact}</p>
               </div>
-              <div>
+              <div className="col-span-2">
                 <p className="text-xs text-gray-500 mb-1">Household Code</p>
                 <p className="text-sm font-medium text-gray-900 font-mono">{data.householdCode}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Verification</p>
-                <p className="text-sm font-medium text-gray-900">{data.verificationStatus}</p>
               </div>
             </div>
 

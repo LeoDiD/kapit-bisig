@@ -2,9 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { DashboardLayout, Header } from '@/components/layout'
-import PriorityStats from '@/components/households/PriorityStats'
+import HouseholdStats from '@/components/households/PriorityStats'
 import HouseholdsTable from '@/components/households/HouseholdsTable'
-import api from '@/lib/api'
+import api, { getScopedBarangays } from '@/lib/api'
+import { useAuth } from '@/lib/AuthContext'
 
 /* ------------------------------------------------------------------ */
 /*  Shared household type used by page + child components              */
@@ -29,20 +30,9 @@ export interface HouseholdRow {
 /*  Filter options                                                     */
 /* ------------------------------------------------------------------ */
 
-const BARANGAY_OPTIONS = [
-  'All Barangays',
-  'Bolo',
-  'Bongalon',
-  'Dulig',
-  'Laois',
-  'Magsaysay',
-  'Poblacion',
-  'San Gonzalo',
-  'San Jose',
-  'Tobuan',
-  'Uyong',
-] as const
-type BarangayFilter = (typeof BARANGAY_OPTIONS)[number]
+// Barangay options are now computed dynamically per-user
+
+type BarangayFilter = string
 
 const STATUS_OPTIONS = ['All Status', 'Claimed', 'Not Claimed'] as const
 type StatusFilter = (typeof STATUS_OPTIONS)[number]
@@ -52,6 +42,12 @@ type StatusFilter = (typeof STATUS_OPTIONS)[number]
 /* ------------------------------------------------------------------ */
 
 export default function HouseholdsPage() {
+  const { user } = useAuth()
+  const BARANGAY_OPTIONS = useMemo(
+    () => ['All Barangays', ...getScopedBarangays(user?.role, user?.assignedBarangays)],
+    [user?.role, user?.assignedBarangays],
+  )
+
   const [allRows, setAllRows] = useState<HouseholdRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -96,14 +92,11 @@ export default function HouseholdsPage() {
   /* ── Stats computed from all rows ── */
   const statCounts = useMemo(() => {
     const total = allRows.length
+    const claimed = allRows.filter((h) => h.claimStatus === 'Claimed').length
+    const notClaimed = allRows.filter((h) => h.claimStatus === 'Not Claimed').length
+    const withClaimHistory = allRows.filter((h) => Boolean(h.lastClaimedAt)).length
 
-    // Resident.verification.aiVerificationStatus is: "High Match" | "Medium Match" | "Low Match"
-    // Map "Low Match" -> High Priority (needs review), "Medium Match" -> Medium, "High Match" -> Low.
-    const highPriority = allRows.filter((h) => h.verificationStatus === 'Low Match').length
-    const mediumPriority = allRows.filter((h) => h.verificationStatus === 'Medium Match').length
-    const lowPriority = allRows.filter((h) => h.verificationStatus === 'High Match').length
-
-    return { total, highPriority, mediumPriority, lowPriority }
+    return { total, claimed, notClaimed, withClaimHistory }
   }, [allRows])
 
   /* ── Client-side filtering ── */
@@ -134,7 +127,7 @@ export default function HouseholdsPage() {
         subtitle="Registered households from the database"
       />
 
-      <PriorityStats counts={statCounts} />
+      <HouseholdStats counts={statCounts} />
 
       <HouseholdsTable
         rows={filtered}

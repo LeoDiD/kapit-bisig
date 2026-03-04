@@ -2,51 +2,51 @@ import React from 'react'
 
 type Counts = {
   total: number
-  highPriority: number
-  mediumPriority: number
-  lowPriority: number
+  claimed: number
+  notClaimed: number
+  withClaimHistory: number
 }
 
-export default function PriorityStats({
+export default function HouseholdStats({
   counts,
 }: {
   counts?: Partial<Counts>
 }) {
   const total = counts?.total ?? 0
-  const highPriority = counts?.highPriority ?? 0
-  const mediumPriority = counts?.mediumPriority ?? 0
-  const lowPriority = counts?.lowPriority ?? 0
+  const claimed = counts?.claimed ?? 0
+  const notClaimed = counts?.notClaimed ?? 0
+  const withClaimHistory = counts?.withClaimHistory ?? 0
 
   const totalDisplay = total > 0 ? String(total) : '--'
-  const highDisplay = total > 0 && highPriority > 0 ? String(highPriority) : '--'
-  const mediumDisplay = total > 0 && mediumPriority > 0 ? String(mediumPriority) : '--'
-  const lowDisplay = total > 0 && lowPriority > 0 ? String(lowPriority) : '--'
+  const claimedDisplay = total > 0 ? String(claimed) : '--'
+  const notClaimedDisplay = total > 0 ? String(notClaimed) : '--'
+  const claimHistoryDisplay = total > 0 ? String(withClaimHistory) : '--'
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <StatItem
-        icon={<AlertIcon className="w-5 h-5 text-red-600" />}
-        value={highDisplay}
-        label="High Priority"
-        iconBg="bg-red-100"
+        icon={<UsersIcon className="w-5 h-5 text-blue-600" />}
+        value={totalDisplay}
+        label="Total Households"
+        iconBg="bg-blue-100"
       />
       <StatItem
-        icon={<BulbIcon className="w-5 h-5 text-yellow-600" />}
-        value={mediumDisplay}
-        label="Medium Priority"
-        iconBg="bg-yellow-100"
-      />
-      <StatItem
-        icon={<SparkIcon className="w-5 h-5 text-green-600" />}
-        value={lowDisplay}
-        label="Low Priority"
+        icon={<CheckCircleIcon className="w-5 h-5 text-green-600" />}
+        value={claimedDisplay}
+        label="Claimed"
         iconBg="bg-green-100"
       />
       <StatItem
-        icon={<UsersIcon className="w-5 h-5 text-blue-600" />}
-        value={totalDisplay}
-        label="Total Families"
-        iconBg="bg-blue-100"
+        icon={<HourglassIcon className="w-5 h-5 text-amber-600" />}
+        value={notClaimedDisplay}
+        label="Not Claimed"
+        iconBg="bg-amber-100"
+      />
+      <StatItem
+        icon={<HistoryIcon className="w-5 h-5 text-slate-600" />}
+        value={claimHistoryDisplay}
+        label="With Claim History"
+        iconBg="bg-slate-100"
       />
     </div>
   )
@@ -77,40 +77,40 @@ function StatItem({
 }
 
 // Icons
-function AlertIcon({ className }: { className?: string }) {
+function CheckCircleIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
-        d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"
+        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
       />
     </svg>
   )
 }
 
-function BulbIcon({ className }: { className?: string }) {
+function HourglassIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
-        d="M12 2a7 7 0 00-4 12.74V17a2 2 0 002 2h4a2 2 0 002-2v-2.26A7 7 0 0012 2zm-1 20h2m-2-3h2"
+        d="M6 2h12M6 22h12M8 2v6a4 4 0 002 3.464L12 13l2-1.536A4 4 0 0016 8V2m0 20v-6a4 4 0 00-2-3.464L12 11l-2 1.536A4 4 0 008 16v6"
       />
     </svg>
   )
 }
 
-function SparkIcon({ className }: { className?: string }) {
+function HistoryIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
-        d="M5 3v4M3 5h4M19 3v4m-2-2h4M7 21l5-18 5 18-5-4-5 4z"
+        d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8m9-4v8l4 2"
       />
     </svg>
   )

@@ -16,6 +16,21 @@ export const BARANGAY_OPTIONS = [
 export type Barangay = typeof BARANGAY_OPTIONS[number];
 
 /**
+ * Return the barangay list scoped to the user's assigned barangays.
+ * SUPERADMIN (or when assignedBarangays is empty/undefined) sees all.
+ */
+export function getScopedBarangays(
+  role?: string,
+  assignedBarangays?: string[],
+): string[] {
+  if (role === 'SUPERADMIN' || !assignedBarangays || assignedBarangays.length === 0) {
+    return [...BARANGAY_OPTIONS];
+  }
+  // Preserve canonical order from BARANGAY_OPTIONS
+  return BARANGAY_OPTIONS.filter((b) => assignedBarangays.includes(b));
+}
+
+/**
  * Staff user from admin API
  */
 export interface StaffUser {
@@ -37,7 +52,6 @@ export interface StaffUser {
 export interface CreateStaffData {
   username: string;
   email: string;
-  password: string;
   fullName: string;
   assignedBarangays?: string[];
 }
@@ -152,6 +166,49 @@ export interface ScanEligibleResponse {
   nextCursor: number | null;
 }
 
+/**
+ * Report distribution row
+ */
+export interface ReportDistributionRow {
+  id: string;
+  scheduled: string;
+  barangay: string;
+  assignedBarangays: string[];
+  households: number;
+  registeredHouseholds: number;
+  claimedHouseholds: number;
+  unclaimedHouseholds: number;
+  claimRate: number;
+  status: string;
+  createdAt: string;
+}
+
+/**
+ * Report summary response data
+ */
+export interface ReportSummaryData {
+  overview: {
+    totalDistributions: number;
+    totalRegisteredHouseholds: number;
+    totalClaimedHouseholds: number;
+    totalUnclaimedHouseholds: number;
+    claimRate: number;
+  };
+  distributions: ReportDistributionRow[];
+  monthlyTrends: { month: string; distributions: number; claimed: number }[];
+  barangayBreakdown: {
+    barangay: string;
+    distributions: number;
+    registeredHouseholds: number;
+    claimedHouseholds: number;
+  }[];
+  verificationMethods: {
+    qr: number;
+    face: number;
+    unknown: number;
+  };
+}
+
 // ========================== HELPERS ==========================
 
 /**
@@ -213,10 +270,13 @@ export const api = {
   async getStaffUsers(params?: {
     search?: string;
     status?: 'active' | 'inactive';
+    barangay?: string;
   }): Promise<ApiResponse<StaffUser[]>> {
     const sp = new URLSearchParams();
     if (params?.search) sp.append('search', params.search);
     if (params?.status) sp.append('status', params.status);
+    if (params?.barangay && params.barangay !== 'All Barangays')
+      sp.append('barangay', params.barangay);
     
     const qs = sp.toString();
     const url = `${API_URL}/admin/users${qs ? `?${qs}` : ''}`;
@@ -465,6 +525,33 @@ export const api = {
     });
     return handleResponse<ApiResponse<any>>(response);
   },
+
+  // ==================== REPORTS ====================
+
+  /**
+   * Get report summary with aggregated distribution data.
+   */
+  async getReportSummary(params?: {
+    startDate?: string;
+    endDate?: string;
+    barangay?: string;
+    reportType?: string;
+  }): Promise<ApiResponse<ReportSummaryData>> {
+    const sp = new URLSearchParams();
+    if (params?.startDate) sp.append('startDate', params.startDate);
+    if (params?.endDate) sp.append('endDate', params.endDate);
+    if (params?.barangay && params.barangay !== 'All')
+      sp.append('barangay', params.barangay);
+    if (params?.reportType) sp.append('reportType', params.reportType);
+
+    const qs = sp.toString();
+    const url = `${API_URL}/reports/summary${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<ReportSummaryData>>(response);
+  },
 };
 
 export default api;
@@ -588,6 +675,26 @@ export const notificationsApi = {
     const response = await fetch(`${API_URL}/notifications/${id}/read`, {
       method: 'PATCH',
       headers: createHeaders('PATCH'),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  /** DELETE /api/notifications/:id */
+  async deleteNotification(id: string): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/notifications/${id}`, {
+      method: 'DELETE',
+      headers: createHeaders('DELETE'),
+      credentials: 'include',
+    });
+    return handleResponse(response);
+  },
+
+  /** DELETE /api/notifications */
+  async deleteAllNotifications(): Promise<ApiResponse<{ deletedCount: number }>> {
+    const response = await fetch(`${API_URL}/notifications`, {
+      method: 'DELETE',
+      headers: createHeaders('DELETE'),
       credentials: 'include',
     });
     return handleResponse(response);

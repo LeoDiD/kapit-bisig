@@ -66,6 +66,7 @@ function splitFullName(fullName: string): { firstName: string; lastName: string 
  * - A 12-round hash takes ~2-3 seconds to verify (fine for login)
  */
 const SALT_ROUNDS = 12;
+const DUMMY_BCRYPT_HASH = '$2b$12$KIXTOzaOGBy05XHs9hLKyuBP7dsQVG4x5vjXPMNGSBKLVoKJGxbW6';
 
 /**
  * Account lockout tracking (in-memory for demo)
@@ -342,7 +343,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
         || (await StaffUser.findOne({ email: normalizedEmail }).select('+passwordHash'));
 
       if (!staffUser) {
-        await bcrypt.compare(password, '$2b$12$dummyhashtopreventtimingattacks');
+        await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
         recordFailedAttempt(normalizedEmail);
         return res.status(401).json({
           success: false,
@@ -350,8 +351,9 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
         });
       }
 
-      const isStaffPasswordValid = await bcrypt.compare(password, staffUser.passwordHash);
-      if (!isStaffPasswordValid) {
+      const staffHashToCompare = staffUser.passwordHash || DUMMY_BCRYPT_HASH;
+      const isStaffPasswordValid = await bcrypt.compare(password, staffHashToCompare);
+      if (!staffUser.passwordHash || !isStaffPasswordValid) {
         recordFailedAttempt(normalizedEmail);
         const attempts = loginAttempts.get(normalizedEmail);
         console.warn(`[SECURITY] Failed login attempt for: ${normalizedEmail} (${attempts?.attempts || 1}/${MAX_LOGIN_ATTEMPTS})`);

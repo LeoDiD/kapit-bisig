@@ -9,19 +9,19 @@ export default function HelpAboutSection() {
 
   return (
     <div>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h2 className="text-lg font-bold text-gray-800">Help & Support</h2>
-        <p className="text-sm text-gray-500 mt-1">Get assistance and learn more about KapitBisig.</p>
+      <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6">
+        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Help & Support</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Get assistance and learn more about KapitBisig.</p>
 
-        <div className="mt-6 divide-y divide-gray-100">
+        <div className="mt-6 divide-y divide-gray-100 dark:divide-slate-700">
           {/* FAQs */}
           <button
             onClick={() => setShowFAQ(true)}
-            className="w-full flex items-center justify-between py-4 text-left hover:bg-gray-50 rounded-xl px-3 transition-colors -mx-3"
+            className="w-full flex items-center justify-between py-4 text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-xl px-3 transition-colors -mx-3"
           >
             <div>
-              <p className="text-sm font-semibold text-gray-800">FAQs</p>
-              <p className="text-xs text-gray-500 mt-0.5">Find answers to commonly asked questions</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">FAQs</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Find answers to commonly asked questions</p>
             </div>
             <InfoCircleIcon className="w-5 h-5 text-gray-400 shrink-0" />
           </button>
@@ -29,18 +29,18 @@ export default function HelpAboutSection() {
           {/* Contact Support */}
           <button
             onClick={() => setShowContact(true)}
-            className="w-full flex items-center justify-between py-4 text-left hover:bg-gray-50 rounded-xl px-3 transition-colors -mx-3"
+            className="w-full flex items-center justify-between py-4 text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-xl px-3 transition-colors -mx-3"
           >
             <div>
-              <p className="text-sm font-semibold text-gray-800">Contact Support</p>
-              <p className="text-xs text-gray-500 mt-0.5">Reach out to our support team</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Contact Support</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Reach out to our support team</p>
             </div>
             <InfoCircleIcon className="w-5 h-5 text-gray-400 shrink-0" />
           </button>
         </div>
 
         {/* Footer */}
-        <div className="mt-8 pt-4 border-t border-gray-100">
+        <div className="mt-8 pt-4 border-t border-gray-100 dark:border-slate-700">
           <p className="text-xs text-gray-400">KapitBisig Relief System v1.0.0</p>
           <p className="text-xs text-gray-400">&copy; 2026 LGU Rosario. All rights reserved.</p>
         </div>
@@ -49,10 +49,10 @@ export default function HelpAboutSection() {
       {/* FAQ Modal */}
       {showFAQ && typeof document !== 'undefined' && createPortal(
         <ModalBackdrop onClose={() => setShowFAQ(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6 relative">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6 relative">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">Frequently Asked Questions</h3>
-              <button onClick={() => setShowFAQ(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Frequently Asked Questions</h3>
+              <button onClick={() => setShowFAQ(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <CloseIcon className="w-5 h-5" />
               </button>
             </div>
@@ -69,28 +69,28 @@ export default function HelpAboutSection() {
       {/* Contact Support Modal */}
       {showContact && typeof document !== 'undefined' && createPortal(
         <ModalBackdrop onClose={() => setShowContact(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 relative">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 relative">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">Contact Support</h3>
-              <button onClick={() => setShowContact(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Contact Support</h3>
+              <button onClick={() => setShowContact(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <CloseIcon className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
                 <MailIcon className="w-5 h-5 text-green-600 shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">Email Support</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Email Support</p>
                   <a href="mailto:support@kapitbisig.ph" className="text-sm text-green-600 hover:underline">
                     support@kapitbisig.ph
                   </a>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
                 <PhoneIcon className="w-5 h-5 text-green-600 shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">Phone</p>
-                  <p className="text-sm text-gray-600">+63 912 345 6789</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Phone</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">+63 912 345 6789</p>
                 </div>
               </div>
               <p className="text-xs text-gray-400 text-center mt-4">
@@ -135,16 +135,16 @@ const FAQS = [
 function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border border-gray-100 rounded-xl overflow-hidden">
+    <div className="border border-gray-100 dark:border-slate-700 rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
       >
-        <span className="text-sm font-medium text-gray-800">{question}</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{question}</span>
         <ChevronIcon className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="px-3 pb-3 text-sm text-gray-600">{answer}</div>
+        <div className="px-3 pb-3 text-sm text-gray-600 dark:text-gray-400">{answer}</div>
       )}
     </div>
   )

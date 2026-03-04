@@ -35,13 +35,15 @@ export const connectDB = async (): Promise<void> => {
   validateMongoConfig(uri);
 
   const isProd = process.env.NODE_ENV === 'production';
+  const mongooseDebugFlag = (process.env.MONGOOSE_DEBUG || '').trim().toLowerCase();
+  const enableMongooseDebug = !isProd && mongooseDebugFlag === 'true';
   const isSrv = uri.startsWith('mongodb+srv://');
   const forceTLS = process.env.MONGODB_REQUIRE_TLS === 'true' || isProd;
 
   try {
     mongoose.set('sanitizeFilter', true);
     mongoose.set('strictQuery', true);
-    mongoose.set('debug', !isProd);
+    mongoose.set('debug', enableMongooseDebug);
 
     const options: mongoose.ConnectOptions = {
       dbName: MONGODB_DB_NAME,
@@ -60,6 +62,7 @@ export const connectDB = async (): Promise<void> => {
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     console.log(`Database: ${conn.connection.name}`);
+    console.log(`Mongoose debug logging: ${enableMongooseDebug ? 'enabled' : 'disabled'}`);
     if (isSrv) {
       console.log('TLS: enabled via mongodb+srv');
     } else if (forceTLS) {

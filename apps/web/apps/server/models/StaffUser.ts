@@ -52,7 +52,7 @@ const staffUserSchema = new Schema<IStaffUser>(
       lowercase: true,
       trim: true,
       minlength: [3, 'Username must be at least 3 characters'],
-      maxlength: [60, 'Username cannot exceed 60 characters'],
+      maxlength: [64, 'Username cannot exceed 64 characters'],
     },
     email: {
       type: String,

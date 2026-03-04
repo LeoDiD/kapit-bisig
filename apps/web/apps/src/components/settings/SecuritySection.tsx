@@ -112,9 +112,9 @@ export default function SecuritySection() {
   return (
     <div>
       {/* Change Password */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h2 className="text-lg font-bold text-gray-800">Change Password</h2>
-        <p className="text-sm text-gray-500 mt-1">Ensure your account stays secure.</p>
+      <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6">
+        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Change Password</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ensure your account stays secure.</p>
 
         <div className="mt-6 space-y-5 max-w-lg">
           <PasswordField
@@ -163,10 +163,10 @@ export default function SecuritySection() {
       </div>
 
       {/* Active Sessions placeholder */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-6">
-        <h2 className="text-lg font-bold text-gray-800">Active Sessions</h2>
-        <p className="text-sm text-gray-500 mt-1">Manage your logged-in devices.</p>
-        <div className="mt-4 p-4 bg-gray-50 rounded-xl text-sm text-gray-500 text-center">
+      <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6 mt-6">
+        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Active Sessions</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your logged-in devices.</p>
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl text-sm text-gray-500 dark:text-gray-400 text-center">
           Session management coming soon.
         </div>
       </div>
@@ -204,7 +204,7 @@ function PasswordField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
         {label}
         {hint && <span className="text-gray-400 font-normal ml-1 text-xs">({hint})</span>}
       </label>
@@ -213,7 +213,7 @@ function PasswordField({
           type={show ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2.5 pr-10 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+          className="w-full px-3 py-2.5 pr-10 text-sm border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
         />
         <button
           type="button"

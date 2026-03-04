@@ -105,14 +105,6 @@ const envSchema = z.object({
       (v) => Number.isFinite(v) && v >= 1,
       'CONFIRMATIONS_REQUIRED must be an integer >= 1',
     ),
-  CLAIM_TX_GAS_PRICE_GWEI: z
-    .string()
-    .default('15')
-    .transform((v) => v.trim())
-    .refine(
-      (v) => /^\d+(\.\d+)?$/.test(v) && Number.isFinite(Number(v)) && Number(v) > 0,
-      'CLAIM_TX_GAS_PRICE_GWEI must be a positive number',
-    ),
 
   /* ---- Face recognition backend ---- */
   FACE_RECOGNITION_API_URL: z.string().optional(),
