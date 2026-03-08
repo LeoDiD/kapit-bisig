@@ -32,6 +32,48 @@ export default function QRReceiptScreen({ onBack }: QRReceiptScreenProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const qrCardRef = useRef<ViewShot | null>(null);
 
+  const sanitizeResidentFullName = (rawName?: string): string => {
+    const parts = String(rawName || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return '';
+
+    const statusWords = new Set([
+      'APPROVED',
+      'PENDING',
+      'REJECTED',
+      'VERIFIED',
+      'ACTIVE',
+      'INACTIVE',
+      'HOUSEHOLD',
+      'RESIDENT',
+    ]);
+
+    while (parts.length > 1 && statusWords.has(parts[parts.length - 1].toUpperCase())) {
+      parts.pop();
+    }
+
+    return parts.join(' ');
+  };
+
+  const toMaskedName = (rawName?: string): string => {
+    const parts = String(rawName || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) {
+      return 'Uxxxx Uxxxx';
+    }
+    if (parts.length === 1) {
+      const firstInitial = parts[0][0]?.toUpperCase() || 'U';
+      return `${firstInitial}xxxx`;
+    }
+    const firstInitial = parts[0][0]?.toUpperCase() || 'U';
+    const lastInitial = parts[parts.length - 1][0]?.toUpperCase() || 'U';
+    return `${firstInitial}xxxx ${lastInitial}xxxx`;
+  };
+
   const loadQrFromSession = async () => {
     setIsLoading(true);
     setError(null);
@@ -149,10 +191,9 @@ export default function QRReceiptScreen({ onBack }: QRReceiptScreenProps) {
                 </View>
 
                 <View style={styles.cardInfoBlock}>
-                  <Text style={styles.cardInfoName}>{qrData.resident.fullName}</Text>
-                  <Text style={styles.cardInfoLine}>Resident Code: {qrData.residentCode}</Text>
-                  <Text style={styles.cardInfoLine}>Barangay: {qrData.resident.barangay}</Text>
-                  <Text style={styles.cardInfoLine}>Status: {qrData.resident.status}</Text>
+                  <Text style={styles.cardInfoName}>
+                    {toMaskedName(sanitizeResidentFullName(qrData.resident.fullName))}
+                  </Text>
                 </View>
 
                 <View style={styles.cardFooter}>

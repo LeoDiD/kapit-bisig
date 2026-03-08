@@ -9,14 +9,11 @@ import { barangayEnum, objectId } from './shared';
 export const createDistributionBody = z.object({
   barangay: barangayEnum,
   assignedBarangays: z.array(barangayEnum)
-    .min(2, 'Select at least 2 assigned barangays')
+    .min(3, 'Select at least 3 assigned barangays')
     .max(4, 'Select up to 4 assigned barangays'),
   scheduled: z.string().min(1, 'Scheduled date is required').max(50),
   assignedStaffIds: z.array(objectId)
     .min(1, 'Select at least 1 staff member'),
-  households: z.coerce.number()
-    .int('Households must be a whole number')
-    .min(1, 'Households must be >= 1'),
   notes: z.string().max(2000).optional().default(''),
 }).strict().superRefine((data, ctx) => {
   const unique = new Set(data.assignedBarangays);

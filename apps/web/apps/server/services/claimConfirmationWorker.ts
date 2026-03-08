@@ -1,12 +1,13 @@
 import mongoose from 'mongoose';
 import Claim from '../models/Claim';
-import DistributionClaim from '../models/DistributionClaim';
 import {
   getConfirmationsRequired,
   getProvider,
   getTransactionReceipt,
   isClaimedOnChain,
 } from './blockchainService';
+import { upsertDistributionClaimFromClaim } from './distributionFlowService';
+import { runClaimOpsAlerts } from './claimOpsAlertService';
 
 const PENDING_STATUSES = ['PENDING_CHAIN', 'CHAIN_SUBMITTED'] as const;
 const DEFAULT_POLL_INTERVAL_MS = 15000;
@@ -42,18 +43,7 @@ let isRunning = false;
 
 async function syncDistributionClaim(claim: any): Promise<void> {
   if (!claim?.residentId) return;
-
-  await DistributionClaim.findOneAndUpdate(
-    { distributionId: claim.distributionId, householdId: claim.residentId },
-    {
-      distributionId: claim.distributionId,
-      householdId: claim.residentId,
-      claimedAt: claim.createdAt || new Date(),
-      claimedBy: { id: claim.staffUserId, name: claim.staffName },
-      proofMethod: 'QR',
-    },
-    { upsert: true, new: true },
-  );
+  await upsertDistributionClaimFromClaim(claim);
 }
 
 async function confirmOrFailClaim(claim: any, latestBlock: number): Promise<void> {
@@ -142,6 +132,11 @@ async function pollPendingClaims(): Promise<void> {
   } catch (err: any) {
     console.error(`[claim-confirmation-worker] poll error: ${err?.message || 'unknown'}`);
   } finally {
+    try {
+      await runClaimOpsAlerts();
+    } catch (alertErr: any) {
+      console.error(`[claim-confirmation-worker] alert error: ${alertErr?.message || 'unknown'}`);
+    }
     isRunning = false;
   }
 }

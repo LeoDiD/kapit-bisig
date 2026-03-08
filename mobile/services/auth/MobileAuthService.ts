@@ -63,6 +63,34 @@ export interface User {
   lastLogin?: string;
 }
 
+export interface UpdateMobileProfilePayload {
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+}
+
+export interface DashboardSummary {
+  scopedBarangays: string[];
+  residents: {
+    total: number;
+    approved: number;
+    pending: number;
+    rejected: number;
+  };
+  distributions: {
+    total: number;
+    active: number;
+  };
+  claims: {
+    confirmedToday: number;
+  };
+  scans: {
+    today: number;
+    yesterday: number;
+    trend: number;
+  };
+}
+
 /**
  * Auth Response interface
  */
@@ -386,6 +414,61 @@ class MobileAuthService {
       console.error('[MobileAuthService] Request error:', error);
       return { success: false, error: 'Network error' };
     }
+  }
+
+  /**
+   * Update authenticated mobile user's profile fields.
+   */
+  async updateProfile(
+    payload: UpdateMobileProfilePayload
+  ): Promise<{ success: boolean; data?: User; error?: string }> {
+    const response = await this.authenticatedRequest<{ success: boolean; data?: User; message?: string }>(
+      '/mobile-auth/me',
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!response.success || !response.data?.success || !response.data.data) {
+      return {
+        success: false,
+        error: response.error || response.data?.message || 'Failed to update profile.',
+      };
+    }
+
+    this.user = response.data.data;
+    await this.setStoredItem(STORAGE_KEYS.USER_DATA, JSON.stringify(this.user));
+
+    return {
+      success: true,
+      data: this.user,
+    };
+  }
+
+  /**
+   * Load scoped dashboard summary for volunteer/staff mobile users.
+   */
+  async getDashboardSummary(): Promise<{ success: boolean; data?: DashboardSummary; error?: string }> {
+    const response = await this.authenticatedRequest<{
+      success: boolean;
+      data?: DashboardSummary;
+      message?: string;
+    }>('/mobile-auth/dashboard-summary', {
+      method: 'GET',
+    });
+
+    if (!response.success || !response.data?.success || !response.data.data) {
+      return {
+        success: false,
+        error: response.error || response.data?.message || 'Failed to load dashboard summary.',
+      };
+    }
+
+    return {
+      success: true,
+      data: response.data.data,
+    };
   }
 }
 

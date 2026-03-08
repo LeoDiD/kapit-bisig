@@ -91,7 +91,6 @@ export default function DistributionPageClient() {
         assignedBarangays: payload.assignedBarangays,
         assignedStaffIds: payload.assignedStaffIds,
         scheduled: payload.scheduled,
-        households: payload.households,
         notes: payload.notes,
       }, {
         idempotencyKey: crypto.randomUUID(),

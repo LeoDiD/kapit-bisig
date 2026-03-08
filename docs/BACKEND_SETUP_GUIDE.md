@@ -283,7 +283,7 @@ Use the `IPv4 Address` of your active Wi-Fi adapter.
 1. Restart Node backend (`apps/web/apps`).
 2. Restart Python backend (`backend`).
 3. Restart Expo (`mobile`), then reload app.
-
+   
 ---
 
 ## 6. Troubleshooting

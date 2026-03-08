@@ -48,6 +48,8 @@ import {
   rejectNoSQLInjection,
 } from './middleware/securityHardening';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { startClaimConfirmationWorker } from './services/claimConfirmationWorker';
+import { startClaimChainQueue } from './services/claimChainQueue';
 
 const app: Express = express();
 const PORT = env.PORT;
@@ -148,6 +150,8 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
+    startClaimChainQueue();
+    startClaimConfirmationWorker();
 
     app.listen(PORT, () => {
       console.log(`⚡️ Server is running on port ${PORT} [${env.NODE_ENV}]`);

@@ -57,6 +57,7 @@ export interface IHouseholdToken extends Document {
     headOfHousehold: string;
     address: string;
     barangay: string;
+    distributionId?: string;
     expectedMembers: number;
     notes: string;
   };
@@ -160,6 +161,11 @@ const HouseholdTokenSchema: Schema = new Schema(
       barangay: {
         type: String,
         required: [true, 'Barangay is required'],
+        trim: true,
+      },
+      distributionId: {
+        type: String,
+        default: '',
         trim: true,
       },
       expectedMembers: {

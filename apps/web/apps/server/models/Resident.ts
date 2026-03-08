@@ -49,6 +49,7 @@ async function generateResidentCode(barangay: string): Promise<string> {
 
 export interface IResident extends Document {
   residentCode: string;
+  avatarUrl?: string | null;
   qrVersion: number;
   qrIssuedAt?: Date;
   qrStatus: 'ACTIVE' | 'REVOKED';
@@ -122,6 +123,10 @@ const ResidentSchema: Schema = new Schema(
       unique: true,
       index: true,
       sparse: true,
+    },
+    avatarUrl: {
+      type: String,
+      default: null,
     },
     qrVersion: {
       type: Number,

@@ -75,7 +75,7 @@ const distributionSchema = new Schema<IDistribution>(
     households: {
       type: Number,
       required: [true, 'Households count is required'],
-      min: [1, 'Households must be at least 1'],
+      min: [0, 'Households must be at least 0'],
     },
     notes: {
       type: String,
@@ -83,7 +83,7 @@ const distributionSchema = new Schema<IDistribution>(
     },
     status: {
       type: String,
-      enum: ['Unclaimed', 'Claimed'],
+      enum: ['Unclaimed', 'Partially Claimed', 'Claimed'],
       default: 'Unclaimed',
     },
     claimedAt: {

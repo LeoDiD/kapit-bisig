@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,23 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  Modal,
+  TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { ResidentProfile } from '../services/api/ResidentQrService';
-import { User as VolunteerUser } from '../services/auth/MobileAuthService';
+import {
+  getResidentToken,
+  ResidentProfile,
+  uploadResidentAvatar,
+} from '../services/api/ResidentQrService';
+import {
+  mobileAuthService,
+  User as VolunteerUser,
+} from '../services/auth/MobileAuthService';
+import * as ImagePicker from 'expo-image-picker';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
@@ -18,6 +30,8 @@ interface ProfileScreenProps {
   accountType?: 'resident' | 'volunteer';
   residentProfile?: ResidentProfile | null;
   volunteerUser?: VolunteerUser | null;
+  onResidentProfileUpdated?: (profile: ResidentProfile) => void;
+  onVolunteerProfileUpdated?: (user: VolunteerUser | null) => void;
 }
 
 interface SettingsItemProps {
@@ -58,33 +72,212 @@ export default function ProfileScreen({
   accountType = 'resident',
   residentProfile,
   volunteerUser,
+  onVolunteerProfileUpdated,
 }: ProfileScreenProps) {
   const isVolunteer = accountType === 'volunteer';
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [firstNameInput, setFirstNameInput] = useState('');
+  const [lastNameInput, setLastNameInput] = useState('');
+  const [mobileInput, setMobileInput] = useState('');
+  const [streetAddressInput, setStreetAddressInput] = useState('');
+  const [cityInput, setCityInput] = useState('');
+  const [avatarUri, setAvatarUri] = useState(
+    residentProfile?.avatarUrl || 'https://randomuser.me/api/portraits/men/32.jpg'
+  );
+
+  const sanitizeResidentFullName = (rawName?: string): string => {
+    const parts = String(rawName || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return '';
+
+    // Defensive cleanup if status text is accidentally appended to name.
+    const statusWords = new Set([
+      'APPROVED',
+      'PENDING',
+      'REJECTED',
+      'VERIFIED',
+      'ACTIVE',
+      'INACTIVE',
+      'HOUSEHOLD',
+      'RESIDENT',
+    ]);
+
+    while (parts.length > 1 && statusWords.has(parts[parts.length - 1].toUpperCase())) {
+      parts.pop();
+    }
+
+    return parts.join(' ');
+  };
+
+  const toMaskedName = (rawName?: string): string => {
+    const parts = String(rawName || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return 'Uxxxx Uxxxx';
+    if (parts.length === 1) return `${parts[0][0]?.toUpperCase() || 'U'}xxxx`;
+    const firstInitial = parts[0][0]?.toUpperCase() || 'U';
+    const lastInitial = parts[parts.length - 1][0]?.toUpperCase() || 'U';
+    return `${firstInitial}xxxx ${lastInitial}xxxx`;
+  };
+
+  const residentRawName = useMemo(() => {
+    const first = String(residentProfile?.firstName || '').trim();
+    const last = String(residentProfile?.lastName || '').trim();
+    if (first || last) return `${first} ${last}`.trim();
+    return sanitizeResidentFullName(residentProfile?.fullName || '');
+  }, [residentProfile?.firstName, residentProfile?.lastName, residentProfile?.fullName]);
+
   const displayName = isVolunteer
     ? `${volunteerUser?.firstName || ''} ${volunteerUser?.lastName || ''}`.trim() || 'Volunteer'
-    : residentProfile?.fullName || 'Juan Dela Cruz';
+    : toMaskedName(residentRawName || 'Juan Dela Cruz');
   const isVerified = isVolunteer ? true : residentProfile?.status === 'Approved';
   const residentCode = residentProfile?.residentCode || 'SJ-10293';
+  const lguTown = 'Labrador';
+  const volunteerAddress = volunteerUser?.barangay
+    ? `${volunteerUser.barangay}, ${lguTown}`
+    : `No address, ${lguTown}`;
+  const residentAddressParts = [
+    residentProfile?.barangay || 'San Jose',
+    lguTown,
+  ].filter(Boolean);
   const fullAddress = isVolunteer
-    ? volunteerUser?.barangay || 'No address'
-    : [residentProfile?.streetAddress || '123 Maple St', residentProfile?.barangay || 'San Jose']
-        .filter(Boolean)
-        .join(', ');
+    ? volunteerAddress
+    : residentAddressParts.join(', ');
   const householdSize = residentProfile?.householdSize || 4;
-  const coverageArea = 'Sector 7-B';
+  const coverageArea = isVolunteer
+    ? volunteerUser?.assignedBarangays?.join(', ') || volunteerUser?.barangay || 'No assigned area'
+    : 'Sector 7-B';
+
+  useEffect(() => {
+    if (residentProfile?.avatarUrl) {
+      setAvatarUri(residentProfile.avatarUrl);
+    }
+  }, [residentProfile?.avatarUrl]);
+
+  const initialFields = useMemo(() => {
+    if (isVolunteer) {
+      return {
+        firstName: volunteerUser?.firstName || '',
+        lastName: volunteerUser?.lastName || '',
+        mobileNumber: volunteerUser?.phoneNumber || '',
+        streetAddress: '',
+        city: '',
+      };
+    }
+
+    return {
+      firstName: residentProfile?.firstName || '',
+      lastName: residentProfile?.lastName || '',
+      mobileNumber: residentProfile?.mobileNumber || '',
+      streetAddress: residentProfile?.streetAddress || '',
+      city: residentProfile?.city || '',
+    };
+  }, [isVolunteer, residentProfile, volunteerUser]);
+
+  const openEditModal = () => {
+    if (!isVolunteer) {
+      void handleResidentAvatarPick();
+      return;
+    }
+
+    setFirstNameInput(initialFields.firstName);
+    setLastNameInput(initialFields.lastName);
+    setMobileInput(initialFields.mobileNumber);
+    setStreetAddressInput(initialFields.streetAddress);
+    setCityInput(initialFields.city);
+    setIsEditOpen(true);
+  };
+
+  const handleResidentAvatarPick = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Please allow photo library access to update your profile photo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
+
+    const selectedUri = result.assets[0].uri;
+    setAvatarUri(selectedUri);
+
+    const token = await getResidentToken();
+    if (!token) {
+      Alert.alert('Session expired', 'Please log in again.');
+      return;
+    }
+
+    const uploadResult = await uploadResidentAvatar(token, selectedUri);
+    if (!uploadResult.success || !uploadResult.avatarUrl) {
+      Alert.alert('Upload failed', uploadResult.message || 'Unable to save profile photo.');
+      return;
+    }
+
+    setAvatarUri(uploadResult.avatarUrl);
+    Alert.alert('Saved', 'Profile photo updated successfully.');
+  };
+
+  const handleSaveProfile = async () => {
+    if (isSaving) return;
+
+    const firstName = firstNameInput.trim();
+    const lastName = lastNameInput.trim();
+    if (!firstName || !lastName) {
+      Alert.alert('Missing fields', 'First name and last name are required.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (isVolunteer) {
+        const result = await mobileAuthService.updateProfile({
+          firstName,
+          lastName,
+          phoneNumber: mobileInput.trim(),
+        });
+
+        if (!result.success || !result.data) {
+          Alert.alert('Update failed', result.error || 'Unable to update profile.');
+          return;
+        }
+
+        onVolunteerProfileUpdated?.(result.data);
+        Alert.alert('Saved', 'Profile updated successfully.');
+        setIsEditOpen(false);
+        return;
+      }
+
+      Alert.alert('Not available', 'Resident can only update profile photo here.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Top Navigation Bar */}
-      <View style={styles.topNav}>
-        <TouchableOpacity style={styles.navButton} onPress={() => onNavigate?.('home')}>
-          <Ionicons name="chevron-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text style={styles.topNavTitle}>Profile</Text>
-        <TouchableOpacity style={styles.navButton}>
-          <Ionicons name="settings-outline" size={22} color="#374151" />
-        </TouchableOpacity>
-      </View>
+      {isVolunteer && (
+        <View style={styles.topNav}>
+          <TouchableOpacity style={styles.navButton} onPress={() => onNavigate?.('home')}>
+            <Ionicons name="chevron-back" size={24} color="#374151" />
+          </TouchableOpacity>
+          <Text style={styles.topNavTitle}>Profile</Text>
+          <TouchableOpacity style={styles.navButton} onPress={openEditModal}>
+            <Ionicons name="settings-outline" size={22} color="#374151" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         style={styles.scrollView}
@@ -96,10 +289,10 @@ export default function ProfileScreen({
           {/* Avatar */}
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }}
+              source={{ uri: avatarUri }}
               style={styles.avatar}
             />
-            <TouchableOpacity style={styles.editAvatarButton}>
+            <TouchableOpacity style={styles.editAvatarButton} onPress={openEditModal}>
               <Ionicons name="pencil" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -119,24 +312,37 @@ export default function ProfileScreen({
             </Text>
           </View>
 
-          {/* Resident Code */}
-          <Text style={styles.residentCode}>Resident Code: {residentCode}</Text>
+          {isVolunteer && <Text style={styles.residentCode}>Resident Code: {residentCode}</Text>}
         </View>
 
-        {/* Account Information Card */}
-        <View style={styles.infoCard}>
-          <InfoRow label="Full Address" value={fullAddress} />
-          <InfoRow label="Household Size" value={`${householdSize} members`} />
-          <InfoRow label="Coverage Area" value={coverageArea} showDivider={false} />
-        </View>
+        {isVolunteer ? (
+          <View style={styles.infoCard}>
+            <InfoRow label="Full Address" value={fullAddress} />
+            <InfoRow label="Household Size" value={`${householdSize} members`} />
+            <InfoRow label="Coverage Area" value={coverageArea} showDivider={false} />
+          </View>
+        ) : (
+          <View style={styles.infoCard}>
+            <InfoRow label="Full Name" value={displayName} />
+            <InfoRow label="Home Address" value={fullAddress} showDivider={false} />
+          </View>
+        )}
 
         {/* Settings Section Card */}
         <View style={styles.settingsCard}>
           <SettingsItem icon="notifications-outline" label="Notifications" />
           <View style={styles.settingsDivider} />
-          <SettingsItem icon="shield-checkmark-outline" label="Privacy & Security" />
+          <SettingsItem
+            icon="shield-checkmark-outline"
+            label="Privacy & Security"
+            onPress={() => Alert.alert('Privacy & Security', 'Security settings are available on the web admin panel.')}
+          />
           <View style={styles.settingsDivider} />
-          <SettingsItem icon="help-circle-outline" label="Help & Support" />
+          <SettingsItem
+            icon="help-circle-outline"
+            label="Help & Support"
+            onPress={() => Alert.alert('Help & Support', 'Please contact your barangay office for support.')}
+          />
         </View>
 
         {/* Logout Button */}
@@ -164,6 +370,85 @@ export default function ProfileScreen({
           <MaterialCommunityIcons name="qrcode-scan" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={isVolunteer && isEditOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsEditOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+
+            <Text style={styles.inputLabel}>First Name</Text>
+            <TextInput
+              style={styles.input}
+              value={firstNameInput}
+              onChangeText={setFirstNameInput}
+              editable={!isSaving}
+            />
+
+            <Text style={styles.inputLabel}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              value={lastNameInput}
+              onChangeText={setLastNameInput}
+              editable={!isSaving}
+            />
+
+            <Text style={styles.inputLabel}>{isVolunteer ? 'Phone Number' : 'Mobile Number'}</Text>
+            <TextInput
+              style={styles.input}
+              value={mobileInput}
+              onChangeText={setMobileInput}
+              keyboardType="phone-pad"
+              editable={!isSaving}
+            />
+
+            {!isVolunteer && (
+              <>
+                <Text style={styles.inputLabel}>Street Address</Text>
+                <TextInput
+                  style={styles.input}
+                  value={streetAddressInput}
+                  onChangeText={setStreetAddressInput}
+                  editable={!isSaving}
+                />
+
+                <Text style={styles.inputLabel}>City</Text>
+                <TextInput
+                  style={styles.input}
+                  value={cityInput}
+                  onChangeText={setCityInput}
+                  editable={!isSaving}
+                />
+              </>
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsEditOpen(false)}
+                disabled={isSaving}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, isSaving && styles.saveButtonDisabled]}
+                onPress={handleSaveProfile}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -401,5 +686,69 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 4,
     borderColor: '#FFFFFF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  inputLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#1F2937',
+    backgroundColor: '#FFFFFF',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 16,
+  },
+  modalButton: {
+    minWidth: 88,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  saveButton: {
+    backgroundColor: '#16A34A',
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

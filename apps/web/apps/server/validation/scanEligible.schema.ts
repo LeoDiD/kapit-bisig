@@ -17,7 +17,7 @@ const parseAssignedBarangays = z.preprocess((value) => {
   }
 
   return [];
-}, z.array(barangayEnum).min(2, 'Select at least 2 assigned barangays').max(4, 'Select up to 4 assigned barangays'));
+}, z.array(barangayEnum).min(3, 'Select at least 3 assigned barangays').max(4, 'Select up to 4 assigned barangays'));
 
 export const scanEligibleUsersQuery = z.object({
   hostBarangayId: barangayEnum,
