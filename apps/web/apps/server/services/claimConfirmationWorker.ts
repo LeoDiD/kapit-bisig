@@ -11,6 +11,7 @@ import {
 const PENDING_STATUSES = ['PENDING_CHAIN', 'CHAIN_SUBMITTED'] as const;
 const DEFAULT_POLL_INTERVAL_MS = 15000;
 const DEFAULT_BATCH_SIZE = 100;
+const DEFAULT_ERROR_LOG_COOLDOWN_MS = 120000;
 
 function parsePositiveNumber(
   value: string | undefined,
@@ -36,9 +37,58 @@ const MAX_BATCH_SIZE = parsePositiveNumber(
   DEFAULT_BATCH_SIZE,
   1,
 );
+const ERROR_LOG_COOLDOWN_MS = parsePositiveNumber(
+  process.env.CHAIN_CONFIRMATION_ERROR_COOLDOWN_MS,
+  DEFAULT_ERROR_LOG_COOLDOWN_MS,
+  1000,
+);
 
 let workerTimer: NodeJS.Timeout | null = null;
 let isRunning = false;
+const lastErrorLoggedAt = new Map<string, number>();
+let hasWarnedUnsupportedClaimCheck = false;
+
+function shortHash(value: string): string {
+  if (!value) return '(none)';
+  if (value.length <= 18) return value;
+  return `${value.slice(0, 10)}...${value.slice(-6)}`;
+}
+
+function summarizeError(err: any): { code: string; message: string } {
+  const code = String(err?.code || 'UNKNOWN');
+  const raw =
+    err?.shortMessage ||
+    err?.reason ||
+    err?.message ||
+    err?.error?.message ||
+    'unknown error';
+
+  const message = String(raw).replace(/\s+/g, ' ').trim();
+  if (message.length > 180) {
+    return { code, message: `${message.slice(0, 177)}...` };
+  }
+  return { code, message };
+}
+
+function shouldLogError(key: string): boolean {
+  const now = Date.now();
+  const last = lastErrorLoggedAt.get(key) || 0;
+  if (now - last < ERROR_LOG_COOLDOWN_MS) {
+    return false;
+  }
+  lastErrorLoggedAt.set(key, now);
+
+  if (lastErrorLoggedAt.size > 200) {
+    const cutoff = now - ERROR_LOG_COOLDOWN_MS * 4;
+    for (const [k, ts] of lastErrorLoggedAt.entries()) {
+      if (ts < cutoff) {
+        lastErrorLoggedAt.delete(k);
+      }
+    }
+  }
+
+  return true;
+}
 
 async function syncDistributionClaim(claim: any): Promise<void> {
   if (!claim?.residentId) return;
@@ -59,7 +109,8 @@ async function syncDistributionClaim(claim: any): Promise<void> {
 async function confirmOrFailClaim(claim: any, latestBlock: number): Promise<void> {
   const txHash = claim?.blockchain?.txHash;
   const householdHash = claim?.blockchain?.householdHash;
-  if (!txHash || !householdHash) return;
+  const eventHash = claim?.blockchain?.eventHash;
+  if (!txHash || !householdHash || !eventHash) return;
 
   const receipt = await getTransactionReceipt(txHash);
   if (!receipt) return;
@@ -81,7 +132,25 @@ async function confirmOrFailClaim(claim: any, latestBlock: number): Promise<void
 
   if (receipt.status !== 1) return;
 
-  const onChainClaimed = await isClaimedOnChain(householdHash);
+  let onChainClaimed = false;
+  try {
+    onChainClaimed = await isClaimedOnChain(householdHash, eventHash);
+  } catch (err: any) {
+    const msg = String(err?.message || '');
+    const isUnsupportedClaimCheck = msg.includes('does not expose isClaimed check functions');
+    if (!isUnsupportedClaimCheck) {
+      throw err;
+    }
+
+    if (!hasWarnedUnsupportedClaimCheck) {
+      hasWarnedUnsupportedClaimCheck = true;
+      console.warn(
+        '[claim-confirmation-worker] Contract does not expose isClaimed check. Falling back to tx receipt confirmations only.',
+      );
+    }
+    onChainClaimed = true;
+  }
+
   if (!onChainClaimed) {
     // Extra safety check: keep pending until contract state is verifiably updated.
     return;
@@ -134,13 +203,21 @@ async function pollPendingClaims(): Promise<void> {
       try {
         await confirmOrFailClaim(claim, latestBlock);
       } catch (err: any) {
-        console.error(
-          `[claim-confirmation-worker] claimId=${claim.claimId} txHash=${claim?.blockchain?.txHash || '(none)'} error=${err?.message || 'unknown'}`,
-        );
+        const { code, message } = summarizeError(err);
+        const key = `claim|${code}|${message}`;
+        if (shouldLogError(key)) {
+          console.error(
+            `[claim-confirmation-worker] claimId=${claim.claimId} txHash=${shortHash(claim?.blockchain?.txHash || '')} code=${code} error=${message}`,
+          );
+        }
       }
     }
   } catch (err: any) {
-    console.error(`[claim-confirmation-worker] poll error: ${err?.message || 'unknown'}`);
+    const { code, message } = summarizeError(err);
+    const key = `poll|${code}|${message}`;
+    if (shouldLogError(key)) {
+      console.error(`[claim-confirmation-worker] poll error code=${code} message=${message}`);
+    }
   } finally {
     isRunning = false;
   }

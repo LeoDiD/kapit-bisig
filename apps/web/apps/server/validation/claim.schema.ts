@@ -12,6 +12,13 @@ export const recordClaimBody = z.object({
   distributionSite: trimmedString(1, 200),
 }).strict();
 
+/* POST /api/claims/record-claim-batch */
+export const recordClaimBatchBody = z.object({
+  claimTokens: z.array(trimmedString(1, 100)).min(1).max(100),
+  distributionId: trimmedString(1, 100),
+  distributionSite: trimmedString(1, 200),
+}).strict();
+
 /* GET /api/claims/ledger */
 export const ledgerQuery = z.object({
   barangay: z.string().max(100).optional(),

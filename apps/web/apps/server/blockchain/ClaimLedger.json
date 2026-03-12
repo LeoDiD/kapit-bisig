@@ -1,5 +1,5 @@
 {
-  "address": "0xE50c3368CF1E62DA6116350259feD182C287e67b",
+  "address": "0xB136B7A24Bf0F21D80c9253d9b25deae32014459",
   "abi": [
     {
       "anonymous": false,
@@ -55,26 +55,12 @@
       "inputs": [
         {
           "internalType": "bytes32",
-          "name": "",
+          "name": "householdHash",
           "type": "bytes32"
-        }
-      ],
-      "name": "claimed",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
+        },
         {
           "internalType": "bytes32",
-          "name": "householdHash",
+          "name": "eventHash",
           "type": "bytes32"
         }
       ],
@@ -123,6 +109,24 @@
     {
       "inputs": [
         {
+          "internalType": "bytes32[]",
+          "name": "householdHashes",
+          "type": "bytes32[]"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "eventHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "recordClaimsBatch",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "address",
           "name": "newOwner",
           "type": "address"
@@ -134,7 +138,7 @@
       "type": "function"
     }
   ],
-  "deployedAt": "2026-03-04T02:03:02.188Z",
+  "deployedAt": "2026-03-12T01:07:36.948Z",
   "network": "sepolia",
   "chainId": 11155111,
   "owner": "0xF9798f11fc3736D988FC721e6bC5dEB71b6bD10d"

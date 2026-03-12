@@ -515,6 +515,23 @@ export const api = {
   },
 
   /**
+   * Record multiple relief-pack claims in one on-chain batch submission.
+   */
+  async recordClaimBatch(data: {
+    claimTokens: string[];
+    distributionId: string;
+    distributionSite: string;
+  }): Promise<ApiResponse<any>> {
+    const response = await fetch(`${API_URL}/claims/record-claim-batch`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<any>>(response);
+  },
+
+  /**
    * Retry a CHAIN_FAILED claim.
    */
   async retryClaimChain(claimId: string): Promise<ApiResponse<any>> {

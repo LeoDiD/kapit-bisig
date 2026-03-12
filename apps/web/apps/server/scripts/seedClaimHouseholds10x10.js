@@ -1,29 +1,15 @@
 /**
- * seedBrgy5x10.js - DEV-ONLY seed script
+ * seedClaimHouseholds10x10.js
  *
- * Seeds (configurable):
- * - N households per barangay across 10 barangays
- * - 1 claim token per seeded household
- * - M seeded distributions per barangay
- *
- * Defaults:
- * - 12 households per barangay (120 total)
- * - 3 distributions per barangay (30 total)
- *
- * Barangays:
- *   Bolo, Bongalon, Dulig, Laois, Magsaysay,
- *   Poblacion, San Gonzalo, San Jose, Tobuan, Uyong
+ * Seeds households + linked claim tokens only (no distributions).
+ * Default: 10 households per barangay across 10 barangays.
  *
  * Run from apps/web/apps:
- *   node server/scripts/seedBrgy5x10.js
+ *   node server/scripts/seedClaimHouseholds10x10.js
  *
- * Optional env overrides:
- *   SEED_TAG=BRGY_LOADTEST
- *   SEED_HOUSEHOLDS_PER_BARANGAY=12
- *   SEED_DISTRIBUTIONS_PER_BARANGAY=3
- *   SEED_DISTRIBUTION_SPACING_DAYS=7
- *
- * Idempotent for this seed set via SEED_TAG.
+ * Optional env:
+ *   SEED_TAG=CLAIM10X10_V2
+ *   SEED_HOUSEHOLDS_PER_BARANGAY=10
  */
 
 require('dotenv').config({ path: '.env.local' });
@@ -33,28 +19,44 @@ const bcrypt = require('bcrypt');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kapit-bisig';
 const SALT_ROUNDS = 12;
+const SEED_TAG = String(process.env.SEED_TAG || 'CLAIM10X10_V2').trim();
+const HOUSEHOLDS_PER_BARANGAY = Number(process.env.SEED_HOUSEHOLDS_PER_BARANGAY || 10);
 
-function parsePositiveInt(rawValue, fallback) {
-  const raw = String(rawValue || '').trim();
-  if (!raw) return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
-  return Math.floor(parsed);
-}
+const BRGYS = [
+  { name: 'Bolo', code: 'BL' },
+  { name: 'Bongalon', code: 'BN' },
+  { name: 'Dulig', code: 'DL' },
+  { name: 'Laois', code: 'LA' },
+  { name: 'Magsaysay', code: 'MG' },
+  { name: 'Poblacion', code: 'PB' },
+  { name: 'San Gonzalo', code: 'SG' },
+  { name: 'San Jose', code: 'SJ' },
+  { name: 'Tobuan', code: 'TB' },
+  { name: 'Uyong', code: 'UY' },
+];
 
-const SEED_TAG = (process.env.SEED_TAG || 'BRGY_LOADTEST_V1').trim();
-const HOUSEHOLDS_PER_BARANGAY = parsePositiveInt(
-  process.env.SEED_HOUSEHOLDS_PER_BARANGAY,
-  12,
-);
-const DISTRIBUTIONS_PER_BARANGAY = parsePositiveInt(
-  process.env.SEED_DISTRIBUTIONS_PER_BARANGAY,
-  3,
-);
-const DISTRIBUTION_SPACING_DAYS = parsePositiveInt(
-  process.env.SEED_DISTRIBUTION_SPACING_DAYS,
-  7,
-);
+const FIRST_NAMES = [
+  'Juan', 'Maria', 'Pedro', 'Ana', 'Jose',
+  'Rosa', 'Carlos', 'Elena', 'Roberto', 'Lorna',
+  'Miguel', 'Teresa', 'Paolo', 'Irene', 'Mark',
+  'Liza', 'Ramon', 'Cecilia', 'Noel', 'Grace',
+  'Leo', 'Mila', 'Oscar', 'Jenny', 'Daniel',
+  'Rina', 'Victor', 'Nora', 'Ryan', 'Ella',
+  'Adrian', 'Sheila', 'Arvin', 'Mona', 'Niko',
+  'Daisy', 'Edgar', 'Mara', 'Felix', 'Tina',
+  'Gino', 'Nina', 'Harold', 'Aiza', 'Ivan',
+  'Kaye', 'Jasper', 'Luna', 'Kevin', 'Maya',
+];
+
+const LAST_NAMES = [
+  'Dela Cruz', 'Santos', 'Reyes', 'Garcia', 'Mendoza',
+  'Bautista', 'Villanueva', 'Ramos', 'Aquino', 'Fernandez',
+  'Torres', 'Castro', 'Navarro', 'Flores', 'Domingo',
+  'Gutierrez', 'Lopez', 'Rivera', 'Hernandez', 'Valdez',
+];
+
+const PLACEHOLDER_IMG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQIHWNgAAIABQABNjN9GQAAAABJRwEBAAA=';
 
 const ResidentSchema = new mongoose.Schema(
   {
@@ -136,64 +138,14 @@ const HouseholdTokenSchema = new mongoose.Schema(
   { timestamps: true, strict: false },
 );
 
-const DistributionSchema = new mongoose.Schema(
-  {
-    barangay: String,
-    scheduled: String,
-    households: { type: Number, default: 0 },
-    notes: { type: String, default: '' },
-    status: { type: String, enum: ['Unclaimed', 'Claimed'], default: 'Unclaimed' },
-    claimedAt: { type: Date, default: null },
-    seeded: { type: Boolean, default: false },
-    seedTag: { type: String, default: '' },
-  },
-  { timestamps: true, strict: false },
-);
-
-const BRGYS = [
-  { name: 'Bolo', code: 'BL' },
-  { name: 'Bongalon', code: 'BN' },
-  { name: 'Dulig', code: 'DL' },
-  { name: 'Laois', code: 'LA' },
-  { name: 'Magsaysay', code: 'MG' },
-  { name: 'Poblacion', code: 'PB' },
-  { name: 'San Gonzalo', code: 'SG' },
-  { name: 'San Jose', code: 'SJ' },
-  { name: 'Tobuan', code: 'TB' },
-  { name: 'Uyong', code: 'UY' },
-];
-
-const FIRST_NAMES = [
-  'Juan', 'Maria', 'Pedro', 'Ana', 'Jose',
-  'Rosa', 'Carlos', 'Elena', 'Roberto', 'Lorna',
-  'Miguel', 'Teresa', 'Paolo', 'Irene', 'Mark',
-  'Liza', 'Ramon', 'Cecilia', 'Noel', 'Grace',
-  'Leo', 'Mila', 'Oscar', 'Jenny', 'Daniel',
-  'Rina', 'Victor', 'Nora', 'Ryan', 'Ella',
-  'Adrian', 'Sheila', 'Arvin', 'Mona', 'Niko',
-  'Daisy', 'Edgar', 'Mara', 'Felix', 'Tina',
-  'Gino', 'Nina', 'Harold', 'Aiza', 'Ivan',
-  'Kaye', 'Jasper', 'Luna', 'Kevin', 'Maya',
-];
-
-const LAST_NAMES = [
-  'Dela Cruz', 'Santos', 'Reyes', 'Garcia', 'Mendoza',
-  'Bautista', 'Villanueva', 'Ramos', 'Aquino', 'Fernandez',
-  'Torres', 'Castro', 'Navarro', 'Flores', 'Domingo',
-  'Gutierrez', 'Lopez', 'Rivera', 'Hernandez', 'Valdez',
-];
-
-const PLACEHOLDER_IMG =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQIHWNgAAIABQABNjN9GQAAAABJRwEBAAA=';
-
-function todayISO() {
-  return new Date().toISOString().split('T')[0];
+function makeToken(brgyCode, householdIndex, globalIndex) {
+  const partA = String(8000 + householdIndex).padStart(4, '0');
+  const partB = String(9000 + globalIndex).padStart(4, '0');
+  return `CLM-${brgyCode}-${partA}-${partB}`;
 }
 
-function isoDateFromOffset(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+function confidenceForIndex(globalIndex) {
+  return 76 + (globalIndex % 18);
 }
 
 function matchLevelForIndex(globalIndex) {
@@ -202,16 +154,12 @@ function matchLevelForIndex(globalIndex) {
   return 'Low Match';
 }
 
-function confidenceForIndex(globalIndex) {
-  return 74 + (globalIndex % 20);
-}
-
 async function buildUniqueMobileNumber(Resident, idNumber, globalIndex, brgyCode) {
   const brgyOffset = BRGYS.findIndex((b) => b.code === brgyCode) + 1;
-  let numeric = 930000000 + brgyOffset * 10000 + globalIndex;
+  let numeric = 940000000 + brgyOffset * 10000 + globalIndex;
 
-  for (let attempt = 0; attempt < 1000; attempt += 1) {
-    if (numeric > 999999999) numeric = 930000000 + attempt;
+  for (let attempt = 0; attempt < 1200; attempt += 1) {
+    if (numeric > 999999999) numeric = 940000000 + attempt;
     const candidate = `09${String(numeric).padStart(9, '0')}`;
     const conflict = await Resident.findOne({
       mobileNumber: candidate,
@@ -229,18 +177,14 @@ async function buildUniqueMobileNumber(Resident, idNumber, globalIndex, brgyCode
 
 async function main() {
   console.log(
-    `\nseedBrgy5x10 - seeding ${BRGYS.length} barangays x ${HOUSEHOLDS_PER_BARANGAY} households (seedTag=${SEED_TAG})\n`,
+    `\nseedClaimHouseholds10x10 - ${BRGYS.length} barangays x ${HOUSEHOLDS_PER_BARANGAY} households (seedTag=${SEED_TAG})\n`,
   );
 
   await mongoose.connect(MONGODB_URI);
-  console.log(`Connected to MongoDB (${MONGODB_URI})`);
 
-  const Resident =
-    mongoose.models.Resident || mongoose.model('Resident', ResidentSchema);
+  const Resident = mongoose.models.Resident || mongoose.model('Resident', ResidentSchema);
   const HouseholdToken =
     mongoose.models.HouseholdToken || mongoose.model('HouseholdToken', HouseholdTokenSchema);
-  const Distribution =
-    mongoose.models.Distribution || mongoose.model('Distribution', DistributionSchema);
 
   const seededPassword = await bcrypt.hash('SeedTest123!', SALT_ROUNDS);
   const summaryRows = [];
@@ -249,12 +193,10 @@ async function main() {
   let residentsUpdated = 0;
   let tokensCreated = 0;
   let tokensUpdated = 0;
-  let distsCreated = 0;
-  let distsUpdated = 0;
-
   let globalIndex = 0;
+
   for (const brgy of BRGYS) {
-    for (let i = 1; i <= HOUSEHOLDS_PER_BARANGAY; i++) {
+    for (let i = 1; i <= HOUSEHOLDS_PER_BARANGAY; i += 1) {
       globalIndex += 1;
 
       const firstName = FIRST_NAMES[(globalIndex - 1) % FIRST_NAMES.length];
@@ -262,21 +204,15 @@ async function main() {
       const fullName = `${firstName} ${lastName}`;
       const householdCode = `HH-${brgy.code}-${String(i).padStart(4, '0')}`;
       const idNumber = `SEED-${SEED_TAG}-${brgy.code}-${String(i).padStart(4, '0')}`;
-      const mobileNumber = await buildUniqueMobileNumber(
-        Resident,
-        idNumber,
-        globalIndex,
-        brgy.code,
-      );
+      const mobileNumber = await buildUniqueMobileNumber(Resident, idNumber, globalIndex, brgy.code);
       const members = 2 + (globalIndex % 6);
       const gender = globalIndex % 2 === 0 ? 'Female' : 'Male';
       const confidence = confidenceForIndex(globalIndex);
       const aiVerificationStatus = matchLevelForIndex(globalIndex);
       const address = `${100 + i} Seed Street, ${brgy.name}`;
-      const token = `CLM-${brgy.code}-${String(i).padStart(4, '0')}-${String(7000 + globalIndex)}`;
+      const token = makeToken(brgy.code, i, globalIndex);
 
-      const existingResident = await Resident.findOne({ idNumber, seedTag: SEED_TAG });
-      let residentDoc = existingResident;
+      let residentDoc = await Resident.findOne({ idNumber, seedTag: SEED_TAG });
       if (!residentDoc) {
         residentDoc = await Resident.create({
           firstName,
@@ -344,23 +280,27 @@ async function main() {
         residentsUpdated += 1;
       }
 
-      const existingToken = await HouseholdToken.findOne({
-        seedTag: SEED_TAG,
-        householdCode,
-      });
       const tokenHash = await bcrypt.hash(token, SALT_ROUNDS);
+      const existingToken = await HouseholdToken.findOne({ seedTag: SEED_TAG, householdCode });
       if (!existingToken) {
         await HouseholdToken.create({
           tokenHash,
           tokenPrefix: token.replace(/-/g, '').slice(0, 4),
           status: 'UNUSED',
           expiresAt: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+          usedAt: null,
+          usedBy: {
+            // Link token to resident upfront for deterministic claim lookup.
+            residentId: residentDoc._id,
+            ipAddress: null,
+            userAgent: null,
+          },
           householdInfo: {
             headOfHousehold: fullName,
             address,
             barangay: brgy.name,
             expectedMembers: members,
-            notes: `Seeded test token (${SEED_TAG})`,
+            notes: `Seeded claim token (${SEED_TAG})`,
           },
           issuedBy: 'seed-script',
           issuedAt: new Date(),
@@ -374,12 +314,18 @@ async function main() {
         existingToken.tokenPrefix = token.replace(/-/g, '').slice(0, 4);
         existingToken.status = 'UNUSED';
         existingToken.expiresAt = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
+        existingToken.usedAt = null;
+        existingToken.usedBy = {
+          residentId: residentDoc._id,
+          ipAddress: null,
+          userAgent: null,
+        };
         existingToken.householdInfo = {
           headOfHousehold: fullName,
           address,
           barangay: brgy.name,
           expectedMembers: members,
-          notes: `Seeded test token (${SEED_TAG})`,
+          notes: `Seeded claim token (${SEED_TAG})`,
         };
         existingToken.seeded = true;
         existingToken.seedTag = SEED_TAG;
@@ -389,95 +335,27 @@ async function main() {
       }
 
       summaryRows.push({
-        householdCode,
         barangay: brgy.name,
-        name: fullName,
-        members,
+        householdCode,
         token,
       });
     }
   }
 
-  for (const brgy of BRGYS) {
-    for (let slot = 1; slot <= DISTRIBUTIONS_PER_BARANGAY; slot++) {
-      const distFilter =
-        slot === 1
-          ? {
-              barangay: brgy.name,
-              seedTag: SEED_TAG,
-              $or: [{ seedSlot: slot }, { seedSlot: { $exists: false } }],
-            }
-          : { barangay: brgy.name, seedTag: SEED_TAG, seedSlot: slot };
-
-      const existingDist = await Distribution.findOne(distFilter);
-      const scheduled = isoDateFromOffset((slot - 1) * DISTRIBUTION_SPACING_DAYS);
-      const notes = `Seeded distribution ${slot}/${DISTRIBUTIONS_PER_BARANGAY} (${SEED_TAG})`;
-
-      if (!existingDist) {
-        await Distribution.create({
-          barangay: brgy.name,
-          scheduled,
-          households: HOUSEHOLDS_PER_BARANGAY,
-          notes,
-          status: 'Unclaimed',
-          seeded: true,
-          seedTag: SEED_TAG,
-          seedSlot: slot,
-        });
-        distsCreated += 1;
-      } else {
-        existingDist.scheduled = scheduled;
-        existingDist.households = HOUSEHOLDS_PER_BARANGAY;
-        existingDist.status = 'Unclaimed';
-        existingDist.seeded = true;
-        existingDist.seedTag = SEED_TAG;
-        existingDist.seedSlot = slot;
-        existingDist.notes = notes;
-        await existingDist.save();
-        distsUpdated += 1;
-      }
-    }
-  }
-
-  console.log('\nSeeded households with claim tokens:\n');
-  console.log(
-    'Code'.padEnd(14) +
-      'Barangay'.padEnd(15) +
-      'Head of Household'.padEnd(26) +
-      'Members'.padEnd(9) +
-      'Claim Token'
-  );
-  console.log('-'.repeat(90));
-  for (const row of summaryRows) {
-    console.log(
-      row.householdCode.padEnd(14) +
-        row.barangay.padEnd(15) +
-        row.name.padEnd(26) +
-        String(row.members).padEnd(9) +
-        row.token
-    );
-  }
-
   const residentCount = await Resident.countDocuments({ seedTag: SEED_TAG });
   const tokenCount = await HouseholdToken.countDocuments({ seedTag: SEED_TAG });
-  const distCount = await Distribution.countDocuments({ seedTag: SEED_TAG });
 
   console.log('\nSummary:');
-  console.log(`Residents: ${residentsCreated} created, ${residentsUpdated} updated (total ${residentCount})`);
-  console.log(`Tokens: ${tokensCreated} created, ${tokensUpdated} updated (total ${tokenCount})`);
-  console.log(`Distributions: ${distsCreated} created, ${distsUpdated} updated (total ${distCount})`);
-  console.log(
-    `Config: householdsPerBarangay=${HOUSEHOLDS_PER_BARANGAY}, distributionsPerBarangay=${DISTRIBUTIONS_PER_BARANGAY}, spacingDays=${DISTRIBUTION_SPACING_DAYS}`,
-  );
+  console.log(`- residents: ${residentsCreated} created, ${residentsUpdated} updated (total ${residentCount})`);
+  console.log(`- tokens:    ${tokensCreated} created, ${tokensUpdated} updated (total ${tokenCount})`);
 
-  console.log('\nPer-barangay checks (seed set only):');
+  console.log('\nTokens by barangay (paste into Record Claim):');
   for (const brgy of BRGYS) {
-    const count = await Resident.countDocuments({ seedTag: SEED_TAG, barangay: brgy.name });
-    const distCountPerBrgy = await Distribution.countDocuments({
-      seedTag: SEED_TAG,
-      barangay: brgy.name,
-    });
-    console.log(`- ${brgy.name}: ${count} households, ${distCountPerBrgy} distributions`);
+    const tokens = summaryRows
+      .filter((r) => r.barangay === brgy.name)
+      .map((r) => r.token);
+    console.log(`\n[${brgy.name}]`);
+    console.log(tokens.join(' '));
   }
 
   await mongoose.disconnect();
@@ -485,9 +363,10 @@ async function main() {
 }
 
 main().catch(async (err) => {
-  console.error('Seed failed:', err);
+  console.error('seedClaimHouseholds10x10 failed:', err);
   try {
     await mongoose.disconnect();
   } catch (_) {}
   process.exit(1);
 });
+
