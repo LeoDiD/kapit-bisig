@@ -4,12 +4,18 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { mobileAuthService, User as VolunteerUser } from '../services/auth/MobileAuthService';
+import {
+  DashboardSummary,
+  mobileAuthService,
+  User as VolunteerUser,
+} from '../services/auth/MobileAuthService';
 
 interface VolunteerDashboardScreenProps {
   volunteerUser?: VolunteerUser | null;
@@ -26,6 +32,8 @@ interface DistributionData {
   startTime: string;
   isLive: boolean;
   isUrgent: boolean;
+  registeredHouseholds: number;
+  claimedHouseholds: number;
 }
 
 interface DashboardStats {
@@ -34,6 +42,9 @@ interface DashboardStats {
   pendingQueue: number;
   scansToday: number;
   scansTrend: number;
+  activeDistributions: number;
+  confirmedClaimsToday: number;
+  scopedBarangays: string[];
 }
 
 export default function VolunteerDashboardScreen({
@@ -42,13 +53,17 @@ export default function VolunteerDashboardScreen({
   onLogout,
 }: VolunteerDashboardScreenProps) {
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [distributions, setDistributions] = useState<DistributionData[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
-    totalHouseholds: 1250,
-    verifiedHouseholds: 842,
-    pendingQueue: 408,
-    scansToday: 124,
-    scansTrend: 12,
+    totalHouseholds: 0,
+    verifiedHouseholds: 0,
+    pendingQueue: 0,
+    scansToday: 0,
+    scansTrend: 0,
+    activeDistributions: 0,
+    confirmedClaimsToday: 0,
+    scopedBarangays: [],
   });
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
@@ -56,38 +71,66 @@ export default function VolunteerDashboardScreen({
     ? `${volunteerUser.firstName || ''} ${volunteerUser.lastName || ''}`.trim() || 'Staff Member'
     : 'Staff Member';
 
-  const progressPercentage = Math.round(
-    (stats.verifiedHouseholds / stats.totalHouseholds) * 100
-  );
+  const progressPercentage = stats.totalHouseholds > 0
+    ? Math.round((stats.verifiedHouseholds / stats.totalHouseholds) * 100)
+    : 0;
 
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch distributions
-      const result = await mobileAuthService.authenticatedRequest<{
-        success: boolean;
-        data?: Array<{
-          id?: string;
-          _id?: string;
-          barangay: string;
-          assignedBarangays?: string[];
-          scheduled?: string;
-          notes?: string;
-        }>;
-      }>('/distributions', { method: 'GET' });
+      const [distributionResult, summaryResult] = await Promise.all([
+        mobileAuthService.authenticatedRequest<{
+          success: boolean;
+          data?: Array<{
+            id?: string;
+            _id?: string;
+            barangay: string;
+            assignedBarangays?: string[];
+            scheduled?: string;
+            notes?: string;
+            registeredHouseholds?: number;
+            claimedHouseholds?: number;
+          }>;
+        }>('/distributions', { method: 'GET' }),
+        mobileAuthService.getDashboardSummary(),
+      ]);
 
-      if (result.success && result.data?.success && Array.isArray(result.data.data)) {
-        const mappedDistributions: DistributionData[] = result.data.data.slice(0, 3).map((item, idx) => ({
-          id: item.id || item._id || `dist-${idx}`,
-          title: `${item.barangay} Relief Drive`,
-          barangay: item.barangay,
-          coverage: item.assignedBarangays || [item.barangay],
-          schedule: item.scheduled || '09:00 AM - 12:30 PM',
-          startTime: '08:30 AM',
-          isLive: idx === 0,
-          isUrgent: idx === 0,
-        }));
+      if (summaryResult.success && summaryResult.data) {
+        const summary: DashboardSummary = summaryResult.data;
+        setStats({
+          totalHouseholds: summary.residents.total,
+          verifiedHouseholds: summary.residents.approved,
+          pendingQueue: summary.residents.pending,
+          scansToday: summary.scans.today,
+          scansTrend: summary.scans.trend,
+          activeDistributions: summary.distributions.active,
+          confirmedClaimsToday: summary.claims.confirmedToday,
+          scopedBarangays: summary.scopedBarangays,
+        });
+      }
+
+      if (
+        distributionResult.success &&
+        distributionResult.data?.success &&
+        Array.isArray(distributionResult.data.data)
+      ) {
+        const mappedDistributions: DistributionData[] = distributionResult.data.data
+          .slice(0, 3)
+          .map((item, idx) => ({
+            id: item.id || item._id || `dist-${idx}`,
+            title: `${item.barangay} Relief Drive`,
+            barangay: item.barangay,
+            coverage: item.assignedBarangays || [item.barangay],
+            schedule: item.scheduled || '09:00 AM - 12:30 PM',
+            startTime: '08:30 AM',
+            isLive: idx === 0,
+            isUrgent: idx === 0,
+            registeredHouseholds: Number(item.registeredHouseholds || 0),
+            claimedHouseholds: Number(item.claimedHouseholds || 0),
+          }));
         setDistributions(mappedDistributions);
+      } else {
+        setDistributions([]);
       }
       setLastUpdated(new Date());
     } catch (error) {
@@ -100,6 +143,15 @@ export default function VolunteerDashboardScreen({
   useEffect(() => {
     if (mobileAuthService.isLoggedIn()) {
       loadDashboardData();
+    }
+  }, [loadDashboardData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadDashboardData();
+    } finally {
+      setRefreshing(false);
     }
   }, [loadDashboardData]);
 
@@ -118,6 +170,14 @@ export default function VolunteerDashboardScreen({
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#16A34A"
+            colors={['#16A34A']}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         {/* Header Section */}
@@ -135,6 +195,9 @@ export default function VolunteerDashboardScreen({
               <Text style={styles.syncSeparator}>•</Text>
               <Text style={styles.syncText}>Last updated {formatTime(lastUpdated)}</Text>
             </View>
+            {stats.scopedBarangays.length > 0 && (
+              <Text style={styles.scopeText}>Scope: {stats.scopedBarangays.join(', ')}</Text>
+            )}
           </View>
           <TouchableOpacity style={styles.notificationButton}>
             <Ionicons name="notifications-outline" size={24} color="#374151" />
@@ -184,12 +247,34 @@ export default function VolunteerDashboardScreen({
             <View style={styles.statsCardHeader}>
               <Text style={styles.statsCardLabel}>SCANS TODAY</Text>
               <View style={styles.trendBadge}>
-                <Ionicons name="arrow-up" size={12} color="#16A34A" />
-                <Text style={styles.trendText}>{stats.scansTrend}</Text>
+                <Ionicons
+                  name={stats.scansTrend >= 0 ? 'arrow-up' : 'arrow-down'}
+                  size={12}
+                  color={stats.scansTrend >= 0 ? '#16A34A' : '#EF4444'}
+                />
+                <Text
+                  style={[
+                    styles.trendText,
+                    stats.scansTrend < 0 ? styles.trendTextNegative : null,
+                  ]}
+                >
+                  {stats.scansTrend}
+                </Text>
               </View>
             </View>
             <Text style={styles.statsCardValue}>{stats.scansToday}</Text>
             <Text style={styles.statsCardSubtext}>Processed Scans</Text>
+          </View>
+        </View>
+
+        <View style={styles.statusStrip}>
+          <View style={styles.statusItem}>
+            <Ionicons name="layers-outline" size={16} color="#16A34A" />
+            <Text style={styles.statusText}>ACTIVE DISTRIBUTIONS: {stats.activeDistributions}</Text>
+          </View>
+          <View style={styles.statusItem}>
+            <Ionicons name="checkmark-done-outline" size={16} color="#16A34A" />
+            <Text style={styles.statusText}>CONFIRMED TODAY: {stats.confirmedClaimsToday}</Text>
           </View>
         </View>
 
@@ -257,6 +342,18 @@ export default function VolunteerDashboardScreen({
                   <Text style={styles.infoValue}>{featuredDistribution.schedule}</Text>
                 </View>
               </View>
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconWrapper}>
+                  <Ionicons name="people-outline" size={18} color="#16A34A" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>HOUSEHOLDS</Text>
+                  <Text style={styles.infoValue}>
+                    {featuredDistribution.claimedHouseholds} claimed / {featuredDistribution.registeredHouseholds} registered
+                  </Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.distributionFooter}>
@@ -266,7 +363,15 @@ export default function VolunteerDashboardScreen({
                   <Text style={styles.urgentText}>URGENT</Text>
                 </View>
               )}
-              <TouchableOpacity style={styles.detailsButton}>
+              <TouchableOpacity
+                style={styles.detailsButton}
+                onPress={() =>
+                  Alert.alert(
+                    featuredDistribution.title,
+                    `Coverage: ${featuredDistribution.coverage.join(', ')}\nSchedule: ${featuredDistribution.schedule}`
+                  )
+                }
+              >
                 <Text style={styles.detailsButtonText}>Details</Text>
                 <Ionicons name="arrow-forward" size={16} color="#16A34A" />
               </TouchableOpacity>
@@ -377,6 +482,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#D1D5DB',
     marginHorizontal: 8,
+  },
+  scopeText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
   },
   notificationButton: {
     width: 44,
@@ -534,6 +645,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#16A34A',
     marginLeft: 2,
+  },
+  trendTextNegative: {
+    color: '#EF4444',
   },
 
   // Status Strip

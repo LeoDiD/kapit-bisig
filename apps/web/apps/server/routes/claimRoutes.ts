@@ -14,7 +14,6 @@ import mongoose from 'mongoose';
 import Claim from '../models/Claim';
 import HouseholdToken from '../models/HouseholdToken';
 import Resident from '../models/Resident';
-import DistributionClaim from '../models/DistributionClaim';
 import Distribution from '../models/Distribution';
 import { AuthRequest } from '../middleware/unifiedAuth';
 import { computeHouseholdHash, computeEventHash } from '../utils/hashHelpers';
@@ -23,6 +22,12 @@ import {
   submitClaimsBatchOnChain,
   isClaimedOnChain,
 } from '../services/blockchainService';
+import { env } from '../config/env';
+import {
+  isResidentEligibleForDistribution,
+  upsertDistributionClaimFromClaim,
+} from '../services/distributionFlowService';
+import { enqueueClaimForChainSubmission } from '../services/claimChainQueue';
 import { validateRequest } from '../validation/validateRequest';
 import { escapeRegex } from '../validation/mongoSanitize';
 import {
@@ -35,6 +40,8 @@ import { logAudit } from '../utils/audit';
 import { broadcastScopedNotification } from '../utils/createNotification';
 
 const router = Router();
+const IDEMPOTENCY_TTL_MS = 10 * 60 * 1000;
+const claimIdempotencyStore = new Map<string, { expiresAt: number; response: Record<string, unknown> }>();
 
 function generateClaimId(): string {
   const year = new Date().getFullYear();
@@ -96,20 +103,41 @@ function selectBestMatchedToken(matches: any[]): any | null {
   return ranked[0];
 }
 
-async function upsertDistributionClaim(claim: any): Promise<void> {
-  if (!claim?.residentId) return;
+function cleanClaimIdempotencyStore(): void {
+  const now = Date.now();
+  for (const [key, value] of claimIdempotencyStore.entries()) {
+    if (value.expiresAt <= now) {
+      claimIdempotencyStore.delete(key);
+    }
+  }
+}
 
-  await DistributionClaim.findOneAndUpdate(
-    { distributionId: claim.distributionId, householdId: claim.residentId },
-    {
-      distributionId: claim.distributionId,
-      householdId: claim.residentId,
-      claimedAt: claim.createdAt || new Date(),
-      claimedBy: { id: claim.staffUserId, name: claim.staffName },
-      proofMethod: 'QR',
-    },
-    { upsert: true, new: true },
-  );
+function claimIdempotencyCacheKey(userKey: string, key: string): string {
+  return `${userKey}::${key}`;
+}
+
+function isRetryableTransactionError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const message = (err as { message?: string }).message || '';
+  return message.includes('Transaction numbers are only allowed on a replica set member');
+}
+
+async function runWithOptionalTransaction<T>(fn: (session: mongoose.ClientSession | null) => Promise<T>): Promise<T> {
+  const session = await mongoose.startSession();
+  try {
+    let result!: T;
+    await session.withTransaction(async () => {
+      result = await fn(session);
+    });
+    return result;
+  } catch (err) {
+    if (isRetryableTransactionError(err)) {
+      return fn(null);
+    }
+    throw err;
+  } finally {
+    await session.endSession();
+  }
 }
 
 interface PreparedClaimDraft {
@@ -344,6 +372,7 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       const { claimToken, distributionId, distributionSite } = req.body;
+      cleanClaimIdempotencyStore();
 
       if (!claimToken || typeof claimToken !== 'string') {
         return res.status(400).json({ success: false, message: 'claimToken is required' });
@@ -367,6 +396,15 @@ router.post(
       const normalizedToken = claimToken.trim().toUpperCase();
       logHeader('RECORD CLAIM START');
       console.log(`[1] Token received: ${maskToken(normalizedToken)}`);
+      const idempotencyKeyHeader = req.header('Idempotency-Key')?.trim();
+      if (idempotencyKeyHeader) {
+        const actorId = req.authUser?.userId ?? req.authUser?.sub ?? 'anonymous';
+        const key = claimIdempotencyCacheKey(actorId, idempotencyKeyHeader);
+        const existing = claimIdempotencyStore.get(key);
+        if (existing && existing.expiresAt > Date.now()) {
+          return res.status(200).json(existing.response);
+        }
+      }
 
       if (!isSupportedClaimTokenFormat(normalizedToken)) {
         logHeader('RECORD CLAIM END');
@@ -478,6 +516,41 @@ router.post(
         });
       }
 
+      const distribution = await Distribution.findById(distributionId)
+        .select('_id barangay assignedBarangays status')
+        .lean();
+      if (!distribution) {
+        logHeader('RECORD CLAIM END');
+        return res.status(404).json({
+          success: false,
+          message: 'Distribution not found',
+        });
+      }
+
+      if (!isResidentEligibleForDistribution((resident as any).barangay, distribution as any)) {
+        logHeader('RECORD CLAIM END');
+        return res.status(403).json({
+          success: false,
+          message: 'Resident barangay is not assigned to this distribution',
+        });
+      }
+      if (distribution.status === 'Claimed') {
+        logHeader('RECORD CLAIM END');
+        return res.status(409).json({
+          success: false,
+          message: 'Distribution is already completed',
+        });
+      }
+
+      const tokenBoundDistributionId = String(matchedToken?.householdInfo?.distributionId || '').trim();
+      if (tokenBoundDistributionId && tokenBoundDistributionId !== distributionId) {
+        logHeader('RECORD CLAIM END');
+        return res.status(409).json({
+          success: false,
+          message: 'Claim token is bound to a different distribution',
+        });
+      }
+
       const householdCode =
         tokenHouseholdCode ||
         String((resident as any).residentCode || '') ||
@@ -519,46 +592,84 @@ router.post(
         });
       }
 
-      try {
-        const alreadyClaimed = await isClaimedOnChain(householdHash, eventHash);
-        if (alreadyClaimed) {
-          console.error(
-            `[ERROR] Duplicate claim blocked (on-chain): householdCode=${householdCode} barangay=${barangay}`,
-          );
-          logHeader('RECORD CLAIM END');
-        return res.status(409).json({
-          success: false,
-          message: 'This household already has an on-chain claim for this distribution',
-        });
-      }
-      } catch (chainErr: any) {
-        // Keep behavior: don't block claim creation if chain read is temporarily unavailable.
-        console.warn('[record-claim] On-chain duplicate check failed:', chainErr.message);
+      if (env.BLOCKCHAIN_ENABLED) {
+        try {
+          const alreadyClaimed = await isClaimedOnChain(householdHash);
+          if (alreadyClaimed) {
+            console.error(
+              `[ERROR] Duplicate claim blocked (on-chain): householdCode=${householdCode} barangay=${barangay}`,
+            );
+            logHeader('RECORD CLAIM END');
+          return res.status(409).json({
+            success: false,
+            message: 'This household already has an on-chain claim record',
+          });
+        }
+        } catch (chainErr: any) {
+          // Keep behavior: don't block claim creation if chain read is temporarily unavailable.
+          console.warn('[record-claim] On-chain duplicate check failed:', chainErr.message);
+        }
       }
 
       const claimId = generateClaimId();
       const staffUserId = req.authUser?.userId || req.authUser?.sub || 'unknown';
       const staffName = req.authUser?.sub || 'Unknown Staff';
 
-      const claim = new Claim({
-        claimId,
-        householdId,
-        residentId,
-        householdCode,
-        barangay,
-        distributionId,
-        distributionSite,
-        staffUserId,
-        staffName,
-        status: 'PENDING_CHAIN',
-        blockchain: {
-          householdHash,
-          eventHash,
-        },
-      });
-      await claim.save();
+      const claim = await runWithOptionalTransaction(async (session) => {
+        const existingInTxn = await Claim.findOne({ householdId, distributionId }).session(session || null);
+        if (existingInTxn) {
+          throw new Error('DUPLICATE_CLAIM_IN_TXN');
+        }
 
-      await consumeMatchedToken(matchedToken, residentId);
+        const claimPayload = {
+          claimId,
+          householdId,
+          residentId,
+          householdCode,
+          barangay,
+          distributionId,
+          distributionSite,
+          staffUserId,
+          staffName,
+          status: 'PENDING_CHAIN' as const,
+          blockchain: {
+            householdHash,
+            eventHash,
+          },
+        };
+        let createdClaim;
+        if (session) {
+          const created = await Claim.create([claimPayload], { session });
+          createdClaim = created[0];
+        } else {
+          createdClaim = new Claim(claimPayload);
+          await createdClaim.save();
+        }
+
+        const tokenUpdateBase: Record<string, unknown> = {
+          'householdInfo.distributionId': distributionId,
+        };
+
+        if (matchedToken.status === 'UNUSED') {
+          Object.assign(tokenUpdateBase, {
+            status: 'USED',
+            usedAt: new Date(),
+            usedBy: {
+              residentId: new mongoose.Types.ObjectId(residentId),
+              ipAddress: matchedToken?.usedBy?.ipAddress || null,
+              userAgent: matchedToken?.usedBy?.userAgent || null,
+            },
+          });
+        }
+
+        await HouseholdToken.updateOne(
+          { _id: matchedToken._id },
+          { $set: tokenUpdateBase },
+          session ? { session } : undefined,
+        );
+
+        return createdClaim;
+      });
 
       await logAudit(req, 'CLAIM_RECORDED', 'Claim', claimId, {
         householdCode,
@@ -567,58 +678,42 @@ router.post(
       });
 
       console.log(`[4] DB: claimId=${claimId} status=PENDING_CHAIN`);
-      console.log('[5] CHAIN: submitting tx recordClaim...');
+      enqueueClaimForChainSubmission(claimId);
+      console.log('[5] CHAIN: queued tx submission with retry/backoff');
+      logHeader('RECORD CLAIM END');
 
-      try {
-        const submitted = await submitClaimOnChain(householdHash, eventHash);
-        claim.status = 'CHAIN_SUBMITTED';
-        claim.blockchain.txHash = submitted.txHash;
-        claim.blockchain.chainId = submitted.chainId;
-        claim.blockchain.contractAddress = submitted.contractAddress;
-        claim.blockchain.staffSigner = submitted.staffSigner;
-        claim.errorMessage = '';
-        await claim.save();
+      broadcastScopedNotification({
+        title: 'Claim Queued',
+        message: `Relief claim queued for blockchain submission for household ${householdCode} in ${barangay}.`,
+        type: 'dispatch',
+        meta: { claimId, householdCode, barangay, distributionId },
+        targetBarangays: [barangay],
+      });
 
-        console.log(
-          `[6] DB: updated claim -> CHAIN_SUBMITTED | txHash=${shortHex(submitted.txHash)}`,
-        );
-        logHeader('RECORD CLAIM END');
+      const responseBody = {
+        success: true,
+        message: 'Claim queued. Blockchain submission is being processed.',
+        claimId,
+        claim,
+      };
 
-        broadcastScopedNotification({
-          title: 'Claim Submitted',
-          message: `Relief claim submitted on-chain for household ${householdCode} in ${barangay}.`,
-          type: 'dispatch',
-          meta: { claimId, householdCode, barangay, distributionId, txHash: submitted.txHash },
-          targetBarangays: [barangay],
-        });
-
-        return res.status(202).json({
-          success: true,
-          message: 'Claim submitted. Awaiting confirmations.',
-          claimId,
-          txHash: submitted.txHash,
-          chainId: submitted.chainId,
-          contractAddress: submitted.contractAddress,
-          claim,
-        });
-      } catch (chainErr: any) {
-        console.error(`[ERROR] Blockchain submission failed: ${chainErr.message}`);
-
-        claim.status = 'CHAIN_FAILED';
-        claim.errorMessage = chainErr.message || 'On-chain transaction submission failed';
-        await claim.save();
-
-        console.log(`[INFO] Claim saved as CHAIN_FAILED - claimId=${claimId}`);
-        logHeader('RECORD CLAIM END');
-
-        return res.status(502).json({
-          success: false,
-          message: 'On-chain submission failed',
-          claimId,
-          claim,
+      if (idempotencyKeyHeader) {
+        const actorId = req.authUser?.userId ?? req.authUser?.sub ?? 'anonymous';
+        claimIdempotencyStore.set(claimIdempotencyCacheKey(actorId, idempotencyKeyHeader), {
+          expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
+          response: responseBody,
         });
       }
+
+      return res.status(202).json(responseBody);
     } catch (err: any) {
+      if (err?.message === 'DUPLICATE_CLAIM_IN_TXN') {
+        logHeader('RECORD CLAIM END');
+        return res.status(409).json({
+          success: false,
+          message: 'This household has already claimed for this distribution',
+        });
+      }
       console.error('[record-claim] Error:', err?.message || 'unknown');
       logHeader('RECORD CLAIM END');
       return res.status(500).json({ success: false, message: 'Internal server error' });
@@ -1101,62 +1196,43 @@ router.post(
         `[2] Hashes: householdHash=${shortHex(householdHash)} eventHash=${shortHex(eventHash)}`,
       );
 
-      try {
-        const alreadyClaimed = await isClaimedOnChain(householdHash, eventHash);
-        if (alreadyClaimed) {
-          claim.status = 'CONFIRMED';
-          claim.errorMessage = '';
-          await claim.save();
+      if (env.BLOCKCHAIN_ENABLED) {
+        try {
+          const alreadyClaimed = await isClaimedOnChain(householdHash);
+          if (alreadyClaimed) {
+            claim.status = 'CONFIRMED';
+            claim.errorMessage = '';
+            await claim.save();
 
-          try {
-            await upsertDistributionClaim(claim);
-          } catch (syncErr: any) {
-            console.warn('[retry-chain] DistributionClaim sync failed:', syncErr.message);
+            try {
+              await upsertDistributionClaimFromClaim(claim);
+            } catch (syncErr: any) {
+              console.warn('[retry-chain] DistributionClaim sync failed:', syncErr.message);
+            }
+
+            logHeader('RETRY CHAIN END');
+            return res.json({
+              success: true,
+              message: 'Claim was already confirmed on-chain. DB updated.',
+              claim,
+            });
           }
-
-          logHeader('RETRY CHAIN END');
-          return res.json({
-            success: true,
-            message: 'Claim was already confirmed on-chain. DB updated.',
-            claim,
-          });
+        } catch {
+          // Keep retry flow robust: if duplicate-check read fails, still attempt submit.
         }
-      } catch {
-        // Keep retry flow robust: if duplicate-check read fails, still attempt submit.
       }
 
-      try {
-        const submitted = await submitClaimOnChain(householdHash, eventHash);
+      claim.status = 'PENDING_CHAIN';
+      claim.errorMessage = '';
+      await claim.save();
+      enqueueClaimForChainSubmission(claimId, 1);
 
-        claim.status = 'CHAIN_SUBMITTED';
-        claim.blockchain.txHash = submitted.txHash;
-        claim.blockchain.chainId = submitted.chainId;
-        claim.blockchain.contractAddress = submitted.contractAddress;
-        claim.blockchain.staffSigner = submitted.staffSigner;
-        claim.errorMessage = '';
-        await claim.save();
-
-        logHeader('RETRY CHAIN END');
-        return res.status(202).json({
-          success: true,
-          message: 'Claim retry submitted. Awaiting confirmations.',
-          claimId,
-          txHash: submitted.txHash,
-          chainId: submitted.chainId,
-          contractAddress: submitted.contractAddress,
-          claim,
-        });
-      } catch (chainErr: any) {
-        claim.errorMessage = chainErr.message || 'Retry failed';
-        await claim.save();
-
-        logHeader('RETRY CHAIN END');
-        return res.status(502).json({
-          success: false,
-          message: 'On-chain retry failed',
-          error: chainErr.message,
-        });
-      }
+      logHeader('RETRY CHAIN END');
+      return res.status(202).json({
+        success: true,
+        message: 'Claim retry queued. Blockchain submission is being processed.',
+        claimId,
+      });
     } catch (err: any) {
       console.error('[retry-chain] Error:', err?.message || 'unknown');
       return res.status(500).json({ success: false, message: 'Internal server error' });

@@ -41,6 +41,7 @@ export interface ResidentQrData {
 export interface ResidentProfile {
   id: string;
   residentCode: string;
+  avatarUrl?: string | null;
   firstName: string;
   lastName: string;
   fullName: string;
@@ -52,6 +53,14 @@ export interface ResidentProfile {
   status: string;
 }
 
+export interface ResidentProfileUpdatePayload {
+  firstName?: string;
+  lastName?: string;
+  mobileNumber?: string;
+  streetAddress?: string;
+  city?: string;
+}
+
 export interface ResidentDistributionItem {
   id: string;
   barangay: string;
@@ -60,12 +69,25 @@ export interface ResidentDistributionItem {
   notes?: string;
   status?: string;
   createdAt?: string;
+  residentClaimed?: boolean;
+  residentClaimStatus?: string | null;
 }
 
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data?: T;
+}
+
+function getAssetBaseUrl(): string {
+  return API_BASE_URL.replace(/\/api\/?$/, '');
+}
+
+function toAbsoluteAssetUrl(value?: string | null): string | null {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `${getAssetBaseUrl()}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
 }
 
 function normalizeMobileNumber(input: string): string {
@@ -227,12 +249,106 @@ export async function fetchResidentProfile(
 
     return {
       success: true,
-      data: payload.data,
+      data: {
+        ...payload.data,
+        avatarUrl: toAbsoluteAssetUrl(payload.data.avatarUrl),
+      },
     };
   } catch {
     return {
       success: false,
       message: 'Network error while fetching profile.',
+    };
+  }
+}
+
+export async function updateResidentProfile(
+  token: string,
+  payload: ResidentProfileUpdatePayload
+): Promise<{ success: boolean; message?: string; data?: ResidentProfile }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/auth/me`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const parsed = await parseApiResponse<ResidentProfile>(response);
+    if (!response.ok || !parsed.success || !parsed.data) {
+      return {
+        success: false,
+        message: parsed.message || 'Failed to update profile.',
+      };
+    }
+
+    const session = await getResidentSession();
+    if (session) {
+      await saveResidentSession({
+        ...session,
+        fullName: parsed.data.fullName,
+        mobileNumber: parsed.data.mobileNumber,
+        barangay: parsed.data.barangay,
+        residentCode: parsed.data.residentCode,
+      });
+    }
+
+    return {
+      success: true,
+      data: {
+        ...parsed.data,
+        avatarUrl: toAbsoluteAssetUrl(parsed.data.avatarUrl),
+      },
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while updating profile.',
+    };
+  }
+}
+
+export async function uploadResidentAvatar(
+  token: string,
+  imageUri: string
+): Promise<{ success: boolean; message?: string; avatarUrl?: string }> {
+  try {
+    const formData = new FormData();
+    formData.append(
+      'avatar',
+      {
+        uri: imageUri,
+        name: 'resident-avatar.jpg',
+        type: 'image/jpeg',
+      } as any
+    );
+
+    const response = await fetch(`${API_BASE_URL}/household/auth/me/avatar`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const payload = await parseApiResponse<{ avatarUrl?: string }>(response);
+    if (!response.ok || !payload.success || !payload.data?.avatarUrl) {
+      return {
+        success: false,
+        message: payload.message || 'Failed to upload profile photo.',
+      };
+    }
+
+    return {
+      success: true,
+      avatarUrl: toAbsoluteAssetUrl(payload.data.avatarUrl) || undefined,
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while uploading profile photo.',
     };
   }
 }

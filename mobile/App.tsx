@@ -141,6 +141,8 @@ export default function App() {
             accountType={accountType || undefined}
             residentProfile={residentProfile}
             volunteerUser={volunteerUser}
+            onResidentProfileUpdated={setResidentProfile}
+            onVolunteerProfileUpdated={setVolunteerUser}
           />
         );
       case 'qr':

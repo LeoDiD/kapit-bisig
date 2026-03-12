@@ -12,11 +12,10 @@
  */
 
 import { ethers } from 'ethers';
+import { env } from '../config/env';
 
 function getSalt(): string {
-  const salt = process.env.HASH_SALT;
-  if (!salt) throw new Error('HASH_SALT env var is not set');
-  return salt;
+  return env.HASH_SALT;
 }
 
 /**

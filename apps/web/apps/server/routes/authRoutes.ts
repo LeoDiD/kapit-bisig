@@ -23,8 +23,13 @@
 
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
+import mongoose from 'mongoose';
 import User from '../models/User';
 import StaffUser from '../models/StaffUser';
+import Resident from '../models/Resident';
+import Distribution from '../models/Distribution';
+import Claim from '../models/Claim';
+import ResidentQrScanLog from '../models/ResidentQrScanLog';
 import { validatePassword, isCommonPassword } from '../utils/passwordValidator';
 import { generateToken } from '../middleware/authMiddleware';
 import { loginRateLimiter, registrationRateLimiter } from '../middleware/rateLimiter';
@@ -351,9 +356,16 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
         });
       }
 
-      const staffHashToCompare = staffUser.passwordHash || DUMMY_BCRYPT_HASH;
-      const isStaffPasswordValid = await bcrypt.compare(password, staffHashToCompare);
-      if (!staffUser.passwordHash || !isStaffPasswordValid) {
+      const staffPasswordHash = staffUser.passwordHash;
+      if (!staffPasswordHash) {
+        recordFailedAttempt(normalizedEmail);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+        });
+      }
+      const isStaffPasswordValid = await bcrypt.compare(password, staffPasswordHash);
+      if (!isStaffPasswordValid) {
         recordFailedAttempt(normalizedEmail);
         const attempts = loginAttempts.get(normalizedEmail);
         console.warn(`[SECURITY] Failed login attempt for: ${normalizedEmail} (${attempts?.attempts || 1}/${MAX_LOGIN_ATTEMPTS})`);
@@ -631,6 +643,306 @@ router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
     res.status(500).json({
       success: false,
       message: 'An error occurred',
+    });
+  }
+});
+
+/**
+ * PATCH /api/mobile-auth/me
+ *
+ * Update authenticated mobile user profile fields.
+ * Supported:
+ * - Volunteer/Admin/Staff: firstName, lastName, phoneNumber
+ * - LGU_STAFF: firstName, lastName (stored as StaffUser.fullName)
+ */
+router.patch('/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const role = req.user?.role;
+
+    if (!userId || !role) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        code: 'AUTH_REQUIRED',
+      });
+    }
+
+    const payload = req.body || {};
+    const hasAnyField =
+      payload.firstName !== undefined ||
+      payload.lastName !== undefined ||
+      payload.phoneNumber !== undefined;
+
+    if (!hasAnyField) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update',
+      });
+    }
+
+    const normalizeName = (value: unknown, field: string): string | undefined => {
+      if (value === undefined) return undefined;
+      if (typeof value !== 'string') {
+        throw new Error(`${field} must be a string`);
+      }
+      const trimmed = value.trim();
+      if (!trimmed) {
+        throw new Error(`${field} cannot be empty`);
+      }
+      if (trimmed.length > 50) {
+        throw new Error(`${field} cannot exceed 50 characters`);
+      }
+      return trimmed;
+    };
+
+    const firstName = normalizeName(payload.firstName, 'firstName');
+    const lastName = normalizeName(payload.lastName, 'lastName');
+
+    let phoneNumber: string | undefined;
+    if (payload.phoneNumber !== undefined) {
+      if (typeof payload.phoneNumber !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'phoneNumber must be a string',
+        });
+      }
+      const trimmed = payload.phoneNumber.trim();
+      if (trimmed && !/^(\+63|0)?[0-9]{10,11}$/.test(trimmed)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please enter a valid Philippine phone number',
+        });
+      }
+      phoneNumber = trimmed || undefined;
+    }
+
+    if (role === 'LGU_STAFF') {
+      const staff = await StaffUser.findById(userId);
+      if (!staff) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+
+      const currentNames = splitFullName(staff.fullName || '');
+      const nextFirst = firstName ?? currentNames.firstName;
+      const nextLast = lastName ?? currentNames.lastName;
+      staff.fullName = `${nextFirst} ${nextLast}`.trim();
+      await staff.save();
+
+      const updatedNames = splitFullName(staff.fullName);
+      return res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: {
+          id: staff._id,
+          email: staff.email,
+          firstName: updatedNames.firstName,
+          lastName: updatedNames.lastName,
+          role: 'LGU_STAFF',
+          status: staff.isActive ? 'Active' : 'Inactive',
+          assignedBarangays: staff.assignedBarangays,
+          barangay: Array.isArray(staff.assignedBarangays) && staff.assignedBarangays.length > 0
+            ? staff.assignedBarangays[0]
+            : undefined,
+        },
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+        assignedBarangays: user.role === 'Volunteer' && user.barangay ? [user.barangay] : [],
+        barangay: user.barangay,
+        phoneNumber: user.phoneNumber,
+      },
+    });
+  } catch (error) {
+    const message = (error as Error).message || 'An error occurred';
+    if (message.includes('must be a string') || message.includes('cannot')) {
+      return res.status(400).json({
+        success: false,
+        message,
+      });
+    }
+
+    console.error('[AUTH PATCH /me ERROR]', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating profile',
+    });
+  }
+});
+
+/**
+ * GET /api/mobile-auth/dashboard-summary
+ *
+ * Returns scoped dashboard stats for mobile volunteer/staff users.
+ */
+router.get('/dashboard-summary', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const role = req.user?.role;
+
+    if (!userId || !role) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    if (!['Volunteer', 'LGU_STAFF', 'Staff', 'Admin'].includes(role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden',
+      });
+    }
+
+    let scopedBarangays: string[] = [];
+
+    if (role === 'LGU_STAFF') {
+      const staff = await StaffUser.findById(userId).select('assignedBarangays').lean();
+      scopedBarangays = Array.isArray(staff?.assignedBarangays) ? staff!.assignedBarangays : [];
+    } else {
+      const user = await User.findById(userId).select('barangay').lean();
+      scopedBarangays = user?.barangay ? [user.barangay] : [];
+    }
+
+    scopedBarangays = Array.from(new Set(scopedBarangays.filter(Boolean)));
+
+    if (scopedBarangays.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          scopedBarangays: [],
+          residents: {
+            total: 0,
+            approved: 0,
+            pending: 0,
+            rejected: 0,
+          },
+          distributions: {
+            total: 0,
+            active: 0,
+          },
+          claims: {
+            confirmedToday: 0,
+          },
+          scans: {
+            today: 0,
+            yesterday: 0,
+            trend: 0,
+          },
+        },
+      });
+    }
+
+    const residentScope = { barangay: mongoose.trusted({ $in: scopedBarangays }) };
+    const [totalResidents, approvedResidents, pendingResidents, rejectedResidents] = await Promise.all([
+      Resident.countDocuments(residentScope),
+      Resident.countDocuments({ ...residentScope, status: 'Approved' }),
+      Resident.countDocuments({ ...residentScope, status: 'Pending' }),
+      Resident.countDocuments({ ...residentScope, status: 'Rejected' }),
+    ]);
+
+    const scopedDistributions = await Distribution.find({
+      $or: mongoose.trusted([
+        { barangay: { $in: scopedBarangays } },
+        { assignedBarangays: { $in: scopedBarangays } },
+      ]),
+    })
+      .select('_id status')
+      .lean();
+
+    const totalDistributions = scopedDistributions.length;
+    const activeDistributions = scopedDistributions.filter((d) => d.status !== 'Claimed').length;
+
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startTomorrow = new Date(startToday);
+    startTomorrow.setDate(startTomorrow.getDate() + 1);
+    const startYesterday = new Date(startToday);
+    startYesterday.setDate(startYesterday.getDate() - 1);
+
+    const [scansToday, scansYesterday, confirmedClaimsToday] = await Promise.all([
+      ResidentQrScanLog.countDocuments({
+        scannerId: userId,
+        result: 'VALID',
+        createdAt: {
+          $gte: startToday,
+          $lt: startTomorrow,
+        },
+      }),
+      ResidentQrScanLog.countDocuments({
+        scannerId: userId,
+        result: 'VALID',
+        createdAt: {
+          $gte: startYesterday,
+          $lt: startToday,
+        },
+      }),
+      Claim.countDocuments({
+        barangay: mongoose.trusted({ $in: scopedBarangays }),
+        status: 'CONFIRMED',
+        createdAt: {
+          $gte: startToday,
+          $lt: startTomorrow,
+        },
+      }),
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        scopedBarangays,
+        residents: {
+          total: totalResidents,
+          approved: approvedResidents,
+          pending: pendingResidents,
+          rejected: rejectedResidents,
+        },
+        distributions: {
+          total: totalDistributions,
+          active: activeDistributions,
+        },
+        claims: {
+          confirmedToday: confirmedClaimsToday,
+        },
+        scans: {
+          today: scansToday,
+          yesterday: scansYesterday,
+          trend: scansToday - scansYesterday,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('[DASHBOARD SUMMARY ERROR]', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to load dashboard summary',
     });
   }
 });

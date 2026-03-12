@@ -9,7 +9,6 @@ export type CreateDistributionPayload = {
   assignedBarangays: string[]
   assignedStaffIds: string[]
   scheduled: string
-  households: number
   notes?: string
 }
 
@@ -17,7 +16,6 @@ type StepFieldErrors = {
   barangay?: string
   assignedBarangays?: string
   scheduled?: string
-  households?: string
   notes?: string
   assignedStaffIds?: string
   global?: string
@@ -56,7 +54,6 @@ export default function NewDistributionModal({
 
   const [scheduled, setScheduled] = useState('')
   const [notes, setNotes] = useState('')
-  const [households, setHouseholds] = useState(40)
 
   const [errors, setErrors] = useState<StepFieldErrors>({})
 
@@ -80,7 +77,6 @@ export default function NewDistributionModal({
     setBarangayOpen(false)
     setScheduled('')
     setNotes('')
-    setHouseholds(40)
     setErrors({})
     setStaffQuery('')
     setDebouncedStaffQuery('')
@@ -147,10 +143,6 @@ export default function NewDistributionModal({
       out.scheduled = 'Scheduled date/time must be at least 5 minutes from now.'
     }
 
-    if (!Number.isInteger(households) || households < 1) {
-      out.households = 'Household count must be an integer >= 1.'
-    }
-
     if (notes.length > NOTES_MAX) {
       out.notes = `Notes must be ${NOTES_MAX} characters or fewer.`
     }
@@ -196,7 +188,6 @@ export default function NewDistributionModal({
     barangay,
     assignedBarangays,
     scheduled,
-    households,
     notes,
     assignedStaffIds,
     isLguStaff,
@@ -337,10 +328,6 @@ export default function NewDistributionModal({
         nextErrors.scheduled = issue.message || 'Scheduled date/time is invalid.'
         setStep(3)
       }
-      if (path.includes('households')) {
-        nextErrors.households = issue.message || 'Household count is invalid.'
-        setStep(3)
-      }
       if (path.includes('notes')) {
         nextErrors.notes = issue.message || `Notes must be ${NOTES_MAX} characters or fewer.`
         setStep(3)
@@ -374,7 +361,6 @@ export default function NewDistributionModal({
         assignedBarangays,
         assignedStaffIds,
         scheduled: new Date(scheduled).toISOString(),
-        households,
         notes: notes.trim() ? notes.trim() : undefined,
       })
     } catch (error: unknown) {
@@ -526,22 +512,6 @@ export default function NewDistributionModal({
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 text-sm text-gray-900"
                   />
                   {errors.scheduled && <p className="mt-2 text-sm text-red-600">{errors.scheduled}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-2">Household Count</label>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={households}
-                    onChange={(e) => {
-                      setHouseholds(Number.parseInt(e.target.value || '0', 10))
-                      setErrors({})
-                    }}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 text-sm text-gray-900"
-                  />
-                  {errors.households && <p className="mt-2 text-sm text-red-600">{errors.households}</p>}
                 </div>
 
                 <div>

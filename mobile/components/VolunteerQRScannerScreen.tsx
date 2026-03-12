@@ -21,12 +21,9 @@ interface VolunteerQRScannerScreenProps {
 
 interface ResolvedResident {
   residentId: string;
-  residentCode: string;
-  fullName: string;
-  barangay: string;
-  city: string;
-  streetAddress: string;
-  status: string;
+  fullName?: string;
+  maskedName?: string;
+  alreadyClaimed?: boolean;
   fromCache?: boolean;
 }
 
@@ -34,6 +31,13 @@ interface ResolveQrPayload {
   success: boolean;
   message?: string;
   data?: ResolvedResident;
+}
+
+interface ScannerDistribution {
+  id: string;
+  barangay: string;
+  scheduled?: string;
+  status?: string;
 }
 
 export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerScreenProps) {
@@ -44,8 +48,27 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   const [error, setError] = useState<string | null>(null);
   const [resolvedResident, setResolvedResident] = useState<ResolvedResident | null>(null);
   const [resolveLatencyMs, setResolveLatencyMs] = useState<number | null>(null);
+  const [activeDistribution, setActiveDistribution] = useState<ScannerDistribution | null>(null);
+  const [claimStatusText, setClaimStatusText] = useState<string | null>(null);
   const lastScanRef = useRef<{ data: string; at: number } | null>(null);
   const successSoundRef = useRef<Audio.Sound | null>(null);
+
+  const toMaskedName = (rawName?: string): string => {
+    const parts = String(rawName || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) {
+      return 'Uxxxx Uxxxx';
+    }
+    if (parts.length === 1) {
+      const firstInitial = parts[0][0]?.toUpperCase() || 'U';
+      return `${firstInitial}xxxx`;
+    }
+    const firstInitial = parts[0][0]?.toUpperCase() || 'U';
+    const lastInitial = parts[parts.length - 1][0]?.toUpperCase() || 'U';
+    return `${firstInitial}xxxx ${lastInitial}xxxx`;
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -80,6 +103,30 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     };
   }, []);
 
+  useEffect(() => {
+    const loadActiveDistribution = async () => {
+      const response = await mobileAuthService.authenticatedRequest<{
+        success: boolean;
+        data?: Array<{ id?: string; _id?: string; barangay: string; scheduled?: string; status?: string }>;
+      }>('/distributions', { method: 'GET' });
+
+      if (!response.success || !response.data?.success || !Array.isArray(response.data.data)) {
+        return;
+      }
+
+      const firstActive = response.data.data.find((d) => d.status !== 'Claimed');
+      if (!firstActive) return;
+      setActiveDistribution({
+        id: firstActive.id || firstActive._id || '',
+        barangay: firstActive.barangay,
+        scheduled: firstActive.scheduled,
+        status: firstActive.status,
+      });
+    };
+
+    loadActiveDistribution().catch(() => undefined);
+  }, []);
+
   const playSuccessFeedback = async () => {
     try {
       Vibration.vibrate(80);
@@ -112,11 +159,15 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     setError(null);
     setResolvedResident(null);
     setResolveLatencyMs(null);
+    setClaimStatusText(null);
     const startedAt = Date.now();
 
     const response = await mobileAuthService.authenticatedRequest<ResolveQrPayload>('/household/qr/resolve', {
       method: 'POST',
-      body: JSON.stringify({ qrData: data }),
+      body: JSON.stringify({
+        qrData: data,
+        distributionId: activeDistribution?.id,
+      }),
     });
 
     if (!response.success || !response.data) {
@@ -133,9 +184,37 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
       return;
     }
 
-    setResolvedResident(response.data.data);
+    const resident = response.data.data;
+    setResolvedResident(resident);
     await playSuccessFeedback();
     setResolveLatencyMs(Date.now() - startedAt);
+
+    // Auto-record claim for the selected active distribution.
+    if (activeDistribution?.id && resident.residentId && !resident.alreadyClaimed) {
+      const claimResponse = await mobileAuthService.authenticatedRequest<{
+        success: boolean;
+        message?: string;
+        alreadyClaimed?: boolean;
+      }>('/household/qr/claim', {
+        method: 'POST',
+        body: JSON.stringify({
+          residentId: resident.residentId,
+          distributionId: activeDistribution.id,
+        }),
+      });
+
+      if (claimResponse.success && claimResponse.data?.success) {
+        setClaimStatusText(claimResponse.data.alreadyClaimed
+          ? 'Resident already claimed for this distribution'
+          : 'Claim recorded. Resident can receive relief now.');
+        setResolvedResident((prev) => (prev ? { ...prev, alreadyClaimed: true } : prev));
+      } else {
+        setClaimStatusText(claimResponse.error || claimResponse.data?.message || 'Claim record failed.');
+      }
+    } else if (resident.alreadyClaimed) {
+      setClaimStatusText('Resident already claimed for this distribution');
+    }
+
     setIsResolving(false);
   };
 
@@ -144,6 +223,7 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     setError(null);
     setResolvedResident(null);
     setResolveLatencyMs(null);
+    setClaimStatusText(null);
   };
 
   if (!permission) {
@@ -196,6 +276,18 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
         <View style={styles.panel}>
+          {activeDistribution ? (
+            <View style={styles.distributionBadge}>
+              <Text style={styles.distributionBadgeText}>
+                Distribution: {activeDistribution.barangay}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.distributionMissingText}>
+              No active distribution selected. Scan will validate only.
+            </Text>
+          )}
+
           <View style={styles.cameraWrapper}>
             <CameraView
               style={styles.camera}
@@ -233,11 +325,15 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
           {!isResolving && resolvedResident && (
             <View style={styles.resultCard}>
               <Text style={styles.resultTitle}>Resident Found</Text>
-              <Text style={styles.resultLine}>Name: {resolvedResident.fullName}</Text>
-              <Text style={styles.resultLine}>Code: {resolvedResident.residentCode}</Text>
-              <Text style={styles.resultLine}>Barangay: {resolvedResident.barangay}</Text>
-              <Text style={styles.resultLine}>Address: {resolvedResident.streetAddress}</Text>
-              <Text style={styles.resultLine}>Status: {resolvedResident.status}</Text>
+              <Text style={styles.resultLine}>
+                Name: {resolvedResident.maskedName || toMaskedName(resolvedResident.fullName)}
+              </Text>
+              {resolvedResident.alreadyClaimed && (
+                <Text style={styles.resultLine}>Claim: Already claimed for selected distribution</Text>
+              )}
+              {claimStatusText && (
+                <Text style={styles.resultMeta}>{claimStatusText}</Text>
+              )}
               {resolveLatencyMs !== null && (
                 <Text style={styles.resultMeta}>Resolve time: {resolveLatencyMs} ms</Text>
               )}
@@ -296,6 +392,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DCFCE7',
     padding: 14,
+  },
+  distributionBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ECFDF3',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10,
+  },
+  distributionBadgeText: {
+    color: '#166534',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  distributionMissingText: {
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 10,
   },
   cameraWrapper: {
     width: '100%',

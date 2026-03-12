@@ -369,7 +369,6 @@ export const api = {
     assignedBarangays: string[];
     assignedStaffIds: string[];
     scheduled: string;
-    households: number;
     notes?: string;
   }, options?: { idempotencyKey?: string }): Promise<ApiResponse<DistributionData>> {
     const headers = createHeaders('POST') as Record<string, string>;

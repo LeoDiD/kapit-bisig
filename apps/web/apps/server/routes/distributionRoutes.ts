@@ -15,6 +15,7 @@ import Distribution from '../models/Distribution';
 import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
 import StaffUser from '../models/StaffUser';
+import User from '../models/User';
 import { AuthRequest } from '../middleware/unifiedAuth';
 import { validateRequest } from '../validation/validateRequest';
 import {
@@ -23,6 +24,7 @@ import {
 } from '../validation/distribution.schema';
 import { logAudit } from '../utils/audit';
 import { broadcastScopedNotification } from '../utils/createNotification';
+import { getTargetBarangays } from '../services/distributionFlowService';
 
 const router = Router();
 
@@ -52,12 +54,32 @@ function hasCoverage(scopes: string[], targets: string[]): boolean {
 
 const isScopedRole = (role?: string) => role === 'LGU_STAFF' || role === 'Volunteer';
 
-const hasDistributionAccess = (user: AuthRequest['authUser'], distribution: { barangay: string; assignedBarangays?: string[] }) => {
-  if (!user || !isScopedRole(user.role)) return true;
-  const assigned = user.assignedBarangays ?? [];
-  if (assigned.includes(distribution.barangay)) return true;
+async function getScopedBarangays(user?: AuthRequest['authUser']): Promise<string[]> {
+  if (!user || !isScopedRole(user.role)) return [];
+
+  // Prefer DB source of truth so scope updates apply immediately without requiring re-login.
+  if (user.role === 'LGU_STAFF' && user.userId) {
+    const staff = await StaffUser.findById(user.userId).select('assignedBarangays').lean();
+    if (Array.isArray(staff?.assignedBarangays) && staff.assignedBarangays.length > 0) {
+      return Array.from(new Set(staff.assignedBarangays.filter(Boolean)));
+    }
+  }
+
+  if (user.role === 'Volunteer' && user.userId) {
+    const volunteer = await User.findById(user.userId).select('barangay').lean();
+    if (volunteer?.barangay) {
+      return [volunteer.barangay];
+    }
+  }
+
+  return Array.from(new Set((user.assignedBarangays ?? []).filter(Boolean)));
+}
+
+const hasDistributionAccess = (scopedBarangays: string[], distribution: { barangay: string; assignedBarangays?: string[] }) => {
+  if (scopedBarangays.length === 0) return false;
+  if (scopedBarangays.includes(distribution.barangay)) return true;
   const targetBarangays = distribution.assignedBarangays ?? [];
-  return targetBarangays.some((b) => assigned.includes(b));
+  return targetBarangays.some((b) => scopedBarangays.includes(b));
 };
 
 /**
@@ -70,6 +92,7 @@ router.post(
   '/',
   async (req: AuthRequest, res: Response) => {
     try {
+      const scopedBarangays = await getScopedBarangays(req.authUser);
       let parsed;
       try {
         parsed = createDistributionBody.safeParse(req.body);
@@ -92,7 +115,7 @@ router.post(
         });
       }
 
-      const { barangay, assignedBarangays, assignedStaffIds, scheduled, households, notes } = parsed.data;
+      const { barangay, assignedBarangays, assignedStaffIds, scheduled, notes } = parsed.data;
 
       cleanIdempotencyStore();
       const idempotencyKeyHeader = req.header('Idempotency-Key')?.trim();
@@ -107,9 +130,8 @@ router.post(
 
       // Scope check: staff can only create within assigned barangays
       if (req.authUser?.role === 'LGU_STAFF') {
-        const allowed = req.authUser.assignedBarangays ?? [];
         const allTargets = [barangay, ...assignedBarangays];
-        const outOfScope = allTargets.find((b) => !allowed.includes(b));
+        const outOfScope = allTargets.find((b) => !scopedBarangays.includes(b));
         if (outOfScope) {
           return res.status(403).json({
             success: false,
@@ -163,14 +185,11 @@ router.post(
         }
       }
 
-      const householdsNum = Number(households);
-      if (Number.isNaN(householdsNum) || householdsNum < 1) {
-        return res.status(400).json({
-          success: false,
-          code: 'VALIDATION_ERROR',
-          message: 'Households must be a number >= 1',
-        });
-      }
+      const targetBarangays = getTargetBarangays(barangay, assignedBarangays);
+      const householdsNum = await Resident.countDocuments({
+        barangay: mongoose.trusted({ $in: targetBarangays }),
+        status: 'Approved',
+      });
 
       const distribution = new Distribution({
         barangay,
@@ -189,7 +208,7 @@ router.post(
         barangay,
         assignedBarangays,
         scheduled,
-        households: householdsNum,
+        householdsDerived: householdsNum,
         assignedStaffCount: uniqueStaffIds.length,
       });
 
@@ -243,7 +262,8 @@ router.get(
         .lean();
 
       if (isScopedRole(req.authUser?.role)) {
-        const assigned = new Set(req.authUser.assignedBarangays ?? []);
+        const scopedBarangays = await getScopedBarangays(req.authUser);
+        const assigned = new Set(scopedBarangays);
         distributions = distributions.filter((d) => {
           if (assigned.has(d.barangay)) return true;
           return (d.assignedBarangays ?? []).some((b) => assigned.has(b));
@@ -280,9 +300,7 @@ router.get(
 
       const data = distributions.map((d) => {
         const claimed = claimedCountMap[d._id.toString()] ?? 0;
-        const targetBarangays = Array.isArray(d.assignedBarangays) && d.assignedBarangays.length > 0
-          ? d.assignedBarangays
-          : [d.barangay];
+        const targetBarangays = getTargetBarangays(d.barangay, d.assignedBarangays ?? []);
         const registered = targetBarangays.reduce((sum, b) => sum + (countMap[b] ?? 0), 0);
 
         // Derive status from actual claims vs registered households
@@ -322,6 +340,7 @@ router.patch(
   validateRequest({ params: distributionIdParams }),
   async (req: AuthRequest, res: Response) => {
     try {
+      const scopedBarangays = await getScopedBarangays(req.authUser);
       const { id } = req.params;
 
       const distribution = await Distribution.findById(id);
@@ -335,7 +354,7 @@ router.patch(
 
       // Scope check
       if (
-        !hasDistributionAccess(req.authUser, distribution)
+        isScopedRole(req.authUser?.role) && !hasDistributionAccess(scopedBarangays, distribution)
       ) {
         return res.status(403).json({
           success: false,
@@ -386,6 +405,7 @@ router.get(
   validateRequest({ params: distributionIdParams }),
   async (req: AuthRequest, res: Response) => {
     try {
+      const scopedBarangays = await getScopedBarangays(req.authUser);
       const { id } = req.params;
 
       // 1) Find the distribution
@@ -399,7 +419,7 @@ router.get(
 
       // 2) RBAC scope check
       if (
-        !hasDistributionAccess(req.authUser, distribution)
+        isScopedRole(req.authUser?.role) && !hasDistributionAccess(scopedBarangays, distribution)
       ) {
         return res.status(403).json({
           success: false,
@@ -407,9 +427,10 @@ router.get(
         });
       }
 
-      const targetBarangays = distribution.assignedBarangays?.length
-        ? distribution.assignedBarangays
-        : [distribution.barangay];
+      const targetBarangays = getTargetBarangays(
+        distribution.barangay,
+        distribution.assignedBarangays ?? [],
+      );
 
       // 3) Get all approved residents (registered households) in target barangays
       const registeredHouseholds = await Resident.find({

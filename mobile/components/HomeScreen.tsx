@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   Image,
   TouchableOpacity,
   Dimensions,
@@ -34,6 +35,8 @@ interface HomeScreenProps {
 interface DistributionItem {
   id: string;
   isUrgent: boolean;
+  residentClaimed: boolean;
+  residentClaimStatus?: string | null;
   title: string;
   description: string;
   date: string;
@@ -55,6 +58,8 @@ interface DistributionResponseItem {
   scheduled?: string;
   notes?: string;
   createdAt?: string;
+  residentClaimed?: boolean;
+  residentClaimStatus?: string | null;
 }
 
 function parseSchedule(scheduled?: string): { date: string; time: string } {
@@ -76,12 +81,17 @@ function toDistribution(item: DistributionResponseItem, index: number): Distribu
   const coverageList = Array.from(new Set([item.barangay, ...(item.assignedBarangays ?? [])]));
   const targetAreas = coverageList.join(', ');
   const { date, time } = parseSchedule(item.scheduled);
+  const residentClaimed = Boolean(item.residentClaimed);
 
   return {
     id: item.id || item._id || `${item.barangay}-${item.createdAt || Date.now()}`,
-    isUrgent: true,
-    title: `Relief Pack Distribution #${index + 1}`,
-    description: item.notes || 'Relief goods distribution for eligible residents.',
+    isUrgent: !residentClaimed,
+    residentClaimed,
+    residentClaimStatus: item.residentClaimStatus ?? null,
+    title: residentClaimed ? 'Relief Already Claimed' : `Relief Pack Distribution #${index + 1}`,
+    description: residentClaimed
+      ? 'This distribution is already marked as claimed for your household.'
+      : (item.notes || 'Relief goods distribution for eligible residents.'),
     date,
     time,
     location: `${item.barangay} Covered Court`,
@@ -106,6 +116,7 @@ export default function HomeScreen({
 }: HomeScreenProps) {
   const [distributions, setDistributions] = useState<DistributionItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionItem | null>(null);
 
   const isVolunteer = accountType === 'volunteer';
@@ -151,8 +162,18 @@ export default function HomeScreen({
     loadDistributions().catch(() => setLoading(false));
   }, [loadDistributions]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadDistributions();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadDistributions]);
+
   // Get the featured distribution (first one) for the hero card
   const featuredDistribution = distributions[0];
+  const unreadUpdates = distributions.filter((item) => !item.residentClaimed).length;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -162,6 +183,14 @@ export default function HomeScreen({
           styles.scrollContent,
           !loading && distributions.length === 0 && styles.scrollContentCentered
         ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#16A34A"
+            colors={['#16A34A']}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         {/* Header Section */}
@@ -172,6 +201,13 @@ export default function HomeScreen({
           </View>
           <TouchableOpacity style={styles.notificationButton}>
             <Ionicons name="notifications-outline" size={24} color="#6B7280" />
+            {unreadUpdates > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadUpdates > 9 ? '9+' : String(unreadUpdates)}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -216,7 +252,11 @@ export default function HomeScreen({
                   style={styles.heroGradient}
                 >
                   {/* Urgent Badge */}
-                  {featuredDistribution.isUrgent && (
+                  {featuredDistribution.residentClaimed ? (
+                    <View style={styles.claimedBadge}>
+                      <Text style={styles.claimedText}>ALREADY CLAIMED</Text>
+                    </View>
+                  ) : featuredDistribution.isUrgent && (
                     <View style={styles.urgentBadge}>
                       <Text style={styles.urgentText}>URGENT</Text>
                     </View>
@@ -250,7 +290,9 @@ export default function HomeScreen({
                 style={styles.viewDetailsButton}
                 onPress={() => setSelectedDistribution(featuredDistribution)}
               >
-                <Text style={styles.viewDetailsText}>View Distribution Details</Text>
+                <Text style={styles.viewDetailsText}>
+                  {featuredDistribution.residentClaimed ? 'View Claim Details' : 'View Distribution Details'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -270,7 +312,10 @@ export default function HomeScreen({
                   <Text style={styles.additionalTitle}>{distribution.title}</Text>
                   <View style={styles.additionalMeta}>
                     <Ionicons name="calendar-outline" size={14} color="#9CA3AF" />
-                    <Text style={styles.additionalMetaText}>{distribution.date}</Text>
+                    <Text style={styles.additionalMetaText}>
+                      {distribution.date}
+                      {distribution.residentClaimed ? ' • Already claimed' : ''}
+                    </Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -415,11 +460,40 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   notificationButton: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 4,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.95)',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  notificationBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 10,
   },
 
   // Section Label
@@ -512,6 +586,21 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   urgentText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  claimedBadge: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    backgroundColor: '#1D4ED8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  claimedText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#FFFFFF',
