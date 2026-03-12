@@ -1477,7 +1477,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     const eventHash = computeEventHash(distributionId);
 
     try {
-      const alreadyClaimedOnChain = await isClaimedOnChain(householdHash);
+      const alreadyClaimedOnChain = await isClaimedOnChain(householdHash, eventHash);
       if (alreadyClaimedOnChain) {
         return res.status(409).json({
           success: false,

@@ -594,7 +594,7 @@ router.post(
 
       if (env.BLOCKCHAIN_ENABLED) {
         try {
-          const alreadyClaimed = await isClaimedOnChain(householdHash);
+          const alreadyClaimed = await isClaimedOnChain(householdHash, eventHash);
           if (alreadyClaimed) {
             console.error(
               `[ERROR] Duplicate claim blocked (on-chain): householdCode=${householdCode} barangay=${barangay}`,
@@ -1198,7 +1198,7 @@ router.post(
 
       if (env.BLOCKCHAIN_ENABLED) {
         try {
-          const alreadyClaimed = await isClaimedOnChain(householdHash);
+          const alreadyClaimed = await isClaimedOnChain(householdHash, eventHash);
           if (alreadyClaimed) {
             claim.status = 'CONFIRMED';
             claim.errorMessage = '';
