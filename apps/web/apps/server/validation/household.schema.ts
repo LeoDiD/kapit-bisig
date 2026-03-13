@@ -33,6 +33,7 @@ export const registerHouseholdBody = z.object({
   backIdImage: z.string().optional(),
   faceImage: z.string().optional(),
   faceDescriptor: z.array(z.number()).optional(),
+  verification: z.any().optional(),
   verificationResult: z.any().optional(),
 }); // Not strict — service layer handles extra fields
 

@@ -15,7 +15,7 @@ NEW: MongoDB Integration for Resident Registration
 - Collection: face_registration_logs - logs all registration attempts (ALLOW/BLOCK/ERROR)
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -69,6 +69,76 @@ BLUR_THRESHOLD = float(os.getenv("BLUR_THRESHOLD", "30"))                # Lapla
 LIVENESS_MIN_PASSES = int(os.getenv("LIVENESS_MIN_PASSES", "1"))         # Minimum checks that must pass
 LOW_RES_THRESHOLD = int(os.getenv("LOW_RES_THRESHOLD", "480"))           # px; below this treat liveness as uncertain
 MAX_IMAGE_DIM = int(os.getenv("MAX_IMAGE_DIM", "800"))                   # px; downscale large images for speed
+ENABLE_LOW_LIGHT_ENHANCEMENT = os.getenv("ENABLE_LOW_LIGHT_ENHANCEMENT", "true").lower() == "true"
+LOW_LIGHT_MEAN_THRESHOLD = float(os.getenv("LOW_LIGHT_MEAN_THRESHOLD", "75"))  # grayscale mean (0-255)
+LOW_LIGHT_GAMMA = float(os.getenv("LOW_LIGHT_GAMMA", "1.4"))
+
+# Face capture abuse protection
+FACE_ATTEMPT_LIMIT = int(os.getenv("FACE_ATTEMPT_LIMIT", "10"))
+FACE_ATTEMPT_WINDOW_SECONDS = int(os.getenv("FACE_ATTEMPT_WINDOW_SECONDS", "900"))  # 15 minutes
+FACE_ATTEMPT_LOCK_SECONDS = int(os.getenv("FACE_ATTEMPT_LOCK_SECONDS", "300"))      # 5 minutes
+_face_attempt_tracker = {}
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    client = request.client
+    return client.host if client else "unknown"
+
+
+def _cleanup_face_attempt_tracker(now_ts: float) -> None:
+    stale_keys = []
+    stale_after = FACE_ATTEMPT_WINDOW_SECONDS + FACE_ATTEMPT_LOCK_SECONDS + 60
+    for key, state in _face_attempt_tracker.items():
+        if now_ts - state.get("updated_at", now_ts) > stale_after:
+            stale_keys.append(key)
+    for key in stale_keys:
+        _face_attempt_tracker.pop(key, None)
+
+
+def enforce_face_attempt_limit(http_request: Request, endpoint_name: str, session_key: Optional[str] = None) -> None:
+    now_ts = time.time()
+    _cleanup_face_attempt_tracker(now_ts)
+
+    client_ip = _get_client_ip(http_request)
+    scoped_key = (session_key or "").strip().upper()
+    actor_key = scoped_key if scoped_key else f"IP:{client_ip}"
+    tracker_key = f"{endpoint_name}:{actor_key}"
+
+    state = _face_attempt_tracker.get(tracker_key)
+    if not state:
+        state = {
+            "count": 0,
+            "window_started_at": now_ts,
+            "locked_until": 0.0,
+            "updated_at": now_ts,
+        }
+        _face_attempt_tracker[tracker_key] = state
+
+    if state["locked_until"] > now_ts:
+        retry_after = int(max(1, state["locked_until"] - now_ts))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many photo attempts. Please wait {retry_after} seconds before trying again.",
+        )
+
+    if now_ts - state["window_started_at"] > FACE_ATTEMPT_WINDOW_SECONDS:
+        state["count"] = 0
+        state["window_started_at"] = now_ts
+        state["locked_until"] = 0.0
+
+    if state["count"] >= FACE_ATTEMPT_LIMIT:
+        state["locked_until"] = now_ts + FACE_ATTEMPT_LOCK_SECONDS
+        state["updated_at"] = now_ts
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many photo attempts. Please wait {FACE_ATTEMPT_LOCK_SECONDS} seconds before trying again.",
+        )
+
+    state["count"] += 1
+    state["updated_at"] = now_ts
 
 # ============================================
 # MONGODB CONFIGURATION
@@ -111,6 +181,7 @@ class FaceVerifyRequest(BaseModel):
 
 class FaceDetectRequest(BaseModel):
     image: str  # Base64 encoded image
+    session_key: Optional[str] = None  # Optional registration/session key
 
 # NEW: Duplicate Check Request/Response for Registration Flow
 class DuplicateCheckRequest(BaseModel):
@@ -162,6 +233,12 @@ class FaceDetectionResult(BaseModel):
 
 face_database = {}  # {user_id: {"name": str, "embedding": list, "registered_at": str}}
 EMBEDDINGS_FILE = "face_embeddings.json"
+face_index = {
+    "user_ids": [],
+    "names": [],
+    "matrix": None,   # 2D numpy array [n_users, embedding_dim]
+    "norms": None,    # 1D numpy array [n_users]
+}
 
 # ============================================
 # PERFORMANCE: Embedding Cache (reduces repeat computation)
@@ -218,8 +295,39 @@ def load_database():
             logger.error(f"Failed to load database: {e}")
             face_database = {}
 
+def rebuild_face_index():
+    """
+    Build a vectorized in-memory index for fast 1:N similarity search.
+    This avoids Python-loop cosine computations for every verification.
+    """
+    user_ids = []
+    names = []
+    vectors = []
+
+    for user_id, data in face_database.items():
+        embedding = data.get("embedding")
+        if not isinstance(embedding, list) or len(embedding) == 0:
+            continue
+        vectors.append(np.array(embedding, dtype=np.float32))
+        user_ids.append(user_id)
+        names.append(data.get("name", user_id))
+
+    if vectors:
+        matrix = np.vstack(vectors)
+        norms = np.linalg.norm(matrix, axis=1)
+    else:
+        matrix = np.empty((0, 0), dtype=np.float32)
+        norms = np.empty((0,), dtype=np.float32)
+
+    face_index["user_ids"] = user_ids
+    face_index["names"] = names
+    face_index["matrix"] = matrix
+    face_index["norms"] = norms
+    logger.info(f"Face index rebuilt with {len(user_ids)} users")
+
 # Load database on startup
 load_database()
+rebuild_face_index()
 
 # Warm up model on startup (prevents first-request delay)
 warmup_model()
@@ -276,6 +384,36 @@ def resize_image_if_needed(image: np.ndarray) -> np.ndarray:
     resized = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
     logger.info(f"Image resized: {width}x{height} -> {new_width}x{new_height}")
     return resized
+
+def estimate_brightness(image: np.ndarray) -> float:
+    """Estimate scene brightness using grayscale mean intensity."""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    return float(np.mean(gray))
+
+def enhance_low_light_image(image: np.ndarray) -> tuple[np.ndarray, bool, float]:
+    """
+    Apply lightweight low-light enhancement.
+    Returns (possibly enhanced image, was_enhanced, input_brightness).
+    """
+    brightness = estimate_brightness(image)
+    if (not ENABLE_LOW_LIGHT_ENHANCEMENT) or (brightness >= LOW_LIGHT_MEAN_THRESHOLD):
+        return image, False, brightness
+
+    # 1) Local contrast boost in luminance channel (CLAHE)
+    ycrcb = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+    y, cr, cb = cv2.split(ycrcb)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    y = clahe.apply(y)
+    enhanced = cv2.merge((y, cr, cb))
+    enhanced = cv2.cvtColor(enhanced, cv2.COLOR_YCrCb2BGR)
+
+    # 2) Gentle gamma lift
+    gamma = max(1.0, LOW_LIGHT_GAMMA)
+    inv_gamma = 1.0 / gamma
+    lut = np.array([((i / 255.0) ** inv_gamma) * 255 for i in range(256)], dtype=np.uint8)
+    enhanced = cv2.LUT(enhanced, lut)
+
+    return enhanced, True, brightness
 
 def detect_faces_opencv(image: np.ndarray) -> dict:
     """
@@ -349,6 +487,25 @@ def detect_faces_deepface(image: np.ndarray) -> dict:
         "image_width": image.shape[1],
         "image_height": image.shape[0]
     }
+
+def extract_face_crop(image: np.ndarray, face_bbox: list, padding_ratio: float = 0.12) -> np.ndarray:
+    """
+    Crop a face region from an image with optional padding.
+    face_bbox format: [x, y, w, h]
+    """
+    x, y, w, h = face_bbox
+    pad_w = int(w * padding_ratio)
+    pad_h = int(h * padding_ratio)
+
+    x1 = max(0, x - pad_w)
+    y1 = max(0, y - pad_h)
+    x2 = min(image.shape[1], x + w + pad_w)
+    y2 = min(image.shape[0], y + h + pad_h)
+
+    crop = image[y1:y2, x1:x2]
+    if crop.size == 0:
+        raise ValueError("Failed to crop face region from image")
+    return crop
 
 def check_face_centered(face: list, image_width: int, image_height: int) -> bool:
     """
@@ -669,7 +826,7 @@ async def health_check():
     }
 
 @app.post("/api/face/detect", response_model=FaceDetectionResult)
-async def detect_face(request: FaceDetectRequest):
+async def detect_face(request: FaceDetectRequest, http_request: Request):
     """
     STEP 1: Detect and validate face in image
     Enhanced with liveness detection and image quality checks
@@ -685,6 +842,11 @@ async def detect_face(request: FaceDetectRequest):
     """
     validation_details = {}
     try:
+        enforce_face_attempt_limit(
+            http_request,
+            endpoint_name="detect",
+            session_key=request.session_key,
+        )
         logger.info("Face detection request received")
         
         # Decode image
@@ -871,6 +1033,8 @@ async def detect_face(request: FaceDetectRequest):
             message="Unable to process face image. Please try again.",
             validation_details=to_native(validation_details)
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Face detection failed: {e}")
         raise HTTPException(status_code=400, detail="Face detection failed.")
@@ -892,6 +1056,11 @@ async def register_face(request: FaceRegisterRequest):
         
         # Decode image
         image = decode_base64_image(request.image)
+        image, low_light_enhanced, brightness = enhance_low_light_image(image)
+        if low_light_enhanced:
+            logger.info(f"Low-light enhancement enabled (brightness={brightness:.1f})")
+        else:
+            logger.info(f"Low-light enhancement not needed (brightness={brightness:.1f})")
         
         # Detect face first
         detection = detect_faces_opencv(image)
@@ -915,21 +1084,28 @@ async def register_face(request: FaceRegisterRequest):
                 message=f"User ID '{request.user_id}' is already registered."
             )
         
-        # Generate face embedding
+        # Generate embedding from pre-cropped face (skip second face detection)
         logger.info("Generating face embedding...")
-        embedding = get_face_embedding(image)
+        face_crop = extract_face_crop(image, detection["faces"][0])
+        embedding = get_face_embedding_fast(face_crop)
         logger.info(f"Embedding generated: {len(embedding)} dimensions")
         
         # Check for duplicate face (1:N matching against existing faces)
-        for existing_user_id, data in face_database.items():
-            similarity = calculate_similarity(embedding, data["embedding"])
-            logger.info(f"Similarity with {data['name']}: {similarity:.4f}")
-            
-            if similarity > DUPLICATE_THRESHOLD:
-                return FaceRegisterResponse(
-                    success=False,
-                    message="This face is already registered. Duplicate registration not allowed."
+        if len(face_index["user_ids"]) > 0:
+            query = np.array(embedding, dtype=np.float32)
+            query_norm = np.linalg.norm(query)
+            if query_norm > 0:
+                sims = np.dot(face_index["matrix"], query) / (
+                    (face_index["norms"] * query_norm) + 1e-12
                 )
+                best_idx = int(np.argmax(sims))
+                best_similarity = float(np.clip(sims[best_idx], 0.0, 1.0))
+                logger.info(f"Best duplicate similarity: {best_similarity:.4f}")
+                if best_similarity > DUPLICATE_THRESHOLD:
+                    return FaceRegisterResponse(
+                        success=False,
+                        message="This face is already registered. Duplicate registration not allowed."
+                    )
         
         # Save to database
         face_database[request.user_id] = {
@@ -937,6 +1113,7 @@ async def register_face(request: FaceRegisterRequest):
             "embedding": embedding,
             "registered_at": datetime.now().isoformat()
         }
+        rebuild_face_index()
         
         # Persist to file
         if not save_database():
@@ -1025,7 +1202,7 @@ def save_face_embedding_to_mongodb(embedding_data: dict) -> Optional[str]:
         return None
 
 @app.post("/api/face/check-duplicate", response_model=DuplicateCheckResponse)
-async def check_duplicate_face(request: DuplicateCheckRequest):
+async def check_duplicate_face(request: DuplicateCheckRequest, http_request: Request):
     """
     CHECK FOR DUPLICATE FACE DURING RESIDENT REGISTRATION
     
@@ -1063,6 +1240,18 @@ async def check_duplicate_face(request: DuplicateCheckRequest):
     }
     
     try:
+        resident_data = request.resident_data if isinstance(request.resident_data, dict) else {}
+        rate_limit_session_key = str(
+            resident_data.get("householdToken")
+            or resident_data.get("mobileNumber")
+            or ""
+        ).strip()
+        enforce_face_attempt_limit(
+            http_request,
+            endpoint_name="check-duplicate",
+            session_key=rate_limit_session_key,
+        )
+
         print("\n" + "="*60)
         print("  DUPLICATE FACE CHECK - REGISTRATION")
         print("="*60)
@@ -1070,6 +1259,11 @@ async def check_duplicate_face(request: DuplicateCheckRequest):
         
         # Step 1: Decode image
         image = decode_base64_image(request.image)
+        image, low_light_enhanced, brightness = enhance_low_light_image(image)
+        if low_light_enhanced:
+            print(f"  Low-light enhancement: ON (brightness={brightness:.1f})")
+        else:
+            print(f"  Low-light enhancement: OFF (brightness={brightness:.1f})")
         print(f"  Image decoded: {image.shape[1]}x{image.shape[0]} px")
         sys.stdout.flush()
         
@@ -1124,9 +1318,10 @@ async def check_duplicate_face(request: DuplicateCheckRequest):
                 message=f"Multiple faces detected ({detection['face_count']}). Only one face should be visible."
             )
         
-        # Step 3: Generate face embedding
+        # Step 3: Generate face embedding from pre-cropped face
         print("  Generating face embedding...")
-        embedding = get_face_embedding(image)
+        face_crop = extract_face_crop(image, detection["faces"][0])
+        embedding = get_face_embedding_fast(face_crop)
         print(f"  Embedding generated: {len(embedding)} dimensions")
         
         # Step 4: Get all registered embeddings from MongoDB + in-memory
@@ -1143,26 +1338,42 @@ async def check_duplicate_face(request: DuplicateCheckRequest):
         
         print(f"  Comparing against {len(registered_faces)} registered faces...")
         
-        # Step 5: Find best match
+        # Step 5: Vectorized best-match search over all valid embeddings
         best_match = None
         best_similarity = 0.0
-        
+        valid_records = []
+        embedding_rows = []
+
         for resident in registered_faces:
             stored_embedding = resident.get("embedding_vector", [])
             if not stored_embedding:
                 continue
-                
-            similarity = calculate_similarity(embedding, stored_embedding)
-            resident_name = resident.get("name") or f"{resident.get('first_name', '')} {resident.get('last_name', '')}".strip() or str(resident.get("_id", "Unknown"))
-            
-            print(f"    - {resident_name}: {similarity:.4f}")
-            
-            if similarity > best_similarity:
-                best_similarity = similarity
+
+            valid_records.append(resident)
+            embedding_rows.append(np.array(stored_embedding, dtype=np.float32))
+
+        if len(embedding_rows) > 0:
+            matrix = np.vstack(embedding_rows)
+            norms = np.linalg.norm(matrix, axis=1)
+            query = np.array(embedding, dtype=np.float32)
+            query_norm = np.linalg.norm(query)
+
+            if query_norm > 0:
+                similarities = np.dot(matrix, query) / ((norms * query_norm) + 1e-12)
+                similarities = np.clip(similarities, 0.0, 1.0)
+
+                for i, resident in enumerate(valid_records):
+                    resident_name = resident.get("name") or f"{resident.get('first_name', '')} {resident.get('last_name', '')}".strip() or str(resident.get("_id", "Unknown"))
+                    print(f"    - {resident_name}: {float(similarities[i]):.4f}")
+
+                best_idx = int(np.argmax(similarities))
+                best_similarity = float(similarities[best_idx])
+                best_resident = valid_records[best_idx]
+                best_name = best_resident.get("name") or f"{best_resident.get('first_name', '')} {best_resident.get('last_name', '')}".strip() or str(best_resident.get("_id", "Unknown"))
                 best_match = {
-                    "id": str(resident.get("_id", "")),
-                    "resident_id": resident.get("resident_id", ""),
-                    "name": resident_name
+                    "id": str(best_resident.get("_id", "")),
+                    "resident_id": best_resident.get("resident_id", ""),
+                    "name": best_name
                 }
         
         # Step 6: Make decision
@@ -1298,6 +1509,8 @@ async def check_duplicate_face(request: DuplicateCheckRequest):
             processing_time_ms=processing_time,
             message="Unable to process face check. Please retry."
         )
+    except HTTPException:
+        raise
     
     except Exception as e:
         processing_time = int((time.time() - start_time) * 1000)
@@ -1385,7 +1598,7 @@ async def verify_face(request: FaceVerifyRequest):
         logger.info("Verification request received")
         
         # Check if database is empty
-        if len(face_database) == 0:
+        if len(face_index["user_ids"]) == 0:
             return FaceVerifyResponse(
                 verified=False,
                 confidence=0.0,
@@ -1412,26 +1625,32 @@ async def verify_face(request: FaceVerifyRequest):
                 message="Multiple faces detected. Please ensure only one face is visible."
             )
         
-        # Generate face embedding
+        # Generate embedding from pre-cropped face (skip second face detection)
         logger.info("Generating face embedding for verification...")
-        embedding = get_face_embedding(image)
+        face_crop = extract_face_crop(image, detection["faces"][0])
+        embedding = get_face_embedding_fast(face_crop)
         
-        # 1:N Matching - Compare against all registered faces
-        best_match = None
-        best_similarity = 0.0
-        
-        logger.info(f"Comparing against {len(face_database)} registered faces...")
-        for user_id, data in face_database.items():
-            similarity = calculate_similarity(embedding, data["embedding"])
-            logger.info(f"  - {data['name']}: {similarity:.4f}")
-            
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_match = {
-                    "user_id": user_id,
-                    "name": data["name"],
-                    "similarity": similarity
-                }
+        # 1:N Matching - Vectorized cosine similarity against all registered faces
+        query = np.array(embedding, dtype=np.float32)
+        query_norm = np.linalg.norm(query)
+        if query_norm == 0:
+            return FaceVerifyResponse(
+                verified=False,
+                confidence=0.0,
+                message="Unable to verify this image. Please try again."
+            )
+
+        logger.info(f"Comparing against {len(face_index['user_ids'])} registered faces...")
+        similarities = np.dot(face_index["matrix"], query) / (
+            (face_index["norms"] * query_norm) + 1e-12
+        )
+        best_idx = int(np.argmax(similarities))
+        best_similarity = float(np.clip(similarities[best_idx], 0.0, 1.0))
+        best_match = {
+            "user_id": face_index["user_ids"][best_idx],
+            "name": face_index["names"][best_idx],
+            "similarity": best_similarity,
+        }
         
         # Check if best match exceeds threshold
         confidence_percent = round(best_similarity * 100, 2)
@@ -1492,6 +1711,7 @@ async def delete_user(user_id: str):
     
     deleted_name = face_database[user_id]["name"]
     del face_database[user_id]
+    rebuild_face_index()
     save_database()
     
     logger.info(f"Deleted user: {deleted_name} ({user_id})")
@@ -1507,6 +1727,7 @@ async def clear_all_users():
     """
     count = len(face_database)
     face_database.clear()
+    rebuild_face_index()
     save_database()
     
     logger.info(f"Cleared all {count} users from database")

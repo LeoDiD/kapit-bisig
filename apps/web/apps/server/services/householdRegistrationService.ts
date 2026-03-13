@@ -476,7 +476,9 @@ export class HouseholdRegistrationService {
         success: true,
         residentId: resident._id as mongoose.Types.ObjectId,
         residentCode: resident.residentCode,
-        message: 'Registration successful! Your application is pending review.',
+        message: isAutoApproved
+          ? 'Registration successful! Your account is approved and can log in immediately.'
+          : 'Registration successful! Your application is pending review.',
         householdInfo: token?.householdInfo ? {
           headOfHousehold: token.householdInfo.headOfHousehold,
           address: token.householdInfo.address,

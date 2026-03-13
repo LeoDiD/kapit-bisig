@@ -341,6 +341,7 @@ HouseholdTokenSchema.statics.atomicComplete = async function(
       $set: {
         status: 'USED',
         usedAt: now,
+        expiresAt: now,
         'usedBy.residentId': residentId,
         'usedBy.ipAddress': ipAddress,
         'usedBy.userAgent': userAgent,

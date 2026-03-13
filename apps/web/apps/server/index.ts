@@ -48,7 +48,6 @@ import {
   rejectNoSQLInjection,
 } from './middleware/securityHardening';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import { startClaimConfirmationWorker } from './services/claimConfirmationWorker';
 import { startClaimChainQueue } from './services/claimChainQueue';
 
 const app: Express = express();

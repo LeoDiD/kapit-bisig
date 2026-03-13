@@ -17,6 +17,7 @@ import {
   getResidentToken,
   ResidentProfile,
   uploadResidentAvatar,
+  updateResidentProfile,
 } from '../services/api/ResidentQrService';
 import {
   mobileAuthService,
@@ -72,6 +73,7 @@ export default function ProfileScreen({
   accountType = 'resident',
   residentProfile,
   volunteerUser,
+  onResidentProfileUpdated,
   onVolunteerProfileUpdated,
 }: ProfileScreenProps) {
   const isVolunteer = accountType === 'volunteer';
@@ -87,14 +89,7 @@ export default function ProfileScreen({
   );
 
   const sanitizeResidentFullName = (rawName?: string): string => {
-    const parts = String(rawName || '')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    if (parts.length === 0) return '';
-
-    // Defensive cleanup if status text is accidentally appended to name.
-    const statusWords = new Set([
+    const noiseWords = new Set([
       'APPROVED',
       'PENDING',
       'REJECTED',
@@ -105,9 +100,12 @@ export default function ProfileScreen({
       'RESIDENT',
     ]);
 
-    while (parts.length > 1 && statusWords.has(parts[parts.length - 1].toUpperCase())) {
-      parts.pop();
-    }
+    const parts = String(rawName || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter((part) => !noiseWords.has(part.toUpperCase()));
+    if (parts.length === 0) return '';
 
     return parts.join(' ');
   };
@@ -125,10 +123,21 @@ export default function ProfileScreen({
   };
 
   const residentRawName = useMemo(() => {
-    const first = String(residentProfile?.firstName || '').trim();
-    const last = String(residentProfile?.lastName || '').trim();
-    if (first || last) return `${first} ${last}`.trim();
-    return sanitizeResidentFullName(residentProfile?.fullName || '');
+    const cleanedFirst = sanitizeResidentFullName(residentProfile?.firstName || '');
+    const cleanedLast = sanitizeResidentFullName(residentProfile?.lastName || '');
+    const cleanedFull = sanitizeResidentFullName(residentProfile?.fullName || '');
+
+    if (cleanedFirst && cleanedLast) return `${cleanedFirst} ${cleanedLast}`.trim();
+    if (!cleanedFirst && !cleanedLast) return cleanedFull;
+
+    const fullParts = cleanedFull.split(/\s+/).filter(Boolean);
+    if (cleanedFirst && fullParts.length > 1) {
+      return `${cleanedFirst} ${fullParts[fullParts.length - 1]}`.trim();
+    }
+    if (cleanedLast && fullParts.length > 0) {
+      return `${fullParts[0]} ${cleanedLast}`.trim();
+    }
+    return `${cleanedFirst} ${cleanedLast}`.trim() || cleanedFull;
   }, [residentProfile?.firstName, residentProfile?.lastName, residentProfile?.fullName]);
 
   const displayName = isVolunteer
@@ -179,11 +188,6 @@ export default function ProfileScreen({
   }, [isVolunteer, residentProfile, volunteerUser]);
 
   const openEditModal = () => {
-    if (!isVolunteer) {
-      void handleResidentAvatarPick();
-      return;
-    }
-
     setFirstNameInput(initialFields.firstName);
     setLastNameInput(initialFields.lastName);
     setMobileInput(initialFields.mobileNumber);
@@ -259,7 +263,29 @@ export default function ProfileScreen({
         return;
       }
 
-      Alert.alert('Not available', 'Resident can only update profile photo here.');
+      // Resident profile update
+      const token = await getResidentToken();
+      if (!token) {
+        Alert.alert('Session expired', 'Please log in again.');
+        return;
+      }
+
+      const result = await updateResidentProfile(token, {
+        firstName,
+        lastName,
+        mobileNumber: mobileInput.trim() || undefined,
+        streetAddress: streetAddressInput.trim() || undefined,
+        city: cityInput.trim() || undefined,
+      });
+
+      if (!result.success || !result.data) {
+        Alert.alert('Update failed', result.message || 'Unable to update profile.');
+        return;
+      }
+
+      onResidentProfileUpdated?.(result.data);
+      Alert.alert('Saved', 'Profile updated successfully.');
+      setIsEditOpen(false);
     } finally {
       setIsSaving(false);
     }
@@ -330,6 +356,16 @@ export default function ProfileScreen({
 
         {/* Settings Section Card */}
         <View style={styles.settingsCard}>
+          {!isVolunteer && (
+            <>
+              <SettingsItem
+                icon="person-outline"
+                label="Edit Profile"
+                onPress={openEditModal}
+              />
+              <View style={styles.settingsDivider} />
+            </>
+          )}
           <SettingsItem icon="notifications-outline" label="Notifications" />
           <View style={styles.settingsDivider} />
           <SettingsItem
@@ -372,7 +408,7 @@ export default function ProfileScreen({
       </View>
 
       <Modal
-        visible={isVolunteer && isEditOpen}
+        visible={isEditOpen}
         transparent
         animationType="fade"
         onRequestClose={() => setIsEditOpen(false)}

@@ -19,6 +19,15 @@ import { listHouseholdsQuery } from '../validation/householdList.schema';
 
 const router = Router();
 
+function getFamilyHeadName(input: { firstName?: string; lastName?: string; fullName?: string }): string {
+  const first = String(input.firstName || '').trim();
+  const last = String(input.lastName || '').trim();
+  if (first || last) {
+    return `${first} ${last}`.trim();
+  }
+  return String(input.fullName || '').trim();
+}
+
 /* ------------------------------------------------------------------ */
 /*  GET /api/households                                                */
 /* ------------------------------------------------------------------ */
@@ -136,7 +145,11 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
       return {
         id,
         householdCode: `HH-${r.barangay?.substring(0, 2).toUpperCase() || 'XX'}-${id.slice(-4).toUpperCase()}`,
-        familyHeadName: r.fullName || `${r.firstName} ${r.lastName}`,
+        familyHeadName: getFamilyHeadName({
+          firstName: r.firstName,
+          lastName: r.lastName,
+          fullName: r.fullName,
+        }),
         barangay: r.barangay || '—',
         address: r.streetAddress || '—',
         familyMembersCount: r.householdSize || 1,

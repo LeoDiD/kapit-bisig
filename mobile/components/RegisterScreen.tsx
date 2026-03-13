@@ -36,6 +36,8 @@ const FACE_API_URL = resolveApiBaseUrl(
   'http://192.168.1.72:8000',
   'RegisterScreen Face API',
 );
+const FACE_CAPTURE_ATTEMPT_LIMIT = 10;
+const FACE_CAPTURE_COOLDOWN_MS = 3000;
 
 interface RegisterScreenProps {
   onBack: () => void;
@@ -54,6 +56,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionComplete, setSubmissionComplete] = useState(false);
+  const [submissionErrorMessage, setSubmissionErrorMessage] = useState<string | null>(null);
 
   // NEW: Duplicate Check Results for Face Verification
   interface DuplicateCheckResult {
@@ -85,6 +88,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female' | null>(null);
   const [mobileNumber, setMobileNumber] = useState('');
+  const [isMobileNumberFocused, setIsMobileNumberFocused] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -148,8 +152,27 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
   const [scanStatus, setScanStatus] = useState<'idle' | 'capturing' | 'success' | 'failed'>('idle');
   const [faceInstructions, setFaceInstructions] = useState('Position your face and tap to snap');
+  const [faceCaptureAttempts, setFaceCaptureAttempts] = useState(0);
+  const [faceCaptureCooldownUntil, setFaceCaptureCooldownUntil] = useState(0);
+  const [faceCaptureCooldownRemaining, setFaceCaptureCooldownRemaining] = useState(0);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (faceCaptureCooldownUntil <= Date.now()) {
+      setFaceCaptureCooldownRemaining(0);
+      return;
+    }
+
+    const updateRemaining = () => {
+      const remaining = Math.max(0, Math.ceil((faceCaptureCooldownUntil - Date.now()) / 1000));
+      setFaceCaptureCooldownRemaining(remaining);
+    };
+
+    updateRemaining();
+    const timer = setInterval(updateRemaining, 250);
+    return () => clearInterval(timer);
+  }, [faceCaptureCooldownUntil]);
 
   // Validation
   const [showErrors, setShowErrors] = useState(false);
@@ -171,11 +194,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [isCheckingMobile, setIsCheckingMobile] = useState(false);
   const [mobileChecked, setMobileChecked] = useState(false);
 
-  // Privacy-preserving server-side check. The API intentionally returns a generic response.
-  const checkMobileAvailability = async (mobileNumber: string) => {
+  const checkMobileAvailability = async (mobileNumber: string): Promise<boolean> => {
     if (!mobileNumber || mobileNumber.length < 11) {
       setMobileChecked(false);
-      return;
+      return false;
     }
 
     setIsCheckingMobile(true);
@@ -190,18 +212,25 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok && data.success && data.available) {
         setMobileChecked(true);
         setStep1Errors(prev => ({
           ...prev,
           mobileNumberDuplicate: false,
         }));
+        return true;
       } else {
         setMobileChecked(false);
+        setStep1Errors(prev => ({
+          ...prev,
+          mobileNumberDuplicate: true,
+        }));
+        return false;
       }
     } catch (error) {
       console.error('Mobile check error:', error);
       setMobileChecked(false);
+      return false;
     } finally {
       setIsCheckingMobile(false);
     }
@@ -259,10 +288,16 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     return null;
   };
 
-  const validateStep1 = () => {
+  const validateStep1 = async () => {
     const passwordError = getPasswordError(password);
     const confirmPasswordError = getConfirmPasswordError(confirmPassword, password);
     const age = calculateAge(dateOfBirth);
+    let isDuplicateMobile = false;
+
+    if (mobileNumber.trim() && mobileNumber.trim().length === 11) {
+      isDuplicateMobile = !(await checkMobileAvailability(mobileNumber.trim()));
+    }
+
     const errors = {
       firstName: !firstName.trim(),
       lastName: !lastName.trim(),
@@ -270,7 +305,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       ageRestriction: dateOfBirth.length === 10 && age < 18,
       gender: !gender,
       mobileNumber: !mobileNumber.trim(),
-      mobileNumberDuplicate: false,
+      mobileNumberDuplicate: mobileNumber.trim().length === 11 && isDuplicateMobile,
       password: !!passwordError,
       confirmPassword: !!confirmPasswordError,
       passwordMismatch: confirmPasswordError === 'Passwords do not match',
@@ -540,6 +575,15 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   };
 
   const startFaceScan = async () => {
+    if (faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT) {
+      Alert.alert(
+        'Attempt Limit Reached',
+        `You have reached the maximum of ${FACE_CAPTURE_ATTEMPT_LIMIT} photo attempts for this registration. Please restart registration later.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     if (!cameraPermission?.granted) {
       const permission = await requestCameraPermission();
       if (!permission.granted) {
@@ -560,8 +604,24 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   // Simplified snap photo function - takes photo and sends to AI
   const snapPhoto = async () => {
     if (!cameraRef.current) return;
+
+    if (faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT) {
+      setScanStatus('failed');
+      setFaceInstructions(`Attempt limit reached (${FACE_CAPTURE_ATTEMPT_LIMIT}). Please restart registration later.`);
+      return;
+    }
+
+    if (faceCaptureCooldownUntil > Date.now()) {
+      const remaining = Math.max(1, Math.ceil((faceCaptureCooldownUntil - Date.now()) / 1000));
+      setScanStatus('failed');
+      setFaceInstructions(`Please wait ${remaining}s before taking another photo.`);
+      return;
+    }
     
     try {
+      setFaceCaptureAttempts((prev) => prev + 1);
+      setFaceCaptureCooldownUntil(Date.now() + FACE_CAPTURE_COOLDOWN_MS);
+
       // Take photo first
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
@@ -583,7 +643,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       const detectResponse = await fetch(`${FACE_API_URL}/api/face/detect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: photo.base64 }),
+        body: JSON.stringify({
+          image: photo.base64,
+          session_key: householdToken || mobileNumber || 'registration',
+        }),
       });
       
       if (!detectResponse.ok) {
@@ -670,6 +733,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setVerificationProgress(0);
     setVerificationStep('Initializing...');
     setDuplicateCheckResult(null);
+    setSubmissionComplete(false);
+    setSubmissionErrorMessage(null);
     
     try {
       // Step 1: Prepare face image (10%)
@@ -881,6 +946,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         setSubmissionComplete(true);
       } else {
         setVerificationStep('Registration Failed');
+        setSubmissionErrorMessage(data.message || 'Failed to submit registration');
         // Handle specific error codes
         if (data.errorCode === 'LOCK_CONFLICT') {
           Alert.alert(
@@ -909,6 +975,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       } else if (error.message) {
         errorMessage = error.message;
       }
+      setSubmissionErrorMessage(errorMessage);
       
       Alert.alert('Registration Failed', errorMessage, [{ text: 'OK' }]);
     } finally {
@@ -944,7 +1011,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const handleNextStep = async () => {
     setShowErrors(true);
     
-    if (currentStep === 1 && !validateStep1()) {
+    if (currentStep === 1 && !(await validateStep1())) {
       return;
     }
     if (currentStep === 2 && !validateStep2()) {
@@ -979,8 +1046,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   const handleBack = () => {
     if (currentStep === 5) {
-      // Allow going back from Step 5 only if verification failed (BLOCK or ERROR)
-      if (duplicateCheckResult?.decision === 'BLOCK' || duplicateCheckResult?.decision === 'ERROR' || !submissionComplete) {
+      if (submissionComplete || duplicateCheckResult?.decision === 'BLOCK' || !!submissionErrorMessage) {
+        onCancel();
+        return;
+      }
+      // Allow going back from Step 5 if verification flow is not completed yet.
+      if (duplicateCheckResult?.decision === 'ERROR' || !submissionComplete) {
         // Reset verification state and go back to face capture
         setDuplicateCheckResult(null);
         setVerificationResult(null);
@@ -1178,7 +1249,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         {/* Mobile Number */}
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Mobile Number (Login ID)</Text>
-          <View style={[styles.inputContainer, showErrors && step1Errors.mobileNumber && styles.inputError]}>
+          <View
+            style={[
+              styles.inputContainer,
+              isMobileNumberFocused && styles.inputFocused,
+              showErrors && (step1Errors.mobileNumber || step1Errors.mobileNumberDuplicate) && styles.inputError,
+            ]}
+          >
             <TextInput
               style={styles.input}
               placeholder="09123456789"
@@ -1190,18 +1267,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 if (sanitized.trim()) {
                   clearStep1Error('mobileNumber');
                 }
-                // Check mobile availability after user stops typing
+                setStep1Errors(prev => ({ ...prev, mobileNumberDuplicate: false }));
                 if (sanitized.length === 11) {
-                  const timeoutId = setTimeout(() => {
-                    checkMobileAvailability(sanitized);
-                  }, 500); // 500ms debounce
-                  return () => clearTimeout(timeoutId);
+                  checkMobileAvailability(sanitized);
                 } else {
                   setMobileChecked(false);
                 }
               }}
               keyboardType="phone-pad"
               maxLength={11}
+              onFocus={() => setIsMobileNumberFocused(true)}
+              onBlur={() => setIsMobileNumberFocused(false)}
             />
             {isCheckingMobile ? (
               <ActivityIndicator size="small" color="#2E7D32" style={styles.inputIconRight} />
@@ -1212,6 +1288,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             )}
           </View>
           <Text style={styles.fieldHelperText}>Use 11 digits starting with 09 (e.g., 09123456789).</Text>
+          {showErrors && step1Errors.mobileNumberDuplicate && (
+            <Text style={styles.errorText}>This mobile number is already registered</Text>
+          )}
         </View>
 
         {/* Password */}
@@ -1786,9 +1865,19 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
         {/* Snap Photo Button */}
         <TouchableOpacity 
-          style={[styles.scanButton, faceScanComplete && styles.scanButtonComplete]}
+          style={[
+            styles.scanButton,
+            faceScanComplete && styles.scanButtonComplete,
+            (scanStatus === 'capturing' ||
+              faceCaptureCooldownRemaining > 0 ||
+              faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT) && styles.scanButtonDisabled,
+          ]}
           onPress={faceScanComplete ? retakeFaceScan : startFaceScan}
-          disabled={scanStatus === 'capturing'}
+          disabled={
+            scanStatus === 'capturing' ||
+            faceCaptureCooldownRemaining > 0 ||
+            faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT
+          }
         >
           <Ionicons 
             name={faceScanComplete ? "refresh" : "camera"} 
@@ -1796,9 +1885,18 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             color="#FFF" 
           />
           <Text style={styles.scanButtonText}>
-            {faceScanComplete ? 'Retake Photo' : 'Snap a Photo'}
+            {faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT
+              ? `Limit Reached (${FACE_CAPTURE_ATTEMPT_LIMIT})`
+              : faceCaptureCooldownRemaining > 0
+              ? `Wait ${faceCaptureCooldownRemaining}s`
+              : faceScanComplete
+              ? 'Retake Photo'
+              : 'Snap a Photo'}
           </Text>
         </TouchableOpacity>
+        <Text style={styles.fieldHelperText}>
+          Attempts: {faceCaptureAttempts}/{FACE_CAPTURE_ATTEMPT_LIMIT}
+        </Text>
 
         {scanStatus !== 'idle' && !faceScanComplete && (
           <View style={styles.scanStatusRow}>
@@ -1873,20 +1971,22 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       <View style={styles.formContent}>
         <View style={styles.verificationResultContainer}>
           {/* Result Icon */}
-          <View style={[styles.verificationResultIcon, { backgroundColor: status.color + '20' }]}>
+          <View style={[styles.verificationResultIcon, { backgroundColor: (submissionErrorMessage ? '#F39C12' : status.color) + '20' }]}>
             <Ionicons 
-              name={duplicateCheckResult?.decision === 'ALLOW' ? "shield-checkmark" : 
+              name={submissionErrorMessage
+                ? "warning"
+                : duplicateCheckResult?.decision === 'ALLOW' ? "shield-checkmark" : 
                     duplicateCheckResult?.decision === 'BLOCK' ? "close-circle" : "warning"} 
               size={60} 
-              color={status.color} 
+              color={submissionErrorMessage ? '#F39C12' : status.color} 
             />
           </View>
 
           {/* Decision Badge */}
           <View style={styles.confidenceScoreContainer}>
             <Text style={styles.confidenceScoreLabel}>Duplicate Check Result</Text>
-            <View style={[styles.statusBadge, { backgroundColor: status.color + '20', paddingHorizontal: 20, paddingVertical: 10 }]}>
-              <Text style={[styles.statusBadgeText, { color: status.color, fontSize: 20, fontWeight: 'bold' }]}>
+            <View style={[styles.statusBadge, { backgroundColor: (submissionErrorMessage ? '#F39C12' : status.color) + '20', paddingHorizontal: 20, paddingVertical: 10 }]}>
+              <Text style={[styles.statusBadgeText, { color: submissionErrorMessage ? '#F39C12' : status.color, fontSize: 20, fontWeight: 'bold' }]}>
                 {duplicateCheckResult?.decision || 'PENDING'}
               </Text>
             </View>
@@ -1899,6 +1999,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 <Ionicons name="alert-circle" size={24} color="#E74C3C" />
                 <Text style={[styles.statusMessageText, { color: '#E74C3C' }]}>
                   Registration blocked. This face is already registered.
+                </Text>
+              </>
+            ) : submissionErrorMessage ? (
+              <>
+                <Ionicons name="warning" size={24} color="#F39C12" />
+                <Text style={[styles.statusMessageText, { color: '#F39C12' }]}>
+                  {submissionErrorMessage}
                 </Text>
               </>
             ) : duplicateCheckResult?.decision === 'ERROR' ? (
@@ -1919,14 +2026,14 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <>
                 <Ionicons name="time" size={24} color="#F39C12" />
                 <Text style={styles.statusMessageText}>
-                  Processing your registration...
+                  Finalizing registration...
                 </Text>
               </>
             )}
           </View>
 
           {/* Complete, Retry, or Go Back Button */}
-          {(submissionComplete || duplicateCheckResult?.decision === 'BLOCK' || duplicateCheckResult?.decision === 'ERROR') && (
+          {(submissionComplete || !!submissionErrorMessage || duplicateCheckResult?.decision === 'BLOCK' || duplicateCheckResult?.decision === 'ERROR') && (
             <TouchableOpacity 
               style={[
                 styles.completeButton, 
@@ -1936,6 +2043,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               onPress={() => {
                 if (duplicateCheckResult?.decision === 'BLOCK') {
                   onCancel();
+                } else if (submissionErrorMessage) {
+                  onCancel();
                 } else if (duplicateCheckResult?.decision === 'ERROR') {
                   // Retry - go back to face capture
                   setDuplicateCheckResult(null);
@@ -1944,17 +2053,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                   setVerificationProgress(0);
                   setCurrentStep(4);
                 } else {
-                  onComplete();
+                  onCancel();
                 }
               }}
             >
               <Text style={styles.completeButtonText}>
-                {duplicateCheckResult?.decision === 'BLOCK' ? 'Exit' : 
-                 duplicateCheckResult?.decision === 'ERROR' ? 'Retry Photo' : 'Go to Login/Register'}
+                {duplicateCheckResult?.decision === 'ERROR'
+                  ? 'Retry Photo'
+                  : 'Back to Splash'}
               </Text>
               <Ionicons 
-                name={duplicateCheckResult?.decision === 'BLOCK' ? "close" : 
-                      duplicateCheckResult?.decision === 'ERROR' ? "refresh" : "log-in"} 
+                name={duplicateCheckResult?.decision === 'ERROR' ? "refresh" : "home"} 
                 size={22} 
                 color="#FFF" 
               />
@@ -2232,11 +2341,22 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             {/* Snap Photo Button - Only when idle */}
             {scanStatus === 'idle' && (
               <TouchableOpacity 
-                style={styles.startScanButton}
+                style={[
+                  styles.startScanButton,
+                  (faceCaptureCooldownRemaining > 0 || faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT) &&
+                    styles.startScanButtonDisabled,
+                ]}
                 onPress={snapPhoto}
+                disabled={faceCaptureCooldownRemaining > 0 || faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT}
               >
                 <Ionicons name="camera" size={28} color="#FFF" />
-                <Text style={styles.startScanButtonText}>Snap Photo</Text>
+                <Text style={styles.startScanButtonText}>
+                  {faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT
+                    ? `Limit Reached (${FACE_CAPTURE_ATTEMPT_LIMIT})`
+                    : faceCaptureCooldownRemaining > 0
+                    ? `Wait ${faceCaptureCooldownRemaining}s`
+                    : 'Snap Photo'}
+                </Text>
               </TouchableOpacity>
             )}
             
@@ -2795,6 +2915,10 @@ const styles = StyleSheet.create({
   // Validation error styles
   inputError: {
     borderColor: '#E53935',
+    borderWidth: 2,
+  },
+  inputFocused: {
+    borderColor: '#2E7D32',
     borderWidth: 2,
   },
   inputSuccess: {
@@ -3407,6 +3531,9 @@ const styles = StyleSheet.create({
   scanButtonComplete: {
     backgroundColor: '#666',
   },
+  scanButtonDisabled: {
+    opacity: 0.6,
+  },
   scanButtonText: {
     fontSize: 18,
     fontWeight: '600',
@@ -3599,6 +3726,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+  },
+  startScanButtonDisabled: {
+    opacity: 0.6,
   },
   retryButton: {
     backgroundColor: '#F39C12',

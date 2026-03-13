@@ -11,6 +11,9 @@ import {
   NativeScrollEvent,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import RegisterScreen from './RegisterScreen';
@@ -72,6 +75,8 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isMobileInputFocused, setIsMobileInputFocused] = useState(false);
+  const [isPasswordInputFocused, setIsPasswordInputFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -579,8 +584,26 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
     }
 
     return (
-      <View style={styles.container}>
-        <View style={styles.welcomeContainer}>
+      <KeyboardAvoidingView
+        style={styles.loginKeyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.loginScrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity
+            style={styles.loginBackButton}
+            onPress={() => {
+              setShowLoginScreen(false);
+              setShowInitialSplash(true);
+            }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#2E7D32" />
+          </TouchableOpacity>
+
+          <View style={styles.welcomeContainer}>
           <Text style={styles.welcomeText}>
             <Text style={styles.welcomeGreen}>Welcome </Text>
             <Text style={styles.welcomeYellow}>Back!</Text>
@@ -589,7 +612,7 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
         </View>
 
         <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, isMobileInputFocused && styles.inputContainerFocused]}>
             <Ionicons name="call-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
@@ -597,12 +620,14 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
               placeholderTextColor="#888"
               value={mobileNumber}
               onChangeText={setMobileNumber}
+              onFocus={() => setIsMobileInputFocused(true)}
+              onBlur={() => setIsMobileInputFocused(false)}
               keyboardType="phone-pad"
               autoCapitalize="none"
             />
           </View>
 
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, isPasswordInputFocused && styles.inputContainerFocused]}>
             <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
@@ -610,6 +635,8 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
               placeholderTextColor="#888"
               value={password}
               onChangeText={setPassword}
+              onFocus={() => setIsPasswordInputFocused(true)}
+              onBlur={() => setIsPasswordInputFocused(false)}
               secureTextEntry={!showPassword}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
@@ -665,7 +692,8 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -775,6 +803,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
+  },
+  loginKeyboardView: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  loginScrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 40,
+    paddingBottom: 30,
+  },
+  loginBackButton: {
+    position: 'absolute',
+    left: 20,
+    top: Platform.OS === 'ios' ? 50 : 30,
+    zIndex: 10,
+    padding: 5,
+  },
+  loginContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 40,
+    paddingTop: 60,
   },
   onboardingContainer: {
     flex: 1,
@@ -979,6 +1034,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 15,
     backgroundColor: '#FFFFFF',
+  },
+  inputContainerFocused: {
+    borderColor: '#2E7D32',
+    borderWidth: 2,
   },
   inputIcon: {
     marginRight: 10,
@@ -1210,11 +1269,11 @@ const styles = StyleSheet.create({
   initialLogoWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 36,
+    marginBottom: 30,
   },
   initialTextualLogo: {
-    width: width * 0.9,
-    height: width * 0.34,
+    width: width * 0.95,
+    height: width * 0.75,
   },
   initialSubtitle: {
     marginTop: 8,

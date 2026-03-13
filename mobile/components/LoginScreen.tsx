@@ -16,7 +16,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
+  Dimensions,
 } from 'react-native';
+
+const { width } = Dimensions.get('window');
 import { Ionicons } from '@expo/vector-icons';
 import { mobileAuthService, User } from '../services/auth/MobileAuthService';
 
@@ -31,9 +35,12 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const isLoginReady = email.trim().length > 0 && password.trim().length > 0;
 
   const validateEmail = (value: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -115,9 +122,17 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
       >
         {onBack && (
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>{'< Back'}</Text>
+            <Ionicons name="arrow-back" size={24} color="#2E7D32" />
           </TouchableOpacity>
         )}
+
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../assets/textual.png')}
+            style={styles.textualLogo}
+            resizeMode="contain"
+          />
+        </View>
 
         <View style={styles.welcomeContainer}>
           <Text style={styles.welcomeText}>
@@ -128,7 +143,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
         </View>
 
         <View style={styles.formContainer}>
-          <View style={[styles.inputContainer, emailError && styles.inputContainerError]}>
+          <View style={[styles.inputContainer, emailError && styles.inputContainerError, isEmailFocused && styles.inputContainerFocused]}>
             <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
@@ -139,6 +154,8 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
                 setEmail(text);
                 if (emailError) validateEmail(text);
               }}
+              onFocus={() => setIsEmailFocused(true)}
+              onBlur={() => setIsEmailFocused(false)}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -147,7 +164,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
           </View>
           {emailError && <Text style={styles.fieldError}>{emailError}</Text>}
 
-          <View style={[styles.inputContainer, passwordError && styles.inputContainerError]}>
+          <View style={[styles.inputContainer, passwordError && styles.inputContainerError, isPasswordFocused && styles.inputContainerFocused]}>
             <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
@@ -158,6 +175,8 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
                 setPassword(text);
                 if (passwordError) validatePassword(text);
               }}
+              onFocus={() => setIsPasswordFocused(true)}
+              onBlur={() => setIsPasswordFocused(false)}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               editable={!isLoading}
@@ -171,7 +190,11 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
           {!!error && <Text style={styles.loginErrorText}>{error}</Text>}
 
           <TouchableOpacity
-            style={[styles.loginButtonMain, isLoading && styles.loginButtonMainDisabled]}
+            style={[
+              styles.loginButtonMain,
+              isLoginReady ? styles.loginButtonMainActive : styles.loginButtonMainInactive,
+              isLoading && styles.loginButtonMainDisabled,
+            ]}
             onPress={handleLogin}
             disabled={isLoading}
           >
@@ -201,21 +224,28 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 60,
+    paddingBottom: 30,
   },
   backButton: {
     position: 'absolute',
-    left: 20,
-    top: Platform.OS === 'ios' ? 60 : 40,
-    zIndex: 1,
+    left: 0,
+    top: 0,
+    zIndex: 10,
+    padding: 5,
   },
-  backButtonText: {
-    fontSize: 15,
-    color: '#2E7D32',
-    fontWeight: '500',
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 5,
+    marginTop: 20,
+  },
+  textualLogo: {
+    width: width * 0.95,
+    height: width * 0.75,
   },
   welcomeContainer: {
-    marginBottom: 20,
+    marginBottom: 15,
     alignItems: 'center',
   },
   welcomeText: {
@@ -257,6 +287,10 @@ const styles = StyleSheet.create({
   inputContainerError: {
     borderColor: '#B00020',
   },
+  inputContainerFocused: {
+    borderColor: '#2E7D32',
+    borderWidth: 2,
+  },
   inputIcon: {
     marginRight: 10,
   },
@@ -282,7 +316,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loginButtonMain: {
-    backgroundColor: '#2E7D32',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -296,6 +329,12 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  loginButtonMainInactive: {
+    backgroundColor: '#BDBDBD',
+  },
+  loginButtonMainActive: {
+    backgroundColor: '#2E7D32',
   },
   loginButtonMainDisabled: {
     opacity: 0.7,

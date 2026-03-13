@@ -33,13 +33,7 @@ export default function QRReceiptScreen({ onBack }: QRReceiptScreenProps) {
   const qrCardRef = useRef<ViewShot | null>(null);
 
   const sanitizeResidentFullName = (rawName?: string): string => {
-    const parts = String(rawName || '')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    if (parts.length === 0) return '';
-
-    const statusWords = new Set([
+    const noiseWords = new Set([
       'APPROVED',
       'PENDING',
       'REJECTED',
@@ -50,9 +44,12 @@ export default function QRReceiptScreen({ onBack }: QRReceiptScreenProps) {
       'RESIDENT',
     ]);
 
-    while (parts.length > 1 && statusWords.has(parts[parts.length - 1].toUpperCase())) {
-      parts.pop();
-    }
+    const parts = String(rawName || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter((part) => !noiseWords.has(part.toUpperCase()));
+    if (parts.length === 0) return '';
 
     return parts.join(' ');
   };

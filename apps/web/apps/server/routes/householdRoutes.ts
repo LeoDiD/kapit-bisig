@@ -209,32 +209,49 @@ function getMaskedName(fullName: string): string {
   return `${firstInitial}xxxx ${lastInitial}xxxx`;
 }
 
-function getResidentDisplayName(input: { firstName?: string; lastName?: string; fullName?: string }): string {
-  const first = String(input.firstName || '').trim();
-  const last = String(input.lastName || '').trim();
-  if (first || last) return `${first} ${last}`.trim();
+const residentNameNoiseWords = new Set([
+  'APPROVED',
+  'PENDING',
+  'REJECTED',
+  'VERIFIED',
+  'ACTIVE',
+  'INACTIVE',
+  'RESIDENT',
+  'HOUSEHOLD',
+]);
 
-  const parts = String(input.fullName || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+function normalizeResidentName(input: { firstName?: string; lastName?: string; fullName?: string }): {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+} {
+  const cleanParts = (raw: string): string[] =>
+    String(raw || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter((part) => !residentNameNoiseWords.has(part.toUpperCase()));
 
-  const statusWords = new Set([
-    'APPROVED',
-    'PENDING',
-    'REJECTED',
-    'VERIFIED',
-    'ACTIVE',
-    'INACTIVE',
-    'RESIDENT',
-    'HOUSEHOLD',
-  ]);
+  let firstParts = cleanParts(input.firstName || '');
+  let lastParts = cleanParts(input.lastName || '');
+  const fullParts = cleanParts(input.fullName || '');
 
-  while (parts.length > 1 && statusWords.has(parts[parts.length - 1].toUpperCase())) {
-    parts.pop();
+  if (firstParts.length === 0 && fullParts.length > 0) {
+    firstParts = [fullParts[0]];
+  }
+  if (lastParts.length === 0 && fullParts.length > 1) {
+    lastParts = [fullParts[fullParts.length - 1]];
   }
 
-  return parts.join(' ');
+  const firstName = firstParts.join(' ').trim();
+  const lastName = lastParts.join(' ').trim();
+  const fullName = `${firstName} ${lastName}`.trim() || fullParts.join(' ').trim();
+
+  return { firstName, lastName, fullName };
+}
+
+function getResidentDisplayName(input: { firstName?: string; lastName?: string; fullName?: string }): string {
+  return normalizeResidentName(input).fullName;
 }
 
 function isAllowedScannerRole(role: string | undefined): boolean {
@@ -549,6 +566,8 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
       // Map error codes to HTTP status codes
       const statusCodes: Record<string, number> = {
         'TOKEN_NOT_FOUND': 400,
+        'TOKEN_EXPIRED': 400,
+        'TOKEN_ALREADY_USED': 409,
         'LOCK_CONFLICT': 409, // Conflict - another registration in progress
         'VALIDATION_FAILED': 400,
         'DUPLICATE_MOBILE': 409,
@@ -737,15 +756,21 @@ router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Re
       });
     }
 
+    const normalizedName = normalizeResidentName({
+      firstName: resident.firstName,
+      lastName: resident.lastName,
+      fullName: resident.fullName,
+    });
+
     return res.json({
       success: true,
       data: {
         id: resident._id.toString(),
         residentCode: resident.residentCode,
         avatarUrl: resident.avatarUrl || null,
-        firstName: resident.firstName,
-        lastName: resident.lastName,
-        fullName: resident.fullName,
+        firstName: normalizedName.firstName || resident.firstName,
+        lastName: normalizedName.lastName || resident.lastName,
+        fullName: normalizedName.fullName || resident.fullName,
         mobileNumber: resident.mobileNumber,
         barangay: resident.barangay,
         city: resident.city || '',
@@ -1610,19 +1635,37 @@ router.post('/check-mobile', mobileLookupRateLimiter, validateRequest({ body: ch
     const { mobileNumber } = req.body;
 
     if (!mobileNumber || typeof mobileNumber !== 'string') {
-      return res.status(200).json({
-        success: true,
-        message: 'If this number is eligible, registration can continue.',
+      return res.status(400).json({
+        success: false,
+        available: false,
+        message: 'Mobile number is required.',
       });
     }
 
-    await Resident.findOne({
-      mobileNumber: normalizePhilippineMobileNumber(mobileNumber.trim()),
-    });
+    const normalizedMobile = normalizePhilippineMobileNumber(mobileNumber.trim());
+    if (!isValidPhilippineMobileNumber(normalizedMobile)) {
+      return res.status(400).json({
+        success: false,
+        available: false,
+        message: 'Invalid mobile number format.',
+      });
+    }
+
+    const resident = await Resident.findOne({ mobileNumber: normalizedMobile });
+
+    if (resident) {
+      return res.status(409).json({
+        success: false,
+        available: false,
+        message: 'This mobile number is already registered.',
+        errorCode: 'DUPLICATE_MOBILE',
+      });
+    }
 
     return res.json({
       success: true,
-      message: 'If this number is eligible, registration can continue.',
+      available: true,
+      message: 'Mobile number is available.',
     });
   } catch (error) {
     console.error('[HouseholdRoutes] Check mobile error:', error);

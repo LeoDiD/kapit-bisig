@@ -255,8 +255,7 @@ export class HouseholdTokenService {
       // Build query - filter by barangay if provided for faster lookup
       // Each barangay has its own "database" of tokens
       const query: Record<string, unknown> = {
-        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED'] }),
-        expiresAt: mongoose.trusted({ $gt: new Date() }),
+        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED', 'USED', 'EXPIRED'] }),
       };
       
       // Filter by barangay for barangay-specific token validation
@@ -305,6 +304,29 @@ export class HouseholdTokenService {
           valid: false,
           errorCode: 'TOKEN_NOT_FOUND',
           error: 'Token not found or has expired',
+        };
+      }
+
+      if (matchedToken.status === 'EXPIRED' || matchedToken.expiresAt <= new Date()) {
+        await RegistrationAuditLog.log({
+          eventType: 'TOKEN_INVALID',
+          severity: 'WARNING',
+          tokenPrefix: matchedToken.tokenPrefix,
+          tokenId: matchedToken._id as mongoose.Types.ObjectId,
+          ipAddress,
+          userAgent,
+          requestId,
+          message: 'Attempted to use expired token',
+          success: false,
+          errorCode: 'TOKEN_EXPIRED',
+          processingTimeMs: Date.now() - startTime,
+        });
+
+        return {
+          success: true,
+          valid: false,
+          errorCode: 'TOKEN_EXPIRED',
+          error: 'This token has expired',
         };
       }
       
@@ -405,8 +427,7 @@ export class HouseholdTokenService {
       
       // Build query - filter by barangay if provided for faster lookup
       const query: Record<string, unknown> = {
-        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED'] }),
-        expiresAt: mongoose.trusted({ $gt: new Date() }),
+        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED', 'USED', 'EXPIRED'] }),
       };
       
       // Filter by barangay for faster lookup
@@ -446,6 +467,24 @@ export class HouseholdTokenService {
           locked: false,
           errorCode: 'TOKEN_NOT_FOUND',
           error: 'Token not found or expired',
+        };
+      }
+
+      if (matchedToken.status === 'USED') {
+        return {
+          success: true,
+          locked: false,
+          errorCode: 'TOKEN_ALREADY_USED',
+          error: 'This token has already been used',
+        };
+      }
+
+      if (matchedToken.status === 'EXPIRED' || matchedToken.expiresAt <= new Date()) {
+        return {
+          success: true,
+          locked: false,
+          errorCode: 'TOKEN_EXPIRED',
+          error: 'This token has expired',
         };
       }
       
