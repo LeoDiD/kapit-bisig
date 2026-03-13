@@ -1,14 +1,19 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { DashboardLayout, Header } from '@/components/layout'
 import {
   StatsCard,
-  ApprovedUsersByBarangayTable,
   LowStockAlert,
   QuickActions,
+  DistributionTrendsChart,
+  WeeklyClaimChart,
+  BarangayDistributionChart,
+  SmartInsights,
+  RecentDistributions,
 } from '@/components/dashboard'
 import api from '@/lib/api'
+import type { ReportSummaryData } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 
 interface DashboardStats {
@@ -16,6 +21,11 @@ interface DashboardStats {
   pendingDistributions: number
   completedToday: number
   pendingWrites: number
+  claimRate: number
+  totalDistributions: number
+  totalRegistered: number
+  totalClaimed: number
+  totalUnclaimed: number
 }
 
 const INITIAL_STATS: DashboardStats = {
@@ -23,12 +33,18 @@ const INITIAL_STATS: DashboardStats = {
   pendingDistributions: 0,
   completedToday: 0,
   pendingWrites: 0,
+  claimRate: 0,
+  totalDistributions: 0,
+  totalRegistered: 0,
+  totalClaimed: 0,
+  totalUnclaimed: 0,
 }
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function countCompletedToday(ledgerRows: Array<{ status?: string; dateTimeISO?: string }>) {
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
   let completedToday = 0
   for (const row of ledgerRows) {
     if (row.status !== 'Confirmed') continue
@@ -36,21 +52,42 @@ function countCompletedToday(ledgerRows: Array<{ status?: string; dateTimeISO?: 
     if (!createdAt || Number.isNaN(createdAt.getTime())) continue
     if (createdAt >= startOfToday) completedToday += 1
   }
-
   return completedToday
+}
+
+function computeWeeklyClaims(ledgerRows: Array<{ status?: string; dateTimeISO?: string }>) {
+  const now = new Date()
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(now.getDate() - now.getDay() + 1) // Monday
+  startOfWeek.setHours(0, 0, 0, 0)
+
+  const counts: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 }
+  for (const row of ledgerRows) {
+    if (row.status !== 'Confirmed') continue
+    const dt = row.dateTimeISO ? new Date(row.dateTimeISO) : null
+    if (!dt || Number.isNaN(dt.getTime())) continue
+    if (dt >= startOfWeek && dt <= now) {
+      const dayName = DAY_NAMES[dt.getDay()]
+      counts[dayName] = (counts[dayName] || 0) + 1
+    }
+  }
+  return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => ({ day, count: counts[day] || 0 }))
 }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS)
+  const [reportData, setReportData] = useState<ReportSummaryData | null>(null)
+  const [weeklyData, setWeeklyData] = useState<{ day: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchDashboardStats = useCallback(async () => {
     setLoading(true)
     try {
-      const [householdsRes, distributionsRes, ledgerRes] = await Promise.all([
+      const [householdsRes, distributionsRes, ledgerRes, reportRes] = await Promise.all([
         api.getHouseholds({ page: 1, limit: 1 }),
         api.getDistributions(),
         api.getLedger(),
+        api.getReportSummary(),
       ])
 
       const totalHouseholds =
@@ -69,11 +106,20 @@ export default function DashboardPage() {
         if (row.status === 'Pending/Confirming') pendingWrites += 1
       }
 
+      const report = reportRes.data ?? null
+      setReportData(report)
+      setWeeklyData(computeWeeklyClaims(ledgerRows))
+
       setStats({
         totalHouseholds,
         pendingDistributions,
         completedToday: countCompletedToday(ledgerRows),
         pendingWrites,
+        claimRate: report?.overview?.claimRate ?? 0,
+        totalDistributions: report?.overview?.totalDistributions ?? 0,
+        totalRegistered: report?.overview?.totalRegisteredHouseholds ?? 0,
+        totalClaimed: report?.overview?.totalClaimedHouseholds ?? 0,
+        totalUnclaimed: report?.overview?.totalUnclaimedHouseholds ?? 0,
       })
     } catch {
       showToast.error('Failed to load dashboard stats.')
@@ -87,6 +133,9 @@ export default function DashboardPage() {
     fetchDashboardStats()
   }, [fetchDashboardStats])
 
+  const monthlyTrends = useMemo(() => reportData?.monthlyTrends ?? [], [reportData])
+  const barangayBreakdown = useMemo(() => reportData?.barangayBreakdown ?? [], [reportData])
+
   return (
     <DashboardLayout>
       <Header
@@ -94,48 +143,81 @@ export default function DashboardPage() {
         subtitle="Overview of relief distribution activities"
       />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* ─── Stats Cards ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatsCard
           title="Total Households"
           value={loading ? '...' : stats.totalHouseholds.toLocaleString()}
           variant="blue"
           icon={<HouseholdIcon className="w-5 h-5" />}
+          subtitle="Registered households"
         />
         <StatsCard
           title="Pending Distributions"
           value={loading ? '...' : stats.pendingDistributions.toLocaleString()}
           variant="yellow"
           icon={<PendingIcon className="w-5 h-5" />}
+          trend={stats.pendingDistributions > 0 ? 'up' : 'neutral'}
         />
         <StatsCard
           title="Completed Today"
           value={loading ? '...' : stats.completedToday.toLocaleString()}
           variant="green"
           icon={<CompletedIcon className="w-5 h-5" />}
+          trend={stats.completedToday > 0 ? 'up' : 'neutral'}
         />
         <StatsCard
-          title="Pending Writes"
-          value={loading ? '...' : stats.pendingWrites.toLocaleString()}
+          title="Claim Rate"
+          value={loading ? '...' : `${stats.claimRate.toFixed(1)}%`}
           variant="orange"
-          icon={<PendingIcon className="w-5 h-5" />}
+          icon={<ChartIcon className="w-5 h-5" />}
+          trend={stats.claimRate >= 70 ? 'up' : stats.claimRate > 0 ? 'down' : 'neutral'}
+          subtitle={`${stats.totalClaimed} of ${stats.totalRegistered} households`}
         />
       </div>
 
-      <div className="mb-6">
-        <ApprovedUsersByBarangayTable />
+      {/* ─── Charts Row ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+        <div className="lg:col-span-3">
+          <DistributionTrendsChart data={monthlyTrends} loading={loading} />
+        </div>
+        <div className="lg:col-span-2">
+          <WeeklyClaimChart data={weeklyData} loading={loading} />
+        </div>
       </div>
 
-      {/* Bottom Content Grid */}
+      {/* ─── Bottom 3-Column Grid ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <BarangayDistributionChart data={barangayBreakdown} loading={loading} />
+        <LowStockAlert
+          pendingWrites={stats.pendingWrites}
+          pendingDistributions={stats.pendingDistributions}
+          unclaimedHouseholds={stats.totalUnclaimed}
+          loading={loading}
+        />
+        <SmartInsights
+          totalDistributions={stats.totalDistributions}
+          claimRate={stats.claimRate}
+          totalRegistered={stats.totalRegistered}
+          totalClaimed={stats.totalClaimed}
+          totalUnclaimed={stats.totalUnclaimed}
+          barangayBreakdown={barangayBreakdown}
+          verificationMethods={reportData?.verificationMethods}
+          loading={loading}
+        />
+      </div>
+
+      {/* ─── Bottom Row ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <LowStockAlert />
+        <RecentDistributions />
         <QuickActions />
       </div>
     </DashboardLayout>
   )
 }
 
-// Icon Components
+// ─── Icon Components ───
+
 function HouseholdIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,6 +238,14 @@ function CompletedIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function ChartIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
   )
 }

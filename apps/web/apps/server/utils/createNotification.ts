@@ -7,6 +7,7 @@
 
 import Notification, { NotificationType } from '../models/Notification';
 import StaffUser from '../models/StaffUser';
+import mongoose from 'mongoose';
 
 interface NotificationPayload {
   /** null = superadmin/global notification */
@@ -60,10 +61,14 @@ export async function broadcastScopedNotification(
     const targetBarangays = normalizeBarangays(payload.targetBarangays);
     const filter: Record<string, unknown> = { isActive: true };
     if (targetBarangays.length > 0) {
-      filter.assignedBarangays = { $in: targetBarangays };
+      // sanitizeFilter is enabled globally; trusted(...) preserves operator queries.
+      filter.assignedBarangays = mongoose.trusted({ $in: targetBarangays });
     }
 
-    const staffRecipients = await StaffUser.find(filter).select('_id').lean();
+    const staffRecipients = await StaffUser.find(filter)
+      .setOptions({ sanitizeFilter: false })
+      .select('_id')
+      .lean();
     const docs: Array<{
       userId: any | null;
       title: string;

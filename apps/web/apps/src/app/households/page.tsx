@@ -61,12 +61,21 @@ export default function HouseholdsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await api.getHouseholds()
-      if (res.success && Array.isArray(res.data)) {
-        setAllRows(res.data as HouseholdRow[])
-      } else {
-        setAllRows([])
-      }
+      const pageSize = 50
+      let page = 1
+      let totalPages = 1
+      const mergedRows: HouseholdRow[] = []
+
+      do {
+        const res = await api.getHouseholds({ page, limit: pageSize })
+        if (!res.success || !Array.isArray(res.data)) break
+
+        mergedRows.push(...(res.data as HouseholdRow[]))
+        totalPages = res.pagination?.totalPages || 1
+        page += 1
+      } while (page <= totalPages)
+
+      setAllRows(mergedRows)
     } catch (e: unknown) {
       const err = e as { status?: number; message?: string }
 

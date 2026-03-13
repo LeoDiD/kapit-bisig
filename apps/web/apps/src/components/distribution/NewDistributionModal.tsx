@@ -377,7 +377,7 @@ export default function NewDistributionModal({
       <div className="min-h-full px-4 py-10 flex items-start justify-center">
         <div className="fixed inset-0 bg-black/50" onClick={onClose} />
 
-        <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] border border-gray-100 flex flex-col max-h-[calc(100vh-5rem)]">
+        <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] border border-gray-100 flex flex-col max-h-[calc(100vh-4rem)]">
           <div className="p-5 border-b border-gray-100 bg-white shrink-0">
             <div className="flex items-start justify-between gap-4">
               <div>

@@ -72,6 +72,77 @@ let _provider: ethers.JsonRpcProvider | null = null;
 let _signer: ethers.Wallet | null = null;
 let _contract: ethers.Contract | null = null;
 let _startupValidated = false;
+let _batchSupportValidated = false;
+let _batchSupported = false;
+let _batchSupportValidatedForAddress: string | null = null;
+type ClaimCheckMode = 'eventScoped' | 'legacy' | 'none';
+let _claimCheckModeValidated = false;
+let _claimCheckMode: ClaimCheckMode = 'none';
+let _claimCheckModeValidatedForAddress: string | null = null;
+const eventScopedIsClaimedInterface = new ethers.Interface([
+  'function isClaimed(bytes32 householdHash, bytes32 eventHash) view returns (bool)',
+]);
+const legacyIsClaimedInterface = new ethers.Interface([
+  'function isClaimed(bytes32 householdHash) view returns (bool)',
+]);
+
+function isMissingFunctionCallError(err: any): boolean {
+  return err?.code === 'CALL_EXCEPTION' && (!err?.data || err?.data === '0x');
+}
+
+async function detectClaimCheckMode(): Promise<ClaimCheckMode> {
+  const contractAddress = getContractAddress();
+  if (_claimCheckModeValidatedForAddress !== contractAddress) {
+    _claimCheckModeValidated = false;
+    _claimCheckMode = 'none';
+    _claimCheckModeValidatedForAddress = contractAddress;
+  }
+
+  if (_claimCheckModeValidated) {
+    return _claimCheckMode;
+  }
+
+  const provider = getProvider();
+  const to = contractAddress;
+
+  try {
+    try {
+      const probeData = eventScopedIsClaimedInterface.encodeFunctionData('isClaimed', [
+        ethers.ZeroHash,
+        ethers.ZeroHash,
+      ]);
+      const raw = await provider.call({ to, data: probeData });
+      if (raw && raw !== '0x') {
+        eventScopedIsClaimedInterface.decodeFunctionResult('isClaimed', raw);
+        _claimCheckMode = 'eventScoped';
+        return _claimCheckMode;
+      }
+    } catch (err: any) {
+      if (!isMissingFunctionCallError(err)) {
+        throw err;
+      }
+    }
+
+    try {
+      const probeData = legacyIsClaimedInterface.encodeFunctionData('isClaimed', [ethers.ZeroHash]);
+      const raw = await provider.call({ to, data: probeData });
+      if (raw && raw !== '0x') {
+        legacyIsClaimedInterface.decodeFunctionResult('isClaimed', raw);
+        _claimCheckMode = 'legacy';
+        return _claimCheckMode;
+      }
+    } catch (err: any) {
+      if (!isMissingFunctionCallError(err)) {
+        throw err;
+      }
+    }
+
+    _claimCheckMode = 'none';
+    return _claimCheckMode;
+  } finally {
+    _claimCheckModeValidated = true;
+  }
+}
 
 export function getProvider(): ethers.JsonRpcProvider {
   if (!_provider) {
@@ -182,9 +253,109 @@ export async function submitClaimOnChain(
   };
 }
 
-export async function isClaimedOnChain(householdHash: string): Promise<boolean> {
+/**
+ * Submit multiple household hashes in one transaction via recordClaimsBatch.
+ * Falls back to single-write path if only one household hash is provided.
+ */
+export async function submitClaimsBatchOnChain(
+  householdHashes: string[],
+  eventHash: string,
+): Promise<SubmittedClaimTx> {
+  if (!Array.isArray(householdHashes) || householdHashes.length === 0) {
+    throw new Error('Batch submission requires at least one household hash');
+  }
+
+  if (householdHashes.length === 1) {
+    return submitClaimOnChain(householdHashes[0], eventHash);
+  }
+
+  const contractAddress = getContractAddress();
+  if (_batchSupportValidatedForAddress !== contractAddress) {
+    _batchSupportValidated = false;
+    _batchSupported = false;
+    _batchSupportValidatedForAddress = contractAddress;
+  }
+
+  if (!_batchSupportValidated) {
+    const contract = getContract();
+    const signerAddress = await getSigner().getAddress();
+    const probeData = contract.interface.encodeFunctionData('recordClaimsBatch', [
+      [],
+      ethers.ZeroHash,
+    ]);
+
+    try {
+      await getProvider().call({
+        to: getContractAddress(),
+        from: signerAddress,
+        data: probeData,
+      });
+      _batchSupported = true;
+    } catch (err: any) {
+      const isMissingFunction =
+        err?.code === 'CALL_EXCEPTION' &&
+        (!err?.data || err?.data === '0x');
+
+      if (isMissingFunction) {
+        _batchSupported = false;
+      } else {
+        throw err;
+      }
+    } finally {
+      _batchSupportValidated = true;
+    }
+  }
+
+  if (!_batchSupported) {
+    throw new Error(
+      `Deployed contract at ${contractAddress} (chainId=${getChainId()}) does not support recordClaimsBatch. Redeploy latest ClaimLedger and update CONTRACT_ADDRESS.`,
+    );
+  }
+
   const contract = getContract();
-  return contract.isClaimed(householdHash);
+  const signer = getSigner();
+  const tx = await contract.recordClaimsBatch(householdHashes, eventHash);
+
+  if (!tx?.hash) {
+    throw new Error('Batch transaction submission failed: missing tx hash');
+  }
+
+  return {
+    txHash: tx.hash,
+    chainId: getChainId(),
+    contractAddress: getContractAddress(),
+    staffSigner: await signer.getAddress(),
+  };
+}
+
+export async function isClaimedOnChain(
+  householdHash: string,
+  eventHash: string,
+): Promise<boolean> {
+  const provider = getProvider();
+  const to = getContractAddress();
+  const mode = await detectClaimCheckMode();
+
+  if (mode === 'eventScoped') {
+    const data = eventScopedIsClaimedInterface.encodeFunctionData('isClaimed', [
+      householdHash,
+      eventHash,
+    ]);
+    const raw = await provider.call({ to, data });
+    const [claimed] = eventScopedIsClaimedInterface.decodeFunctionResult('isClaimed', raw);
+    return Boolean(claimed);
+  }
+
+  if (mode === 'legacy') {
+    const data = legacyIsClaimedInterface.encodeFunctionData('isClaimed', [householdHash]);
+    const raw = await provider.call({ to, data });
+    const [claimed] = legacyIsClaimedInterface.decodeFunctionResult('isClaimed', raw);
+    return Boolean(claimed);
+  }
+
+  throw new Error(
+    `Deployed contract at ${to} (chainId=${getChainId()}) does not expose isClaimed check functions.`,
+  );
 }
 
 export async function getTransactionReceipt(

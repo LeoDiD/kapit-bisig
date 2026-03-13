@@ -9,9 +9,9 @@ interface QuickAction {
 
 const actions: QuickAction[] = [
   { 
-    label: 'Add Household', 
-    href: '/households',
-    icon: <HouseIcon className="w-5 h-5" />
+    label: 'View Reports', 
+    href: '/reports',
+    icon: <ReportsIcon className="w-5 h-5" />
   },
   { 
     label: 'Blockchain Ledger', 
@@ -32,17 +32,17 @@ const actions: QuickAction[] = [
 
 export default function QuickActions() {
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100">
+    <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100 h-full flex flex-col">
       <h3 className="text-base font-bold text-gray-800 mb-3">Quick Actions</h3>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 flex-1 content-center">
         {actions.map((action, index) => (
           <Link
             key={index}
             href={action.href}
-            className="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-100 hover:border-green-500 hover:bg-green-50 transition-all group"
+            className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-gray-100 hover:border-green-500 hover:bg-green-50 transition-all group"
           >
-            <div className="w-9 h-9 rounded-xl bg-gray-100 group-hover:bg-green-100 flex items-center justify-center text-gray-500 group-hover:text-green-600 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-green-100 flex items-center justify-center text-gray-500 group-hover:text-green-600 transition-colors">
               {action.icon}
             </div>
             <span className="text-xs font-medium text-gray-600 group-hover:text-green-700 text-center leading-tight">
@@ -55,10 +55,10 @@ export default function QuickActions() {
   )
 }
 
-function HouseIcon({ className }: { className?: string }) {
+function ReportsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   )
 }

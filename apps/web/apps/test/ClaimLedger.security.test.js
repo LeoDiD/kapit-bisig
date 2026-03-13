@@ -63,8 +63,8 @@ describe('ClaimLedger Security (Risk #5)', function () {
     console.log('[Normal] Event check passed (ClaimRecorded emitted)');
 
     console.log('[Normal] Step 4: verify claimed state = true');
-    const isClaimed = await claimLedger.isClaimed(householdHash);
-    console.log(`[Normal] isClaimed(householdHash) => ${isClaimed}`);
+    const isClaimed = await claimLedger.isClaimed(householdHash, eventHashA);
+    console.log(`[Normal] isClaimed(householdHash, eventHashA) => ${isClaimed}`);
     expect(isClaimed).to.equal(true);
     console.log('[Normal] Result: PASS');
   });
@@ -78,29 +78,35 @@ describe('ClaimLedger Security (Risk #5)', function () {
     console.log('[Attack] Revert check passed (onlyOwner guard active)');
 
     console.log('[Attack] Step 3: verify state remains unchanged');
-    const isClaimed = await claimLedger.isClaimed(householdHash);
-    console.log(`[Attack] isClaimed(householdHash) => ${isClaimed}`);
+    const isClaimed = await claimLedger.isClaimed(householdHash, eventHashA);
+    console.log(`[Attack] isClaimed(householdHash, eventHashA) => ${isClaimed}`);
     expect(isClaimed).to.equal(false);
     console.log('[Attack] Result: PASS');
   });
 
-  it('Edge Case: duplicate household hash is rejected even with different event hash', async function () {
+  it('Edge Case: duplicate household hash is rejected only for the same event hash', async function () {
     console.log('\n[Edge] Step 1: owner records initial claim');
     const tx1 = await claimLedger.connect(owner).recordClaim(householdHash, eventHashA);
     await tx1.wait();
     console.log(`[Edge] First claim tx hash: ${shortHash(tx1.hash)}`);
 
-    console.log('[Edge] Step 2: owner retries with same householdHash + different eventHash');
-    const txPromise = claimLedger.connect(owner).recordClaim(householdHash, eventHashB);
+    console.log('[Edge] Step 2: owner retries with same householdHash + same eventHash');
+    const txPromiseSameEvent = claimLedger.connect(owner).recordClaim(householdHash, eventHashA);
 
-    console.log('[Edge] Step 3: verify duplicate protection revert reason');
-    await expect(txPromise).to.be.revertedWith('ClaimLedger: already claimed');
-    console.log('[Edge] Revert check passed (one-claim-per-householdHash enforced)');
+    console.log('[Edge] Step 3: verify duplicate protection for same event');
+    await expect(txPromiseSameEvent).to.be.revertedWith('ClaimLedger: already claimed');
+    console.log('[Edge] Revert check passed (same household + same event is blocked)');
 
-    console.log('[Edge] Step 4: verify household remains claimed = true');
-    const isClaimed = await claimLedger.isClaimed(householdHash);
-    console.log(`[Edge] isClaimed(householdHash) => ${isClaimed}`);
-    expect(isClaimed).to.equal(true);
+    console.log('[Edge] Step 4: verify same household can claim on different event');
+    const tx2 = await claimLedger.connect(owner).recordClaim(householdHash, eventHashB);
+    await tx2.wait();
+
+    const isClaimedA = await claimLedger.isClaimed(householdHash, eventHashA);
+    const isClaimedB = await claimLedger.isClaimed(householdHash, eventHashB);
+    console.log(`[Edge] isClaimed(householdHash, eventHashA) => ${isClaimedA}`);
+    console.log(`[Edge] isClaimed(householdHash, eventHashB) => ${isClaimedB}`);
+    expect(isClaimedA).to.equal(true);
+    expect(isClaimedB).to.equal(true);
     console.log('[Edge] Result: PASS');
   });
 });
