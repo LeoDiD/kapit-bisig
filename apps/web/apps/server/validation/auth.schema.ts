@@ -5,32 +5,33 @@
  */
 
 import { z } from 'zod';
+import { email as safeEmail, passwordString, searchString, trimmedString } from './shared';
 
-/* POST /api/auth/login — accepts username OR email as the "username" field */
+/* POST /api/auth/login — email-only login */
 export const loginBody = z.object({
-  username: z.string().trim().min(1, 'Username or email is required').max(255),
-  password: z.string().min(1, 'Password is required').max(200).optional(),
+  email: safeEmail,
+  password: passwordString.optional(),
   otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must be 6 digits').optional(),
   rememberMe: z.boolean().optional(),
 }).strict();
 
 /* POST /api/auth/register  (legacy auth) */
 export const registerBody = z.object({
-  email: z.string().trim().toLowerCase().email('Invalid email format').max(255),
-  password: z.string().min(1, 'Password is required').max(200),
-  firstName: z.string().trim().min(1, 'First name is required').max(100),
-  lastName: z.string().trim().min(1, 'Last name is required').max(100),
+  email: safeEmail,
+  password: passwordString,
+  firstName: trimmedString(1, 64),
+  lastName: trimmedString(1, 64),
 }).strict();
 
 /* POST /api/auth/validate-password */
 export const validatePasswordBody = z.object({
-  password: z.string().min(1, 'Password is required').max(200),
+  password: passwordString,
 }).strict();
 
 /* POST /api/sa/login */
 export const saLoginBody = z.object({
-  username: z.string().trim().min(1, 'Username is required').max(100),
-  password: z.string().min(1, 'Password is required').max(200),
+  username: searchString.min(1, 'Username is required'),
+  password: passwordString,
   rememberMe: z.boolean().optional(),
 }).strict();
 
@@ -38,19 +39,19 @@ export const saLoginBody = z.object({
 
 /* POST /api/auth/forgot-password/send-otp */
 export const sendOtpBody = z.object({
-  email: z.string().trim().toLowerCase().email('Invalid email format').max(255),
+  email: safeEmail,
 }).strict();
 
 /* POST /api/auth/forgot-password/verify-otp */
 export const verifyOtpBody = z.object({
-  email: z.string().trim().toLowerCase().email('Invalid email format').max(255),
+  email: safeEmail,
   otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must be 6 digits'),
 }).strict();
 
 /* POST /api/auth/forgot-password/reset */
 export const forgotResetPasswordBody = z.object({
   resetToken: z.string().min(1, 'Reset token is required'),
-  newPassword: z.string().min(1, 'New password is required').max(200),
+  newPassword: passwordString,
 }).strict();
 
 /* ---- Login OTP Verification schemas ---- */
@@ -68,5 +69,5 @@ export const loginResendOtpBody = z.object({
 
 /* POST /api/auth/set-password */
 export const setPasswordBody = z.object({
-  newPassword: z.string().min(1, 'New password is required').max(200),
+  newPassword: passwordString,
 }).strict();

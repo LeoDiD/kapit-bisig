@@ -25,7 +25,7 @@ const actions: QuickAction[] = [
   },
   { 
     label: 'Add User', 
-    href: '/users/add',
+    href: '/users?openAdd=1',
     icon: <UserAddIcon className="w-5 h-5" />
   },
 ]

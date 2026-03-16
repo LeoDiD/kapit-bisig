@@ -27,6 +27,12 @@ import {
   isValidPhilippineMobileNumber,
   normalizePhilippineMobileNumber,
 } from '../utils/mobileNumber';
+import {
+  normalizeIdNumber,
+  validateIdNumberFormat,
+  validateIdType,
+} from '../utils/idVerification';
+import { persistVerificationImage } from '../utils/imageStorage';
 
 export interface RegistrationData {
   // Personal Info (Step 1)
@@ -35,6 +41,7 @@ export interface RegistrationData {
   dateOfBirth: string;
   gender: 'Male' | 'Female';
   mobileNumber: string;
+  email?: string;
   password: string;
   
   // Household Info (Step 2)
@@ -78,6 +85,7 @@ export interface RegistrationResult {
   residentCode?: string;
   message: string;
   errorCode?: string;
+  validationErrors?: Array<{ field: string; code: string; message: string }>;
   householdInfo?: {
     headOfHousehold: string;
     address: string;
@@ -96,6 +104,12 @@ export interface TokenValidationResponse {
     barangay: string;
     expectedMembers: number;
   };
+}
+
+interface ValidationIssue {
+  field: string;
+  code: string;
+  message: string;
 }
 
 /**
@@ -147,7 +161,9 @@ export class HouseholdRegistrationService {
         const errorMessages: Record<string, string> = {
           'INVALID_FORMAT': 'Invalid token format. Please enter a valid token (XXXX-XXXX-XXXX).',
           'TOKEN_NOT_FOUND': 'Token not found or has expired. Please contact your barangay office.',
-          'TOKEN_ALREADY_USED': 'This token has already been used for registration.',
+          'TOKEN_EXPIRED': 'This token has expired. Please contact your barangay office for a new token.',
+          'TOKEN_ALREADY_USED': 'This household token has already been used for registration. Please contact your barangay office for a new token.',
+          'TOKEN_REVIEW_REQUIRED': 'This token is temporarily blocked for review due to repeated duplicate detections. Please contact your barangay office.',
         };
         
         return {
@@ -206,6 +222,7 @@ export class HouseholdRegistrationService {
     try {
       const normalizedMobileNumber = normalizePhilippineMobileNumber(data.mobileNumber || '');
       data.mobileNumber = normalizedMobileNumber;
+      data.idNumber = normalizeIdNumber(data.idType, data.idNumber || '');
 
       // Log registration start
       await RegistrationAuditLog.log({
@@ -236,6 +253,7 @@ export class HouseholdRegistrationService {
           'TOKEN_NOT_FOUND': 'Token not found or has expired. Please contact your barangay office for a new token.',
           'TOKEN_ALREADY_USED': 'This token has already been used for registration.',
           'TOKEN_EXPIRED': 'This token has expired. Please contact your barangay office for a new token.',
+          'TOKEN_REVIEW_REQUIRED': 'This token is temporarily blocked for review due to repeated duplicate detections. Please contact your barangay office.',
           'LOCK_CONFLICT': 'Another family member is currently registering. Please wait and try again.',
           'LOCK_ERROR': 'Registration temporarily unavailable. Please try again.',
         };
@@ -253,8 +271,8 @@ export class HouseholdRegistrationService {
       lockAcquired = true;
       
       // Step 2: Validate registration data
-      const validationErrors = this.validateRegistrationData(data);
-      if (validationErrors.length > 0) {
+      const validationIssues = this.validateRegistrationData(data);
+      if (validationIssues.length > 0) {
         // Release lock and return errors
         await householdTokenService.releaseLock(
           tokenId,
@@ -267,14 +285,18 @@ export class HouseholdRegistrationService {
         
         return {
           success: false,
-          message: `Validation failed: ${validationErrors.join(', ')}`,
+          message: `Validation failed: ${validationIssues.map((v) => v.message).join(', ')}`,
           errorCode: 'VALIDATION_FAILED',
+          validationErrors: validationIssues,
         };
       }
       
-      // Step 3: Check for duplicate registration (by mobile number)
+      // Step 3: Check for duplicate registration (by mobile number or normalized ID number)
       const existingResident = await Resident.findOne({
-        mobileNumber: normalizedMobileNumber,
+        $or: [
+          { mobileNumber: normalizedMobileNumber },
+          { idNumber: data.idNumber },
+        ],
       });
       
       if (existingResident) {
@@ -287,6 +309,7 @@ export class HouseholdRegistrationService {
           'Duplicate mobile number'
         );
         
+        const isDuplicateId = existingResident.idNumber === data.idNumber;
         await RegistrationAuditLog.log({
           eventType: 'REGISTRATION_FAILED',
           severity: 'WARNING',
@@ -295,19 +318,30 @@ export class HouseholdRegistrationService {
           ipAddress,
           userAgent,
           requestId,
-          message: 'Registration failed - duplicate mobile number',
+          message: isDuplicateId
+            ? 'Registration failed - duplicate ID number'
+            : 'Registration failed - duplicate mobile number',
           success: false,
-          errorCode: 'DUPLICATE_MOBILE',
+          errorCode: isDuplicateId ? 'DUPLICATE_ID' : 'DUPLICATE_MOBILE',
           processingTimeMs: Date.now() - startTime,
         });
         
         return {
           success: false,
-          message: 'This mobile number is already registered.',
-          errorCode: 'DUPLICATE_MOBILE',
+          message: isDuplicateId
+            ? 'This ID number is already registered.'
+            : 'This mobile number is already registered.',
+          errorCode: isDuplicateId ? 'DUPLICATE_ID' : 'DUPLICATE_MOBILE',
+          validationErrors: isDuplicateId
+            ? [{ field: 'idNumber', code: 'DUPLICATE_ID', message: 'ID number is already registered' }]
+            : [{ field: 'mobileNumber', code: 'DUPLICATE_MOBILE', message: 'Mobile number is already registered' }],
         };
       }
       
+      const frontIdImageRef = persistVerificationImage(data.frontIdImage, 'front-id');
+      const backIdImageRef = persistVerificationImage(data.backIdImage, 'back-id');
+      const faceImageRef = persistVerificationImage(data.faceImage, 'face');
+
       // Step 4: Create resident record
       const verificationPayload = data.verification || {
         overallConfidence: 0,
@@ -321,7 +355,7 @@ export class HouseholdRegistrationService {
         warnings: [],
         riskFactors: [],
       };
-      const isAutoApproved = verificationPayload.isVerified === true;
+      const isAutoApproved = false;
 
       const resident = new Resident({
         firstName: data.firstName,
@@ -330,6 +364,7 @@ export class HouseholdRegistrationService {
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
         mobileNumber: normalizedMobileNumber,
+        email: data.email || '',
         password: data.password,
         city: data.city || '',
         barangay: data.barangay,
@@ -337,14 +372,14 @@ export class HouseholdRegistrationService {
         householdSize: data.householdSize || 1,
         vulnerableMembers: data.vulnerableMembers || [],
         vulnerableCounts: data.vulnerableCounts || {},
-        idType: data.idType || 'Not Provided',
-        idNumber: data.idNumber || 'N/A',
-        frontIdImage: data.frontIdImage || 'placeholder', // Optional for testing
-        backIdImage: data.backIdImage || 'placeholder',   // Optional for testing
-        faceImage: data.faceImage || 'placeholder',       // Optional for testing
+        idType: data.idType,
+        idNumber: data.idNumber,
+        frontIdImage: frontIdImageRef,
+        backIdImage: backIdImageRef,
+        faceImage: faceImageRef,
         verification: verificationPayload,
-        status: isAutoApproved ? 'Approved' : 'Pending',
-        verifiedAt: isAutoApproved ? new Date() : undefined,
+        status: 'Pending',
+        verifiedAt: undefined,
       });
       
       try {
@@ -361,6 +396,11 @@ export class HouseholdRegistrationService {
         );
         
         if (saveError?.code === 11000) {
+          const duplicateKey = saveError?.keyPattern && typeof saveError.keyPattern === 'object'
+            ? Object.keys(saveError.keyPattern)[0]
+            : null;
+          const duplicateIsId = duplicateKey === 'idNumber';
+
           await RegistrationAuditLog.log({
             eventType: 'REGISTRATION_FAILED',
             severity: 'WARNING',
@@ -369,24 +409,30 @@ export class HouseholdRegistrationService {
             ipAddress,
             userAgent,
             requestId,
-            message: 'Registration failed - duplicate mobile number (unique index)',
+            message: duplicateIsId
+              ? 'Registration failed - duplicate ID number (unique index)'
+              : 'Registration failed - duplicate mobile number (unique index)',
             success: false,
-            errorCode: 'DUPLICATE_MOBILE',
+            errorCode: duplicateIsId ? 'DUPLICATE_ID' : 'DUPLICATE_MOBILE',
             processingTimeMs: Date.now() - startTime,
           });
 
           return {
             success: false,
-            message: 'This mobile number is already registered.',
-            errorCode: 'DUPLICATE_MOBILE',
+            message: duplicateIsId
+              ? 'This ID number is already registered.'
+              : 'This mobile number is already registered.',
+            errorCode: duplicateIsId ? 'DUPLICATE_ID' : 'DUPLICATE_MOBILE',
+            validationErrors: duplicateIsId
+              ? [{ field: 'idNumber', code: 'DUPLICATE_ID', message: 'ID number is already registered' }]
+              : [{ field: 'mobileNumber', code: 'DUPLICATE_MOBILE', message: 'Mobile number is already registered' }],
           };
         }
 
         // Handle Mongoose validation errors specifically
         if (saveError.name === 'ValidationError') {
           const validationMessages = Object.values(saveError.errors)
-            .map((err: any) => err.message)
-            .join(', ');
+            .map((err: any) => err.message);
           
           console.error('[RegistrationService] Validation error:', validationMessages);
           
@@ -398,7 +444,7 @@ export class HouseholdRegistrationService {
             ipAddress,
             userAgent,
             requestId,
-            message: `Validation error: ${validationMessages}`,
+            message: `Validation error: ${validationMessages.join(', ')}`,
             success: false,
             errorCode: 'VALIDATION_ERROR',
             processingTimeMs: Date.now() - startTime,
@@ -406,8 +452,13 @@ export class HouseholdRegistrationService {
           
           return {
             success: false,
-            message: `Validation failed: ${validationMessages}`,
+            message: `Validation failed: ${validationMessages.join(', ')}`,
             errorCode: 'VALIDATION_ERROR',
+            validationErrors: validationMessages.map((message: string) => ({
+              field: 'form',
+              code: 'VALIDATION_ERROR',
+              message,
+            })),
           };
         }
         
@@ -526,50 +577,69 @@ export class HouseholdRegistrationService {
   /**
    * Validate registration data
    */
-  private validateRegistrationData(data: RegistrationData): string[] {
-    const errors: string[] = [];
+  private validateRegistrationData(data: RegistrationData): ValidationIssue[] {
+    const issues: ValidationIssue[] = [];
     const normalizedMobile = normalizePhilippineMobileNumber(data.mobileNumber || '');
+    const normalizedIdNumber = normalizeIdNumber(data.idType || '', data.idNumber || '');
     
     // Required fields
-    if (!data.firstName?.trim()) errors.push('First name is required');
-    if (!data.lastName?.trim()) errors.push('Last name is required');
-    if (!data.dateOfBirth?.trim()) errors.push('Date of birth is required');
-    if (!data.gender) errors.push('Gender is required');
-    if (!data.mobileNumber?.trim()) errors.push('Mobile number is required');
-    if (!data.password?.trim()) errors.push('Password is required');
-    if (!data.barangay?.trim()) errors.push('Barangay is required');
-    if (!data.streetAddress?.trim()) errors.push('Street address is required');
-    if (!data.householdToken?.trim()) errors.push('Household token is required');
-    
-    // TEMPORARILY DISABLED for testing - ID and face images are optional
-    // if (!data.idType?.trim()) errors.push('ID type is required');
-    // if (!data.idNumber?.trim()) errors.push('ID number is required');
-    // if (!data.frontIdImage) errors.push('Front ID image is required');
-    // if (!data.backIdImage) errors.push('Back ID image is required');
-    // if (!data.faceImage) errors.push('Face image is required');
+    if (!data.firstName?.trim()) issues.push({ field: 'firstName', code: 'FIRST_NAME_REQUIRED', message: 'First name is required' });
+    if (!data.lastName?.trim()) issues.push({ field: 'lastName', code: 'LAST_NAME_REQUIRED', message: 'Last name is required' });
+    if (!data.dateOfBirth?.trim()) issues.push({ field: 'dateOfBirth', code: 'DOB_REQUIRED', message: 'Date of birth is required' });
+    if (!data.gender) issues.push({ field: 'gender', code: 'GENDER_REQUIRED', message: 'Gender is required' });
+    if (!data.mobileNumber?.trim()) issues.push({ field: 'mobileNumber', code: 'MOBILE_REQUIRED', message: 'Mobile number is required' });
+    if (!data.password?.trim()) issues.push({ field: 'password', code: 'PASSWORD_REQUIRED', message: 'Password is required' });
+    if (!data.barangay?.trim()) issues.push({ field: 'barangay', code: 'BARANGAY_REQUIRED', message: 'Barangay is required' });
+    if (!data.streetAddress?.trim()) issues.push({ field: 'streetAddress', code: 'ADDRESS_REQUIRED', message: 'Street address is required' });
+    if (!data.householdToken?.trim()) issues.push({ field: 'householdToken', code: 'TOKEN_REQUIRED', message: 'Household token is required' });
+    if (!data.idType?.trim()) issues.push({ field: 'idType', code: 'ID_TYPE_REQUIRED', message: 'ID type is required' });
+    if (!data.idNumber?.trim()) issues.push({ field: 'idNumber', code: 'ID_NUMBER_REQUIRED', message: 'ID number is required' });
+    if (!data.frontIdImage?.trim()) issues.push({ field: 'frontIdImage', code: 'FRONT_ID_REQUIRED', message: 'Front ID image is required' });
+    if (!data.backIdImage?.trim()) issues.push({ field: 'backIdImage', code: 'BACK_ID_REQUIRED', message: 'Back ID image is required' });
+    if (!data.faceImage?.trim()) issues.push({ field: 'faceImage', code: 'FACE_IMAGE_REQUIRED', message: 'Face image is required' });
     
     // Password validation aligned with shared security policy.
     if (data.password) {
       const passwordValidation = validatePassword(data.password);
       if (!passwordValidation.isValid && passwordValidation.errors.length > 0) {
-        errors.push(passwordValidation.errors[0]);
+        issues.push({ field: 'password', code: 'PASSWORD_INVALID', message: passwordValidation.errors[0] });
       }
       if (isCommonPassword(data.password)) {
-        errors.push('Password is too common');
+        issues.push({ field: 'password', code: 'PASSWORD_TOO_COMMON', message: 'Password is too common' });
       }
     }
     
     // Mobile number format (Philippines): exactly 11 digits, starts with 09
     if (data.mobileNumber && !isValidPhilippineMobileNumber(normalizedMobile)) {
-      errors.push('Invalid mobile number format (must be 11 digits and start with 09)');
+      issues.push({
+        field: 'mobileNumber',
+        code: 'MOBILE_INVALID_FORMAT',
+        message: 'Invalid mobile number format (must be 11 digits and start with 09)',
+      });
     }
     
     // Token format
     if (data.householdToken && !/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(data.householdToken.trim())) {
-      errors.push('Invalid token format');
+      issues.push({ field: 'householdToken', code: 'TOKEN_INVALID_FORMAT', message: 'Invalid token format' });
     }
-    
-    return errors;
+
+    if (data.idType && !validateIdType(data.idType)) {
+      issues.push({
+        field: 'idType',
+        code: 'ID_TYPE_UNSUPPORTED',
+        message: 'Unsupported ID type selected',
+      });
+    }
+
+    if (data.idType && data.idNumber && !validateIdNumberFormat(data.idType, normalizedIdNumber)) {
+      issues.push({
+        field: 'idNumber',
+        code: 'ID_NUMBER_INVALID_FORMAT',
+        message: 'ID number format does not match the selected ID type',
+      });
+    }
+
+    return issues;
   }
 }
 

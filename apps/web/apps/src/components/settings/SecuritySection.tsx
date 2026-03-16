@@ -18,8 +18,12 @@ export default function SecuritySection() {
   const [saving, setSaving] = useState(false)
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+
+  // OTP step state
+  const [otpStep, setOtpStep] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [otpError, setOtpError] = useState<string | null>(null)
 
   // Derived strength of newPassword
   const strength = useMemo(
@@ -77,90 +81,182 @@ export default function SecuritySection() {
     setConfirmOpen(true)
   }
 
-  /** Actually call the API after user confirms */
-  const handleConfirmedChange = async () => {
+  /** Step 1: Request OTP after user confirms in modal */
+  const handleRequestOtp = async () => {
     setSaving(true)
     try {
-      const res = await profileApi.changePassword({
+      const res = await profileApi.requestPasswordChangeOtp({
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
       })
       if (res.success) {
-        showToast.success('Password changed successfully')
-        setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+        showToast.success('Verification code sent to your email')
+        setConfirmOpen(false)
+        setOtpStep(true)
+        setOtp('')
+        setOtpError(null)
       } else {
         const errors = (res as any).errors
         if (Array.isArray(errors) && errors.length > 0) {
           errors.forEach((e: string) => showToast.error(e))
         } else {
-          showToast.error(res.message || 'Failed to change password')
+          showToast.error(res.message || 'Failed to send verification code')
+        }
+        setConfirmOpen(false)
+      }
+    } catch (err: any) {
+      showToast.error(err.message || 'Failed to send verification code')
+      setConfirmOpen(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** Step 2: Verify OTP and change password */
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+      setOtpError('Please enter a valid 6-digit code')
+      return
+    }
+    setSaving(true)
+    setOtpError(null)
+    try {
+      const res = await profileApi.confirmPasswordChange({
+        currentPassword: form.currentPassword,
+        newPassword: form.newPassword,
+        otp,
+      })
+      if (res.success) {
+        showToast.success('Password changed successfully')
+        setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+        setOtp('')
+        setOtpStep(false)
+      } else {
+        const errors = (res as any).errors
+        if (Array.isArray(errors) && errors.length > 0) {
+          errors.forEach((e: string) => showToast.error(e))
+        } else {
+          setOtpError(res.message || 'Invalid verification code')
         }
       }
     } catch (err: any) {
-      const errors = err?.response?.errors
-      if (Array.isArray(errors) && errors.length > 0) {
-        errors.forEach((e: string) => showToast.error(e))
-      } else {
-        showToast.error(err.message || 'Failed to change password')
-      }
+      setOtpError(err.message || 'Failed to verify code')
     } finally {
       setSaving(false)
-      setConfirmOpen(false)
     }
+  }
+
+  /** Cancel OTP step — go back to password form */
+  const handleCancelOtp = () => {
+    setOtp('')
+    setOtpStep(false)
+    setOtpError(null)
   }
 
   return (
     <div>
-      {/* Change Password */}
-      <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6">
-        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Change Password</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ensure your account stays secure.</p>
+      {otpStep ? (
+        /* ── OTP Verification Step ─────────────────────────── */
+        <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Verify Your Identity</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Enter the 6-digit code sent to your email to confirm the password change.
+          </p>
 
-        <div className="mt-6 space-y-5 max-w-lg">
-          <PasswordField
-            label="Current Password"
-            value={form.currentPassword}
-            onChange={(v) => handlePasswordInput('currentPassword', v)}
-            show={showCurrent}
-            onToggle={() => setShowCurrent(!showCurrent)}
-          />
+          <div className="mt-6 max-w-lg space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                6-Digit Verification Code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                className="w-full px-3 py-2.5 border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors text-center tracking-[0.3em] font-mono text-lg"
+                autoFocus
+                disabled={saving}
+              />
+              <p className="mt-1 text-xs text-gray-400">Code expires in 10 minutes.</p>
+              {otpError && <p className="mt-1 text-sm text-red-500">{otpError}</p>}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={handleCancelOtp}
+                disabled={saving}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVerifyOtp}
+                disabled={saving || otp.length !== 6}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-[#0F533A] rounded-xl hover:bg-[#0a3f2c] transition-colors disabled:opacity-50"
+              >
+                <LockIcon className="w-4 h-4" />
+                {saving ? 'Verifying...' : 'Verify & Change Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ── Change Password Form ──────────────────────────── */
+        <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Change Password</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ensure your account stays secure.</p>
 
-          <div>
+          <div className="mt-6 space-y-5 max-w-lg">
             <PasswordField
-              label="New Password"
-              value={form.newPassword}
-              onChange={(v) => handlePasswordInput('newPassword', v)}
-              show={showNew}
-              onToggle={() => setShowNew(!showNew)}
-              hint="Min. 16 characters, upper + lower + digit + symbol, no whitespace"
+              label="Current Password"
+              value={form.currentPassword}
+              onChange={(v) => handlePasswordInput('currentPassword', v)}
+              show={showCurrent}
+              onToggle={() => setShowCurrent(!showCurrent)}
             />
-            {/* Strength meter — same design as AddUserModal */}
-            <PasswordStrengthMeter password={form.newPassword} />
+
+            <div>
+              <PasswordField
+                label="New Password"
+                value={form.newPassword}
+                onChange={(v) => handlePasswordInput('newPassword', v)}
+                show={showNew}
+                onToggle={() => setShowNew(!showNew)}
+                hint="Min. 16 characters, upper + lower + digit + symbol, no whitespace"
+              />
+              {/* Strength meter — same design as AddUserModal */}
+              <PasswordStrengthMeter password={form.newPassword} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={form.confirmPassword}
+                onChange={(e) => handlePasswordInput('confirmPassword', e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+              />
+            </div>
+            {form.confirmPassword && form.newPassword !== form.confirmPassword && (
+              <p className="text-sm text-red-500 -mt-3">Passwords do not match</p>
+            )}
           </div>
 
-          <PasswordField
-            label="Confirm New Password"
-            value={form.confirmPassword}
-            onChange={(v) => handlePasswordInput('confirmPassword', v)}
-            show={showConfirm}
-            onToggle={() => setShowConfirm(!showConfirm)}
-          />
-          {form.confirmPassword && form.newPassword !== form.confirmPassword && (
-            <p className="text-sm text-red-500 -mt-3">Passwords do not match</p>
-          )}
+          <div className="flex justify-end mt-8">
+            <button
+              onClick={handleRequestChange}
+              disabled={isButtonDisabled}
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-[#0F533A] rounded-xl hover:bg-[#0a3f2c] transition-colors disabled:opacity-50"
+            >
+              <LockIcon className="w-4 h-4" />
+              Update Password
+            </button>
+          </div>
         </div>
-
-        <div className="flex justify-end mt-8">
-          <button
-            onClick={handleRequestChange}
-            disabled={isButtonDisabled}
-            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-[#0F533A] rounded-xl hover:bg-[#0a3f2c] transition-colors disabled:opacity-50"
-          >
-            <LockIcon className="w-4 h-4" />
-            Update Password
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Active Sessions placeholder */}
       <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700/50 shadow-sm p-6 mt-6">
@@ -175,10 +271,10 @@ export default function SecuritySection() {
       <ConfirmModal
         isOpen={confirmOpen}
         title="Confirm Password Update"
-        body="Are you sure you want to update your password?"
-        confirmLabel="Yes, Update"
+        body="Are you sure you want to update your password? A verification code will be sent to your email."
+        confirmLabel="Yes, Send Code"
         loading={saving}
-        onConfirm={handleConfirmedChange}
+        onConfirm={handleRequestOtp}
         onCancel={() => setConfirmOpen(false)}
       />
     </div>

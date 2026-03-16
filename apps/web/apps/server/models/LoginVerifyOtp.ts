@@ -16,9 +16,9 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface ILoginVerifyOtp extends Document {
-  userId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId;
   emailLower: string;
-  purpose: 'FIRST_LOGIN';
+  purpose: 'FIRST_LOGIN' | 'LOGIN_2FA' | 'SUPERADMIN_LOGIN_2FA' | 'PASSWORD_CHANGE_2FA';
   otpHash: string;
   expiresAt: Date;
   usedAt: Date | null;
@@ -32,7 +32,7 @@ const LoginVerifyOtpSchema = new Schema<ILoginVerifyOtp>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: 'StaffUser',
-      required: true,
+      required: false,
     },
     emailLower: {
       type: String,
@@ -43,7 +43,7 @@ const LoginVerifyOtpSchema = new Schema<ILoginVerifyOtp>(
     purpose: {
       type: String,
       required: true,
-      enum: ['FIRST_LOGIN'],
+      enum: ['FIRST_LOGIN', 'LOGIN_2FA', 'SUPERADMIN_LOGIN_2FA', 'PASSWORD_CHANGE_2FA'],
       default: 'FIRST_LOGIN',
     },
     otpHash: {

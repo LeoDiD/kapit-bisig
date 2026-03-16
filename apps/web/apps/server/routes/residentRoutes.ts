@@ -9,7 +9,7 @@ import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Resident from '../models/Resident';
 import HouseholdToken from '../models/HouseholdToken';
-import { requireAuth, requireStaffOrSuperadmin, scopeBarangayGuard, AuthRequest } from '../middleware/unifiedAuth';
+import { requireAuth, requireSuperadmin, requireStaffOrSuperadmin, scopeBarangayGuard, AuthRequest } from '../middleware/unifiedAuth';
 import { householdTokenService } from '../services/householdTokenService';
 import { validateRequest } from '../validation/validateRequest';
 import { escapeRegex } from '../validation/mongoSanitize';
@@ -18,13 +18,18 @@ import {
   registerResidentBody,
   listResidentsQuery,
   residentIdParams,
+  residentStatusUpdateBody,
 } from '../validation/resident.schema';
 import {
   isValidPhilippineMobileNumber,
   normalizePhilippineMobileNumber,
 } from '../utils/mobileNumber';
+import { validateBase64Image } from '../validation/imageValidation';
+import { normalizeIdNumber, validateIdNumberFormat, validateIdType } from '../utils/idVerification';
+import { persistVerificationImage } from '../utils/imageStorage';
 
 const router = Router();
+const REGISTER_PAYLOAD_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
 /**
  * Calculate AI verification status based on confidence score
@@ -41,6 +46,14 @@ function getAIVerificationStatus(confidence: number): 'High Match' | 'Medium Mat
  */
 router.post('/register', validateRequest({ body: registerResidentBody }), async (req: Request, res: Response) => {
   try {
+    const payloadBytes = Buffer.byteLength(JSON.stringify(req.body || {}), 'utf8');
+    if (payloadBytes > REGISTER_PAYLOAD_MAX_BYTES) {
+      return res.status(413).json({
+        success: false,
+        message: 'Request payload too large.',
+      });
+    }
+
     const {
       // Personal Info
       firstName,
@@ -73,6 +86,7 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
     } = req.body;
 
     const normalizedMobileNumber = normalizePhilippineMobileNumber(mobileNumber || '');
+    const normalizedIdNumber = normalizeIdNumber(idType || '', idNumber || '');
 
     // Validate required fields
     if (!firstName || !lastName || !dateOfBirth || !gender || !mobileNumber || !password) {
@@ -89,11 +103,11 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
     if (!isValidPhilippineMobileNumber(normalizedMobileNumber)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid mobile number format. Use 09XXXXXXXXX.',
+        message: 'Please enter a valid Philippine mobile number.',
         error: {
           code: 'INVALID_MOBILE_FORMAT',
           field: 'mobileNumber',
-          details: 'Mobile number must be exactly 11 digits and start with 09.',
+          details: 'Mobile number must be 09XXXXXXXXX or +639XXXXXXXXX.',
         },
       });
     }
@@ -112,6 +126,28 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       });
     }
 
+    if (!validateIdType(idType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Unsupported ID type selected.',
+        error: {
+          code: 'ID_TYPE_UNSUPPORTED',
+          field: 'idType',
+        },
+      });
+    }
+
+    if (!validateIdNumberFormat(idType, normalizedIdNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID number format does not match the selected ID type.',
+        error: {
+          code: 'ID_NUMBER_INVALID_FORMAT',
+          field: 'idNumber',
+        },
+      });
+    }
+
     if (!faceImage) {
       return res.status(400).json({
         success: false,
@@ -119,11 +155,46 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       });
     }
 
+    const [frontValidation, backValidation, faceValidation] = await Promise.all([
+      validateBase64Image(frontIdImage, {
+        fieldName: 'Front ID image',
+        maxBytes: 2 * 1024 * 1024,
+        minWidth: 200,
+        minHeight: 200,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      }),
+      validateBase64Image(backIdImage, {
+        fieldName: 'Back ID image',
+        maxBytes: 2 * 1024 * 1024,
+        minWidth: 200,
+        minHeight: 200,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      }),
+      validateBase64Image(faceImage, {
+        fieldName: 'Face image',
+        maxBytes: 2 * 1024 * 1024,
+        minWidth: 160,
+        minHeight: 160,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      }),
+    ]);
+
+    const failedValidation = [frontValidation, backValidation, faceValidation].find((v) => !v.ok);
+    if (failedValidation && !failedValidation.ok) {
+      return res.status(400).json({
+        success: false,
+        message: failedValidation.message,
+      });
+    }
+
     // Check if resident already exists
     const existingResident = await Resident.findOne({
       $or: [
         { mobileNumber: normalizedMobileNumber },
-        { idNumber },
+        { idNumber: normalizedIdNumber },
       ],
     });
 
@@ -132,7 +203,7 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       return res.status(409).json({
         success: false,
         message: isDuplicateMobile
-          ? 'Mobile number is already registered'
+          ? 'This account already exists. Please sign in instead.'
           : 'ID number is already registered',
         error: {
           code: isDuplicateMobile ? 'DUPLICATE_MOBILE' : 'DUPLICATE_ID',
@@ -141,7 +212,7 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       });
     }
 
-    // Process verification result from mobile AI
+    // Keep client AI output as advisory metadata only; approval stays admin-driven.
     const overallConfidence = verificationResult?.overallConfidence 
       ? Math.round(verificationResult.overallConfidence * 100) 
       : 0;
@@ -159,11 +230,13 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       riskFactors: verificationResult?.riskFactors || [],
     };
 
-    // Determine if we should auto-approve based on high match confidence (>=80%)
-    const shouldAutoApprove = overallConfidence >= 80;
-    const initialStatus = shouldAutoApprove ? 'Approved' : 'Pending';
+    const initialStatus: 'Pending' = 'Pending';
 
     // Create new resident
+    const frontIdImageRef = persistVerificationImage(frontIdImage, 'front-id');
+    const backIdImageRef = persistVerificationImage(backIdImage, 'back-id');
+    const faceImageRef = persistVerificationImage(faceImage, 'face');
+
     const resident = new Resident({
       firstName,
       lastName,
@@ -179,25 +252,19 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       vulnerableMembers: vulnerableMembers || [],
       vulnerableCounts: vulnerableCounts || {},
       idType,
-      idNumber,
-      frontIdImage,
-      backIdImage,
-      faceImage,
+      idNumber: normalizedIdNumber,
+      frontIdImage: frontIdImageRef,
+      backIdImage: backIdImageRef,
+      faceImage: faceImageRef,
       verification,
       status: initialStatus,
-      ...(shouldAutoApprove && {
-        verifiedBy: 'System (High Match Auto-Approved)',
-        verifiedAt: new Date(),
-      }),
     });
 
     await resident.save();
 
     res.status(201).json({
       success: true,
-      message: shouldAutoApprove 
-        ? 'Registration approved automatically - High confidence match!' 
-        : 'Registration submitted successfully - Pending admin review',
+      message: 'Registration submitted successfully - Pending admin review',
       data: {
         id: resident._id,
         firstName: resident.firstName,
@@ -209,7 +276,7 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
           isVerified: verification.isVerified,
         },
         status: resident.status,
-        autoApproved: shouldAutoApprove,
+        autoApproved: false,
       },
     });
   } catch (error) {
@@ -221,12 +288,19 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       'code' in error &&
       (error as { code?: number }).code === 11000
     ) {
+      const duplicateKey =
+        typeof (error as any).keyPattern === 'object' && (error as any).keyPattern
+          ? Object.keys((error as any).keyPattern)[0]
+          : 'mobileNumber';
+      const isDuplicateId = duplicateKey === 'idNumber';
       return res.status(409).json({
         success: false,
-        message: 'Mobile number is already registered',
+        message: isDuplicateId
+          ? 'ID number is already registered'
+          : 'This account already exists. Please sign in instead.',
         error: {
-          code: 'DUPLICATE_MOBILE',
-          field: 'mobileNumber',
+          code: isDuplicateId ? 'DUPLICATE_ID' : 'DUPLICATE_MOBILE',
+          field: isDuplicateId ? 'idNumber' : 'mobileNumber',
         },
       });
     }
@@ -310,13 +384,77 @@ router.get('/', requireAuth, requireStaffOrSuperadmin, validateRequest({ query: 
 });
 
 /**
+ * PATCH /api/residents/:id/status
+ * Approve or reject a pending resident registration.
+ */
+router.patch(
+  '/:id/status',
+  requireAuth,
+  requireSuperadmin,
+  validateRequest({ params: residentIdParams, body: residentStatusUpdateBody }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { status, rejectionReason } = req.body as {
+        status: 'Approved' | 'Rejected';
+        rejectionReason?: string;
+      };
+
+      const resident = await Resident.findById(req.params.id).select('-password');
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found',
+        });
+      }
+
+      if (req.authUser?.role === 'LGU_STAFF') {
+        const assigned = req.authUser.assignedBarangays ?? [];
+        if (!assigned.includes(resident.barangay)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have access to modify this resident',
+          });
+        }
+      }
+
+      resident.status = status;
+      resident.rejectionReason = status === 'Rejected' ? rejectionReason?.trim() : undefined;
+      resident.verifiedAt = new Date();
+      resident.verifiedBy = req.authUser?.userId || req.authUser?.sub || 'system';
+      await resident.save();
+
+      return res.json({
+        success: true,
+        message:
+          status === 'Approved'
+            ? 'Registration approved successfully'
+            : 'Registration rejected successfully',
+        data: {
+          id: resident._id,
+          status: resident.status,
+          rejectionReason: resident.rejectionReason,
+          verifiedAt: resident.verifiedAt,
+          verifiedBy: resident.verifiedBy,
+        },
+      });
+    } catch (error) {
+      console.error('[ResidentRoutes] Update resident status error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Server error',
+      });
+    }
+  }
+);
+
+/**
  * POST /api/residents/codes/generate-batch
  * Generate household registration codes by barangay.
  */
 router.post(
   '/codes/generate-batch',
   requireAuth,
-  requireStaffOrSuperadmin,
+  requireSuperadmin,
   validateRequest({ body: generateCodeBatchBody }),
   scopeBarangayGuard('body'),
   async (req: AuthRequest, res: Response) => {

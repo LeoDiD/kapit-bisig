@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SplashScreen from './components/SplashScreen';
 import HomeScreen from './components/HomeScreen';
@@ -18,14 +18,17 @@ import {
 
 type Screen = 'home' | 'qr' | 'profile';
 type AccountType = 'resident' | 'volunteer' | null;
+type SplashInitialView = 'landing' | 'login';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [splashInitialView, setSplashInitialView] = useState<SplashInitialView>('landing');
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [residentProfile, setResidentProfile] = useState<ResidentProfile | null>(null);
   const [volunteerUser, setVolunteerUser] = useState<VolunteerUser | null>(null);
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const isResidentPending = accountType === 'resident' && residentProfile?.status === 'Pending';
 
   const loadResidentProfile = async (): Promise<boolean> => {
     try {
@@ -52,6 +55,7 @@ export default function App() {
   };
 
   const handleGetStarted = () => {
+    setSplashInitialView('landing');
     setShowSplash(false);
   };
 
@@ -62,6 +66,7 @@ export default function App() {
     setResidentProfile(null);
     setAccountType('volunteer');
     setCurrentScreen('home');
+    setSplashInitialView('landing');
     setShowSplash(false);
   };
 
@@ -75,11 +80,19 @@ export default function App() {
 
     setResidentProfile(null);
     setAccountType(null);
+    setSplashInitialView('login');
     setShowSplash(true);
     setCurrentScreen('home');
   };
 
   const handleNavigate = (screen: Screen) => {
+    if (isResidentPending && screen === 'qr') {
+      Alert.alert(
+        'Pending Approval',
+        'QR access is disabled while your account is pending admin review.',
+      );
+      return;
+    }
     setCurrentScreen(screen);
   };
 
@@ -114,7 +127,11 @@ export default function App() {
   if (showSplash) {
     return (
       <SafeAreaProvider>
-        <SplashScreen onGetStarted={handleGetStarted} onVolunteerLogin={handleVolunteerLoginSuccess} />
+        <SplashScreen
+          onGetStarted={handleGetStarted}
+          onVolunteerLogin={handleVolunteerLoginSuccess}
+          initialView={splashInitialView}
+        />
         <StatusBar style="dark" />
       </SafeAreaProvider>
     );
@@ -139,6 +156,7 @@ export default function App() {
             onNavigate={handleNavigate}
             onLogout={handleLogout}
             accountType={accountType || undefined}
+            residentStatus={residentProfile?.status}
             residentProfile={residentProfile}
             volunteerUser={volunteerUser}
             onResidentProfileUpdated={setResidentProfile}
@@ -167,6 +185,7 @@ export default function App() {
           <HomeScreen
             onNavigate={handleNavigate}
             accountType={accountType || undefined}
+            residentStatus={residentProfile?.status}
             userName={residentProfile?.firstName || residentProfile?.fullName}
             barangayName={
               residentProfile?.barangay

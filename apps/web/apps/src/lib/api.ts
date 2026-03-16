@@ -35,9 +35,10 @@ export function getScopedBarangays(
  */
 export interface StaffUser {
   id: string;
-  username: string;
+  firstName: string;
+  lastName: string;
   email?: string;
-  fullName: string;
+  fullName?: string;
   role: 'LGU_STAFF';
   isActive: boolean;
   forcePasswordReset?: boolean;
@@ -50,9 +51,9 @@ export interface StaffUser {
  * Create staff user data
  */
 export interface CreateStaffData {
-  username: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  fullName: string;
   assignedBarangays?: string[];
 }
 
@@ -60,7 +61,8 @@ export interface CreateStaffData {
  * Update staff user data
  */
 export interface UpdateStaffData {
-  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   isActive?: boolean;
 }
 
@@ -209,6 +211,24 @@ export interface ReportSummaryData {
   };
 }
 
+export interface ResidentRecord {
+  id?: string;
+  _id?: string;
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
+  mobileNumber: string;
+  barangay: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionReason?: string;
+  createdAt?: string;
+  verification?: {
+    overallConfidence?: number;
+    aiVerificationStatus?: 'High Match' | 'Medium Match' | 'Low Match';
+    isVerified?: boolean;
+  };
+}
+
 // ========================== HELPERS ==========================
 
 /**
@@ -245,18 +265,33 @@ const createHeaders = (method: string = 'GET'): HeadersInit => {
  * Handle API response
  */
 async function handleResponse<T>(response: Response): Promise<T> {
-  const data = await response.json();
-  
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const rawText = await response.text();
+
+  let data: any = null;
+  if (isJson && rawText) {
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = null;
+    }
+  }
+
   if (!response.ok) {
-    const error = new Error(data.message || 'An error occurred');
+    const fallbackMessage =
+      rawText && !isJson
+        ? rawText.slice(0, 180)
+        : `Request failed with status ${response.status}`;
+    const error = new Error(data?.message || fallbackMessage || 'An error occurred');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (error as any).response = data;
+    (error as any).response = data ?? { message: fallbackMessage };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (error as any).status = response.status;
     throw error;
   }
-  
-  return data;
+
+  return (data ?? ({} as T)) as T;
 }
 
 // ========================== API CLIENT ==========================
@@ -269,7 +304,7 @@ export const api = {
    */
   async getStaffUsers(params?: {
     search?: string;
-    status?: 'active' | 'inactive';
+    status?: 'active' | 'pending' | 'inactive';
     barangay?: string;
   }): Promise<ApiResponse<StaffUser[]>> {
     const sp = new URLSearchParams();
@@ -469,6 +504,66 @@ export const api = {
     return handleResponse<PaginatedApiResponse<any[]>>(response);
   },
 
+  /**
+   * Delete a staff user
+   */
+  async deleteStaffUser(id: string): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: createHeaders('DELETE'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<void>>(response);
+  },
+
+  // ==================== RESIDENT REGISTRATIONS ====================
+
+  /**
+   * Get resident registrations with optional filters.
+   */
+  async getResidents(params?: {
+    search?: string;
+    barangay?: string;
+    status?: 'All' | 'Pending' | 'Approved' | 'Rejected';
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<ResidentRecord[]>> {
+    const sp = new URLSearchParams();
+    if (params?.search) sp.append('search', params.search);
+    if (params?.barangay && params.barangay !== 'All Barangays') {
+      sp.append('barangay', params.barangay);
+    }
+    if (params?.status && params.status !== 'All') {
+      sp.append('status', params.status);
+    }
+    if (typeof params?.page === 'number') sp.append('page', String(params.page));
+    if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+
+    const qs = sp.toString();
+    const url = `${API_URL}/residents${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<ResidentRecord[]>>(response);
+  },
+
+  /**
+   * Approve or reject a resident registration.
+   */
+  async updateResidentStatus(
+    id: string,
+    payload: { status: 'Approved' | 'Rejected'; rejectionReason?: string }
+  ): Promise<ApiResponse<ResidentRecord>> {
+    const response = await fetch(`${API_URL}/residents/${id}/status`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<ApiResponse<ResidentRecord>>(response);
+  },
+
   // ==================== BLOCKCHAIN LEDGER ====================
 
   /**
@@ -586,8 +681,8 @@ export const profileApi = {
 
   /** PATCH /api/users/me – update profile fields */
   async updateProfile(data: {
-    fullName?: string;
-    username?: string;
+    firstName?: string;
+    lastName?: string;
   }): Promise<ApiResponse<any>> {
     const response = await fetch(`${API_URL}/users/me`, {
       method: 'PATCH',
@@ -615,12 +710,27 @@ export const profileApi = {
     return handleResponse<ApiResponse<{ avatarUrl: string }>>(response);
   },
 
-  /** POST /api/users/me/change-password */
-  async changePassword(data: {
+  /** POST /api/users/me/change-password/request-otp — Step 1: validate password, send OTP */
+  async requestPasswordChangeOtp(data: {
     currentPassword: string;
     newPassword: string;
   }): Promise<ApiResponse<void>> {
-    const response = await fetch(`${API_URL}/users/me/change-password`, {
+    const response = await fetch(`${API_URL}/users/me/change-password/request-otp`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<void>>(response);
+  },
+
+  /** POST /api/users/me/change-password/confirm — Step 2: verify OTP, change password */
+  async confirmPasswordChange(data: {
+    currentPassword: string;
+    newPassword: string;
+    otp: string;
+  }): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/users/me/change-password/confirm`, {
       method: 'POST',
       headers: createHeaders('POST'),
       credentials: 'include',
@@ -630,7 +740,7 @@ export const profileApi = {
   },
 
   /** PATCH /api/users/me/preferences */
-  async updatePreferences(data: { theme?: string }): Promise<ApiResponse<any>> {
+  async updatePreferences(data: { theme?: string; textSize?: 'small' | 'medium' | 'large' }): Promise<ApiResponse<any>> {
     const response = await fetch(`${API_URL}/users/me/preferences`, {
       method: 'PATCH',
       headers: createHeaders('PATCH'),

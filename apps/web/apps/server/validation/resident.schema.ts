@@ -5,15 +5,36 @@
 import { z } from 'zod';
 import { barangayEnum, objectId, trimmedString } from './shared';
 
+const NAME_REGEX = /^[A-Za-z]+(?:[ '-][A-Za-z]+)*$/;
+const PH_MOBILE_REGEX = /^(09\d{9}|\+639\d{9})$/;
+const PASSWORD_COMPLEXITY_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;':",./<>?`~\\]).+$/;
+
 /* POST /api/residents/register */
 export const registerResidentBody = z.object({
-  firstName: trimmedString(1, 100),
-  lastName: trimmedString(1, 100),
+  firstName: trimmedString(2, 50).regex(
+    NAME_REGEX,
+    'First name must be 2–50 characters and contain letters only.',
+  ),
+  lastName: trimmedString(2, 50).regex(
+    NAME_REGEX,
+    'Last name must be 2–50 characters and contain letters only.',
+  ),
   fullName: z.string().max(200).optional(),
   dateOfBirth: z.string().min(1, 'Date of birth is required').max(30),
   gender: z.string().min(1, 'Gender is required').max(30),
-  mobileNumber: z.string().min(1, 'Mobile number is required').max(20),
-  password: z.string().min(1, 'Password is required').max(200),
+  mobileNumber: z
+    .string()
+    .min(1, 'Mobile number is required')
+    .regex(PH_MOBILE_REGEX, 'Please enter a valid Philippine mobile number.'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.')
+    .max(16, 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.')
+    .regex(
+      PASSWORD_COMPLEXITY_REGEX,
+      'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.',
+    ),
   // Address
   city: z.string().max(100).optional().default(''),
   barangay: trimmedString(1, 100),
@@ -24,12 +45,21 @@ export const registerResidentBody = z.object({
   // ID
   idType: z.string().min(1, 'ID type is required').max(50),
   idNumber: z.string().min(1, 'ID number is required').max(100),
-  frontIdImage: z.string().min(1, 'Front ID image is required'),
-  backIdImage: z.string().min(1, 'Back ID image is required'),
+  frontIdImage: z
+    .string()
+    .min(1, 'Front ID image is required')
+    .max(6_000_000, 'Front ID image payload is too large'),
+  backIdImage: z
+    .string()
+    .min(1, 'Back ID image is required')
+    .max(6_000_000, 'Back ID image payload is too large'),
   // Face
-  faceImage: z.string().min(1, 'Face image is required'),
+  faceImage: z
+    .string()
+    .min(1, 'Face image is required')
+    .max(6_000_000, 'Face image payload is too large'),
   // Verification (from mobile AI)
-  verificationResult: z.any().optional(),
+  verificationResult: z.unknown().optional(),
 }); // Not strict to allow mobile client flexibility
 
 /* GET /api/residents */
@@ -45,6 +75,23 @@ export const listResidentsQuery = z.object({
 export const residentIdParams = z.object({
   id: objectId,
 }).strict();
+
+/* PATCH /api/residents/:id/status */
+export const residentStatusUpdateBody = z
+  .object({
+    status: z.enum(['Approved', 'Rejected']),
+    rejectionReason: z.string().trim().max(500).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === 'Rejected' && (!value.rejectionReason || value.rejectionReason.trim().length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['rejectionReason'],
+        message: 'Rejection reason is required when rejecting a registration.',
+      });
+    }
+  })
+  .strict();
 
 /* POST /api/residents/codes/generate-batch */
 export const generateCodeBatchBody = z

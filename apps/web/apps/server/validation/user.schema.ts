@@ -3,15 +3,15 @@
  */
 
 import { z } from 'zod';
-import { objectId, trimmedString, phoneNumber, paginationQuery } from './shared';
+import { email, objectId, passwordString, searchString, trimmedString, phoneNumber, paginationQuery } from './shared';
 
 const userRole = z.enum(['Admin', 'Staff', 'Volunteer']);
 const userStatus = z.enum(['Active', 'Inactive', 'Suspended']);
 
 /* POST /api/users — create user */
 export const createUserBody = z.object({
-  email: z.string().trim().toLowerCase().email('Invalid email').max(255),
-  password: z.string().min(1, 'Password is required').max(200),
+  email,
+  password: passwordString,
   firstName: trimmedString(1, 100),
   lastName: trimmedString(1, 100),
   role: userRole,
@@ -24,7 +24,7 @@ export const createUserBody = z.object({
 export const listUsersQuery = paginationQuery.extend({
   role: z.enum(['Admin', 'Staff', 'Volunteer']).optional(),
   status: z.enum(['Active', 'Inactive', 'Suspended']).optional(),
-  search: z.string().max(200).optional(),
+  search: searchString.optional(),
 }).strict();
 
 /* GET /api/users/:id */
@@ -49,5 +49,5 @@ export const updateStatusBody = z.object({
 
 /* PATCH /api/users/:id/password */
 export const resetUserPasswordBody = z.object({
-  newPassword: z.string().min(1, 'New password is required').max(200),
+  newPassword: passwordString,
 }).strict();

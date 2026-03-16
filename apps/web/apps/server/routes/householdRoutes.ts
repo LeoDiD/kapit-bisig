@@ -29,11 +29,14 @@ import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { householdRegistrationService } from '../services/householdRegistrationService';
 import RegistrationAuditLog from '../models/RegistrationAuditLog';
-import { generateRequestId } from '../services/householdTokenService';
+import { generateRequestId, householdTokenService } from '../services/householdTokenService';
 import HouseholdToken from '../models/HouseholdToken';
 import Resident from '../models/Resident';
+import ResidentPasswordResetOtp from '../models/ResidentPasswordResetOtp';
 import Distribution from '../models/Distribution';
 import Claim from '../models/Claim';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
@@ -42,6 +45,7 @@ import { isClaimedOnChain, submitClaimOnChain } from '../services/blockchainServ
 import bcrypt from 'bcrypt';
 import {
   loginRateLimiter,
+  passwordResetRateLimiter,
   tokenValidationRateLimiter,
   householdRegistrationRateLimiter,
   mobileLookupRateLimiter,
@@ -49,19 +53,32 @@ import {
 import { validateRequest } from '../validation/validateRequest';
 import {
   validateTokenBody,
+  recordDuplicateBlockBody,
   registerHouseholdBody,
   checkMobileBody,
 } from '../validation/household.schema';
+import { validateBase64Image } from '../validation/imageValidation';
+import { normalizeIdNumber } from '../utils/idVerification';
 import { authMiddleware, generateToken, AuthenticatedRequest } from '../middleware/authMiddleware';
 import {
   isValidPhilippineMobileNumber,
   normalizePhilippineMobileNumber,
 } from '../utils/mobileNumber';
-import { householdLoginSchema } from '../schemas/authSchemas';
+import {
+  householdForgotResetSchema,
+  householdForgotSendOtpSchema,
+  householdForgotVerifyOtpSchema,
+  householdLoginSchema,
+} from '../schemas/authSchemas';
 import { revokeJWTByValue } from '../services/tokenRevocationService';
+import { sendResetOtpEmail } from '../utils/mailer';
+import { validatePasswordStrength } from '../utils/passwordValidator';
 
 const router = Router();
 const CLAIMED_STATUSES = ['PENDING_CHAIN', 'CHAIN_SUBMITTED', 'CONFIRMED', 'CHAIN_FAILED'] as const;
+const PASSWORD_RESET_OTP_EXPIRY_MINUTES = 10;
+const PASSWORD_RESET_OTP_MAX_ATTEMPTS = 5;
+const RESIDENT_RESET_TOKEN_EXPIRY = '10m';
 
 /**
  * Debug endpoint to check tokens in database
@@ -120,6 +137,18 @@ function getClientIP(req: Request): string {
  */
 function getUserAgent(req: Request): string {
   return req.headers['user-agent'] || 'unknown';
+}
+
+function generateOtp(): string {
+  const num = crypto.randomInt(0, 1_000_000);
+  return num.toString().padStart(6, '0');
+}
+
+function getJWTSecret(): string {
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error('JWT_SECRET not set');
+  if (s.length < 32) throw new Error('JWT_SECRET must be at least 32 characters long');
+  return s;
 }
 
 /**
@@ -507,12 +536,11 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
       });
     }
     
-    // Validate required fields exist (ID and face images optional for testing)
+    // Validate required fields exist
     const requiredFields = [
       'firstName', 'lastName', 'dateOfBirth', 'gender', 'mobileNumber',
-      'password', 'barangay', 'streetAddress', 'householdToken'
-      // TEMPORARILY DISABLED for testing:
-      // 'idType', 'idNumber', 'frontIdImage', 'backIdImage', 'faceImage'
+      'password', 'barangay', 'streetAddress', 'householdToken',
+      'idType', 'idNumber', 'frontIdImage', 'backIdImage', 'faceImage',
     ];
     
     const missingFields = requiredFields.filter(field => !registrationData[field]);
@@ -535,6 +563,11 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
         success: false,
         message: `Missing required fields: ${missingFields.join(', ')}`,
         errorCode: 'MISSING_FIELDS',
+        validationErrors: missingFields.map((field) => ({
+          field,
+          code: 'REQUIRED',
+          message: `${field} is required`,
+        })),
       });
     }
     
@@ -547,6 +580,54 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
       });
     }
     
+    registrationData.idNumber = normalizeIdNumber(registrationData.idType, registrationData.idNumber);
+
+    const [frontValidation, backValidation, faceValidation] = await Promise.all([
+      validateBase64Image(registrationData.frontIdImage, {
+        fieldName: 'Front ID image',
+        maxBytes: 2 * 1024 * 1024,
+        minWidth: 200,
+        minHeight: 200,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      }),
+      validateBase64Image(registrationData.backIdImage, {
+        fieldName: 'Back ID image',
+        maxBytes: 2 * 1024 * 1024,
+        minWidth: 200,
+        minHeight: 200,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      }),
+      validateBase64Image(registrationData.faceImage, {
+        fieldName: 'Face image',
+        maxBytes: 2 * 1024 * 1024,
+        minWidth: 160,
+        minHeight: 160,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      }),
+    ]);
+
+    const failedValidation = [frontValidation, backValidation, faceValidation].find((v) => !v.ok);
+    if (failedValidation && !failedValidation.ok) {
+      const field = failedValidation.message.toLowerCase().includes('front')
+        ? 'frontIdImage'
+        : failedValidation.message.toLowerCase().includes('back')
+          ? 'backIdImage'
+          : 'faceImage';
+      return res.status(400).json({
+        success: false,
+        message: failedValidation.message,
+        errorCode: 'IMAGE_VALIDATION_FAILED',
+        validationErrors: [{
+          field,
+          code: 'INVALID_IMAGE',
+          message: failedValidation.message,
+        }],
+      });
+    }
+
     // Process registration
     const result = await householdRegistrationService.registerResident(
       registrationData,
@@ -568,9 +649,12 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
         'TOKEN_NOT_FOUND': 400,
         'TOKEN_EXPIRED': 400,
         'TOKEN_ALREADY_USED': 409,
+        'TOKEN_REVIEW_REQUIRED': 403,
         'LOCK_CONFLICT': 409, // Conflict - another registration in progress
         'VALIDATION_FAILED': 400,
+        'VALIDATION_ERROR': 400,
         'DUPLICATE_MOBILE': 409,
+        'DUPLICATE_ID': 409,
         'SYSTEM_ERROR': 500,
       };
       
@@ -580,6 +664,7 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
         success: false,
         message: result.message,
         errorCode: result.errorCode,
+        validationErrors: result.validationErrors,
       });
     }
     
@@ -612,7 +697,8 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
  * POST /api/household/auth/login
  *
  * Authenticates a registered household resident using mobile number + password.
- * Only Approved residents are allowed to log in.
+ * Pending residents are allowed to sign in for limited access (home/profile only).
+ * Rejected residents are blocked from sign-in.
  */
 router.post('/auth/login', loginRateLimiter, validateRequest({ body: householdLoginSchema }), async (req: Request, res: Response) => {
   try {
@@ -662,14 +748,11 @@ router.post('/auth/login', loginRateLimiter, validateRequest({ body: householdLo
       });
     }
 
-    if (resident.status !== 'Approved') {
+    if (resident.status === 'Rejected') {
       return res.status(403).json({
         success: false,
-        message:
-          resident.status === 'Pending'
-            ? 'Your registration is still pending approval.'
-            : 'Your registration was rejected. Please contact your barangay office.',
-        code: 'REGISTRATION_NOT_APPROVED',
+        message: 'Your registration was rejected. Please contact your barangay office.',
+        code: 'REGISTRATION_REJECTED',
       });
     }
 
@@ -746,7 +829,7 @@ router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Re
     }
 
     const resident = await Resident.findById(userId).select(
-      'residentCode avatarUrl firstName lastName fullName mobileNumber barangay city streetAddress householdSize status createdAt'
+      'residentCode avatarUrl firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status createdAt'
     );
 
     if (!resident) {
@@ -772,6 +855,7 @@ router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Re
         lastName: normalizedName.lastName || resident.lastName,
         fullName: normalizedName.fullName || resident.fullName,
         mobileNumber: resident.mobileNumber,
+        email: resident.email || '',
         barangay: resident.barangay,
         city: resident.city || '',
         streetAddress: resident.streetAddress,
@@ -833,6 +917,40 @@ router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: Au
     maybeSetTrimmed('streetAddress');
     maybeSetTrimmed('city');
 
+    if (payload.email !== undefined) {
+      if (typeof payload.email !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'email must be a string',
+        });
+      }
+
+      const normalizedEmail = payload.email.trim().toLowerCase();
+      if (normalizedEmail.length > 0 && !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid email format',
+        });
+      }
+
+      if (normalizedEmail) {
+        const existingEmailOwner = await Resident.findOne({
+          _id: { $ne: userId },
+          emailLower: normalizedEmail,
+        })
+          .select('_id')
+          .lean();
+        if (existingEmailOwner) {
+          return res.status(409).json({
+            success: false,
+            message: 'Email is already in use',
+          });
+        }
+      }
+
+      updates.email = normalizedEmail;
+    }
+
     if (payload.mobileNumber !== undefined) {
       if (typeof payload.mobileNumber !== 'string') {
         return res.status(400).json({
@@ -870,7 +988,7 @@ router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: Au
     }
 
     const resident = await Resident.findById(userId).select(
-      'residentCode avatarUrl firstName lastName fullName mobileNumber barangay city streetAddress householdSize status'
+      'residentCode avatarUrl firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status'
     );
 
     if (!resident) {
@@ -898,6 +1016,7 @@ router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: Au
         lastName: resident.lastName,
         fullName: resident.fullName,
         mobileNumber: resident.mobileNumber,
+        email: resident.email || '',
         barangay: resident.barangay,
         city: resident.city || '',
         streetAddress: resident.streetAddress,
@@ -1011,8 +1130,11 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
     if (resident.status !== 'Approved') {
       return res.status(403).json({
         success: false,
-        message: 'Resident account is not approved.',
-        code: 'REGISTRATION_NOT_APPROVED',
+        message:
+          resident.status === 'Pending'
+            ? 'Your account is still pending approval. Distribution feed is unavailable.'
+            : 'Resident account is not approved.',
+        code: resident.status === 'Pending' ? 'PENDING_APPROVAL' : 'REGISTRATION_NOT_APPROVED',
       });
     }
 
@@ -1109,6 +1231,305 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
 });
 
 /**
+ * Resident Forgot Password OTP (Email/Gmail)
+ *
+ * POST /api/household/auth/forgot-password/send-otp
+ * POST /api/household/auth/forgot-password/verify-otp
+ * POST /api/household/auth/forgot-password/reset
+ */
+router.post('/auth/forgot-password/send-otp', passwordResetRateLimiter, validateRequest({ body: householdForgotSendOtpSchema }), async (req: Request, res: Response) => {
+  try {
+    const emailLower = String(req.body.email || '').trim().toLowerCase();
+
+    const resident = await Resident.findOne({
+      emailLower,
+      status: { $ne: 'Rejected' },
+    }).select('_id email emailLower');
+
+    if (resident) {
+      const otp = generateOtp();
+      const otpHash = await bcrypt.hash(otp, 12);
+
+      await ResidentPasswordResetOtp.findOneAndUpdate(
+        { emailLower },
+        {
+          residentId: resident._id,
+          emailLower,
+          otpHash,
+          expiresAt: new Date(Date.now() + PASSWORD_RESET_OTP_EXPIRY_MINUTES * 60 * 1000),
+          attemptsLeft: PASSWORD_RESET_OTP_MAX_ATTEMPTS,
+          lastSentAt: new Date(),
+          createdAt: new Date(),
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
+
+      try {
+        await sendResetOtpEmail(resident.email || emailLower, otp);
+      } catch (mailErr) {
+        console.error('[MAILER] Failed to send resident reset OTP:', (mailErr as Error).message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'If the email exists, an OTP was sent.',
+    });
+  } catch (error) {
+    console.error('[HOUSEHOLD_FORGOT_SEND_OTP]', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error.',
+    });
+  }
+});
+
+router.post('/auth/forgot-password/verify-otp', passwordResetRateLimiter, validateRequest({ body: householdForgotVerifyOtpSchema }), async (req: Request, res: Response) => {
+  try {
+    const emailLower = String(req.body.email || '').trim().toLowerCase();
+    const otp = String(req.body.otp || '');
+
+    const record = await ResidentPasswordResetOtp.findOne({ emailLower });
+    if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired code.',
+      });
+    }
+
+    const isMatch = await bcrypt.compare(otp, record.otpHash);
+    if (!isMatch) {
+      record.attemptsLeft = Math.max(0, record.attemptsLeft - 1);
+      await record.save();
+
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired code.',
+      });
+    }
+
+    const resident = await Resident.findById(record.residentId).select('_id');
+    if (!resident) {
+      await ResidentPasswordResetOtp.deleteOne({ _id: record._id });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired code.',
+      });
+    }
+
+    const resetToken = jwt.sign(
+      { sub: resident._id.toString(), purpose: 'resident_password_reset' },
+      getJWTSecret(),
+      { expiresIn: RESIDENT_RESET_TOKEN_EXPIRY, algorithm: 'HS256' } as SignOptions,
+    );
+
+    await ResidentPasswordResetOtp.deleteOne({ _id: record._id });
+
+    return res.json({
+      success: true,
+      resetToken,
+    });
+  } catch (error) {
+    console.error('[HOUSEHOLD_FORGOT_VERIFY_OTP]', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error.',
+    });
+  }
+});
+
+router.post('/auth/forgot-password/reset', passwordResetRateLimiter, validateRequest({ body: householdForgotResetSchema }), async (req: Request, res: Response) => {
+  try {
+    const { resetToken, newPassword } = req.body as { resetToken: string; newPassword: string };
+
+    let payload: { sub?: string; purpose?: string };
+    try {
+      payload = jwt.verify(resetToken, getJWTSecret()) as { sub?: string; purpose?: string };
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token.',
+      });
+    }
+
+    if (payload.purpose !== 'resident_password_reset' || !payload.sub) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token.',
+      });
+    }
+
+    const pwCheck = validatePasswordStrength(newPassword);
+    if (!pwCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password is too weak.',
+        errors: pwCheck.reason ? pwCheck.reason.split('; ') : ['Password is too weak'],
+      });
+    }
+
+    const resident = await Resident.findById(payload.sub).select('+password');
+    if (!resident) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token.',
+      });
+    }
+
+    resident.password = await bcrypt.hash(newPassword, 12);
+    await resident.save();
+
+    if (resident.emailLower) {
+      await ResidentPasswordResetOtp.deleteMany({
+        $or: [{ residentId: resident._id }, { emailLower: resident.emailLower }],
+      });
+    } else {
+      await ResidentPasswordResetOtp.deleteMany({ residentId: resident._id });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Password has been reset successfully.',
+    });
+  } catch (error) {
+    console.error('[HOUSEHOLD_FORGOT_RESET_PASSWORD]', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error.',
+    });
+  }
+});
+
+/**
+ * Record Duplicate Face BLOCK Attempt Endpoint
+ *
+ * POST /api/household/record-duplicate-block
+ *
+ * Records duplicate-face BLOCK events by token.
+ * After 3 BLOCK attempts, token is temporarily blocked for review (24h).
+ */
+router.post(
+  '/record-duplicate-block',
+  householdRegistrationRateLimiter,
+  validateRequest({ body: recordDuplicateBlockBody }),
+  async (req: Request, res: Response) => {
+    const requestId = generateRequestId();
+    const ipAddress = getClientIP(req);
+    const userAgent = getUserAgent(req);
+
+    try {
+      const { token, barangay, similarity } = req.body;
+      const sanitizedToken = sanitizeToken(token);
+      const sanitizedBarangay = barangay && typeof barangay === 'string' ? barangay.trim() : undefined;
+
+      const result = await householdTokenService.recordDuplicateBlockAttempt(
+        sanitizedToken,
+        ipAddress,
+        userAgent,
+        requestId,
+        sanitizedBarangay,
+        typeof similarity === 'number' ? similarity : undefined
+      );
+
+      if (!result.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Unable to record duplicate attempt.',
+          errorCode: 'SYSTEM_ERROR',
+        });
+      }
+
+      if (!result.recorded) {
+        return res.status(400).json({
+          success: false,
+          message: result.error || 'Unable to record duplicate attempt.',
+          errorCode: result.errorCode || 'VALIDATION_ERROR',
+        });
+      }
+
+      const maxAttempts = result.maxAttempts || 3;
+      const attempts = result.attempts || 1;
+      const blocked = !!result.blockedUntil;
+
+      return res.status(200).json({
+        success: true,
+        blocked,
+        attempts,
+        maxAttempts,
+        blockedUntil: result.blockedUntil || null,
+        message: blocked
+          ? 'Token is temporarily blocked for review due to repeated duplicate detections.'
+          : `Duplicate attempt recorded (${attempts}/${maxAttempts}).`,
+      });
+    } catch (error) {
+      console.error('[HouseholdRoutes] Record duplicate block error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to record duplicate attempt.',
+        errorCode: 'SYSTEM_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * Resident Announcements Endpoint
+ *
+ * GET /api/household/announcements
+ *
+ * Reserved endpoint for resident-facing announcements.
+ * Pending residents are explicitly blocked until admin approval.
+ */
+router.get('/announcements', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'Resident') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only resident accounts can access announcements.',
+      });
+    }
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const resident = await Resident.findById(userId).select('status');
+    if (!resident) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resident not found',
+      });
+    }
+
+    if (resident.status !== 'Approved') {
+      return res.status(403).json({
+        success: false,
+        message:
+          resident.status === 'Pending'
+            ? 'Your account is still pending approval. Announcements are unavailable.'
+            : 'Resident account is not approved.',
+        code: resident.status === 'Pending' ? 'PENDING_APPROVAL' : 'REGISTRATION_NOT_APPROVED',
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: [],
+    });
+  } catch (error) {
+    console.error('[HouseholdRoutes] Resident /announcements error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to fetch announcements.',
+    });
+  }
+});
+
+/**
  * Resident QR Generator Endpoint
  *
  * GET /api/household/qr/me
@@ -1146,8 +1567,11 @@ router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: Authen
     if (resident.status !== 'Approved') {
       return res.status(403).json({
         success: false,
-        message: 'Resident account is not approved for QR use.',
-        code: 'QR_NOT_ALLOWED',
+        message:
+          resident.status === 'Pending'
+            ? 'Your account is still pending approval. QR generation is disabled.'
+            : 'Resident account is not approved for QR use.',
+        code: resident.status === 'Pending' ? 'PENDING_APPROVAL' : 'QR_NOT_ALLOWED',
       });
     }
 
@@ -1647,7 +2071,7 @@ router.post('/check-mobile', mobileLookupRateLimiter, validateRequest({ body: ch
       return res.status(400).json({
         success: false,
         available: false,
-        message: 'Invalid mobile number format.',
+        message: 'Please enter a valid Philippine mobile number.',
       });
     }
 
@@ -1657,7 +2081,7 @@ router.post('/check-mobile', mobileLookupRateLimiter, validateRequest({ body: ch
       return res.status(409).json({
         success: false,
         available: false,
-        message: 'This mobile number is already registered.',
+        message: 'This account already exists. Please sign in instead.',
         errorCode: 'DUPLICATE_MOBILE',
       });
     }

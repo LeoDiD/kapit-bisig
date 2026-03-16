@@ -114,7 +114,12 @@ router.post(
       });
     } catch (err) {
       console.error('[FORGOT_PASSWORD_SEND_OTP]', err);
-      res.status(500).json({ success: false, message: 'Internal server error.' });
+      res.status(500).json({
+        success: false,
+        message: process.env.NODE_ENV === 'development'
+          ? `Internal server error: ${(err as Error).message}`
+          : 'Internal server error.',
+      });
     }
   },
 );
@@ -180,7 +185,12 @@ router.post(
       res.json({ success: true, resetToken });
     } catch (err) {
       console.error('[FORGOT_PASSWORD_VERIFY_OTP]', err);
-      res.status(500).json({ success: false, message: 'Internal server error.' });
+      res.status(500).json({
+        success: false,
+        message: process.env.NODE_ENV === 'development'
+          ? `Internal server error: ${(err as Error).message}`
+          : 'Internal server error.',
+      });
     }
   },
 );
@@ -244,7 +254,12 @@ router.post(
       res.json({ success: true, message: 'Password has been reset successfully.' });
     } catch (err) {
       console.error('[FORGOT_PASSWORD_RESET]', err);
-      res.status(500).json({ success: false, message: 'Internal server error.' });
+      res.status(500).json({
+        success: false,
+        message: process.env.NODE_ENV === 'development'
+          ? `Internal server error: ${(err as Error).message}`
+          : 'Internal server error.',
+      });
     }
   },
 );

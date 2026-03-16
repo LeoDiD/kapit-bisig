@@ -10,7 +10,7 @@
  * See: backend/README.md for setup instructions
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { resolveApiBaseUrl } from '../config/apiSecurity';
 
 // Encoding type constant
@@ -122,7 +122,7 @@ class VerificationAPIService {
     try {
       const base64 = await this.imageToBase64(imageUri);
       
-      const response = await this.fetchWithTimeout(`${this.baseUrl}/ocr`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/verification/ocr`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

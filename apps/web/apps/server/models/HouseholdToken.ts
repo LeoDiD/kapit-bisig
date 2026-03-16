@@ -51,6 +51,11 @@ export interface IHouseholdToken extends Document {
     ipAddress: string | null;
     userAgent: string | null;
   };
+
+  // Duplicate face BLOCK tracking
+  duplicateBlockAttempts: number;
+  duplicateBlockedAt: Date | null;
+  duplicateBlockedUntil: Date | null;
   
   // Household information (set by barangay admin)
   householdInfo: {
@@ -146,6 +151,20 @@ const HouseholdTokenSchema: Schema = new Schema(
         default: null,
       },
     },
+
+    duplicateBlockAttempts: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    duplicateBlockedAt: {
+      type: Date,
+      default: null,
+    },
+    duplicateBlockedUntil: {
+      type: Date,
+      default: null,
+    },
     
     householdInfo: {
       headOfHousehold: {
@@ -203,6 +222,7 @@ const HouseholdTokenSchema: Schema = new Schema(
 HouseholdTokenSchema.index({ status: 1, expiresAt: 1 });
 HouseholdTokenSchema.index({ 'householdInfo.barangay': 1, status: 1 });
 HouseholdTokenSchema.index({ lockedAt: 1, lockExpiresAt: 1 }); // For lock cleanup
+HouseholdTokenSchema.index({ duplicateBlockedUntil: 1 });
 
 // TTL Index: Automatically delete expired tokens after 7 days past expiration
 // MongoDB will run a background job every 60 seconds to remove expired documents

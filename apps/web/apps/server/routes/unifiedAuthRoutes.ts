@@ -12,7 +12,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-import jwt, { Secret, SignOptions } from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import {
   loginRateLimiter,
@@ -35,9 +35,10 @@ import {
   setPasswordBody,
 } from '../validation/auth.schema';
 import { logAudit } from '../utils/audit';
-import { sendFirstLoginOtpEmail } from '../utils/mailer';
+import { sendFirstLoginOtpEmail, sendLoginVerifyOtpEmail } from '../utils/mailer';
 import { setCsrfCookie, generateCsrfToken } from '../middleware/csrf';
 import { validatePasswordStrength } from '../utils/passwordValidator';
+import { revokeJWTByValue } from '../services/tokenRevocationService';
 
 const router = Router();
 
@@ -51,8 +52,19 @@ const OTP_PENDING_TOKEN_EXPIRY = '10m';
 
 type OtpPendingPayload = {
   sub?: string;
-  purpose?: 'otp_pending_first_login';
+  purpose?: 'otp_pending_first_login' | 'otp_pending_login_2fa' | 'otp_pending_superadmin_login_2fa';
   rememberMe?: boolean;
+};
+
+type LoginOtpPurpose = 'FIRST_LOGIN' | 'LOGIN_2FA' | 'SUPERADMIN_LOGIN_2FA';
+type OtpRecordTarget = {
+  emailLower: string;
+  userId?: string;
+};
+type SuperadminAccount = {
+  email: string;
+  emailLower: string;
+  passwordHash: string;
 };
 
 function getJWTSecret(): string {
@@ -82,6 +94,119 @@ function setCookie(res: Response, token: string, rememberMe: boolean) {
   });
 }
 
+function issuePendingOtpToken(
+  subject: string,
+  purpose: OtpPendingPayload['purpose'],
+  rememberMe: boolean,
+): string {
+  return jwt.sign(
+    { sub: subject, purpose, rememberMe },
+    getJWTSecret(),
+    { expiresIn: OTP_PENDING_TOKEN_EXPIRY, algorithm: 'HS256' } as SignOptions,
+  );
+}
+
+function getSessionSignOptions(rememberMe: boolean): SignOptions {
+  return {
+    expiresIn: rememberMe
+      ? `${REMEMBER_ME_EXPIRY_DAYS}d`
+      : `${TOKEN_EXPIRY_HOURS}h`,
+    algorithm: 'HS256',
+  };
+}
+
+function buildSessionToken(staffUser: InstanceType<typeof StaffUser>, rememberMe: boolean): string {
+  const payload: AuthPayload = {
+    sub: staffUser.emailLower,
+    role: 'LGU_STAFF',
+    userId: staffUser._id.toString(),
+    assignedBarangays: staffUser.assignedBarangays,
+    jti: randomUUID(),
+  };
+
+  return jwt.sign(payload, getJWTSecret(), {
+    ...getSessionSignOptions(rememberMe),
+  } as SignOptions);
+}
+
+function buildSuperadminSessionToken(account: SuperadminAccount, rememberMe: boolean): string {
+  const payload: AuthPayload = {
+    sub: account.emailLower,
+    role: 'SUPERADMIN',
+    jti: randomUUID(),
+  };
+  return jwt.sign(payload, getJWTSecret(), getSessionSignOptions(rememberMe));
+}
+
+function getSuperadminAccount(): SuperadminAccount | null {
+  const email = process.env.SUPERADMIN_EMAIL?.trim();
+  const passwordHash = process.env.SUPERADMIN_PASSWORD_HASH?.trim();
+  if (!email || !passwordHash) return null;
+
+  return {
+    email,
+    emailLower: email.toLowerCase(),
+    passwordHash,
+  };
+}
+
+async function saveLoginOtpRecord(
+  target: OtpRecordTarget,
+  purpose: LoginOtpPurpose,
+  otp: string,
+): Promise<void> {
+  const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+
+  const saved = await LoginVerifyOtp.findOneAndUpdate(
+    { emailLower: target.emailLower, purpose },
+    {
+      ...(target.userId ? { userId: target.userId } : {}),
+      emailLower: target.emailLower,
+      purpose,
+      otpHash,
+      expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
+      usedAt: null,
+      attemptsLeft: OTP_MAX_ATTEMPTS,
+      lastSentAt: new Date(),
+      createdAt: new Date(),
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+
+  // Defensive cleanup: keep only the newest OTP record for a given email+purpose.
+  // Without a DB unique constraint, historical duplicates can cause findOne() to
+  // read a stale hash and reject a freshly sent code.
+  if (saved?._id) {
+    try {
+      await LoginVerifyOtp.deleteMany({
+        emailLower: target.emailLower,
+        purpose,
+        _id: { $ne: saved._id },
+      });
+    } catch (cleanupErr) {
+      console.warn(
+        '[AUTH_LOGIN_OTP_CLEANUP_WARN]',
+        target.emailLower,
+        purpose,
+        (cleanupErr as Error).message,
+      );
+    }
+  }
+}
+
+async function sendOtpEmail(
+  email: string,
+  purpose: LoginOtpPurpose,
+  otp: string,
+): Promise<void> {
+  if (purpose === 'FIRST_LOGIN') {
+    await sendFirstLoginOtpEmail(email, otp);
+    return;
+  }
+
+  await sendLoginVerifyOtpEmail(email, otp);
+}
+
 /* ------------------------------------------------------------------ */
 /*  POST /api/auth/login                                              */
 /* ------------------------------------------------------------------ */
@@ -91,70 +216,66 @@ router.post(
   validateRequest({ body: loginBody }),
   async (req: Request, res: Response) => {
     try {
-      const { username, password, otp, rememberMe } = req.body;
+      const { email, password, otp, rememberMe } = req.body;
 
-      if (!username || typeof username !== 'string') {
+      if (!email || typeof email !== 'string') {
         logSecurity('LOGIN_FAIL', { reason: 'bad_input', ip: req.ip });
         res.status(401).json({ success: false, message: 'Invalid credentials.' });
         return;
       }
 
-      const trimmedUser = username.trim().toLowerCase();
-      const isEmail = trimmedUser.includes('@');
+      const trimmedEmail = email.trim().toLowerCase();
       const remember = !!rememberMe;
-      const expiry = (remember
-        ? `${REMEMBER_ME_EXPIRY_DAYS}d`
-        : `${TOKEN_EXPIRY_HOURS}h`) as SignOptions['expiresIn'];
-      const secret: Secret = getJWTSecret();
-      const options: SignOptions = { expiresIn: expiry, algorithm: 'HS256' };
       const candidatePassword = typeof password === 'string' ? password : 'invalid-password';
 
       /* ---------- SUPERADMIN ---------- */
-      const saUser = process.env.SUPERADMIN_USERNAME?.toLowerCase();
-      const saHash = process.env.SUPERADMIN_PASSWORD_HASH;
-      if (saUser && saHash && trimmedUser === saUser) {
-        const match = await bcrypt.compare(candidatePassword, saHash);
+      const superadminAccount = getSuperadminAccount();
+      if (superadminAccount && trimmedEmail === superadminAccount.emailLower) {
+        const match = await bcrypt.compare(candidatePassword, superadminAccount.passwordHash);
         if (!match || typeof password !== 'string') {
           logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'SUPERADMIN' });
           await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
-            username: trimmedUser,
+            username: superadminAccount.emailLower,
             reason: 'bad_password',
           });
           res.status(401).json({ success: false, message: 'Invalid credentials.' });
           return;
         }
 
-        const payload: AuthPayload = {
-          sub: saUser,
+        const loginOtp = generateOtp();
+        await saveLoginOtpRecord(
+          { emailLower: superadminAccount.emailLower },
+          'SUPERADMIN_LOGIN_2FA',
+          loginOtp,
+        );
+        try {
+          await sendLoginVerifyOtpEmail(superadminAccount.email, loginOtp);
+        } catch (mailErr) {
+          console.error('[MAILER] Failed to send superadmin OTP:', (mailErr as Error).message);
+          res.status(500).json({ success: false, message: 'Unable to send verification code.' });
+          return;
+        }
+        await logAudit(req, 'LOGIN_OTP_SENT', 'Auth', superadminAccount.emailLower, {
+          username: superadminAccount.emailLower,
+          emailLower: superadminAccount.emailLower,
           role: 'SUPERADMIN',
-          jti: randomUUID(),
-        };
-        const token = jwt.sign(payload, secret, options);
-        setCookie(res, token, remember);
-        setCsrfCookie(res, generateCsrfToken());
-
-        logSecurity('LOGIN_SUCCESS', { username: saUser, role: 'SUPERADMIN', ip: req.ip });
-        await logAudit(req, 'LOGIN_SUCCESS', 'Auth', saUser, { role: 'SUPERADMIN' });
-
+          flow: 'SUPERADMIN_LOGIN_2FA',
+        });
         res.json({
           success: true,
-          data: {
-            user: {
-              username: saUser,
-              role: 'SUPERADMIN',
-              assignedBarangays: [],
-              forcePasswordReset: false,
-            },
-          },
+          otpRequired: true,
+          otpToken: issuePendingOtpToken(
+            superadminAccount.emailLower,
+            'otp_pending_superadmin_login_2fa',
+            remember,
+          ),
+          message: 'A verification code has been sent to your registered email.',
         });
         return;
       }
 
       /* ---------- LGU_STAFF ---------- */
-      const staffQuery = isEmail
-        ? { emailLower: trimmedUser }
-        : { username: trimmedUser };
-      const staffUser = await StaffUser.findOne(staffQuery).select('+passwordHash');
+      const staffUser = await StaffUser.findOne({ emailLower: trimmedEmail }).select('+passwordHash');
 
       const isFirstLoginOtpFlow =
         !!staffUser &&
@@ -164,10 +285,10 @@ router.post(
 
       // First-time staff login uses the OTP sent on account creation.
       if (isFirstLoginOtpFlow) {
-        if (!isEmail || typeof otp !== 'string') {
-          logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedUser, reason: 'first_login_otp_required' });
+        if (typeof otp !== 'string') {
+          logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedEmail, reason: 'first_login_otp_required' });
           await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
-            username: trimmedUser,
+            username: trimmedEmail,
             reason: 'invalid_credentials',
           });
           res.status(401).json({ success: false, message: 'Invalid credentials.' });
@@ -178,7 +299,7 @@ router.post(
           emailLower: staffUser.emailLower,
           purpose: 'FIRST_LOGIN',
           usedAt: null,
-        });
+        }).sort({ lastSentAt: -1, createdAt: -1 });
 
         if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
           await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
@@ -215,25 +336,25 @@ router.post(
         await staffUser.save();
 
         const firstLoginPayload: AuthPayload = {
-          sub: staffUser.username,
+          sub: staffUser.emailLower,
           role: 'LGU_STAFF',
           userId: staffUser._id.toString(),
           assignedBarangays: staffUser.assignedBarangays,
           jti: randomUUID(),
         };
-        const firstLoginToken = jwt.sign(firstLoginPayload, secret, options);
+        const firstLoginToken = jwt.sign(firstLoginPayload, getJWTSecret(), getSessionSignOptions(remember));
         setCookie(res, firstLoginToken, remember);
         setCsrfCookie(res, generateCsrfToken());
 
         logSecurity('LOGIN_SUCCESS', {
-          username: staffUser.username,
+          username: staffUser.emailLower,
           role: 'LGU_STAFF',
           ip: req.ip,
           otpVerified: true,
           flow: 'FIRST_LOGIN',
         });
         await logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', staffUser._id.toString(), {
-          username: staffUser.username,
+          username: staffUser.emailLower,
           flow: 'FIRST_LOGIN',
         });
 
@@ -242,8 +363,10 @@ router.post(
           data: {
             user: {
               id: staffUser._id.toString(),
-              username: staffUser.username,
-              fullName: staffUser.fullName,
+              username: staffUser.emailLower,
+              email: staffUser.email,
+              firstName: staffUser.firstName,
+              lastName: staffUser.lastName,
               role: 'LGU_STAFF',
               assignedBarangays: staffUser.assignedBarangays,
               forcePasswordReset: staffUser.forcePasswordReset,
@@ -265,9 +388,9 @@ router.post(
         typeof password !== 'string' ||
         !pwMatch
       ) {
-        logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedUser });
+        logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedEmail });
         await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
-          username: trimmedUser,
+          username: trimmedEmail,
           reason: 'invalid_credentials',
         });
         res.status(401).json({ success: false, message: 'Invalid credentials.' });
@@ -277,25 +400,20 @@ router.post(
       staffUser.lastLoginAt = new Date();
       await staffUser.save();
 
-      const payload: AuthPayload = {
-        sub: staffUser.username,
-        role: 'LGU_STAFF',
-        userId: staffUser._id.toString(),
-        assignedBarangays: staffUser.assignedBarangays,
-        jti: randomUUID(),
-      };
-      const token = jwt.sign(payload, secret, options);
-      setCookie(res, token, remember);
+      const sessionToken = buildSessionToken(staffUser, remember);
+      setCookie(res, sessionToken, remember);
       setCsrfCookie(res, generateCsrfToken());
 
       logSecurity('LOGIN_SUCCESS', {
-        username: staffUser.username,
+        username: staffUser.emailLower,
         role: 'LGU_STAFF',
         ip: req.ip,
+        flow: 'PASSWORD_ONLY',
       });
       await logAudit(req, 'LOGIN_SUCCESS', 'Auth', staffUser._id.toString(), {
-        username: staffUser.username,
-        role: 'LGU_STAFF',
+        username: staffUser.emailLower,
+        emailLower: staffUser.emailLower,
+        flow: 'PASSWORD_ONLY',
       });
 
       res.json({
@@ -303,8 +421,10 @@ router.post(
         data: {
           user: {
             id: staffUser._id.toString(),
-            username: staffUser.username,
-            fullName: staffUser.fullName,
+            username: staffUser.emailLower,
+            email: staffUser.email,
+            firstName: staffUser.firstName,
+            lastName: staffUser.lastName,
             role: 'LGU_STAFF',
             assignedBarangays: staffUser.assignedBarangays,
             forcePasswordReset: staffUser.forcePasswordReset,
@@ -337,34 +457,125 @@ router.post(
         return;
       }
 
-      if (pending.purpose !== 'otp_pending_first_login' || !pending.sub) {
+      if (
+        (pending.purpose !== 'otp_pending_first_login' &&
+          pending.purpose !== 'otp_pending_login_2fa' &&
+          pending.purpose !== 'otp_pending_superadmin_login_2fa') ||
+        !pending.sub
+      ) {
         res.status(400).json({ success: false, message: 'Invalid or expired OTP session.' });
+        return;
+      }
+
+      const remember = !!pending.rememberMe;
+      if (pending.purpose === 'otp_pending_superadmin_login_2fa') {
+        const superadminAccount = getSuperadminAccount();
+        if (!superadminAccount || pending.sub !== superadminAccount.emailLower) {
+          res.status(400).json({ success: false, message: 'Invalid or expired code.' });
+          return;
+        }
+
+        const record = await LoginVerifyOtp.findOne({
+          emailLower: superadminAccount.emailLower,
+          purpose: 'SUPERADMIN_LOGIN_2FA',
+          usedAt: null,
+        }).sort({ lastSentAt: -1, createdAt: -1 });
+
+        if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
+          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', superadminAccount.emailLower, {
+            emailLower: superadminAccount.emailLower,
+            reason: !record ? 'no_record' : record.attemptsLeft <= 0 ? 'no_attempts' : 'expired',
+            role: 'SUPERADMIN',
+            flow: 'SUPERADMIN_LOGIN_2FA',
+          });
+          res.status(400).json({ success: false, message: 'Invalid or expired code.' });
+          return;
+        }
+
+        const match = await bcrypt.compare(otp, record.otpHash);
+        if (!match) {
+          record.attemptsLeft = Math.max(0, record.attemptsLeft - 1);
+          await record.save();
+
+          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', superadminAccount.emailLower, {
+            emailLower: superadminAccount.emailLower,
+            reason: 'wrong_otp',
+            attemptsLeft: record.attemptsLeft,
+            role: 'SUPERADMIN',
+            flow: 'SUPERADMIN_LOGIN_2FA',
+          });
+
+          res.status(400).json({ success: false, message: 'Invalid or expired code.' });
+          return;
+        }
+
+        record.usedAt = new Date();
+        record.attemptsLeft = 0;
+        await record.save();
+
+        const sessionToken = buildSuperadminSessionToken(superadminAccount, remember);
+        setCookie(res, sessionToken, remember);
+        setCsrfCookie(res, generateCsrfToken());
+
+        logSecurity('LOGIN_SUCCESS', {
+          username: superadminAccount.emailLower,
+          role: 'SUPERADMIN',
+          ip: req.ip,
+          otpVerified: true,
+          flow: 'SUPERADMIN_LOGIN_2FA',
+        });
+        await logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', superadminAccount.emailLower, {
+          username: superadminAccount.emailLower,
+          role: 'SUPERADMIN',
+          flow: 'SUPERADMIN_LOGIN_2FA',
+        });
+
+        res.json({
+          success: true,
+          data: {
+            user: {
+              username: superadminAccount.email,
+              role: 'SUPERADMIN',
+              assignedBarangays: [],
+              forcePasswordReset: false,
+            },
+          },
+        });
         return;
       }
 
       const userId = pending.sub;
       const staffUser = await StaffUser.findById(userId);
-      if (
-        !staffUser ||
-        !staffUser.isActive ||
-        !staffUser.forcePasswordReset ||
-        !!staffUser.passwordHash
-      ) {
+      const isFirstLogin = pending.purpose === 'otp_pending_first_login';
+      const expectedPurpose: LoginOtpPurpose = isFirstLogin ? 'FIRST_LOGIN' : 'LOGIN_2FA';
+      const flowName = isFirstLogin ? 'FIRST_LOGIN' : 'LOGIN_2FA';
+
+      if (!staffUser || !staffUser.isActive) {
+        res.status(400).json({ success: false, message: 'Invalid or expired code.' });
+        return;
+      }
+
+      if (isFirstLogin) {
+        if (!staffUser.forcePasswordReset || !!staffUser.passwordHash) {
+          res.status(400).json({ success: false, message: 'Invalid or expired code.' });
+          return;
+        }
+      } else if (!staffUser.passwordHash) {
         res.status(400).json({ success: false, message: 'Invalid or expired code.' });
         return;
       }
 
       const record = await LoginVerifyOtp.findOne({
         emailLower: staffUser.emailLower,
-        purpose: 'FIRST_LOGIN',
+        purpose: expectedPurpose,
         usedAt: null,
-      });
+      }).sort({ lastSentAt: -1, createdAt: -1 });
 
       if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
         await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', userId, {
           emailLower: staffUser.emailLower,
           reason: !record ? 'no_record' : record.attemptsLeft <= 0 ? 'no_attempts' : 'expired',
-          flow: 'FIRST_LOGIN',
+          flow: flowName,
         });
         res.status(400).json({ success: false, message: 'Invalid or expired code.' });
         return;
@@ -379,7 +590,7 @@ router.post(
           emailLower: staffUser.emailLower,
           reason: 'wrong_otp',
           attemptsLeft: record.attemptsLeft,
-          flow: 'FIRST_LOGIN',
+          flow: flowName,
         });
 
         res.status(400).json({ success: false, message: 'Invalid or expired code.' });
@@ -394,43 +605,31 @@ router.post(
       staffUser.lastLoginAt = new Date();
       await staffUser.save();
 
-      const remember = !!pending.rememberMe;
-      const expiry = remember
-        ? `${REMEMBER_ME_EXPIRY_DAYS}d`
-        : `${TOKEN_EXPIRY_HOURS}h`;
-      const payload: AuthPayload = {
-        sub: staffUser.username,
-        role: 'LGU_STAFF',
-        userId: staffUser._id.toString(),
-        assignedBarangays: staffUser.assignedBarangays,
-        jti: randomUUID(),
-      };
-      const sessionToken = jwt.sign(payload, getJWTSecret(), {
-        expiresIn: expiry,
-        algorithm: 'HS256',
-      } as SignOptions);
+      const sessionToken = buildSessionToken(staffUser, remember);
       setCookie(res, sessionToken, remember);
       setCsrfCookie(res, generateCsrfToken());
 
       logSecurity('LOGIN_SUCCESS', {
-        username: staffUser.username,
+        username: staffUser.emailLower,
         role: 'LGU_STAFF',
         ip: req.ip,
         otpVerified: true,
-        flow: 'FIRST_LOGIN',
+        flow: flowName,
       });
       await logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', userId, {
-        username: staffUser.username,
-        flow: 'FIRST_LOGIN',
+        username: staffUser.emailLower,
+        flow: flowName,
       });
 
       res.json({
         success: true,
         data: {
-          user: {
-            id: staffUser._id.toString(),
-            username: staffUser.username,
-            fullName: staffUser.fullName,
+            user: {
+              id: staffUser._id.toString(),
+              username: staffUser.emailLower,
+              email: staffUser.email,
+              firstName: staffUser.firstName,
+              lastName: staffUser.lastName,
             role: 'LGU_STAFF',
             assignedBarangays: staffUser.assignedBarangays,
             forcePasswordReset: staffUser.forcePasswordReset,
@@ -463,51 +662,83 @@ router.post(
         return;
       }
 
-      if (pending.purpose !== 'otp_pending_first_login' || !pending.sub) {
+      if (
+        (pending.purpose !== 'otp_pending_first_login' &&
+          pending.purpose !== 'otp_pending_login_2fa' &&
+          pending.purpose !== 'otp_pending_superadmin_login_2fa') ||
+        !pending.sub
+      ) {
         res.status(400).json({ success: false, message: 'Invalid or expired OTP session.' });
         return;
       }
 
+      if (pending.purpose === 'otp_pending_superadmin_login_2fa') {
+        const superadminAccount = getSuperadminAccount();
+        if (!superadminAccount || pending.sub !== superadminAccount.emailLower) {
+          res.json({ success: true, message: 'If valid, a new OTP was sent.' });
+          return;
+        }
+
+        const newOtp = generateOtp();
+        await saveLoginOtpRecord(
+          { emailLower: superadminAccount.emailLower },
+          'SUPERADMIN_LOGIN_2FA',
+          newOtp,
+        );
+
+        try {
+          await sendLoginVerifyOtpEmail(superadminAccount.email, newOtp);
+        } catch (mailErr) {
+          console.error('[MAILER] Failed to resend superadmin OTP:', (mailErr as Error).message);
+        }
+
+        await logAudit(req, 'LOGIN_OTP_RESEND', 'Auth', superadminAccount.emailLower, {
+          username: superadminAccount.emailLower,
+          emailLower: superadminAccount.emailLower,
+          role: 'SUPERADMIN',
+          flow: 'SUPERADMIN_LOGIN_2FA',
+        });
+        res.json({ success: true, message: 'A new OTP has been sent.' });
+        return;
+      }
+
       const staffUser = await StaffUser.findById(pending.sub);
-      if (
-        !staffUser ||
-        !staffUser.isActive ||
-        !staffUser.forcePasswordReset ||
-        !!staffUser.passwordHash
-      ) {
+      const isFirstLogin = pending.purpose === 'otp_pending_first_login';
+      const purpose: LoginOtpPurpose = isFirstLogin ? 'FIRST_LOGIN' : 'LOGIN_2FA';
+      const flowName = isFirstLogin ? 'FIRST_LOGIN' : 'LOGIN_2FA';
+
+      if (!staffUser || !staffUser.isActive) {
+        res.json({ success: true, message: 'If valid, a new OTP was sent.' });
+        return;
+      }
+
+      if (isFirstLogin) {
+        if (!staffUser.forcePasswordReset || !!staffUser.passwordHash) {
+          res.json({ success: true, message: 'If valid, a new OTP was sent.' });
+          return;
+        }
+      } else if (!staffUser.passwordHash) {
         res.json({ success: true, message: 'If valid, a new OTP was sent.' });
         return;
       }
 
       const newOtp = generateOtp();
-      const otpHash = await bcrypt.hash(newOtp, SALT_ROUNDS);
-
-      await LoginVerifyOtp.findOneAndUpdate(
-        { emailLower: staffUser.emailLower, purpose: 'FIRST_LOGIN' },
-        {
-          userId: staffUser._id,
-          emailLower: staffUser.emailLower,
-          purpose: 'FIRST_LOGIN',
-          otpHash,
-          expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
-          usedAt: null,
-          attemptsLeft: OTP_MAX_ATTEMPTS,
-          lastSentAt: new Date(),
-          createdAt: new Date(),
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+      await saveLoginOtpRecord(
+        { userId: staffUser._id.toString(), emailLower: staffUser.emailLower },
+        purpose,
+        newOtp,
       );
 
       try {
-        await sendFirstLoginOtpEmail(staffUser.email, newOtp);
+        await sendOtpEmail(staffUser.email, purpose, newOtp);
       } catch (mailErr) {
-        console.error('[MAILER] Failed to resend first-login OTP:', (mailErr as Error).message);
+        console.error('[MAILER] Failed to resend login OTP:', (mailErr as Error).message);
       }
 
       await logAudit(req, 'LOGIN_OTP_RESEND', 'Auth', staffUser._id.toString(), {
-        username: staffUser.username,
+        username: staffUser.emailLower,
         emailLower: staffUser.emailLower,
-        flow: 'FIRST_LOGIN',
+        flow: flowName,
       });
 
       res.json({ success: true, message: 'A new OTP has been sent.' });
@@ -570,7 +801,7 @@ router.post(
       });
 
       await logAudit(req, 'STAFF_PASSWORD_RESET', 'StaffUser', staff._id.toString(), {
-        username: staff.username,
+        username: staff.emailLower,
         flow: 'FIRST_LOGIN_SETUP',
       });
 
@@ -586,6 +817,15 @@ router.post(
 /*  POST /api/auth/logout                                             */
 /* ------------------------------------------------------------------ */
 router.post('/logout', (_req: Request, res: Response) => {
+  const cookieToken = _req.cookies?.[COOKIE_NAME] as string | undefined;
+  const authHeader = _req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+  const tokenToRevoke = cookieToken || bearerToken;
+
+  if (tokenToRevoke) {
+    revokeJWTByValue(tokenToRevoke, 'session').catch(() => {});
+  }
+
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -624,8 +864,10 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
       success: true,
       data: {
         id: staff._id.toString(),
-        username: staff.username,
-        fullName: staff.fullName,
+        username: staff.emailLower,
+        email: staff.email,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
         role: 'LGU_STAFF',
         assignedBarangays: staff.assignedBarangays,
         forcePasswordReset: staff.forcePasswordReset,

@@ -3,7 +3,7 @@
  * Handles face detection, face matching, and liveness detection
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 // API Configuration
 import { resolveApiBaseUrl } from '../config/apiSecurity';

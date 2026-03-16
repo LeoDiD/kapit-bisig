@@ -10,7 +10,7 @@ function setTestEnv(): void {
   process.env.PORT = process.env.PORT || '3001';
   process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kapit-bisig-test';
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-123456789012345678901234567890';
-  process.env.SUPERADMIN_USERNAME = process.env.SUPERADMIN_USERNAME || 'sa';
+  process.env.SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL || 'kapitbisig2026@gmail.com';
   process.env.SUPERADMIN_PASSWORD_HASH = process.env.SUPERADMIN_PASSWORD_HASH || 'hash';
   process.env.BLOCKCHAIN_ENABLED = 'false';
 }
@@ -78,9 +78,9 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const { default: DistributionClaim } = await import('../models/DistributionClaim');
 
     const staff = await StaffUser.create({
-      username: 'staff-int',
       email: 'staff-int@example.com',
-      fullName: 'Integration Staff',
+      firstName: 'Integration',
+      lastName: 'Staff',
       role: 'LGU_STAFF',
       assignedBarangays: ['Bolo', 'Bongalon', 'Dulig', 'San Jose'],
       isActive: true,

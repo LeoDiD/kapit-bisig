@@ -61,6 +61,8 @@ export interface IResident extends Document {
   dateOfBirth: string;
   gender: 'Male' | 'Female';
   mobileNumber: string;
+  email?: string;
+  emailLower?: string;
   password: string;
   
   // Household Info (Step 2)
@@ -179,6 +181,17 @@ const ResidentSchema: Schema = new Schema(
         },
         message: 'Mobile number must be a valid Philippine format (09XXXXXXXXX)',
       },
+    },
+    email: {
+      type: String,
+      trim: true,
+      default: '',
+      match: [/^\S+@\S+\.\S+$/, 'Invalid email format'],
+    },
+    emailLower: {
+      type: String,
+      trim: true,
+      lowercase: true,
     },
     password: {
       type: String,
@@ -337,6 +350,16 @@ ResidentSchema.pre('validate', function(next) {
   if (typeof currentMobile === 'string' && currentMobile.trim().length > 0) {
     this.mobileNumber = normalizePhilippineMobileNumber(currentMobile);
   }
+
+  const currentEmail = typeof this.email === 'string' ? this.email.trim() : '';
+  if (currentEmail) {
+    this.email = currentEmail;
+    this.emailLower = currentEmail.toLowerCase();
+  } else {
+    this.email = '';
+    this.emailLower = undefined;
+  }
+
   next();
 });
 
@@ -396,5 +419,6 @@ ResidentSchema.set('toJSON', {
 ResidentSchema.index({ barangay: 1, createdAt: -1 });
 ResidentSchema.index({ status: 1, createdAt: -1 });
 ResidentSchema.index({ idNumber: 1 }, { unique: true });
+ResidentSchema.index({ emailLower: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model<IResident>('Resident', ResidentSchema);

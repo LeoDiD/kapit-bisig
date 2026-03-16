@@ -8,8 +8,11 @@ export type AppRole = 'SUPERADMIN' | 'LGU_STAFF'
 
 export interface AppUser {
   username: string
+  email?: string
   role: AppRole
   id?: string
+  firstName?: string
+  lastName?: string
   fullName?: string
   assignedBarangays?: string[]
   forcePasswordReset?: boolean
@@ -32,7 +35,7 @@ export type LoginResult = LoginOtpResult | LoginSuccessResult
 interface AuthContextValue {
   user: AppUser | null
   loading: boolean
-  login: (username: string, password?: string, rememberMe?: boolean, otp?: string) => Promise<LoginResult>
+  login: (email: string, password?: string, rememberMe?: boolean, otp?: string) => Promise<LoginResult>
   verifyLoginOtp: (otpToken: string, otp: string) => Promise<void>
   resendLoginOtp: (otpToken: string) => Promise<void>
   setInitialPassword: (newPassword: string) => Promise<void>
@@ -61,8 +64,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (json.success && json.data) {
           setUser({
             username: json.data.username,
+            email: json.data.email || json.data.username,
             role: json.data.role,
             id: json.data.id,
+            firstName: json.data.firstName,
+            lastName: json.data.lastName,
             fullName: json.data.fullName,
             assignedBarangays: json.data.assignedBarangays,
             forcePasswordReset: !!json.data.forcePasswordReset,
@@ -82,12 +88,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
   }, [initAuth])
 
-  const login = useCallback(async (username: string, password?: string, rememberMe?: boolean, otp?: string): Promise<LoginResult> => {
+  const login = useCallback(async (email: string, password?: string, rememberMe?: boolean, otp?: string): Promise<LoginResult> => {
     const res = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ username, password, rememberMe: !!rememberMe, otp }),
+      body: JSON.stringify({ email, password, rememberMe: !!rememberMe, otp }),
     })
 
     const json = await res.json()
@@ -106,8 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const u = json.data.user
     setUser({
       username: u.username,
+      email: u.email || u.username,
       role: u.role,
       id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
       fullName: u.fullName,
       assignedBarangays: u.assignedBarangays,
       forcePasswordReset: !!u.forcePasswordReset,
@@ -132,8 +141,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const u = json.data.user
     setUser({
       username: u.username,
+      email: u.email || u.username,
       role: u.role,
       id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
       fullName: u.fullName,
       assignedBarangays: u.assignedBarangays,
       forcePasswordReset: !!u.forcePasswordReset,

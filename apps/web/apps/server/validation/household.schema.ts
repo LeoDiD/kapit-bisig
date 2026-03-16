@@ -11,6 +11,13 @@ export const validateTokenBody = z.object({
   barangay: z.string().max(50).optional(),
 }).strict();
 
+/* POST /api/household/record-duplicate-block */
+export const recordDuplicateBlockBody = z.object({
+  token: z.string().min(1, 'Token is required').max(50),
+  barangay: z.string().max(50).optional(),
+  similarity: z.number().min(0).max(1).optional(),
+}).strict();
+
 /* POST /api/household/register */
 export const registerHouseholdBody = z.object({
   firstName: trimmedString(1, 100),
@@ -18,6 +25,7 @@ export const registerHouseholdBody = z.object({
   dateOfBirth: z.string().min(1, 'Date of birth is required').max(30),
   gender: z.string().min(1, 'Gender is required').max(30),
   mobileNumber: z.string().min(1, 'Mobile number is required').max(20),
+  email: z.string().trim().toLowerCase().email('Invalid email format').max(254).optional(),
   password: z.string().min(1, 'Password is required').max(200),
   barangay: barangayEnum,
   streetAddress: trimmedString(1, 500),
@@ -27,11 +35,11 @@ export const registerHouseholdBody = z.object({
   householdSize: z.number().int().min(1).max(50).optional(),
   vulnerableMembers: z.array(z.string().max(50)).optional(),
   vulnerableCounts: z.record(z.string(), z.number()).optional(),
-  idType: z.string().max(50).optional(),
-  idNumber: z.string().max(100).optional(),
-  frontIdImage: z.string().optional(),
-  backIdImage: z.string().optional(),
-  faceImage: z.string().optional(),
+  idType: z.string().min(1, 'ID type is required').max(50),
+  idNumber: z.string().min(1, 'ID number is required').max(100),
+  frontIdImage: z.string().min(1, 'Front ID image is required'),
+  backIdImage: z.string().min(1, 'Back ID image is required'),
+  faceImage: z.string().min(1, 'Face image is required'),
   faceDescriptor: z.array(z.number()).optional(),
   verification: z.any().optional(),
   verificationResult: z.any().optional(),

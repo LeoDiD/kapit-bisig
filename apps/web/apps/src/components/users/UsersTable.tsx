@@ -5,14 +5,18 @@ import AddUserModal from './AddUserModal'
 import { api, BARANGAY_OPTIONS, getScopedBarangays, StaffUser, StaffStats } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import { TableSkeleton } from '@/components/ui/Skeleton'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { sanitizeAsciiText } from '@/lib/inputValidation'
 import { useAuth } from '@/lib/AuthContext'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-type FilterStatus = 'all' | 'active' | 'inactive'
+type FilterStatus = 'all' | 'active' | 'pending' | 'inactive'
 type FilterBarangay = string
 
 const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'all', label: 'All Status' },
   { value: 'active', label: 'Active' },
+  { value: 'pending', label: 'Pending' },
   { value: 'inactive', label: 'Not Active' },
 ]
 
@@ -28,6 +32,8 @@ function getAccountStatus(user: Pick<StaffUser, 'isActive' | 'lastLoginAt'>): Ac
 
 export default function UsersTable() {
   const { user } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const BARANGAY_FILTER_OPTIONS = useMemo(() => [
     { value: 'all' as const, label: 'All Barangays' },
     ...getScopedBarangays(user?.role, user?.assignedBarangays).map((b) => ({ value: b, label: b })),
@@ -48,6 +54,8 @@ export default function UsersTable() {
   // Row action dropdown
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; openUp: boolean } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<StaffUser | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const rowMenuRef = useRef<HTMLDivElement>(null)
 
   // Status filter dropdown
@@ -66,7 +74,7 @@ export default function UsersTable() {
       setIsLoading(true)
       setError(null)
       
-      const params: { search?: string; status?: 'active' | 'inactive'; barangay?: string } = {}
+      const params: { search?: string; status?: 'active' | 'pending' | 'inactive'; barangay?: string } = {}
       if (filterStatus !== 'all') params.status = filterStatus
       if (filterBarangay !== 'all') params.barangay = filterBarangay
       if (searchQuery) params.search = searchQuery
@@ -102,6 +110,16 @@ export default function UsersTable() {
   useEffect(() => {
     fetchStats()
   }, [fetchStats])
+
+  useEffect(() => {
+    const shouldOpenAdd = searchParams.get('openAdd') === '1'
+    if (!shouldOpenAdd) return
+    setIsAddModalOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('openAdd')
+    const query = next.toString()
+    router.replace(query ? `/users?${query}` : '/users')
+  }, [searchParams, router])
 
   // --- CLICK OUTSIDE HANDLER ---
   useEffect(() => {
@@ -175,6 +193,24 @@ export default function UsersTable() {
     }
   }
 
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await api.deleteStaffUser(deleteTarget.id)
+      showToast.success('User deleted.')
+      setDeleteTarget(null)
+      setActiveDropdown(null)
+      fetchUsers()
+      fetchStats()
+    } catch (err) {
+      console.error('Failed to delete user:', err)
+      showToast.error('Failed to delete user.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   // --- SUMMARY DATA ---
   const summary = useMemo(() => {
     if (stats) {
@@ -213,9 +249,9 @@ export default function UsersTable() {
               </span>
               <input
                 type="text"
-                placeholder="Search by name or username..."
+                placeholder="Search by name or email..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(sanitizeAsciiText(e.target.value))}
                 className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
               />
             </div>
@@ -355,12 +391,11 @@ export default function UsersTable() {
             <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
               <thead className="bg-gray-50 text-gray-500 text-sm">
                 <tr>
-                  <th className="px-4 py-3 font-medium w-[20%]">Full Name</th>
-                  <th className="px-4 py-3 font-medium w-[15%]">Username</th>
-                  <th className="px-4 py-3 font-medium w-[25%]">Email</th>
+                  <th className="px-4 py-3 font-medium w-[25%]">Name</th>
+                  <th className="px-4 py-3 font-medium w-[30%]">Email</th>
                   <th className="px-4 py-3 font-medium w-[10%]">Status</th>
                   <th className="px-4 py-3 font-medium w-[18%]">Created</th>
-                  <th className="px-4 py-3 font-medium text-right w-[12%]"></th>
+                  <th className="px-4 py-3 font-medium text-right w-[17%]"></th>
                 </tr>
               </thead>
 
@@ -369,11 +404,7 @@ export default function UsersTable() {
                   users.map(user => (
                     <tr key={user.id} className="hover:bg-gray-50 relative">
                       <td className="px-4 py-3 text-gray-800 font-medium whitespace-normal break-words">
-                        {user.fullName}
-                      </td>
-
-                      <td className="px-4 py-3 text-gray-600 whitespace-normal break-words">
-                        {user.username}
+                        {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.fullName || '—'}
                       </td>
 
                       <td className="px-4 py-3 text-gray-600 whitespace-normal break-words">
@@ -402,7 +433,7 @@ export default function UsersTable() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                       No staff users found.
                     </td>
                   </tr>
@@ -447,6 +478,16 @@ export default function UsersTable() {
                 onClick={() => handleToggleActive(activeDropdown, false)}
               />
             )}
+            <MenuItem
+              icon={<DeleteIcon />}
+              label="Delete"
+              variant="danger"
+              onClick={() => {
+                const target = users.find((u) => u.id === activeDropdown)
+                if (target) setDeleteTarget(target)
+                setActiveDropdown(null)
+              }}
+            />
           </div>
         </div>
       )}
@@ -455,6 +496,17 @@ export default function UsersTable() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         onSuccess={handleUserCreated}
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Delete User?"
+        body={`This will permanently delete ${deleteTarget ? `${deleteTarget.firstName} ${deleteTarget.lastName}`.trim() : 'this user'} and cannot be undone.`}
+        confirmLabel="Yes, Delete"
+        cancelLabel="Cancel"
+        loading={deleting}
+        onConfirm={handleDeleteUser}
+        onCancel={() => !deleting && setDeleteTarget(null)}
       />
     </>
   )
@@ -529,6 +581,14 @@ function DeactivateIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+    </svg>
+  )
+}
+
+function DeleteIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
     </svg>
   )
 }

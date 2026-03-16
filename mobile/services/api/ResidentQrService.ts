@@ -19,6 +19,7 @@ export interface ResidentSession {
   fullName: string;
   mobileNumber: string;
   barangay: string;
+  status: string;
 }
 
 export interface ResidentQrData {
@@ -46,6 +47,7 @@ export interface ResidentProfile {
   lastName: string;
   fullName: string;
   mobileNumber: string;
+  email?: string;
   barangay: string;
   city: string;
   streetAddress: string;
@@ -57,6 +59,7 @@ export interface ResidentProfileUpdatePayload {
   firstName?: string;
   lastName?: string;
   mobileNumber?: string;
+  email?: string;
   streetAddress?: string;
   city?: string;
 }
@@ -76,6 +79,8 @@ export interface ResidentDistributionItem {
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
+  code?: string;
+  errorCode?: string;
   data?: T;
 }
 
@@ -137,6 +142,7 @@ export async function residentLogin(
         fullName: string;
         mobileNumber: string;
         barangay: string;
+        status: string;
       };
       token: string;
     }>(response);
@@ -157,6 +163,7 @@ export async function residentLogin(
         fullName: payload.data.user.fullName,
         mobileNumber: payload.data.user.mobileNumber,
         barangay: payload.data.user.barangay,
+        status: payload.data.user.status,
       },
     };
   } catch {
@@ -209,6 +216,13 @@ export async function fetchResidentQr(token: string): Promise<{ success: boolean
     const payload = await parseApiResponse<ResidentQrData>(response);
 
     if (!response.ok || !payload.success || !payload.data) {
+      const responseCode = payload.code || payload.errorCode;
+      if (responseCode === 'PENDING_APPROVAL' || responseCode === 'REGISTRATION_NOT_APPROVED') {
+        return {
+          success: false,
+          message: 'Your registration is pending approval. QR generation is disabled until approved.',
+        };
+      }
       return {
         success: false,
         message: payload.message || 'Failed to load QR data.',
@@ -292,6 +306,7 @@ export async function updateResidentProfile(
         mobileNumber: parsed.data.mobileNumber,
         barangay: parsed.data.barangay,
         residentCode: parsed.data.residentCode,
+        status: parsed.data.status,
       });
     }
 
@@ -381,6 +396,101 @@ export async function fetchResidentDistributions(
     return {
       success: false,
       message: 'Network error while fetching distributions.',
+    };
+  }
+}
+
+export async function residentForgotPasswordSendOtp(
+  email: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const response = await fetch(`${API_BASE_URL}/household/auth/forgot-password/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: normalizedEmail }),
+    });
+
+    const payload = await parseApiResponse<never>(response);
+    if (!response.ok || !payload.success) {
+      return {
+        success: false,
+        message: payload.message || 'Failed to send verification code.',
+      };
+    }
+
+    return {
+      success: true,
+      message: payload.message || 'If the email exists, an OTP was sent.',
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while sending verification code.',
+    };
+  }
+}
+
+export async function residentForgotPasswordVerifyOtp(
+  email: string,
+  otp: string
+): Promise<{ success: boolean; message?: string; resetToken?: string }> {
+  try {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const response = await fetch(`${API_BASE_URL}/household/auth/forgot-password/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: normalizedEmail, otp }),
+    });
+
+    const payload = await parseApiResponse<never>(response);
+    const resetToken = (payload as unknown as { resetToken?: string }).resetToken;
+    if (!response.ok || !payload.success || !resetToken) {
+      return {
+        success: false,
+        message: payload.message || 'Invalid or expired code.',
+      };
+    }
+
+    return {
+      success: true,
+      resetToken,
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while verifying code.',
+    };
+  }
+}
+
+export async function residentForgotPasswordReset(
+  resetToken: string,
+  newPassword: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/auth/forgot-password/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resetToken, newPassword }),
+    });
+
+    const payload = await parseApiResponse<never>(response);
+    if (!response.ok || !payload.success) {
+      return {
+        success: false,
+        message: payload.message || 'Failed to reset password.',
+      };
+    }
+
+    return {
+      success: true,
+      message: payload.message || 'Password has been reset successfully.',
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while resetting password.',
     };
   }
 }

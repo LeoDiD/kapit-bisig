@@ -11,7 +11,7 @@
  * - DELETE /api/face/user/:id - Delete user
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { resolveApiBaseUrl } from '../config/apiSecurity';
 
 // ============================================

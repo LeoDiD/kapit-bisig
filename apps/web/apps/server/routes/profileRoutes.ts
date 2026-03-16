@@ -1,24 +1,28 @@
 /**
  * Profile Routes (self-service)
  *
- * GET    /api/users/me                  – get current user profile
- * PATCH  /api/users/me                  – update own profile (firstName, lastName, phone, organization)
- * POST   /api/users/me/change-password  – change own password
- * PATCH  /api/users/me/preferences      – update UI preferences (theme)
+ * GET    /api/users/me                              – get current user profile
+ * PATCH  /api/users/me                              – update own profile (firstName, lastName, phone, organization)
+ * POST   /api/users/me/change-password/request-otp  – validate password, send OTP
+ * POST   /api/users/me/change-password/confirm       – verify OTP, change password
+ * PATCH  /api/users/me/preferences                   – update UI preferences (theme)
  */
 
 import { Router, Response } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 import { z } from 'zod';
 import StaffUser from '../models/StaffUser';
+import LoginVerifyOtp from '../models/LoginVerifyOtp';
 import { AuthRequest, requireAuth, requireStaffOrSuperadmin } from '../middleware/unifiedAuth';
 import { validatePassword } from '../utils/passwordValidator';
 import { validateRequest } from '../validation/validateRequest';
 import { scanEligibleUsersQuery } from '../validation/scanEligible.schema';
 import { escapeRegex } from '../validation/mongoSanitize';
+import { sendPasswordChangeOtpEmail } from '../utils/mailer';
 
 const router = Router();
 
@@ -33,9 +37,10 @@ function hasCoverage(scopes: string[], targets: string[]): boolean {
 /*  Zod schemas                                                       */
 /* ------------------------------------------------------------------ */
 
+const asciiText = (v: string) => /^[\x20-\x7E]*$/.test(v);
 const updateProfileSchema = z.object({
-  fullName: z.string().trim().min(1, 'Full name is required').max(100).optional(),
-  username: z.string().trim().min(3, 'Username must be at least 3 characters').max(50, 'Username must be at most 50 characters').optional(),
+  firstName: z.string().trim().min(1, 'First name is required').max(64).refine(asciiText, 'Only standard characters are allowed').optional(),
+  lastName: z.string().trim().min(1, 'Last name is required').max(64).refine(asciiText, 'Only standard characters are allowed').optional(),
 });
 
 const changePasswordSchema = z.object({
@@ -43,9 +48,23 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(1, 'New password is required'),
 });
 
+const changePasswordConfirmSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(1, 'New password is required'),
+  otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must be 6 digits'),
+});
+
 const preferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'system']).optional(),
 });
+
+const SALT_ROUNDS = 12;
+const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_MAX_ATTEMPTS = 5;
+
+function generateOtp(): string {
+  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
 
 /* ------------------------------------------------------------------ */
 /*  GET /api/users/me                                                 */
@@ -53,15 +72,17 @@ const preferencesSchema = z.object({
 
 router.get('/me', async (req: AuthRequest, res: Response) => {
   try {
-    const { role, sub: username, userId } = req.authUser!;
+    const { role, sub, userId } = req.authUser!;
 
     if (role === 'SUPERADMIN') {
       // SUPERADMIN profile is env-based — return minimal info
       return res.json({
         success: true,
         data: {
-          username,
+          username: sub,
           role,
+          firstName: 'Super',
+          lastName: 'Admin',
           fullName: 'Super Admin',
           email: '',
           avatarUrl: null,
@@ -79,9 +100,11 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
       success: true,
       data: {
         id: staff._id.toString(),
-        username: staff.username,
+        username: staff.emailLower,
         role: staff.role,
-        fullName: staff.fullName,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        fullName: `${staff.firstName} ${staff.lastName}`.trim(),
         email: staff.email,
         avatarUrl: staff.avatarUrl || null,
         assignedBarangays: staff.assignedBarangays,
@@ -117,31 +140,19 @@ router.patch('/me', async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const { fullName, username } = parsed.data;
+    const { firstName, lastName } = parsed.data;
 
     const staff = await StaffUser.findById(userId);
     if (!staff) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (fullName !== undefined) {
-      staff.fullName = fullName;
+    if (firstName !== undefined) {
+      staff.firstName = firstName;
     }
 
-    if (username !== undefined) {
-      const normalizedUsername = username.toLowerCase();
-      // Check uniqueness (case-insensitive), excluding current user
-      const duplicate = await StaffUser.findOne({
-        username: normalizedUsername,
-        _id: { $ne: userId },
-      });
-      if (duplicate) {
-        return res.status(400).json({
-          success: false,
-          message: 'Username is already taken',
-        });
-      }
-      staff.username = normalizedUsername;
+    if (lastName !== undefined) {
+      staff.lastName = lastName;
     }
 
     await staff.save();
@@ -150,8 +161,9 @@ router.patch('/me', async (req: AuthRequest, res: Response) => {
       success: true,
       message: 'Profile updated successfully',
       data: {
-        fullName: staff.fullName,
-        username: staff.username,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        fullName: `${staff.firstName} ${staff.lastName}`.trim(),
       },
     });
   } catch (err) {
@@ -219,10 +231,11 @@ router.post('/me/avatar', avatarUpload.single('avatar'), async (req: AuthRequest
 });
 
 /* ------------------------------------------------------------------ */
-/*  POST /api/users/me/change-password                                */
+/*  POST /api/users/me/change-password/request-otp                     */
+/*  Step 1: Validate current password, send OTP to email               */
 /* ------------------------------------------------------------------ */
 
-router.post('/me/change-password', async (req: AuthRequest, res: Response) => {
+router.post('/me/change-password/request-otp', async (req: AuthRequest, res: Response) => {
   try {
     const { role, userId } = req.authUser!;
 
@@ -244,7 +257,6 @@ router.post('/me/change-password', async (req: AuthRequest, res: Response) => {
 
     const { currentPassword, newPassword } = parsed.data;
 
-    // Reject whitespace explicitly (also checked by validatePassword)
     if (/\s/.test(newPassword)) {
       return res.status(400).json({
         success: false,
@@ -253,7 +265,6 @@ router.post('/me/change-password', async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Validate new password strength
     const pwResult = validatePassword(newPassword);
     if (!pwResult.isValid) {
       return res.status(400).json({
@@ -263,24 +274,168 @@ router.post('/me/change-password', async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Fetch user with password hash
     const staff = await StaffUser.findById(userId).select('+passwordHash');
     if (!staff) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Verify current password
     const isMatch = await staff.comparePassword(currentPassword);
     if (!isMatch) {
-      // Generic error to prevent account enumeration
       return res.status(400).json({
         success: false,
         message: 'Current password is incorrect',
       });
     }
 
-    // Hash and save new password
-    const SALT_ROUNDS = 12;
+    // Generate and store OTP
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+    const emailLower = staff.email.toLowerCase();
+
+    await LoginVerifyOtp.findOneAndUpdate(
+      { emailLower, purpose: 'PASSWORD_CHANGE_2FA' },
+      {
+        $set: {
+          userId: staff._id,
+          emailLower,
+          purpose: 'PASSWORD_CHANGE_2FA',
+          otpHash,
+          expiresAt: new Date(Date.now() + OTP_EXPIRY_MS),
+          usedAt: null,
+          attemptsLeft: OTP_MAX_ATTEMPTS,
+          lastSentAt: new Date(),
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    // Send OTP email
+    try {
+      await sendPasswordChangeOtpEmail(staff.email, otp);
+    } catch (emailErr) {
+      console.error('[Profile] Failed to send password change OTP email:', emailErr);
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to send verification code. Please try again later.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Verification code sent to your email.',
+    });
+  } catch (err) {
+    console.error('[Profile] change-password request-otp error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to send verification code' });
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/*  POST /api/users/me/change-password/confirm                         */
+/*  Step 2: Verify OTP and change password                             */
+/* ------------------------------------------------------------------ */
+
+router.post('/me/change-password/confirm', async (req: AuthRequest, res: Response) => {
+  try {
+    const { role, userId } = req.authUser!;
+
+    if (role === 'SUPERADMIN') {
+      return res.status(400).json({
+        success: false,
+        message: 'SUPERADMIN password is managed via environment configuration',
+      });
+    }
+
+    const parsed = changePasswordConfirmSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: parsed.error.issues.map((e: any) => e.message),
+      });
+    }
+
+    const { currentPassword, newPassword, otp } = parsed.data;
+
+    if (/\s/.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must not contain spaces or whitespace',
+        errors: ['Password must not contain spaces or whitespace'],
+      });
+    }
+
+    const pwResult = validatePassword(newPassword);
+    if (!pwResult.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password does not meet requirements',
+        errors: pwResult.errors,
+      });
+    }
+
+    const staff = await StaffUser.findById(userId).select('+passwordHash');
+    if (!staff) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Re-verify current password (TOCTOU protection)
+    const isMatch = await staff.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
+    }
+
+    // Look up OTP record
+    const emailLower = staff.email.toLowerCase();
+    const record = await LoginVerifyOtp.findOne({
+      emailLower,
+      purpose: 'PASSWORD_CHANGE_2FA',
+      usedAt: null,
+    }).sort({ lastSentAt: -1, createdAt: -1 });
+
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        message: 'No verification code found. Please request a new one.',
+      });
+    }
+
+    if (record.expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code has expired. Please request a new one.',
+      });
+    }
+
+    if (record.attemptsLeft <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Too many failed attempts. Please request a new code.',
+      });
+    }
+
+    // Verify OTP
+    const otpMatch = await bcrypt.compare(otp, record.otpHash);
+    if (!otpMatch) {
+      record.attemptsLeft -= 1;
+      await record.save();
+      return res.status(400).json({
+        success: false,
+        message: `Invalid verification code. ${record.attemptsLeft} attempt(s) remaining.`,
+      });
+    }
+
+    // OTP matched — mark as used and change password
+    record.usedAt = new Date();
+    record.attemptsLeft = 0;
+    await record.save();
+
     staff.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await staff.save();
 
@@ -289,7 +444,7 @@ router.post('/me/change-password', async (req: AuthRequest, res: Response) => {
       message: 'Password changed successfully',
     });
   } catch (err) {
-    console.error('[Profile] change-password error:', err);
+    console.error('[Profile] change-password confirm error:', err);
     return res.status(500).json({ success: false, message: 'Failed to change password' });
   }
 });
@@ -366,15 +521,15 @@ router.get(
         const safe = escapeRegex(search);
         const searchRegex = new RegExp(safe, 'i');
         filter.$or = [
-          { fullName: searchRegex },
+          { firstName: searchRegex },
+          { lastName: searchRegex },
           { email: searchRegex },
-          { username: searchRegex },
         ];
       }
 
       const candidates = await StaffUser.find(filter)
-        .select('_id fullName role assignedBarangays')
-        .sort({ fullName: 1, _id: 1 })
+        .select('_id firstName lastName role assignedBarangays')
+        .sort({ firstName: 1, lastName: 1, _id: 1 })
         .limit(200)
         .lean();
 
@@ -386,7 +541,7 @@ router.get(
           const inScope = hasCoverage(scopes, requestedScope);
           return {
             id: candidate._id.toString(),
-            fullName: candidate.fullName,
+            fullName: `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim(),
             role: candidate.role,
             scopesSummary: scopes,
             inScope,

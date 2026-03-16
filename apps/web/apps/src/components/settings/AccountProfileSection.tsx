@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { profileApi } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { MAX_TEXT_LENGTH, isAsciiText, sanitizeAsciiText } from '@/lib/inputValidation'
 
 const API_ORIGIN = (() => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim()
@@ -18,8 +19,8 @@ export default function AccountProfileSection() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [fullName, setFullName] = useState('')
-  const [username, setUsername] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -33,8 +34,8 @@ export default function AccountProfileSection() {
       setLoading(true)
       const res = await profileApi.getProfile()
       if (res.success && res.data) {
-        setFullName(res.data.fullName || '')
-        setUsername(res.data.username || '')
+        setFirstName(res.data.firstName || '')
+        setLastName(res.data.lastName || '')
         setEmail(res.data.email || '')
         setRole(res.data.role || '')
         setAvatarUrl(res.data.avatarUrl || null)
@@ -48,16 +49,16 @@ export default function AccountProfileSection() {
 
   /** Validate then open confirm modal */
   const handleRequestSave = () => {
-    if (!fullName.trim()) {
-      showToast.error('Full name is required')
+    if (!firstName.trim()) {
+      showToast.error('First name is required')
       return
     }
-    if (!username.trim() || username.trim().length < 3) {
-      showToast.error('Username must be at least 3 characters')
+    if (!isAsciiText(firstName.trim()) || !isAsciiText(lastName.trim())) {
+      showToast.error('Only standard characters are allowed')
       return
     }
-    if (username.trim().length > 50) {
-      showToast.error('Username must be at most 50 characters')
+    if (!lastName.trim()) {
+      showToast.error('Last name is required')
       return
     }
     setConfirmOpen(true)
@@ -68,8 +69,8 @@ export default function AccountProfileSection() {
     setSaving(true)
     try {
       const res = await profileApi.updateProfile({
-        fullName: fullName.trim(),
-        username: username.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
       })
       if (res.success) {
         showToast.success('Profile updated successfully')
@@ -115,7 +116,8 @@ export default function AccountProfileSection() {
     }
   }
 
-  const initial = (fullName.trim()[0] || 'U').toUpperCase()
+  const displayName = `${firstName} ${lastName}`.trim()
+  const initial = (displayName[0] || 'U').toUpperCase()
   const roleLabel = role === 'SUPERADMIN' ? 'Superadmin' : role === 'LGU_STAFF' ? 'LGU Staff' : role
   const isSuperadmin = role === 'SUPERADMIN'
 
@@ -169,9 +171,11 @@ export default function AccountProfileSection() {
       {/* Form */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
         <div className="md:col-span-2">
-          <Field label="Full Name" value={fullName} onChange={(v) => setFullName(v)} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Field label="First Name" value={firstName} onChange={(v) => setFirstName(sanitizeAsciiText(v))} maxLength={MAX_TEXT_LENGTH} />
+            <Field label="Last Name" value={lastName} onChange={(v) => setLastName(sanitizeAsciiText(v))} maxLength={MAX_TEXT_LENGTH} />
+          </div>
         </div>
-        <Field label="Username" value={username} onChange={(v) => setUsername(v)} />
         <Field label="Email" value={email} readOnly />
 
         {/* Role badge */}
@@ -219,12 +223,14 @@ function Field({
   onChange,
   readOnly,
   placeholder,
+  maxLength,
 }: {
   label: string
   value: string
   onChange?: (v: string) => void
   readOnly?: boolean
   placeholder?: string
+  maxLength?: number
 }) {
   return (
     <div>
@@ -235,6 +241,7 @@ function Field({
         readOnly={readOnly}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
+        maxLength={maxLength}
         className={`w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-xl transition-colors focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none ${
           readOnly ? 'bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400 cursor-not-allowed' : 'bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100'
         }`}

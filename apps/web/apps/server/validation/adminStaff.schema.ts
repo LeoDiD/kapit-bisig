@@ -3,13 +3,13 @@
  */
 
 import { z } from 'zod';
-import { BARANGAY_VALUES, barangayEnum, objectId, trimmedString } from './shared';
+import { BARANGAY_VALUES, barangayEnum, email, objectId, passwordString, searchString, trimmedString } from './shared';
 
 /* POST /api/admin/users — create staff */
 export const createStaffBody = z.object({
-  username: trimmedString(3, 64),
-  fullName: trimmedString(2, 100),
-  email: z.string().trim().toLowerCase().email('Invalid email format').max(255),
+  firstName: trimmedString(1, 60),
+  lastName: trimmedString(1, 60),
+  email,
   assignedBarangays: z
     .array(barangayEnum)
     .min(1, 'At least one barangay is required')
@@ -18,14 +18,15 @@ export const createStaffBody = z.object({
 
 /* GET /api/admin/users — list staff */
 export const listStaffQuery = z.object({
-  search: z.string().max(100).optional(),
-  barangay: z.string().max(50).optional(),
-  status: z.enum(['active', 'inactive']).optional(),
+  search: searchString.optional(),
+  barangay: trimmedString(1, 50).optional(),
+  status: z.enum(['active', 'pending', 'inactive']).optional(),
 }).strict();
 
 /* PATCH /api/admin/users/:id — update staff */
 export const updateStaffBody = z.object({
-  fullName: trimmedString(2, 100).optional(),
+  firstName: trimmedString(1, 60).optional(),
+  lastName: trimmedString(1, 60).optional(),
   assignedBarangays: z
     .array(barangayEnum)
     .min(1)
@@ -40,5 +41,5 @@ export const staffIdParams = z.object({
 
 /* PATCH /api/admin/users/:id/reset-password */
 export const resetPasswordBody = z.object({
-  newPassword: z.string().min(1, 'New password is required').max(200),
+  newPassword: passwordString,
 }).strict();

@@ -24,11 +24,13 @@ import {
   User as VolunteerUser,
 } from '../services/auth/MobileAuthService';
 import * as ImagePicker from 'expo-image-picker';
+import PendingAccessBanner from './PendingAccessBanner';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
   onLogout?: () => void;
   accountType?: 'resident' | 'volunteer';
+  residentStatus?: string;
   residentProfile?: ResidentProfile | null;
   volunteerUser?: VolunteerUser | null;
   onResidentProfileUpdated?: (profile: ResidentProfile) => void;
@@ -39,10 +41,11 @@ interface SettingsItemProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress?: () => void;
+  disabled?: boolean;
 }
 
-const SettingsItem = ({ icon, label, onPress }: SettingsItemProps) => (
-  <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
+const SettingsItem = ({ icon, label, onPress, disabled = false }: SettingsItemProps) => (
+  <TouchableOpacity style={[styles.settingsItem, disabled && styles.settingsItemDisabled]} onPress={onPress} disabled={disabled}>
     <View style={styles.settingsIconWrapper}>
       <Ionicons name={icon} size={20} color="#6B7280" />
     </View>
@@ -71,13 +74,16 @@ export default function ProfileScreen({
   onNavigate,
   onLogout,
   accountType = 'resident',
+  residentStatus,
   residentProfile,
   volunteerUser,
   onResidentProfileUpdated,
   onVolunteerProfileUpdated,
 }: ProfileScreenProps) {
   const isVolunteer = accountType === 'volunteer';
+  const isPendingResident = !isVolunteer && residentStatus === 'Pending';
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [firstNameInput, setFirstNameInput] = useState('');
   const [lastNameInput, setLastNameInput] = useState('');
@@ -141,7 +147,7 @@ export default function ProfileScreen({
   }, [residentProfile?.firstName, residentProfile?.lastName, residentProfile?.fullName]);
 
   const displayName = isVolunteer
-    ? `${volunteerUser?.firstName || ''} ${volunteerUser?.lastName || ''}`.trim() || 'Volunteer'
+    ? `${volunteerUser?.firstName || ''} ${volunteerUser?.lastName || ''}`.trim() || 'Staff'
     : toMaskedName(residentRawName || 'Juan Dela Cruz');
   const isVerified = isVolunteer ? true : residentProfile?.status === 'Approved';
   const residentCode = residentProfile?.residentCode || 'SJ-10293';
@@ -291,6 +297,11 @@ export default function ProfileScreen({
     }
   };
 
+  const handleConfirmLogout = () => {
+    setIsLogoutConfirmOpen(false);
+    onLogout?.();
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {isVolunteer && (
@@ -348,10 +359,15 @@ export default function ProfileScreen({
             <InfoRow label="Coverage Area" value={coverageArea} showDivider={false} />
           </View>
         ) : (
-          <View style={styles.infoCard}>
-            <InfoRow label="Full Name" value={displayName} />
-            <InfoRow label="Home Address" value={fullAddress} showDivider={false} />
-          </View>
+          <>
+            {isPendingResident && (
+              <PendingAccessBanner message="Your account is pending admin review. QR and announcements will unlock after approval." />
+            )}
+            <View style={styles.infoCard}>
+              <InfoRow label="Full Name" value={displayName} />
+              <InfoRow label="Home Address" value={fullAddress} showDivider={false} />
+            </View>
+          </>
         )}
 
         {/* Settings Section Card */}
@@ -366,7 +382,17 @@ export default function ProfileScreen({
               <View style={styles.settingsDivider} />
             </>
           )}
-          <SettingsItem icon="notifications-outline" label="Notifications" />
+          <SettingsItem
+            icon="notifications-outline"
+            label="Notifications"
+            onPress={() => {
+              if (isPendingResident) {
+                Alert.alert('Pending Approval', 'Notifications are available after admin approval.');
+                return;
+              }
+              Alert.alert('Notifications', 'No new notifications.');
+            }}
+          />
           <View style={styles.settingsDivider} />
           <SettingsItem
             icon="shield-checkmark-outline"
@@ -381,10 +407,16 @@ export default function ProfileScreen({
           />
         </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
+        {/* Logout Card */}
+        <View style={styles.logoutCard}>
+          <TouchableOpacity style={styles.logoutButton} onPress={() => setIsLogoutConfirmOpen(true)}>
+            <View style={styles.logoutIconWrapper}>
+              <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+            </View>
+            <Text style={styles.logoutText}>Log Out</Text>
+            <Ionicons name="chevron-forward" size={18} color="#FCA5A5" />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -402,7 +434,11 @@ export default function ProfileScreen({
         </View>
         
         {/* Floating QR Button */}
-        <TouchableOpacity style={styles.floatingQrButton} onPress={() => onNavigate?.('qr')}>
+        <TouchableOpacity
+          style={[styles.floatingQrButton, isPendingResident && styles.floatingQrButtonDisabled]}
+          onPress={() => onNavigate?.('qr')}
+          disabled={isPendingResident}
+        >
           <MaterialCommunityIcons name="qrcode-scan" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -480,6 +516,36 @@ export default function ProfileScreen({
                 ) : (
                   <Text style={styles.saveButtonText}>Save</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isLogoutConfirmOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsLogoutConfirmOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Confirm Logout</Text>
+            <Text style={styles.logoutModalMessage}>
+              Are you sure you want to log out of your account?
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsLogoutConfirmOpen(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmLogoutButton]}
+                onPress={handleConfirmLogout}
+              >
+                <Text style={styles.confirmLogoutButtonText}>Log Out</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -657,16 +723,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
 
-  // Logout Button
+  // Logout Card
+  logoutCard: {
+    marginTop: 12,
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    overflow: 'hidden',
+  },
+  settingsItemDisabled: {
+    opacity: 0.5,
+  },
+  logoutIconWrapper: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   logoutButton: {
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 16,
-    marginBottom: 24,
+    backgroundColor: '#FFF1F2',
   },
   logoutText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#EF4444',
+    flex: 1,
+    marginLeft: 10,
   },
 
   // Bottom Navigation
@@ -723,6 +814,9 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: '#FFFFFF',
   },
+  floatingQrButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
@@ -776,12 +870,24 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: '#16A34A',
   },
+  confirmLogoutButton: {
+    backgroundColor: '#DC2626',
+  },
   saveButtonDisabled: {
     opacity: 0.7,
+  },
+  logoutModalMessage: {
+    color: '#4B5563',
+    fontSize: 14,
+    lineHeight: 20,
   },
   cancelButtonText: {
     color: '#374151',
     fontWeight: '600',
+  },
+  confirmLogoutButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   saveButtonText: {
     color: '#FFFFFF',

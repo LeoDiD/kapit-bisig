@@ -24,6 +24,7 @@ export type AuditAction =
   | 'STAFF_CREATED'
   | 'STAFF_UPDATED'
   | 'STAFF_DISABLED'
+  | 'STAFF_DELETED'
   | 'STAFF_PASSWORD_RESET'
   | 'DISTRIBUTION_CREATED'
   | 'DISTRIBUTION_CLAIMED'
@@ -38,7 +39,13 @@ export type AuditAction =
   | 'LOGIN_OTP_SENT'
   | 'LOGIN_OTP_VERIFY_SUCCESS'
   | 'LOGIN_OTP_VERIFY_FAILED'
-  | 'LOGIN_OTP_RESEND';
+  | 'LOGIN_OTP_RESEND'
+  | 'FACE_DETECT'
+  | 'FACE_COMPARE'
+  | 'FACE_DESCRIPTOR'
+  | 'FACE_VERIFY'
+  | 'FACE_DUPLICATE_CHECK'
+  | 'FACE_HEALTH_CHECK';
 
 export interface IAuditLog extends Document {
   actorId: string | null;

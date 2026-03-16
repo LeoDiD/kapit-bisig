@@ -1,36 +1,24 @@
-/**
+﻿/**
  * StaffUser Model
  *
  * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt 12 rounds)
- * [SECURITY CHECKLIST §3.2] RBAC — LGU_STAFF role + assignedBarangays
- *
- * MongoDB schema for LGU Staff accounts that can log in via the web app.
- * SUPERADMIN is NOT stored in the DB; it lives in env vars.
- *
- * Fields:
- *   username        – unique login name
- *   passwordHash    – bcrypt hash
- *   fullName        – display name
- *   role            – always "LGU_STAFF"
- *   assignedBarangays – string[] from the canonical list
- *   isActive        – soft-disable flag (default true)
- *   lastLoginAt     – optional
- *   createdAt / updatedAt – timestamps
+ * [SECURITY CHECKLIST §3.2] RBAC - LGU_STAFF role + assignedBarangays
  */
 
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcrypt';
-import { BARANGAY_OPTIONS } from './Distribution';
 
 const SALT_ROUNDS = 12;
 
 export interface IStaffUser extends Document {
-  username: string;
+  username?: string;
   email: string;
   emailLower: string;
   passwordHash?: string;
   forcePasswordReset: boolean;
-  fullName: string;
+  firstName: string;
+  lastName: string;
+  fullName?: string;
   avatarUrl: string | null;
   role: 'LGU_STAFF';
   assignedBarangays: string[];
@@ -45,15 +33,6 @@ export interface IStaffUser extends Document {
 
 const staffUserSchema = new Schema<IStaffUser>(
   {
-    username: {
-      type: String,
-      required: [true, 'Username is required'],
-      unique: true,
-      lowercase: true,
-      trim: true,
-      minlength: [3, 'Username must be at least 3 characters'],
-      maxlength: [64, 'Username cannot exceed 64 characters'],
-    },
     email: {
       type: String,
       required: [true, 'Email is required'],
@@ -70,17 +49,23 @@ const staffUserSchema = new Schema<IStaffUser>(
     passwordHash: {
       type: String,
       required: false,
-      select: false, // never include by default
+      select: false,
     },
     forcePasswordReset: {
       type: Boolean,
       default: false,
     },
-    fullName: {
+    firstName: {
       type: String,
-      required: [true, 'Full name is required'],
+      required: [true, 'First name is required'],
       trim: true,
-      maxlength: [100, 'Full name cannot exceed 100 characters'],
+      maxlength: [60, 'First name cannot exceed 60 characters'],
+    },
+    lastName: {
+      type: String,
+      required: [true, 'Last name is required'],
+      trim: true,
+      maxlength: [60, 'Last name cannot exceed 60 characters'],
     },
     avatarUrl: {
       type: String,
@@ -116,9 +101,6 @@ const staffUserSchema = new Schema<IStaffUser>(
   { timestamps: true },
 );
 
-/**
- * Instance method: compare candidate password against stored hash.
- */
 staffUserSchema.methods.comparePassword = async function (
   candidate: string,
 ): Promise<boolean> {
@@ -126,43 +108,56 @@ staffUserSchema.methods.comparePassword = async function (
   return bcrypt.compare(candidate, this.passwordHash);
 };
 
-/**
- * Pre-save hook: normalise email → emailLower.
- */
 staffUserSchema.pre('save', function (next) {
+  if (!this.firstName || !this.lastName) {
+    const legacyFullName = String((this as any).fullName || '').trim();
+    if (legacyFullName) {
+      const parts = legacyFullName.split(/\s+/).filter(Boolean);
+      if (!this.firstName) this.firstName = parts[0] || 'Staff';
+      if (!this.lastName) this.lastName = parts.slice(1).join(' ') || 'User';
+    } else {
+      const local = String(this.email || '').split('@')[0] || 'staff';
+      if (!this.firstName) this.firstName = local;
+      if (!this.lastName) this.lastName = 'User';
+    }
+  }
+
   if (this.isModified('email') || !this.emailLower) {
     this.emailLower = this.email.trim().toLowerCase();
   }
   next();
 });
 
-/**
- * Static helper: hash a password (used when creating / resetting).
- */
+staffUserSchema.virtual('fullName').get(function (this: IStaffUser) {
+  return `${this.firstName || ''} ${this.lastName || ''}`.trim();
+});
+
+staffUserSchema.virtual('username').get(function (this: IStaffUser) {
+  return this.emailLower;
+});
+
 staffUserSchema.statics.hashPassword = async function (
   plaintext: string,
 ): Promise<string> {
   return bcrypt.hash(plaintext, SALT_ROUNDS);
 };
 
-/**
- * JSON transform – strip sensitive / internal fields.
- */
 staffUserSchema.set('toJSON', {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform: (_doc: any, ret: any) => {
     ret.id = ret._id.toString();
+    ret.fullName = `${ret.firstName || ''} ${ret.lastName || ''}`.trim();
+    ret.username = ret.emailLower || ret.email;
     delete ret.passwordHash;
     delete ret.__v;
-    delete ret.emailLower; // emailLower is internal; expose email only
+    delete ret.emailLower;
     return ret;
   },
+  virtuals: true,
 });
 
-/* Indexes for search/eligibility queries */
 staffUserSchema.index({ role: 1, isActive: 1 });
 staffUserSchema.index({ assignedBarangays: 1, isActive: 1 });
-staffUserSchema.index({ fullName: 1 });
+staffUserSchema.index({ firstName: 1, lastName: 1 });
 
 const StaffUser = mongoose.model<IStaffUser>('StaffUser', staffUserSchema);
 

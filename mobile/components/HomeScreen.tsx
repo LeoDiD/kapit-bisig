@@ -18,6 +18,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { mobileAuthService } from '../services/auth/MobileAuthService';
 import { fetchResidentDistributions, getResidentToken } from '../services/api/ResidentQrService';
+import PendingAccessBanner from './PendingAccessBanner';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +31,7 @@ interface HomeScreenProps {
   streetAddress?: string;
   onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
   accountType?: 'resident' | 'volunteer';
+  residentStatus?: string;
 }
 
 interface DistributionItem {
@@ -113,6 +115,7 @@ export default function HomeScreen({
   streetAddress = 'Address not available',
   onNavigate,
   accountType = 'resident',
+  residentStatus,
 }: HomeScreenProps) {
   const [distributions, setDistributions] = useState<DistributionItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -120,9 +123,14 @@ export default function HomeScreen({
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionItem | null>(null);
 
   const isVolunteer = accountType === 'volunteer';
+  const isPendingResident = !isVolunteer && residentStatus === 'Pending';
 
   const loadDistributions = useCallback(async () => {
     if (isVolunteer && !mobileAuthService.isLoggedIn()) {
+      setDistributions([]);
+      return;
+    }
+    if (isPendingResident) {
       setDistributions([]);
       return;
     }
@@ -156,7 +164,7 @@ export default function HomeScreen({
 
     setDistributions([]);
     setLoading(false);
-  }, [isVolunteer]);
+  }, [isPendingResident, isVolunteer]);
 
   useEffect(() => {
     loadDistributions().catch(() => setLoading(false));
@@ -197,9 +205,14 @@ export default function HomeScreen({
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.greetingText}>Hi, {userName} 👋</Text>
-            <Text style={styles.greetingSubtext}>Relief distribution updates</Text>
+            <Text style={styles.greetingSubtext}>
+              {isPendingResident ? 'Account pending admin review' : 'Relief distribution updates'}
+            </Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity
+            style={[styles.notificationButton, isPendingResident && styles.notificationButtonDisabled]}
+            disabled={isPendingResident}
+          >
             <Ionicons name="notifications-outline" size={24} color="#6B7280" />
             {unreadUpdates > 0 && (
               <View style={styles.notificationBadge}>
@@ -212,7 +225,11 @@ export default function HomeScreen({
         </View>
 
         {/* Section Label - only show when loading or has distributions */}
-        {(loading || distributions.length > 0) && (
+        {isPendingResident && (
+          <PendingAccessBanner message="Your account is pending approval. Distribution feed, notifications, and QR are disabled until approved." />
+        )}
+
+        {!isPendingResident && (loading || distributions.length > 0) && (
           <Text style={styles.sectionLabel}>UPCOMING DISTRIBUTION</Text>
         )}
 
@@ -230,9 +247,13 @@ export default function HomeScreen({
             <View style={styles.emptyStateIconWrapper}>
               <Ionicons name="calendar-outline" size={56} color="#D1D5DB" style={styles.emptyStateIcon} />
             </View>
-            <Text style={styles.emptyStateTitle}>No active distribution right now</Text>
+            <Text style={styles.emptyStateTitle}>
+              {isPendingResident ? 'Account pending approval' : 'No active distribution right now'}
+            </Text>
             <Text style={styles.emptyStateText}>
-              We'll notify you when the next relief schedule is available.
+              {isPendingResident
+                ? 'You can use Home and Profile while waiting. Distribution and announcements unlock after approval.'
+                : "We'll notify you when the next relief schedule is available."}
             </Text>
           </View>
         )}
@@ -411,7 +432,11 @@ export default function HomeScreen({
         </View>
         
         {/* Floating QR Button */}
-        <TouchableOpacity style={styles.floatingQrButton} onPress={() => onNavigate?.('qr')}>
+        <TouchableOpacity
+          style={[styles.floatingQrButton, isPendingResident && styles.floatingQrButtonDisabled]}
+          onPress={() => onNavigate?.('qr')}
+          disabled={isPendingResident}
+        >
           <MaterialCommunityIcons name="qrcode-scan" size={26} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -474,6 +499,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 4,
+  },
+  notificationButtonDisabled: {
+    opacity: 0.45,
   },
   notificationBadge: {
     position: 'absolute',
@@ -827,5 +855,8 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 4,
     borderColor: '#FFFFFF',
+  },
+  floatingQrButtonDisabled: {
+    backgroundColor: '#9CA3AF',
   },
 });

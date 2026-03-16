@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { forgotPasswordApi } from '@/lib/api'
 import { showToast } from '@/lib/toast'
+import { MAX_TEXT_LENGTH, sanitizeAsciiText, sanitizeNoWhitespace } from '@/lib/inputValidation'
+import PasswordStrengthMeter from '@/components/ui/PasswordStrengthMeter'
 
 type Step = 'email' | 'otp' | 'reset'
 
@@ -43,6 +45,7 @@ export default function ForgotPasswordPage() {
 
   // Shared
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   /* ── Step 1: Send OTP ── */
@@ -91,9 +94,24 @@ export default function ForgotPasswordPage() {
       setStep('reset')
     } catch (err: unknown) {
       const msg = (err as { message?: string }).message || 'Invalid or expired code.'
-      setError(msg)
+      setError(`${msg} Please use the latest OTP sent to your email.`)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    setIsResending(true)
+    setError(null)
+    try {
+      await forgotPasswordApi.sendOtp(email.trim())
+      setOtp('')
+      showToast.success('A new OTP has been sent.')
+    } catch (err: unknown) {
+      const msg = (err as { message?: string }).message || 'Failed to resend OTP.'
+      setError(msg)
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -193,7 +211,8 @@ export default function ForgotPasswordPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(sanitizeAsciiText(e.target.value))}
+                maxLength={MAX_TEXT_LENGTH}
                 placeholder="your.email@example.com"
                 className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] text-gray-900 bg-white text-sm"
                 required
@@ -242,10 +261,18 @@ export default function ForgotPasswordPage() {
             </button>
             <button
               type="button"
+              onClick={handleResendOtp}
+              disabled={isResending}
+              className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-60"
+            >
+              {isResending ? 'Resending...' : 'Resend OTP'}
+            </button>
+            <button
+              type="button"
               onClick={() => { setStep('email'); setOtp(''); setError(null); }}
               className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
             >
-              Resend or change email
+              Change email
             </button>
           </form>
         )}
@@ -261,7 +288,8 @@ export default function ForgotPasswordPage() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value.replace(/\s/g, ''))}
+                  onChange={(e) => setNewPassword(sanitizeNoWhitespace(e.target.value))}
+                  maxLength={MAX_TEXT_LENGTH}
                   placeholder="Strong password (≥16 chars)"
                   className="block w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] text-gray-900 bg-white text-sm"
                   required
@@ -286,6 +314,9 @@ export default function ForgotPasswordPage() {
                   )}
                 </button>
               </div>
+              <div className="mt-2">
+                <PasswordStrengthMeter password={newPassword} />
+              </div>
             </div>
 
             <div>
@@ -293,7 +324,8 @@ export default function ForgotPasswordPage() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value.replace(/\s/g, ''))}
+                onChange={(e) => setConfirmPassword(sanitizeNoWhitespace(e.target.value))}
+                maxLength={MAX_TEXT_LENGTH}
                 placeholder="Confirm your new password"
                 className={`block w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] text-gray-900 bg-white text-sm ${
                   confirmPassword && newPassword !== confirmPassword ? 'border-red-500' : 'border-gray-300'

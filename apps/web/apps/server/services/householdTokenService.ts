@@ -20,6 +20,8 @@ import RegistrationAuditLog from '../models/RegistrationAuditLog';
 const SALT_ROUNDS = 12;
 const DEFAULT_TOKEN_VALIDITY_DAYS = 30;
 const LOCK_DURATION_SECONDS = 60; // 60-second lock for registration
+const MAX_DUPLICATE_BLOCK_ATTEMPTS = 3;
+const DUPLICATE_BLOCK_WINDOW_HOURS = 24;
 
 // Token format: XXXX-XXXX-XXXX (12 alphanumeric characters)
 const TOKEN_LENGTH = 12;
@@ -76,6 +78,17 @@ export interface TokenCompleteResult {
   success: boolean;
   completed: boolean;
   tokenId?: mongoose.Types.ObjectId;
+  error?: string;
+  errorCode?: string;
+}
+
+export interface DuplicateBlockAttemptResult {
+  success: boolean;
+  recorded: boolean;
+  tokenId?: mongoose.Types.ObjectId;
+  attempts?: number;
+  maxAttempts?: number;
+  blockedUntil?: Date | null;
   error?: string;
   errorCode?: string;
 }
@@ -353,6 +366,30 @@ export class HouseholdTokenService {
           error: 'This token has already been used',
         };
       }
+
+      if (matchedToken.duplicateBlockedUntil && matchedToken.duplicateBlockedUntil > new Date()) {
+        await RegistrationAuditLog.log({
+          eventType: 'TOKEN_INVALID',
+          severity: 'WARNING',
+          tokenPrefix: matchedToken.tokenPrefix,
+          tokenId: matchedToken._id as mongoose.Types.ObjectId,
+          ipAddress,
+          userAgent,
+          requestId,
+          message: 'Token is temporarily blocked due to repeated duplicate face detections',
+          metadata: { blockedUntil: matchedToken.duplicateBlockedUntil.toISOString() },
+          success: false,
+          errorCode: 'TOKEN_REVIEW_REQUIRED',
+          processingTimeMs: Date.now() - startTime,
+        });
+
+        return {
+          success: true,
+          valid: false,
+          errorCode: 'TOKEN_REVIEW_REQUIRED',
+          error: 'Token temporarily blocked for review due to repeated duplicate checks',
+        };
+      }
       
       // Token is valid
       await RegistrationAuditLog.log({
@@ -485,6 +522,30 @@ export class HouseholdTokenService {
           locked: false,
           errorCode: 'TOKEN_EXPIRED',
           error: 'This token has expired',
+        };
+      }
+
+      if (matchedToken.duplicateBlockedUntil && matchedToken.duplicateBlockedUntil > new Date()) {
+        await RegistrationAuditLog.log({
+          eventType: 'TOKEN_LOCK_FAILED',
+          severity: 'WARNING',
+          tokenPrefix: matchedToken.tokenPrefix,
+          tokenId: matchedToken._id as mongoose.Types.ObjectId,
+          ipAddress,
+          userAgent,
+          requestId,
+          message: 'Lock failed - token is temporarily blocked for review',
+          metadata: { blockedUntil: matchedToken.duplicateBlockedUntil.toISOString() },
+          success: false,
+          errorCode: 'TOKEN_REVIEW_REQUIRED',
+          processingTimeMs: Date.now() - startTime,
+        });
+
+        return {
+          success: true,
+          locked: false,
+          errorCode: 'TOKEN_REVIEW_REQUIRED',
+          error: 'This token is temporarily blocked for review',
         };
       }
       
@@ -707,6 +768,109 @@ export class HouseholdTokenService {
     } catch (error) {
       console.error('[TokenService] Error releasing lock:', (error as Error).message);
       return { success: false, error: 'Failed to release lock' };
+    }
+  }
+
+  /**
+   * Record a duplicate-face BLOCK attempt for a token.
+   * After 3 attempts, token is temporarily blocked for 24 hours.
+   */
+  async recordDuplicateBlockAttempt(
+    plainToken: string,
+    ipAddress: string,
+    userAgent: string,
+    requestId: string,
+    barangay?: string,
+    similarity?: number
+  ): Promise<DuplicateBlockAttemptResult> {
+    const startTime = Date.now();
+
+    try {
+      const normalizedToken = plainToken.trim().toUpperCase();
+      if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(normalizedToken)) {
+        return {
+          success: true,
+          recorded: false,
+          errorCode: 'INVALID_FORMAT',
+          error: 'Invalid token format',
+        };
+      }
+
+      const query: Record<string, unknown> = {
+        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED', 'USED', 'EXPIRED'] }),
+      };
+      if (barangay && barangay.trim()) {
+        query['householdInfo.barangay'] = barangay.trim();
+      }
+
+      const tokens = await HouseholdToken.find(query).setOptions({ sanitizeFilter: false });
+      let matchedToken: IHouseholdToken | null = null;
+      for (const token of tokens) {
+        const isMatch = await bcrypt.compare(normalizedToken, token.tokenHash);
+        if (isMatch) {
+          matchedToken = token;
+          break;
+        }
+      }
+
+      if (!matchedToken) {
+        return {
+          success: true,
+          recorded: false,
+          errorCode: 'TOKEN_NOT_FOUND',
+          error: 'Token not found',
+        };
+      }
+
+      const now = new Date();
+      const attempts = (matchedToken.duplicateBlockAttempts || 0) + 1;
+      const reachedLimit = attempts >= MAX_DUPLICATE_BLOCK_ATTEMPTS;
+      const blockedUntil = reachedLimit
+        ? new Date(now.getTime() + DUPLICATE_BLOCK_WINDOW_HOURS * 60 * 60 * 1000)
+        : matchedToken.duplicateBlockedUntil;
+
+      matchedToken.duplicateBlockAttempts = attempts;
+      matchedToken.duplicateBlockedAt = now;
+      matchedToken.duplicateBlockedUntil = blockedUntil || null;
+      await matchedToken.save();
+
+      await RegistrationAuditLog.log({
+        eventType: 'REGISTRATION_FAILED',
+        severity: reachedLimit ? 'CRITICAL' : 'WARNING',
+        tokenPrefix: matchedToken.tokenPrefix,
+        tokenId: matchedToken._id as mongoose.Types.ObjectId,
+        ipAddress,
+        userAgent,
+        requestId,
+        message: reachedLimit
+          ? 'Token blocked after repeated duplicate face detections'
+          : 'Duplicate face detection attempt recorded',
+        metadata: {
+          attempts,
+          maxAttempts: MAX_DUPLICATE_BLOCK_ATTEMPTS,
+          similarity: typeof similarity === 'number' ? similarity : null,
+          blockedUntil: blockedUntil ? blockedUntil.toISOString() : null,
+        },
+        success: false,
+        errorCode: reachedLimit ? 'TOKEN_REVIEW_REQUIRED' : 'DUPLICATE_FACE_DETECTED',
+        processingTimeMs: Date.now() - startTime,
+      });
+
+      return {
+        success: true,
+        recorded: true,
+        tokenId: matchedToken._id as mongoose.Types.ObjectId,
+        attempts,
+        maxAttempts: MAX_DUPLICATE_BLOCK_ATTEMPTS,
+        blockedUntil: blockedUntil || null,
+      };
+    } catch (error) {
+      console.error('[TokenService] Error recording duplicate block attempt:', (error as Error).message);
+      return {
+        success: false,
+        recorded: false,
+        error: 'Failed to record duplicate attempt',
+      };
     }
   }
   

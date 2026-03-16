@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { api, BARANGAY_OPTIONS, CreateStaffData } from '@/lib/api'
 import { showToast } from '@/lib/toast'
+import { isAsciiText, MAX_TEXT_LENGTH, sanitizeAsciiText } from '@/lib/inputValidation'
 
 interface AddUserModalProps {
   isOpen: boolean
@@ -11,20 +12,18 @@ interface AddUserModalProps {
 }
 
 interface FormErrors {
-  username?: string
+  firstName?: string
+  lastName?: string
   email?: string
-  fullName?: string
   assignedBarangays?: string
   general?: string
 }
 
-const TEXT_MAX_LENGTH = 64
-
 export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) {
   // Form state
-  const [username, setUsername] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
-  const [fullName, setFullName] = useState('')
   const [assignedBarangays, setAssignedBarangays] = useState<string[]>([])
 
   // UI state
@@ -57,9 +56,9 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
   }, [isOpen])
 
   const resetForm = () => {
-    setUsername('')
+    setFirstName('')
+    setLastName('')
     setEmail('')
-    setFullName('')
     setAssignedBarangays([])
     setBarangayDropdownOpen(false)
     setErrors({})
@@ -73,31 +72,33 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    // Username
-    if (!username.trim()) {
-      newErrors.username = 'Username is required'
-    } else if (username.length < 3) {
-      newErrors.username = 'Username must be at least 3 characters'
-    } else if (username.length > TEXT_MAX_LENGTH) {
-      newErrors.username = `Username must not exceed ${TEXT_MAX_LENGTH} characters`
-    } else if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
-      newErrors.username = 'Username may only contain letters, numbers, dots, hyphens, underscores'
+    // First name
+    if (!firstName.trim()) {
+      newErrors.firstName = 'First name is required'
+    } else if (firstName.trim().length > MAX_TEXT_LENGTH) {
+      newErrors.firstName = `First name must not exceed ${MAX_TEXT_LENGTH} characters`
+    } else if (!isAsciiText(firstName.trim())) {
+      newErrors.firstName = 'Only standard characters are allowed'
+    }
+
+    // Last name
+    if (!lastName.trim()) {
+      newErrors.lastName = 'Last name is required'
+    } else if (lastName.trim().length > MAX_TEXT_LENGTH) {
+      newErrors.lastName = `Last name must not exceed ${MAX_TEXT_LENGTH} characters`
+    } else if (!isAsciiText(lastName.trim())) {
+      newErrors.lastName = 'Only standard characters are allowed'
     }
 
     // Email
     if (!email.trim()) {
       newErrors.email = 'Email is required'
-    } else if (email.trim().length > TEXT_MAX_LENGTH) {
-      newErrors.email = `Email must not exceed ${TEXT_MAX_LENGTH} characters`
+    } else if (email.trim().length > MAX_TEXT_LENGTH) {
+      newErrors.email = `Email must not exceed ${MAX_TEXT_LENGTH} characters`
     } else if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
       newErrors.email = 'Invalid email format'
-    }
-
-    // Full name
-    if (!fullName.trim()) {
-      newErrors.fullName = 'Full name is required'
-    } else if (fullName.trim().length > TEXT_MAX_LENGTH) {
-      newErrors.fullName = `Full name must not exceed ${TEXT_MAX_LENGTH} characters`
+    } else if (!isAsciiText(email.trim())) {
+      newErrors.email = 'Only standard characters are allowed'
     }
 
     // Accessible barangays
@@ -119,9 +120,9 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
 
     try {
       const staffData: CreateStaffData = {
-        username: username.trim().toLowerCase(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
-        fullName: fullName.trim(),
         assignedBarangays,
       }
 
@@ -153,9 +154,9 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
           } else if (e.path && e.message) {
             // Map path to form field
             const fieldMap: Record<string, keyof FormErrors> = {
-              username: 'username',
+              firstName: 'firstName',
+              lastName: 'lastName',
               email: 'email',
-              fullName: 'fullName',
               assignedBarangays: 'assignedBarangays',
             }
             const field = fieldMap[e.path]
@@ -228,25 +229,45 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               </div>
             )}
 
-            {/* Full Name */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-900 mb-2">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value.slice(0, TEXT_MAX_LENGTH))}
-                maxLength={TEXT_MAX_LENGTH}
-                placeholder="e.g. Juan Dela Cruz"
-                className={`w-full px-4 py-3 rounded-xl border ${
-                  errors.fullName ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
-                disabled={isLoading}
-              />
-              {errors.fullName && (
-                <p className="mt-1 text-sm text-red-500">{errors.fullName}</p>
-              )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-2">
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(sanitizeAsciiText(e.target.value))}
+                  maxLength={MAX_TEXT_LENGTH}
+                  placeholder="e.g. Juan"
+                  className={`w-full px-4 py-3 rounded-xl border ${
+                    errors.firstName ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
+                  disabled={isLoading}
+                />
+                {errors.firstName && (
+                  <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-2">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(sanitizeAsciiText(e.target.value))}
+                  maxLength={MAX_TEXT_LENGTH}
+                  placeholder="e.g. Dela Cruz"
+                  className={`w-full px-4 py-3 rounded-xl border ${
+                    errors.lastName ? 'border-red-500' : 'border-gray-300'
+                  } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
+                  disabled={isLoading}
+                />
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
+                )}
+              </div>
             </div>
 
             {/* Email */}
@@ -257,8 +278,8 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value.slice(0, TEXT_MAX_LENGTH))}
-                maxLength={TEXT_MAX_LENGTH}
+                onChange={(e) => setEmail(sanitizeAsciiText(e.target.value))}
+                maxLength={MAX_TEXT_LENGTH}
                 placeholder="e.g. juan@lgu.gov.ph"
                 className={`w-full px-4 py-3 rounded-xl border ${
                   errors.email ? 'border-red-500' : 'border-gray-300'
@@ -267,27 +288,6 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-500">{errors.email}</p>
-              )}
-            </div>
-
-            {/* Username */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-900 mb-2">
-                Username <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value.replace(/\s/g, '').slice(0, TEXT_MAX_LENGTH))}
-                maxLength={TEXT_MAX_LENGTH}
-                placeholder="e.g. juan.delacruz"
-                className={`w-full px-4 py-3 rounded-xl border ${
-                  errors.username ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A] text-sm text-gray-800 placeholder-gray-400 transition-colors`}
-                disabled={isLoading}
-              />
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-500">{errors.username}</p>
               )}
             </div>
 

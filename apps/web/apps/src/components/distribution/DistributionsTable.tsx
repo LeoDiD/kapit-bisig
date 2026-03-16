@@ -35,10 +35,12 @@ export default function DistributionsTable({
   rows,
   onOpenCreate,
   onMarkClaimed,
+  canCreate = true,
 }: {
   rows: DistributionRow[]
   onOpenCreate: () => void
   onMarkClaimed: (id: string) => void
+  canCreate?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [barangay, setBarangay] = useState<BarangayFilter>('All')
@@ -237,13 +239,15 @@ export default function DistributionsTable({
           ) : null}
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenCreate}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] text-white text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)]"
-        >
-          + New Distribution
-        </button>
+        {canCreate && (
+          <button
+            type="button"
+            onClick={onOpenCreate}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] text-white text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)]"
+          >
+            + New Distribution
+          </button>
+        )}
       </div>
 
       {/* Table */}

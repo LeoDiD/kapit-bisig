@@ -9,7 +9,8 @@
  * POST   /api/admin/users                 – create LGU_STAFF account
  * GET    /api/admin/users                 – list staff users (search, barangay, status)
  * GET    /api/admin/users/stats           – aggregate counts
- * PATCH  /api/admin/users/:id             – update fullName, isActive
+ * PATCH  /api/admin/users/:id             – update firstName/lastName/isActive
+ * DELETE /api/admin/users/:id             – delete staff account
  * PATCH  /api/admin/users/:id/reset-password – reset password
  */
 
@@ -66,30 +67,20 @@ router.use(requireAuth, requireSuperadmin);
 /* ------------------------------------------------------------------ */
 router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
-    const { username, fullName, email, assignedBarangays } = req.body;
+    const { firstName, lastName, email, assignedBarangays } = req.body;
 
     // --- validation ---
-    if (!username || typeof username !== 'string' || username.trim().length < 3) {
-      res.status(400).json({ success: false, message: 'Username must be at least 3 characters.' });
+    if (!firstName || typeof firstName !== 'string' || firstName.trim().length < 1) {
+      res.status(400).json({ success: false, message: 'First name is required.' });
       return;
     }
-
-    if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2) {
-      res.status(400).json({ success: false, message: 'Full name is required.' });
+    if (!lastName || typeof lastName !== 'string' || lastName.trim().length < 1) {
+      res.status(400).json({ success: false, message: 'Last name is required.' });
       return;
     }
 
     if (!email || typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
       res.status(400).json({ success: false, message: 'A valid email is required.' });
-      return;
-    }
-
-    // Duplicate username check
-    const exists = await StaffUser.findOne({
-      username: username.trim().toLowerCase(),
-    });
-    if (exists) {
-      res.status(409).json({ success: false, message: 'Username already exists.' });
       return;
     }
 
@@ -102,10 +93,10 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
     }
 
     const user = new StaffUser({
-      username: username.trim().toLowerCase(),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       email: email.trim(),
       forcePasswordReset: true,
-      fullName: fullName.trim(),
       assignedBarangays,
     });
 
@@ -138,11 +129,13 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
 
     logSecurity('ADMIN_CREATE_STAFF', {
       admin: req.authUser?.sub,
-      newUser: user.username,
+      newUser: user.emailLower,
       ip: req.ip,
     });
     await logAudit(req, 'STAFF_CREATED', 'StaffUser', user._id.toString(), {
-      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
       assignedBarangays: user.assignedBarangays,
     });
 
@@ -169,7 +162,7 @@ router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequ
 
     if (search && typeof search === 'string') {
       const re = new RegExp(escapeRegex(search), 'i');
-      filter.$or = [{ username: re }, { fullName: re }, { email: re }];
+      filter.$or = [{ firstName: re }, { lastName: re }, { email: re }];
     }
     if (barangay && typeof barangay === 'string') {
       filter.assignedBarangays = barangay;
@@ -178,6 +171,9 @@ router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequ
     if (status === 'active') {
       filter.isActive = true;
       filter.lastLoginAt = { $ne: null };
+    } else if (status === 'pending') {
+      filter.isActive = true;
+      filter.lastLoginAt = null;
     } else if (status === 'inactive') {
       // Inactive includes disabled accounts and never-logged-in accounts.
       filter.$and = [
@@ -230,7 +226,7 @@ router.get('/stats', async (_req: AuthRequest, res: Response) => {
 router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { fullName, isActive } = req.body;
+    const { firstName, lastName, isActive } = req.body;
 
     const user = await StaffUser.findById(id);
     if (!user) {
@@ -238,12 +234,19 @@ router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffB
       return;
     }
 
-    if (fullName !== undefined) {
-      if (typeof fullName !== 'string' || fullName.trim().length < 2) {
-        res.status(400).json({ success: false, message: 'Full name is required.' });
+    if (firstName !== undefined) {
+      if (typeof firstName !== 'string' || firstName.trim().length < 1) {
+        res.status(400).json({ success: false, message: 'First name is required.' });
         return;
       }
-      user.fullName = fullName.trim();
+      user.firstName = firstName.trim();
+    }
+    if (lastName !== undefined) {
+      if (typeof lastName !== 'string' || lastName.trim().length < 1) {
+        res.status(400).json({ success: false, message: 'Last name is required.' });
+        return;
+      }
+      user.lastName = lastName.trim();
     }
 
     if (isActive !== undefined) {
@@ -254,13 +257,13 @@ router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffB
 
     logSecurity('ADMIN_UPDATE_STAFF', {
       admin: req.authUser?.sub,
-      target: user.username,
+      target: user.emailLower,
       ip: req.ip,
     });
     const auditAction = isActive === false ? 'STAFF_DISABLED' : 'STAFF_UPDATED';
     await logAudit(req, auditAction as any, 'StaffUser', user._id.toString(), {
-      username: user.username,
-      changes: { fullName, isActive },
+      email: user.email,
+      changes: { firstName, lastName, isActive },
     });
 
     res.json({ success: true, message: 'Staff user updated.', data: user.toJSON() });
@@ -309,16 +312,52 @@ router.patch('/:id/reset-password', validateRequest({ params: staffIdParams, bod
 
     logSecurity('ADMIN_RESET_PASSWORD', {
       admin: req.authUser?.sub,
-      target: user.username,
+      target: user.emailLower,
       ip: req.ip,
     });
     await logAudit(req, 'STAFF_PASSWORD_RESET', 'StaffUser', user._id.toString(), {
-      username: user.username,
+      email: user.email,
     });
 
     res.json({ success: true, message: 'Password has been reset.' });
   } catch (err) {
     console.error('[ADMIN_RESET_PW]', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/*  DELETE /api/admin/users/:id                                       */
+/* ------------------------------------------------------------------ */
+router.delete('/:id', validateRequest({ params: staffIdParams }), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await StaffUser.findById(id);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Staff user not found.' });
+      return;
+    }
+
+    await LoginVerifyOtp.deleteMany({
+      $or: [{ userId: user._id }, { emailLower: user.emailLower }],
+    });
+    await StaffUser.deleteOne({ _id: user._id });
+
+    logSecurity('ADMIN_DELETE_STAFF', {
+      admin: req.authUser?.sub,
+      target: user.emailLower,
+      ip: req.ip,
+    });
+    await logAudit(req, 'STAFF_DELETED', 'StaffUser', user._id.toString(), {
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    });
+
+    res.json({ success: true, message: 'Staff user deleted.' });
+  } catch (err) {
+    console.error('[ADMIN_DELETE_STAFF]', err);
     res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });

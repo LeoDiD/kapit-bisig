@@ -25,6 +25,26 @@ export const householdLoginSchema = z
   })
   .strict();
 
+export const householdForgotSendOtpSchema = z
+  .object({
+    email: trimmedString.email().max(254),
+  })
+  .strict();
+
+export const householdForgotVerifyOtpSchema = z
+  .object({
+    email: trimmedString.email().max(254),
+    otp: z.string().length(6).regex(/^\d{6}$/),
+  })
+  .strict();
+
+export const householdForgotResetSchema = z
+  .object({
+    resetToken: z.string().min(1),
+    newPassword: z.string().min(1).max(200),
+  })
+  .strict();
+
 export const userRegisterSchema = z
   .object({
     email: trimmedString.email().max(254),

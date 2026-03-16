@@ -49,9 +49,9 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
   /* ---- Superadmin (env-based account) ---- */
-  SUPERADMIN_USERNAME: z
-    .string({ message: 'SUPERADMIN_USERNAME is required' })
-    .min(1, 'SUPERADMIN_USERNAME must not be empty'),
+  SUPERADMIN_EMAIL: z
+    .string({ message: 'SUPERADMIN_EMAIL is required' })
+    .email('SUPERADMIN_EMAIL must be a valid email address'),
   SUPERADMIN_PASSWORD_HASH: z
     .string({ message: 'SUPERADMIN_PASSWORD_HASH is required' })
     .min(1, 'SUPERADMIN_PASSWORD_HASH must not be empty'),

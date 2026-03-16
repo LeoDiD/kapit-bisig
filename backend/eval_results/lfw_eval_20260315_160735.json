@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "dataset": "LFW pairs (scikit-learn loader)",
+    "subset": "test",
+    "model_name": "Facenet",
+    "threshold": "0.65",
+    "pairs_evaluated": "600",
+    "runtime_seconds": "550.40",
+    "timestamp": "2026-03-15T16:07:35.646721"
+  },
+  "summary": {
+    "current_threshold": {
+      "threshold": 0.65,
+      "accuracy": 0.6916666666666667,
+      "precision": 1.0,
+      "recall": 0.63,
+      "f1_score": 0.7730061349693251,
+      "roc_auc": 0.97904,
+      "tn": 100,
+      "fp": 0,
+      "fn": 185,
+      "tp": 315,
+      "far": 0.0,
+      "frr": 0.37
+    },
+    "best_f1": {
+      "threshold": 0.3,
+      "accuracy": 0.9416666666666667,
+      "precision": 0.979381443298969,
+      "recall": 0.95,
+      "f1_score": 0.9644670050761421,
+      "roc_auc": 0.97904,
+      "tn": 90,
+      "fp": 10,
+      "fn": 25,
+      "tp": 475,
+      "far": 0.1,
+      "frr": 0.05
+    }
+  }
+}

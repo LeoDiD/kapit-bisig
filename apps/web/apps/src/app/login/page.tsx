@@ -5,17 +5,20 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
 import { showToast } from '@/lib/toast'
+import { MAX_TEXT_LENGTH, sanitizeAsciiText, sanitizeNoWhitespace } from '@/lib/inputValidation'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { user, loading: authLoading, login } = useAuth()
-  const [username, setUsername] = useState('')
+  const { user, loading: authLoading, login, verifyLoginOtp, resendLoginOtp } = useAuth()
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
+  const [otpToken, setOtpToken] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [isOtpLoginMode, setIsOtpLoginMode] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isResendingOtp, setIsResendingOtp] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -29,54 +32,73 @@ export default function LoginPage() {
     }
   }, [authLoading, user, router])
 
+  const resetOtpChallenge = () => {
+    setOtpToken(null)
+    setOtp('')
+  }
+
+  const completeLogin = async () => {
+    if (rememberMe) {
+      localStorage.setItem('rememberMe', 'true')
+    } else {
+      localStorage.removeItem('rememberMe')
+    }
+
+    showToast.info('Signing in...')
+    await new Promise((r) => setTimeout(r, 500))
+    showToast.success('Welcome back!')
+    router.push('/dashboard')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    if (!username) {
-      setError(isOtpLoginMode ? 'Please enter your email address' : 'Please enter your username and password')
+    if (!email) {
+      setError('Please enter your email and password')
       return
     }
 
-    if (isOtpLoginMode) {
-      if (!username.includes('@')) {
-        setError('Please enter your email address for first-time OTP sign in')
+    if (otpToken) {
+      if (!/^\d{6}$/.test(otp)) {
+        setError('Please enter the 6-digit verification code sent to your email')
         return
       }
+    } else if (isOtpLoginMode) {
       if (!/^\d{6}$/.test(otp)) {
         setError('Please enter the 6-digit OTP sent when your account was created')
         return
       }
     } else if (!password) {
-      setError('Please enter your username and password')
+      setError('Please enter your email and password')
       return
     }
 
     setIsLoading(true)
 
     try {
+      if (otpToken) {
+        await verifyLoginOtp(otpToken, otp)
+        await completeLogin()
+        return
+      }
+
       const result = await login(
-        username,
+        email,
         isOtpLoginMode ? undefined : password,
         rememberMe,
         isOtpLoginMode ? otp : undefined,
       )
 
       if (result.otpRequired) {
-        setError('Enter your first-login OTP directly in the login form.')
+        setOtpToken(result.otpToken)
+        setOtp('')
+        setPassword('')
+        showToast.success(result.message || 'Verification code sent.')
         return
       }
 
-      if (rememberMe) {
-        localStorage.setItem('rememberMe', 'true')
-      } else {
-        localStorage.removeItem('rememberMe')
-      }
-
-      showToast.info('Signing in...')
-      await new Promise((r) => setTimeout(r, 500))
-      showToast.success('Welcome back!')
-      router.push('/dashboard')
+      await completeLogin()
     } catch (err: unknown) {
       const parsed = err as { message?: string }
       const msg = parsed.message || ''
@@ -90,6 +112,40 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleResendOtp = async () => {
+    if (!otpToken) return
+
+    setError(null)
+    setIsResendingOtp(true)
+    try {
+      await resendLoginOtp(otpToken)
+      showToast.success('A new verification code has been sent.')
+    } catch (err: unknown) {
+      const parsed = err as { message?: string }
+      const msg = parsed.message || 'Failed to resend verification code.'
+      setError(msg)
+      showToast.error(msg)
+    } finally {
+      setIsResendingOtp(false)
+    }
+  }
+
+  const isChallengeMode = !!otpToken
+
+  const handleOtpModeToggle = () => {
+    setIsOtpLoginMode((prev) => !prev)
+    setPassword('')
+    setOtp('')
+    setError(null)
+    resetOtpChallenge()
+  }
+
+  const handleUseDifferentCredentials = () => {
+    resetOtpChallenge()
+    setPassword('')
+    setError(null)
   }
 
   return (
@@ -136,8 +192,14 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back!</h1>
-            <p className="text-gray-600 text-sm font-medium">Enter your credentials to access the relief system</p>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              {isChallengeMode ? 'Verify Sign In' : 'Welcome Back!'}
+            </h1>
+              <p className="text-gray-600 text-sm font-medium">
+              {isChallengeMode
+                ? 'Enter the 6-digit code sent to your registered Gmail address.'
+                : 'Enter your account credentials. Superadmin sign-in requires a one-time email code.'}
+            </p>
           </div>
 
           {error && (
@@ -148,23 +210,28 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOtpLoginMode((prev) => !prev)
-                  setPassword('')
-                  setOtp('')
-                  setError(null)
-                }}
-                className="text-sm text-[#226538] hover:text-[#1b502d] font-medium"
-              >
-                {isOtpLoginMode ? 'Use password instead' : 'First-time staff? Sign in with OTP'}
-              </button>
+              {!isChallengeMode ? (
+                <button
+                  type="button"
+                  onClick={handleOtpModeToggle}
+                  className="text-sm text-[#226538] hover:text-[#1b502d] font-medium"
+                >
+                  {isOtpLoginMode ? 'Use password instead' : 'First-time staff? Sign in with OTP'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleUseDifferentCredentials}
+                  className="text-sm text-[#226538] hover:text-[#1b502d] font-medium"
+                >
+                  Use different credentials
+                </button>
+              )}
             </div>
 
             <div>
-              <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
-                {isOtpLoginMode ? 'Email' : 'Username or Email'}
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                {'Email'}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -174,19 +241,20 @@ export default function LoginPage() {
                 </div>
                 <input
                   type="text"
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder={isOtpLoginMode ? 'Enter your registered email' : 'Enter your username or email'}
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(sanitizeAsciiText(e.target.value))}
+                  maxLength={MAX_TEXT_LENGTH}
+                  placeholder="Enter your registered email"
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                   required
-                  disabled={isLoading}
-                  autoComplete="username"
+                  disabled={isLoading || isChallengeMode}
+                  autoComplete="email"
                 />
               </div>
             </div>
 
-            {!isOtpLoginMode && (
+            {!isOtpLoginMode && !isChallengeMode && (
               <div>
                 <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
                   Password
@@ -201,7 +269,8 @@ export default function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     id="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value.replace(/\s/g, ''))}
+                    onChange={(e) => setPassword(sanitizeNoWhitespace(e.target.value))}
+                    maxLength={MAX_TEXT_LENGTH}
                     placeholder="........"
                     className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                     required
@@ -229,10 +298,10 @@ export default function LoginPage() {
               </div>
             )}
 
-            {isOtpLoginMode && (
+            {(isOtpLoginMode || isChallengeMode) && (
               <div>
                 <label htmlFor="otp" className="block text-sm font-semibold text-gray-700 mb-2">
-                  One-Time Password (OTP)
+                  {isChallengeMode ? 'Email Verification Code' : 'One-Time Password (OTP)'}
                 </label>
                 <input
                   type="text"
@@ -245,6 +314,11 @@ export default function LoginPage() {
                   disabled={isLoading}
                   inputMode="numeric"
                 />
+                {isChallengeMode && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Complete sign-in by entering the code sent after your password was verified.
+                  </p>
+                )}
               </div>
             )}
 
@@ -262,12 +336,26 @@ export default function LoginPage() {
                   Remember me
                 </label>
               </div>
-              {!isOtpLoginMode && (
+              {!isOtpLoginMode && !isChallengeMode && (
                 <a href="/forgot-password" className="text-sm text-[#ECC323] hover:text-yellow-600 font-medium">
                   Forgot password?
                 </a>
               )}
             </div>
+
+            {isChallengeMode && (
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={isLoading || isResendingOtp}
+                  className="text-[#226538] hover:text-[#1b502d] font-medium disabled:opacity-60"
+                >
+                  {isResendingOtp ? 'Sending...' : 'Resend code'}
+                </button>
+                <span className="text-gray-500">Code expires in 10 minutes</span>
+              </div>
+            )}
 
             <button
               type="submit"
@@ -283,9 +371,10 @@ export default function LoginPage() {
                   Signing in...
                 </>
               ) : (
-                'Sign in'
+                isChallengeMode ? 'Verify code' : 'Sign in'
               )}
             </button>
+
           </form>
         </div>
       </div>

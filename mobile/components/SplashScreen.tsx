@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,31 +19,23 @@ import { Ionicons } from '@expo/vector-icons';
 import RegisterScreen from './RegisterScreen';
 import LoginScreen from './LoginScreen';
 import { mobileAuthService, User } from '../services/auth/MobileAuthService';
-import { clearResidentSession, residentLogin, saveResidentSession } from '../services/api/ResidentQrService';
+import {
+  clearResidentSession,
+  residentForgotPasswordReset,
+  residentForgotPasswordSendOtp,
+  residentForgotPasswordVerifyOtp,
+  residentLogin,
+  saveResidentSession,
+} from '../services/api/ResidentQrService';
 
 const { width } = Dimensions.get('window');
-const SMS_API_URL = 'https://smsapiph.onrender.com/api/v1/send/sms';
-const SMS_API_KEY = process.env.EXPO_PUBLIC_SMS_API_KEY;
-const SMS_TIMEOUT_MS = 15000;
-const SMS_MAX_RETRIES = 2;
-
-type SmsProviderError = {
-  code?: number;
-  message?: string;
-  details?: string;
-};
-
-type SmsProviderResponse = {
-  success?: boolean;
-  message?: string;
-  error?: string | SmsProviderError;
-};
 
 interface SplashScreenProps {
   onGetStarted: () => void;
   onLogin?: () => void;
   onRegister?: () => void;
   onVolunteerLogin?: (user: User) => void;
+  initialView?: 'landing' | 'login';
 }
 
 const slides = [
@@ -64,7 +56,13 @@ const slides = [
   },
 ];
 
-export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolunteerLogin }: SplashScreenProps) {
+export default function SplashScreen({
+  onGetStarted,
+  onLogin,
+  onRegister,
+  onVolunteerLogin,
+  initialView = 'landing',
+}: SplashScreenProps) {
   const [showLandingScreen, setShowLandingScreen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showInitialSplash, setShowInitialSplash] = useState(false);
@@ -81,17 +79,43 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [showForgotPasswordScreen, setShowForgotPasswordScreen] = useState(false);
-  const [forgotStep, setForgotStep] = useState<'contact' | 'verification' | 'reset'>('contact');
-  const [forgotContactNumber, setForgotContactNumber] = useState('');
+  const [forgotStep, setForgotStep] = useState<'email' | 'verification' | 'reset'>('email');
+  const [forgotEmail, setForgotEmail] = useState('');
   const [forgotVerificationCode, setForgotVerificationCode] = useState('');
-  const [sentVerificationCode, setSentVerificationCode] = useState('');
-  const [verificationCodeExpiresAt, setVerificationCodeExpiresAt] = useState<number | null>(null);
-  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [forgotResetToken, setForgotResetToken] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
   const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (initialView === 'login') {
+      setShowLandingScreen(false);
+      setShowOnboarding(false);
+      setShowInitialSplash(false);
+      setShowRegisterScreen(false);
+      setShowVolunteerLoginScreen(false);
+      setShowForgotPasswordScreen(false);
+      setForgotStep('email');
+      setLoginError('');
+      setShowLoginScreen(true);
+      return;
+    }
+
+    setShowLandingScreen(true);
+    setShowOnboarding(false);
+    setShowInitialSplash(false);
+    setShowLoginScreen(false);
+    setShowVolunteerLoginScreen(false);
+    setShowRegisterScreen(false);
+    setShowForgotPasswordScreen(false);
+    setForgotStep('email');
+    setLoginError('');
+  }, [initialView]);
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -149,174 +173,68 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
     setShowVolunteerLoginScreen(true);
   };
 
-  const normalizeContactNumber = (raw: string): string => {
-    const digits = raw.replace(/\D/g, '');
-
-    if (digits.startsWith('63') && digits.length === 12) {
-      return `+${digits}`;
-    }
-    if (digits.startsWith('09') && digits.length === 11) {
-      return `+63${digits.slice(1)}`;
-    }
-    if (digits.startsWith('9') && digits.length === 10) {
-      return `+63${digits}`;
-    }
-
-    return '';
-  };
-
-  const generateVerificationCode = (): string =>
-    Math.floor(100000 + Math.random() * 900000).toString();
-
-  const sleep = (ms: number): Promise<void> =>
-    new Promise((resolve) => setTimeout(resolve, ms));
-
-  const parseProviderErrorMessage = (status: number, payload: SmsProviderResponse | null): string => {
-    const fallback = `SMS provider returned HTTP ${status}.`;
-    if (!payload) return fallback;
-
-    if (typeof payload.error === 'string' && payload.error.trim()) {
-      return payload.error.trim();
-    }
-
-    if (payload.error && typeof payload.error === 'object') {
-      const code = payload.error.code ? `Code ${payload.error.code}: ` : '';
-      const message = payload.error.message || payload.error.details || '';
-      if (message) return `${code}${message}`.trim();
-    }
-
-    if (payload.message && payload.message.trim()) {
-      return payload.message.trim();
-    }
-
-    return fallback;
-  };
-
-  const sendSmsWithRetry = async (recipient: string, message: string): Promise<void> => {
-    let lastError = 'Failed to send verification code.';
-
-    for (let attempt = 0; attempt <= SMS_MAX_RETRIES; attempt++) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), SMS_TIMEOUT_MS);
-
-      try {
-        const response = await fetch(SMS_API_URL, {
-          method: 'POST',
-          headers: {
-            'x-api-key': SMS_API_KEY as string,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ recipient, message }),
-          signal: controller.signal,
-        });
-
-        let data: SmsProviderResponse | null = null;
-        try {
-          data = (await response.json()) as SmsProviderResponse;
-        } catch {
-          data = null;
-        }
-
-        if (response.ok && data?.success !== false) {
-          clearTimeout(timeoutId);
-          return;
-        }
-
-        const parsedError = parseProviderErrorMessage(response.status, data);
-        lastError = parsedError;
-
-        // Retry only transient failures / rate limit.
-        if (attempt < SMS_MAX_RETRIES && (response.status === 429 || response.status >= 500)) {
-          await sleep(800 * (attempt + 1));
-          continue;
-        }
-
-        clearTimeout(timeoutId);
-        throw new Error(parsedError);
-      } catch (error) {
-        clearTimeout(timeoutId);
-
-        if (error instanceof Error && error.name === 'AbortError') {
-          lastError = 'SMS request timed out. Please try again.';
-        } else {
-          lastError = error instanceof Error ? error.message : 'Failed to send verification code.';
-        }
-
-        if (attempt < SMS_MAX_RETRIES) {
-          await sleep(800 * (attempt + 1));
-          continue;
-        }
-      }
-    }
-
-    throw new Error(lastError);
-  };
-
   const handleSendResetCode = async () => {
-    if (!forgotContactNumber.trim()) {
-      Alert.alert('Missing Contact Number', 'Please enter your contact number.');
+    const normalizedEmail = forgotEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      Alert.alert('Missing Email', 'Please enter your email address.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
-    const recipient = normalizeContactNumber(forgotContactNumber);
-    if (!recipient) {
-      Alert.alert('Invalid Contact Number', 'Use a valid PH mobile number (ex: 09XXXXXXXXX).');
-      return;
-    }
-
-    if (!SMS_API_KEY) {
-      Alert.alert(
-        'SMS API Key Missing',
-        'Set EXPO_PUBLIC_SMS_API_KEY in mobile/.env to send verification SMS.'
-      );
-      return;
-    }
-
-    const code = generateVerificationCode();
-    const message = `Kapit-Bisig verification code: ${code}. Expires in 10 minutes.`;
-
-    setIsSendingSms(true);
+    setIsSendingOtp(true);
     try {
-      await sendSmsWithRetry(recipient, message);
+      const result = await residentForgotPasswordSendOtp(normalizedEmail);
+      if (!result.success) {
+        Alert.alert('Send Failed', result.message || 'Failed to send verification code.');
+        return;
+      }
 
-      setSentVerificationCode(code);
-      setVerificationCodeExpiresAt(Date.now() + 10 * 60 * 1000);
       setForgotVerificationCode('');
+      setForgotResetToken('');
       setForgotStep('verification');
-      Alert.alert('Code Sent', `Verification code sent to ${recipient}.`);
+      Alert.alert('Code Sent', 'If the email exists, a verification code was sent.');
     } catch (error) {
       const messageText = error instanceof Error ? error.message : 'Failed to send verification code.';
-      Alert.alert('SMS Send Failed', messageText);
+      Alert.alert('Send Failed', messageText);
     } finally {
-      setIsSendingSms(false);
+      setIsSendingOtp(false);
     }
   };
 
-  const handleVerifyCode = () => {
+  const handleVerifyCode = async () => {
     if (!forgotVerificationCode.trim()) {
       Alert.alert('Missing Code', 'Please enter the verification code.');
       return;
     }
 
-    if (!sentVerificationCode) {
-      Alert.alert('No Code Sent', 'Please send a verification code first.');
+    if (!forgotEmail.trim()) {
+      Alert.alert('Missing Email', 'Please go back and enter your email.');
       return;
     }
 
-    if (verificationCodeExpiresAt && Date.now() > verificationCodeExpiresAt) {
-      Alert.alert('Code Expired', 'Your code has expired. Please request a new one.');
-      return;
-    }
+    setIsVerifyingOtp(true);
+    try {
+      const result = await residentForgotPasswordVerifyOtp(
+        forgotEmail.trim().toLowerCase(),
+        forgotVerificationCode.trim(),
+      );
+      if (!result.success || !result.resetToken) {
+        Alert.alert('Verification Failed', result.message || 'Invalid or expired code.');
+        return;
+      }
 
-    if (forgotVerificationCode.trim() !== sentVerificationCode) {
-      Alert.alert('Invalid Code', 'The verification code is incorrect.');
-      return;
+      setForgotResetToken(result.resetToken);
+      setForgotStep('reset');
+    } finally {
+      setIsVerifyingOtp(false);
     }
-
-    setForgotStep('reset');
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!forgotNewPassword.trim() || !forgotConfirmPassword.trim()) {
       Alert.alert('Missing Password', 'Please enter and confirm your new password.');
       return;
@@ -327,14 +245,31 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
       return;
     }
 
-    Alert.alert('Password Updated', 'Your password has been changed.');
-    setShowForgotPasswordScreen(false);
-    setForgotStep('contact');
-    setSentVerificationCode('');
-    setVerificationCodeExpiresAt(null);
-    setForgotVerificationCode('');
-    setForgotNewPassword('');
-    setForgotConfirmPassword('');
+    if (!forgotResetToken) {
+      Alert.alert('Session Expired', 'Please verify your code again.');
+      setForgotStep('verification');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const result = await residentForgotPasswordReset(forgotResetToken, forgotNewPassword);
+      if (!result.success) {
+        Alert.alert('Reset Failed', result.message || 'Failed to change password.');
+        return;
+      }
+
+      Alert.alert('Password Updated', result.message || 'Your password has been changed.');
+      setShowForgotPasswordScreen(false);
+      setForgotStep('email');
+      setForgotEmail('');
+      setForgotVerificationCode('');
+      setForgotResetToken('');
+      setForgotNewPassword('');
+      setForgotConfirmPassword('');
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   const handleRegisterBack = () => {
@@ -428,7 +363,7 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
                   return;
                 }
                 if (forgotStep === 'verification') {
-                  setForgotStep('contact');
+                  setForgotStep('email');
                   return;
                 }
                 setShowForgotPasswordScreen(false);
@@ -437,7 +372,7 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
               <Ionicons name="arrow-back" size={22} color="#226538" />
             </TouchableOpacity>
 
-            {forgotStep === 'contact' ? (
+            {forgotStep === 'email' ? (
               <>
                 <Image
                   source={require('../assets/forgot.png')}
@@ -451,25 +386,25 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
                 </Text>
 
                 <View style={styles.forgotInputContainer}>
-                  <Ionicons name="call-outline" size={18} color="#888" style={styles.inputIcon} />
+                  <Ionicons name="mail-outline" size={18} color="#888" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Contact Number"
+                    placeholder="Email Address"
                     placeholderTextColor="#888"
-                    value={forgotContactNumber}
-                    onChangeText={setForgotContactNumber}
-                    keyboardType="phone-pad"
+                    value={forgotEmail}
+                    onChangeText={setForgotEmail}
+                    keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.forgotSendButton, isSendingSms && styles.forgotSendButtonDisabled]}
+                  style={[styles.forgotSendButton, isSendingOtp && styles.forgotSendButtonDisabled]}
                   onPress={handleSendResetCode}
-                  disabled={isSendingSms}
+                  disabled={isSendingOtp}
                 >
                   <Text style={styles.forgotSendButtonText}>
-                    {isSendingSms ? 'Sending...' : 'Send Verification Code'}
+                    {isSendingOtp ? 'Sending...' : 'Send OTP'}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -492,7 +427,7 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
                   <Ionicons name="key-outline" size={18} color="#888" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter Verification Code"
+                    placeholder="Enter 6-digit OTP"
                     placeholderTextColor="#888"
                     value={forgotVerificationCode}
                     onChangeText={setForgotVerificationCode}
@@ -501,8 +436,12 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
                   />
                 </View>
 
-                <TouchableOpacity style={styles.forgotSendButton} onPress={handleVerifyCode}>
-                  <Text style={styles.forgotSendButtonText}>Verify Code</Text>
+                <TouchableOpacity
+                  style={[styles.forgotSendButton, isVerifyingOtp && styles.forgotSendButtonDisabled]}
+                  onPress={handleVerifyCode}
+                  disabled={isVerifyingOtp}
+                >
+                  <Text style={styles.forgotSendButtonText}>{isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -561,8 +500,14 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.forgotSendButton} onPress={handleChangePassword}>
-                  <Text style={styles.forgotSendButtonText}>Change Password</Text>
+                <TouchableOpacity
+                  style={[styles.forgotSendButton, isResettingPassword && styles.forgotSendButtonDisabled]}
+                  onPress={handleChangePassword}
+                  disabled={isResettingPassword}
+                >
+                  <Text style={styles.forgotSendButtonText}>
+                    {isResettingPassword ? 'Updating...' : 'Change Password'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -660,9 +605,8 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
-                setForgotStep('contact');
-                setSentVerificationCode('');
-                setVerificationCodeExpiresAt(null);
+                setForgotStep('email');
+                setForgotResetToken('');
                 setForgotVerificationCode('');
                 setForgotNewPassword('');
                 setForgotConfirmPassword('');
@@ -682,7 +626,7 @@ export default function SplashScreen({ onGetStarted, onLogin, onRegister, onVolu
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.volunteerLoginSwitch} onPress={openVolunteerLoginFromResidentLogin}>
-            <Text style={styles.volunteerLoginSwitchText}>Volunteer account? Sign in here</Text>
+            <Text style={styles.volunteerLoginSwitchText}>Staff account? Sign in here</Text>
           </TouchableOpacity>
 
           <View style={styles.registerContainer}>

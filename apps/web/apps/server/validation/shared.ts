@@ -4,6 +4,8 @@
 
 import { z } from 'zod';
 
+const SAFE_ASCII_TEXT = /^[\x20-\x7E]*$/;
+
 /* ------------------------------------------------------------------ */
 /*  Barangay enum (single source of truth mirrors Distribution model) */
 /* ------------------------------------------------------------------ */
@@ -50,12 +52,38 @@ export const paginationQuery = z.object({
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Non-empty trimmed string with max length */
-export const trimmedString = (min = 1, max = 255) =>
-  z.string().trim().min(min).max(max);
+/** Non-empty trimmed ASCII string with max length (default 64) */
+export const trimmedString = (min = 1, max = 64) =>
+  z
+    .string()
+    .trim()
+    .min(min)
+    .max(max)
+    .refine((v) => SAFE_ASCII_TEXT.test(v), 'Only standard characters are allowed');
 
 /** Email format */
-export const email = z.string().trim().toLowerCase().email('Invalid email format').max(255);
+export const email = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(64, 'Email must be at most 64 characters')
+  .email('Invalid email format')
+  .refine((v) => SAFE_ASCII_TEXT.test(v), 'Only standard characters are allowed');
+
+/** Search text (optional) */
+export const searchString = z
+  .string()
+  .trim()
+  .max(64, 'Search text must be at most 64 characters')
+  .refine((v) => SAFE_ASCII_TEXT.test(v), 'Only standard characters are allowed');
+
+/** Password text (no whitespace, max 64) */
+export const passwordString = z
+  .string()
+  .min(1, 'Password is required')
+  .max(64, 'Password must be at most 64 characters')
+  .refine((v) => !/\s/.test(v), 'Password must not contain spaces or whitespace')
+  .refine((v) => SAFE_ASCII_TEXT.test(v), 'Only standard characters are allowed');
 
 /** Philippine phone number */
 export const phoneNumber = z

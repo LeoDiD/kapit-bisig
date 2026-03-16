@@ -13,14 +13,16 @@ import {
   Alert,
   Animated,
   ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAIVerification } from '../hooks/useAIVerification';
-import { VerificationResult } from '../services/ai';
+import { VerificationResult, idValidationService } from '../services/ai';
 import { resolveApiBaseUrl } from '../services/config/apiSecurity';
 
 const { width } = Dimensions.get('window');
@@ -38,6 +40,16 @@ const FACE_API_URL = resolveApiBaseUrl(
 );
 const FACE_CAPTURE_ATTEMPT_LIMIT = 10;
 const FACE_CAPTURE_COOLDOWN_MS = 3000;
+const FILE_ENCODING = {
+  Base64: 'base64' as const,
+};
+
+const inferImageMimeType = (uri: string): string => {
+  const lower = uri.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+};
 
 interface RegisterScreenProps {
   onBack: () => void;
@@ -91,6 +103,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [isMobileNumberFocused, setIsMobileNumberFocused] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordServerError, setPasswordServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -143,7 +156,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [showIdTypeDropdown, setShowIdTypeDropdown] = useState(false);
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [currentImageSide, setCurrentImageSide] = useState<'front' | 'back'>('front');
-  const idTypeOptions = ['Philippine National ID', 'Driver\'s License', 'Passport', 'SSS ID', 'PhilHealth ID', 'Voter\'s ID'];
+  const idTypeOptions = ['PhilSys ID', 'Driver\'s License', 'Passport', 'SSS ID', 'PhilHealth ID', 'Voter\'s ID'];
 
   // Step 4: Face Photo - Simplified snap & analyze
   const [showFaceScanner, setShowFaceScanner] = useState(false);
@@ -183,6 +196,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     ageRestriction: false,
     gender: false,
     mobileNumber: false,
+    mobileNumberFormat: false,
     mobileNumberDuplicate: false,
     password: false,
     confirmPassword: false,
@@ -193,14 +207,31 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   // Mobile number checking
   const [isCheckingMobile, setIsCheckingMobile] = useState(false);
   const [mobileChecked, setMobileChecked] = useState(false);
+  const [mobileAvailabilityStatus, setMobileAvailabilityStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'error'>('idle');
+  const mobileCheckRequestIdRef = useRef(0);
 
-  const checkMobileAvailability = async (mobileNumber: string): Promise<boolean> => {
+  const checkMobileAvailability = async (
+    mobileNumber: string,
+    options?: { markDuplicateError?: boolean; requestId?: number }
+  ): Promise<boolean> => {
+    const markDuplicateError = options?.markDuplicateError ?? true;
+    const requestId = options?.requestId;
+    const isLatestRequest = () =>
+      requestId === undefined || requestId === mobileCheckRequestIdRef.current;
+
     if (!mobileNumber || mobileNumber.length < 11) {
-      setMobileChecked(false);
+      if (isLatestRequest()) {
+        setMobileChecked(false);
+        setMobileAvailabilityStatus('idle');
+      }
       return false;
     }
 
-    setIsCheckingMobile(true);
+    if (isLatestRequest()) {
+      setIsCheckingMobile(true);
+      setMobileAvailabilityStatus('checking');
+    }
+
     try {
       const response = await fetch(`${API_URL}/household/check-mobile`, {
         method: 'POST',
@@ -213,28 +244,72 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       const data = await response.json();
 
       if (response.ok && data.success && data.available) {
-        setMobileChecked(true);
-        setStep1Errors(prev => ({
-          ...prev,
-          mobileNumberDuplicate: false,
-        }));
+        if (isLatestRequest()) {
+          setMobileChecked(true);
+          setMobileAvailabilityStatus('available');
+          if (markDuplicateError) {
+            setStep1Errors(prev => ({
+              ...prev,
+              mobileNumberDuplicate: false,
+            }));
+          }
+        }
         return true;
       } else {
-        setMobileChecked(false);
-        setStep1Errors(prev => ({
-          ...prev,
-          mobileNumberDuplicate: true,
-        }));
+        if (isLatestRequest()) {
+          setMobileChecked(false);
+          setMobileAvailabilityStatus('taken');
+          if (markDuplicateError) {
+            setStep1Errors(prev => ({
+              ...prev,
+              mobileNumberDuplicate: true,
+            }));
+          }
+        }
         return false;
       }
     } catch (error) {
       console.error('Mobile check error:', error);
-      setMobileChecked(false);
+      if (isLatestRequest()) {
+        setMobileChecked(false);
+        setMobileAvailabilityStatus('error');
+      }
       return false;
     } finally {
-      setIsCheckingMobile(false);
+      if (isLatestRequest()) {
+        setIsCheckingMobile(false);
+      }
     }
   };
+
+  useEffect(() => {
+    const normalizedMobile = normalizeMobileForLookup(mobileNumber);
+    const isValidMobile = /^09\d{9}$/.test(normalizedMobile);
+
+    if (!mobileNumber.trim() || !isValidMobile) {
+      mobileCheckRequestIdRef.current += 1;
+      setIsCheckingMobile(false);
+      setMobileChecked(false);
+      setMobileAvailabilityStatus('idle');
+      return;
+    }
+
+    const requestId = mobileCheckRequestIdRef.current + 1;
+    mobileCheckRequestIdRef.current = requestId;
+    setIsCheckingMobile(true);
+    setMobileAvailabilityStatus('checking');
+
+    const debounceTimer = setTimeout(() => {
+      checkMobileAvailability(normalizedMobile, {
+        markDuplicateError: false,
+        requestId,
+      }).catch(() => undefined);
+    }, 500);
+
+    return () => {
+      clearTimeout(debounceTimer);
+    };
+  }, [mobileNumber]);
   const [step2Errors, setStep2Errors] = useState({
     barangay: false,
     streetAddress: false,
@@ -246,12 +321,35 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     frontIdImage: false,
     backIdImage: false,
   });
+  const [step3ValidationMessage, setStep3ValidationMessage] = useState<string | null>(null);
+  const [step3ValidationWarnings, setStep3ValidationWarnings] = useState<string[]>([]);
+  const [isStep3Validating, setIsStep3Validating] = useState(false);
+  const [step3ValidationStatus, setStep3ValidationStatus] = useState<'neutral' | 'success' | 'error'>('neutral');
   const [step4Errors, setStep4Errors] = useState({
     faceScan: false,
   });
 
   // Refs for scrolling to errors
   const scrollViewRef = useRef<ScrollView>(null);
+
+  const scrollFocusedInputIntoView = (target?: number | null) => {
+    if (!target) return;
+
+    setTimeout(() => {
+      const scrollResponder =
+        (scrollViewRef.current as any)?.getScrollResponder?.() ?? (scrollViewRef.current as any);
+      scrollResponder?.scrollResponderScrollNativeHandleToKeyboard?.(target, 140, true);
+    }, 120);
+  };
+
+  // Keep every step top-aligned, especially on small devices.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [currentStep]);
 
   const progressPercentage = (currentStep / totalSteps) * 100;
 
@@ -270,15 +368,123 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     return age;
   };
 
+  const PASSWORD_SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{}|;':",./<>?`~\\]/;
+  const COMMON_WEAK_PATTERNS = [
+    'password',
+    'admin',
+    '123456',
+    'qwerty',
+    'letmein',
+    'welcome',
+    'monkey',
+    'dragon',
+    'master',
+    'login',
+    'superadmin',
+    'super',
+    'abc123',
+    'trustno1',
+    'iloveyou',
+    'sunshine',
+    'princess',
+    'football',
+    'shadow',
+    'passw0rd',
+    'kapitbisig',
+    'changeme',
+    '12345678',
+    '123456789',
+  ];
+
+  const containsCommonWeakPattern = (value: string): boolean => {
+    const lowered = value.toLowerCase();
+    return COMMON_WEAK_PATTERNS.some((pattern) => lowered.includes(pattern));
+  };
+
   const getPasswordError = (value: string): string | null => {
     if (!value || !value.trim()) return 'Password is required';
     if (/\s/.test(value)) return 'Password must not contain spaces';
-    if (value.length < 8) return 'Password must be at least 8 characters';
-    if (!/[A-Z]/.test(value)) return 'Password must contain at least one uppercase letter';
-    if (!/[a-z]/.test(value)) return 'Password must contain at least one lowercase letter';
-    if (!/[0-9]/.test(value)) return 'Password must contain at least one number';
-    if (!/[!@#$%^&*()_+\-=[\]{}|;':",./<>?`~\\]/.test(value)) return 'Password must contain at least one special character';
+    if (containsCommonWeakPattern(value)) {
+      return 'This password is too common. Please choose a stronger password.';
+    }
+    const hasComplexity =
+      /[A-Z]/.test(value) &&
+      /[a-z]/.test(value) &&
+      /[0-9]/.test(value) &&
+      PASSWORD_SPECIAL_CHAR_REGEX.test(value);
+    if (value.length < 8 || !hasComplexity) {
+      return 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.';
+    }
     return null;
+  };
+
+  const getNameError = (value: string, label: 'First' | 'Last'): string | null => {
+    const trimmed = value.trim();
+    const namePattern = /^[A-Za-z]+(?:[ '-][A-Za-z]+)*$/;
+    if (!trimmed || trimmed.length < 2 || trimmed.length > 50 || !namePattern.test(trimmed)) {
+      return `${label} name must be 2–50 characters and contain letters only.`;
+    }
+    return null;
+  };
+
+  const normalizeMobileForLookup = (value: string): string => {
+    return value.trim();
+  };
+
+  const getPasswordStrength = (value: string): { label: 'Weak' | 'Medium' | 'Strong' | 'Very Strong'; color: string; progress: number } | null => {
+    if (!value) return null;
+
+    if (getPasswordError(value)) {
+      return { label: 'Weak', color: '#E53935', progress: 25 };
+    }
+
+    let score = 0;
+    if (value.length >= 8) score += 1;
+    if (value.length >= 12) score += 1;
+    if (value.length >= 16) score += 1;
+    if (/[A-Z]/.test(value)) score += 1;
+    if (/[a-z]/.test(value)) score += 1;
+    if (/[0-9]/.test(value)) score += 1;
+    if (PASSWORD_SPECIAL_CHAR_REGEX.test(value)) score += 1;
+
+    if (score <= 2) return { label: 'Weak', color: '#E53935', progress: 25 };
+    if (score <= 4) return { label: 'Medium', color: '#FB8C00', progress: 50 };
+    if (score <= 6) return { label: 'Strong', color: '#7CB342', progress: 75 };
+    return { label: 'Very Strong', color: '#2E7D32', progress: 100 };
+  };
+
+  const getMobileNumberError = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return 'Mobile number is required';
+    if (!/^09\d{9}$/.test(trimmed)) {
+      return 'Please enter a valid Philippine mobile number (09XXXXXXXXX).';
+    }
+    return null;
+  };
+
+  const validatePasswordWithServer = async (value: string): Promise<string | null> => {
+    try {
+      const response = await fetch(`${API_URL}/auth/validate-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: value }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        return null;
+      }
+
+      if (data?.data?.isValid) {
+        return null;
+      }
+
+      const firstError = Array.isArray(data?.data?.errors) ? data.data.errors[0] : null;
+      return firstError || 'Password is invalid';
+    } catch (error) {
+      console.warn('Password validation API unavailable:', error);
+      return null;
+    }
   };
 
   const getConfirmPasswordError = (value: string, original: string): string | null => {
@@ -289,23 +495,32 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   };
 
   const validateStep1 = async () => {
-    const passwordError = getPasswordError(password);
+    const firstNameError = getNameError(firstName, 'First');
+    const lastNameError = getNameError(lastName, 'Last');
+    const mobileNumberError = getMobileNumberError(mobileNumber);
+    const localPasswordError = getPasswordError(password);
+    const serverPasswordError = !localPasswordError ? await validatePasswordWithServer(password) : null;
+    const passwordError = localPasswordError || serverPasswordError;
     const confirmPasswordError = getConfirmPasswordError(confirmPassword, password);
     const age = calculateAge(dateOfBirth);
     let isDuplicateMobile = false;
+    setPasswordServerError(serverPasswordError);
 
-    if (mobileNumber.trim() && mobileNumber.trim().length === 11) {
-      isDuplicateMobile = !(await checkMobileAvailability(mobileNumber.trim()));
+    if (!mobileNumberError) {
+      isDuplicateMobile = !(await checkMobileAvailability(normalizeMobileForLookup(mobileNumber)));
+    } else {
+      setMobileChecked(false);
     }
 
     const errors = {
-      firstName: !firstName.trim(),
-      lastName: !lastName.trim(),
+      firstName: !!firstNameError,
+      lastName: !!lastNameError,
       dateOfBirth: !dateOfBirth.trim() || dateOfBirth.length !== 10,
       ageRestriction: dateOfBirth.length === 10 && age < 18,
       gender: !gender,
-      mobileNumber: !mobileNumber.trim(),
-      mobileNumberDuplicate: mobileNumber.trim().length === 11 && isDuplicateMobile,
+      mobileNumber: mobileNumberError === 'Mobile number is required',
+      mobileNumberFormat: !!mobileNumberError && mobileNumberError !== 'Mobile number is required',
+      mobileNumberDuplicate: !mobileNumberError && isDuplicateMobile,
       password: !!passwordError,
       confirmPassword: !!confirmPasswordError,
       passwordMismatch: confirmPasswordError === 'Passwords do not match',
@@ -322,7 +537,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       scrollViewRef.current?.scrollTo({ y: 160, animated: true });
     } else if (errors.gender) {
       scrollViewRef.current?.scrollTo({ y: 240, animated: true });
-    } else if (errors.mobileNumber) {
+    } else if (errors.mobileNumber || errors.mobileNumberFormat || errors.mobileNumberDuplicate) {
       scrollViewRef.current?.scrollTo({ y: 320, animated: true });
     } else if (errors.password || errors.confirmPassword || errors.passwordMismatch) {
       scrollViewRef.current?.scrollTo({ y: 400, animated: true });
@@ -409,7 +624,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         }
       } else {
         setTokenValidated(false);
-        setTokenError(data.message || 'Invalid token');
+        if (data.errorCode === 'TOKEN_ALREADY_USED') {
+          setTokenError('This household token has already been used for registration. Please contact your barangay office for a new token.');
+        } else if (data.errorCode === 'TOKEN_EXPIRED') {
+          setTokenError('This token has expired. Please contact your barangay office for a new token.');
+        } else {
+          setTokenError(data.message || 'Invalid token');
+        }
       }
     } catch (error) {
       console.error('Token validation error:', error);
@@ -451,83 +672,450 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   // Get ID format requirements based on ID type
   const getIdFormatInfo = (type: string) => {
     switch (type) {
+      case 'PhilSys ID':
       case 'Philippine National ID':
-        return { minLength: 12, maxLength: 12, pattern: /^\d{12}$/, hint: '12 digits', keyboardType: 'numeric' as const };
+        return { minLength: 12, maxLength: 14, pattern: /^\d{12}$/, hint: '12 digits (e.g., 1234-5678-9012)', keyboardType: 'numeric' as const };
       case "Driver's License":
-        return { minLength: 12, maxLength: 12, pattern: /^\d{12}$/, hint: '12 digits', keyboardType: 'numeric' as const };
+        return { minLength: 11, maxLength: 13, pattern: /^[A-Z]\d{10}$/, hint: 'N##-##-###### (e.g., N01-23-456789)', keyboardType: 'default' as const };
       case 'Passport':
-        return { minLength: 9, maxLength: 10, pattern: /^[A-Za-z]\d{8,9}$/, hint: '1 letter followed by 8-9 digits', keyboardType: 'default' as const };
+        return { minLength: 8, maxLength: 8, pattern: /^[A-Z]\d{7}$/, hint: '1 letter + 7 digits (e.g., P1234567)', keyboardType: 'default' as const };
       case 'SSS ID':
-        return { minLength: 10, maxLength: 10, pattern: /^\d{10}$/, hint: '10 digits', keyboardType: 'numeric' as const };
+        return { minLength: 10, maxLength: 12, pattern: /^\d{10}$/, hint: '##-#######-# or 10 digits', keyboardType: 'numeric' as const };
       case 'PhilHealth ID':
-        return { minLength: 12, maxLength: 12, pattern: /^\d{12}$/, hint: '12 digits', keyboardType: 'numeric' as const };
+        return { minLength: 12, maxLength: 14, pattern: /^\d{12}$/, hint: '####-####-#### or 12 digits', keyboardType: 'numeric' as const };
       case "Voter's ID":
-        return { minLength: 22, maxLength: 22, pattern: /^\d{22}$/, hint: '22 digits', keyboardType: 'numeric' as const };
+        return { minLength: 6, maxLength: 25, pattern: /^[A-Z0-9]{6,25}$/, hint: 'Variable format (6-25 letters/numbers)', keyboardType: 'default' as const };
       default:
         return { minLength: 1, maxLength: 30, pattern: /^.+$/, hint: 'Enter your ID number', keyboardType: 'default' as const };
+    }
+  };
+
+  const normalizeIdNumberForValidation = (type: string, rawValue: string): string => {
+    const value = (rawValue || '').trim().toUpperCase();
+    switch (type) {
+      case 'PhilSys ID':
+      case 'Philippine National ID':
+      case 'SSS ID':
+      case 'PhilHealth ID':
+        return value.replace(/\D/g, '');
+      case "Driver's License":
+      case "Voter's ID":
+      case 'Passport':
+        return value.replace(/[^A-Z0-9]/g, '');
+      default:
+        return value;
+    }
+  };
+
+  const sanitizeIdInput = (type: string, rawValue: string): string => {
+    const value = rawValue.toUpperCase();
+    switch (type) {
+      case 'PhilSys ID':
+      case 'Philippine National ID':
+      case 'SSS ID':
+      case 'PhilHealth ID':
+        return value.replace(/[^0-9-\s]/g, '');
+      case 'Passport': {
+        const cleaned = value.replace(/[^A-Z0-9]/g, '');
+        if (cleaned.length <= 1) return cleaned;
+        return cleaned[0] + cleaned.slice(1).replace(/[^0-9]/g, '');
+      }
+      case "Driver's License":
+      case "Voter's ID":
+        return value.replace(/[^A-Z0-9-\s]/g, '');
+      default:
+        return value;
     }
   };
 
   const validateIdNumber = (type: string, number: string): boolean => {
     if (!number.trim()) return false;
     const formatInfo = getIdFormatInfo(type);
-    return formatInfo.pattern.test(number);
+    const normalizedNumber = normalizeIdNumberForValidation(type, number);
+    return formatInfo.pattern.test(normalizedNumber);
   };
 
-  const validateStep3 = () => {
-    // TEMPORARILY DISABLED - ID validation optional for testing
-    // const isIdNumberValid = validateIdNumber(idType, idNumber);
+  const validateStep3 = async () => {
+    setStep3ValidationMessage(null);
+    setStep3ValidationWarnings([]);
+    setStep3ValidationStatus('neutral');
+
+    const isIdNumberValid = validateIdNumber(idType, idNumber);
     const errors = {
-      idType: false, // !idType.trim(),
-      idNumber: false, // !idNumber.trim() || !isIdNumberValid,
-      frontIdImage: false, // !frontIdImage,
-      backIdImage: false, // !backIdImage,
+      idType: !idType.trim(),
+      idNumber: !idNumber.trim() || !isIdNumberValid,
+      frontIdImage: !frontIdImage,
+      backIdImage: !backIdImage,
     };
     setStep3Errors(errors);
-    
-    // Always pass validation for now
-    return true;
-    
-    // Original validation (re-enable later):
-    // // Scroll to first error
-    // if (errors.idType) {
-    //   scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    // } else if (errors.idNumber) {
-    //   scrollViewRef.current?.scrollTo({ y: 100, animated: true });
-    // } else if (errors.frontIdImage) {
-    //   scrollViewRef.current?.scrollTo({ y: 200, animated: true });
-    // } else if (errors.backIdImage) {
-    //   scrollViewRef.current?.scrollTo({ y: 400, animated: true });
-    // }
-    // return !Object.values(errors).some(Boolean);
+
+    if (errors.idType) {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    } else if (errors.idNumber) {
+      scrollViewRef.current?.scrollTo({ y: 100, animated: true });
+    } else if (errors.frontIdImage) {
+      scrollViewRef.current?.scrollTo({ y: 200, animated: true });
+    } else if (errors.backIdImage) {
+      scrollViewRef.current?.scrollTo({ y: 400, animated: true });
+    }
+
+    if (Object.values(errors).some(Boolean)) {
+      return false;
+    }
+
+    if (!frontIdImage || !backIdImage) {
+      return false;
+    }
+
+    try {
+      setIsStep3Validating(true);
+      setStep3ValidationStatus('neutral');
+      setStep3ValidationMessage('Checking your uploaded ID photos...');
+
+      const [frontResult, backResult] = await Promise.all([
+        aiVerification.validateFrontId(frontIdImage, idType),
+        aiVerification.validateBackId(backIdImage, idType),
+      ]);
+
+      const blockingIssues: string[] = [];
+      const warnings: string[] = [];
+      let frontLooksLikeNonId = false;
+      let backLooksLikeNonId = false;
+      let frontNeedsRetake = false;
+      let backNeedsRetake = false;
+      let typeMismatchDetected = false;
+
+      if (!frontResult.isValid) {
+        const frontCouldNotReadText = frontResult.errors.some((e) =>
+          e.toLowerCase().includes('could not read text')
+        );
+        const frontMissingIdNumber = frontResult.warnings.some((w) =>
+          w.toLowerCase().includes('could not extract id number')
+        );
+        const frontTypeMismatch = frontResult.warnings.some((w) =>
+          w.toLowerCase().includes('might not be a')
+        );
+        const frontQualityIssue = [...frontResult.errors, ...frontResult.warnings].some((item) => {
+          const text = item.toLowerCase();
+          return (
+            text.includes('blurry') ||
+            text.includes('too dark') ||
+            text.includes('too bright') ||
+            text.includes('overexposed') ||
+            text.includes('low contrast') ||
+            text.includes('better lighting')
+          );
+        });
+        frontLooksLikeNonId = frontCouldNotReadText || frontMissingIdNumber || frontTypeMismatch;
+        frontNeedsRetake = frontQualityIssue;
+        if (frontTypeMismatch) typeMismatchDetected = true;
+
+        setStep3Errors((prev) => ({ ...prev, frontIdImage: true }));
+        if (frontResult.errors.length > 0) {
+          blockingIssues.push(...frontResult.errors.map((e) => `Front ID: ${e}`));
+        } else if (frontResult.warnings.length > 0) {
+          blockingIssues.push(...frontResult.warnings.map((e) => `Front ID: ${e}`));
+        } else {
+          blockingIssues.push('Front ID image could not be verified. Please retake the photo.');
+        }
+      }
+
+      if (!backResult.isValid) {
+        const backCouldNotReadText = backResult.errors.some((e) =>
+          e.toLowerCase().includes('could not read text')
+        );
+        const backMissingIdNumber = backResult.warnings.some((w) =>
+          w.toLowerCase().includes('could not extract id number')
+        );
+        const backTypeMismatch = backResult.warnings.some((w) =>
+          w.toLowerCase().includes('might not be a')
+        );
+        const backQualityIssue = [...backResult.errors, ...backResult.warnings].some((item) => {
+          const text = item.toLowerCase();
+          return (
+            text.includes('blurry') ||
+            text.includes('too dark') ||
+            text.includes('too bright') ||
+            text.includes('overexposed') ||
+            text.includes('low contrast') ||
+            text.includes('better lighting')
+          );
+        });
+        backLooksLikeNonId = backCouldNotReadText || backMissingIdNumber || backTypeMismatch;
+        backNeedsRetake = backQualityIssue;
+        if (backTypeMismatch) typeMismatchDetected = true;
+
+        setStep3Errors((prev) => ({ ...prev, backIdImage: true }));
+        if (backResult.errors.length > 0) {
+          blockingIssues.push(...backResult.errors.map((e) => `Back ID: ${e}`));
+        } else if (backResult.warnings.length > 0) {
+          blockingIssues.push(...backResult.warnings.map((e) => `Back ID: ${e}`));
+        } else {
+          blockingIssues.push('Back ID image could not be verified. Please retake the photo.');
+        }
+      }
+
+      const extractedFrontData = frontResult.extractedData;
+      const usingFallbackSimulation = !!extractedFrontData?.rawText?.includes('[Analysis:');
+
+      if (extractedFrontData) {
+        const matchCheck = idValidationService.compareWithUserInput(extractedFrontData, {
+          fullName: `${firstName} ${lastName}`.trim(),
+          dateOfBirth,
+          idNumber,
+        });
+
+        if (!matchCheck.isMatch) {
+          for (const discrepancy of matchCheck.discrepancies) {
+            if (discrepancy === 'ID number does not match') {
+              blockingIssues.push('The ID number you entered does not match the ID photo. Please correct it.');
+            } else if (discrepancy === 'Name does not match the ID') {
+              blockingIssues.push('The name you entered does not match the uploaded ID. Please check your details or upload the correct ID.');
+            } else if (discrepancy === 'Date of birth does not match') {
+              blockingIssues.push('The date of birth you entered does not match the uploaded ID.');
+            } else if (!usingFallbackSimulation) {
+              warnings.push(discrepancy);
+            }
+          }
+        }
+      } else {
+        warnings.push('Could not extract enough details from the ID to cross-check name and birth date.');
+      }
+
+      if (usingFallbackSimulation) {
+        warnings.push('OCR backend is not configured yet, so detailed name/date matching is limited.');
+      }
+
+      if (blockingIssues.length > 0) {
+        setStep3ValidationWarnings(warnings);
+        setStep3ValidationStatus('error');
+
+        if (frontNeedsRetake || backNeedsRetake) {
+          setStep3ValidationMessage('Image quality is too low for ID verification. Please retake with better lighting and a steadier hand.');
+        } else if (typeMismatchDetected) {
+          setStep3ValidationMessage(`Selected ID type does not match uploaded ID. Please select the correct ID type or upload a valid ${idType}.`);
+        } else if (frontLooksLikeNonId || backLooksLikeNonId) {
+          setStep3ValidationMessage(
+            `This image does not look like a valid ${idType}. Please upload a clear photo of a real government ID.`
+          );
+        } else {
+          setStep3ValidationMessage(blockingIssues[0]);
+        }
+        return false;
+      }
+
+      setStep3ValidationWarnings(warnings);
+      setStep3ValidationStatus('success');
+      if (warnings.length > 0) {
+        setStep3ValidationMessage(`ID check passed. You can continue now. (${warnings[0]})`);
+      } else {
+        setStep3ValidationMessage('ID check passed. You can continue now.');
+      }
+      return true;
+    } catch (error) {
+      console.error('Step 3 AI validation error:', error);
+      setStep3ValidationStatus('error');
+      setStep3ValidationMessage('Unable to verify the ID right now. Check your connection and try again.');
+      return false;
+    } finally {
+      setIsStep3Validating(false);
+    }
+  };
+
+  const routeSubmissionErrorToStep = (
+    errorCode?: string,
+    message?: string,
+    validationErrors?: Array<{ field?: string; code?: string; message?: string }>
+  ): boolean => {
+    const normalized = `${errorCode || ''} ${message || ''}`.toLowerCase();
+
+    const goToStep = (step: number, scrollY: number) => {
+      setShowErrors(true);
+      setSubmissionErrorMessage(null);
+      setCurrentStep(step);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: scrollY, animated: true });
+      }, 0);
+    };
+
+    if (
+      errorCode === 'DUPLICATE_MOBILE' ||
+      normalized.includes('mobile number is already registered')
+    ) {
+      setStep1Errors(prev => ({ ...prev, mobileNumberDuplicate: true }));
+      goToStep(1, 320);
+      return true;
+    }
+
+    if (
+      errorCode === 'DUPLICATE_ID' ||
+      normalized.includes('id number is already registered')
+    ) {
+      setStep3Errors(prev => ({ ...prev, idNumber: true }));
+      setStep3ValidationMessage('This ID number is already registered.');
+      goToStep(3, 100);
+      return true;
+    }
+
+    if (
+      errorCode === 'TOKEN_REVIEW_REQUIRED' ||
+      normalized.includes('temporarily blocked for review')
+    ) {
+      setTokenValidated(false);
+      setTokenError('This token is temporarily blocked for review due to repeated duplicate detections. Please contact your barangay office.');
+      setStep2Errors(prev => ({ ...prev, householdToken: true }));
+      goToStep(2, 180);
+      return true;
+    }
+
+    if (
+      normalized.includes('password is too common') ||
+      normalized.includes('this password is too common')
+    ) {
+      setStep1Errors(prev => ({ ...prev, password: true }));
+      setPasswordServerError('This password is too common. Please choose a stronger password.');
+      goToStep(1, 400);
+      return true;
+    }
+
+    if (errorCode !== 'VALIDATION_FAILED' && !normalized.includes('validation failed')) {
+      return false;
+    }
+
+    if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+      const byField = new Map<string, string>();
+      for (const item of validationErrors) {
+        const field = String(item?.field || '').trim();
+        const msg = String(item?.message || '').trim();
+        if (field && msg && !byField.has(field)) {
+          byField.set(field, msg);
+        }
+      }
+
+      if (byField.has('mobileNumber')) {
+        setStep1Errors(prev => ({
+          ...prev,
+          mobileNumber: byField.get('mobileNumber')?.toLowerCase().includes('required') || false,
+          mobileNumberFormat: !byField.get('mobileNumber')?.toLowerCase().includes('required'),
+        }));
+        goToStep(1, 320);
+        return true;
+      }
+
+      if (byField.has('householdToken')) {
+        setStep2Errors(prev => ({ ...prev, householdToken: true }));
+        setTokenError(byField.get('householdToken') || 'Invalid household token');
+        goToStep(2, 180);
+        return true;
+      }
+
+      if (byField.has('idType') || byField.has('idNumber') || byField.has('frontIdImage') || byField.has('backIdImage')) {
+        setStep3Errors(prev => ({
+          ...prev,
+          idType: byField.has('idType'),
+          idNumber: byField.has('idNumber'),
+          frontIdImage: byField.has('frontIdImage'),
+          backIdImage: byField.has('backIdImage'),
+        }));
+        setStep3ValidationMessage(
+          byField.get('idNumber') ||
+          byField.get('frontIdImage') ||
+          byField.get('backIdImage') ||
+          byField.get('idType') ||
+          'Please correct your ID verification details.'
+        );
+        goToStep(3, byField.has('idNumber') ? 100 : byField.has('frontIdImage') ? 200 : byField.has('backIdImage') ? 400 : 0);
+        return true;
+      }
+
+      if (byField.has('faceImage')) {
+        setStep4Errors({ faceScan: true });
+        goToStep(4, 0);
+        return true;
+      }
+    }
+
+    const step1 = {
+      firstName: normalized.includes('first name is required'),
+      lastName: normalized.includes('last name is required'),
+      dateOfBirth: normalized.includes('date of birth is required'),
+      ageRestriction: false,
+      gender: normalized.includes('gender is required'),
+      mobileNumber: normalized.includes('mobile number is required'),
+      mobileNumberFormat: normalized.includes('invalid mobile number format'),
+      mobileNumberDuplicate: false,
+      password: normalized.includes('password is required') || normalized.includes('password must'),
+      confirmPassword: false,
+      passwordMismatch: false,
+      termsAccepted: false,
+    };
+
+    const step2 = {
+      barangay: normalized.includes('barangay is required'),
+      streetAddress: normalized.includes('street address is required'),
+      householdToken:
+        normalized.includes('household token is required') || normalized.includes('invalid token format'),
+    };
+
+    const step3 = {
+      idType: normalized.includes('id type is required'),
+      idNumber: normalized.includes('id number is required'),
+      frontIdImage: normalized.includes('front id image is required'),
+      backIdImage: normalized.includes('back id image is required'),
+    };
+
+    const step4 = {
+      faceScan: normalized.includes('face image is required'),
+    };
+
+    if (step1.password && normalized.includes('too common')) {
+      setPasswordServerError('This password is too common. Please choose a stronger password.');
+    }
+
+    if (Object.values(step1).some(Boolean)) {
+      setStep1Errors(prev => ({ ...prev, ...step1 }));
+      goToStep(1, step1.password ? 400 : step1.mobileNumber || step1.mobileNumberFormat ? 320 : 0);
+      return true;
+    }
+
+    if (Object.values(step2).some(Boolean)) {
+      setStep2Errors(prev => ({ ...prev, ...step2 }));
+      goToStep(2, step2.streetAddress ? 100 : 0);
+      return true;
+    }
+
+    if (Object.values(step3).some(Boolean)) {
+      setStep3Errors(prev => ({ ...prev, ...step3 }));
+      goToStep(3, step3.idNumber ? 100 : step3.frontIdImage ? 200 : step3.backIdImage ? 400 : 0);
+      return true;
+    }
+
+    if (step4.faceScan) {
+      setStep4Errors({ faceScan: true });
+      goToStep(4, 0);
+      return true;
+    }
+
+    return false;
   };
 
   // Image picker functions
-  const requestPermissions = async () => {
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
-      Alert.alert(
-        'Permission Required',
-        'Please grant camera and photo library permissions to upload ID photos.',
-        [{ text: 'OK' }]
-      );
-      return false;
-    }
-    return true;
-  };
-
   const openImagePicker = async (side: 'front' | 'back') => {
     setCurrentImageSide(side);
-    const hasPermissions = await requestPermissions();
-    if (hasPermissions) {
-      setShowImagePickerModal(true);
-    }
+    setShowImagePickerModal(true);
   };
 
   const pickFromGallery = async () => {
     setShowImagePickerModal(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Required',
+        'Please grant photo library permission to upload an ID image.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -536,6 +1124,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     });
 
     if (!result.canceled && result.assets[0]) {
+      setStep3ValidationMessage(null);
+      setStep3ValidationWarnings([]);
+      setStep3ValidationStatus('neutral');
       if (currentImageSide === 'front') {
         setFrontIdImage(result.assets[0].uri);
         if (showErrors) setStep3Errors(prev => ({ ...prev, frontIdImage: false }));
@@ -548,6 +1139,15 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   const takePhoto = async () => {
     setShowImagePickerModal(false);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Required',
+        'Please grant camera permission to capture an ID image.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [4, 3],
@@ -555,6 +1155,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     });
 
     if (!result.canceled && result.assets[0]) {
+      setStep3ValidationMessage(null);
+      setStep3ValidationWarnings([]);
+      setStep3ValidationStatus('neutral');
       if (currentImageSide === 'front') {
         setFrontIdImage(result.assets[0].uri);
         if (showErrors) setStep3Errors(prev => ({ ...prev, frontIdImage: false }));
@@ -563,6 +1166,22 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         if (showErrors) setStep3Errors(prev => ({ ...prev, backIdImage: false }));
       }
     }
+  };
+
+  const imageUriToDataUrl = async (uri: string): Promise<string> => {
+    if (!uri) return '';
+    if (uri.startsWith('data:image')) {
+      return uri;
+    }
+    if (uri.startsWith('/uploads/')) {
+      return uri;
+    }
+
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FILE_ENCODING.Base64,
+    });
+    const mime = inferImageMimeType(uri);
+    return `data:${mime};base64,${base64}`;
   };
 
   // Step 4: Face Scan functions - DISABLED for testing
@@ -815,6 +1434,36 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       if (duplicateResult.decision === 'BLOCK') {
         setVerificationProgress(100);
         setVerificationStep('Duplicate Detected - Registration Blocked');
+
+        let duplicateAttemptMessage = '';
+        if (householdToken) {
+          try {
+            const duplicateAttemptResponse = await fetch(`${API_URL}/household/record-duplicate-block`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                token: householdToken,
+                barangay,
+                similarity: typeof duplicateResult.similarity === 'number' ? duplicateResult.similarity : undefined,
+              }),
+            });
+            const duplicateAttemptData = await duplicateAttemptResponse.json().catch(() => null);
+
+            if (duplicateAttemptData?.success) {
+              if (duplicateAttemptData.blocked) {
+                duplicateAttemptMessage =
+                  ' This token is now temporarily blocked for review. Please contact your barangay office.';
+              } else if (
+                typeof duplicateAttemptData.attempts === 'number' &&
+                typeof duplicateAttemptData.maxAttempts === 'number'
+              ) {
+                duplicateAttemptMessage = ` Attempt ${duplicateAttemptData.attempts}/${duplicateAttemptData.maxAttempts}.`;
+              }
+            }
+          } catch (recordError) {
+            console.warn('[Verification] Failed to record duplicate-block attempt:', recordError);
+          }
+        }
         
         // Create a "failed" verification result for display
         const failedResult: VerificationResult = {
@@ -846,7 +1495,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         // Show alert but don't submit to main database
         Alert.alert(
           'Registration Blocked',
-          'This face is already registered.\n\nDuplicate registrations are not allowed.',
+          `This face is already registered.\n\nDuplicate registrations are not allowed.${duplicateAttemptMessage}`,
           [{ text: 'OK' }]
         );
         
@@ -887,6 +1536,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       
       // Submit to main registration system
       const fullName = `${firstName} ${lastName}`.trim();
+      const [frontIdImagePayload, backIdImagePayload, faceImagePayload] = await Promise.all([
+        frontIdImage ? imageUriToDataUrl(frontIdImage) : Promise.resolve(''),
+        backIdImage ? imageUriToDataUrl(backIdImage) : Promise.resolve(''),
+        faceImage ? imageUriToDataUrl(faceImage) : Promise.resolve(''),
+      ]);
+
       const registrationData = {
         firstName,
         lastName,
@@ -903,9 +1558,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         vulnerableCounts,
         idType,
         idNumber,
-        frontIdImage: frontIdImage || '',
-        backIdImage: backIdImage || '',
-        faceImage: faceImage || '',
+        frontIdImage: frontIdImagePayload,
+        backIdImage: backIdImagePayload,
+        faceImage: faceImagePayload,
         verification: {
           overallConfidence: 100,
           idConfidence: frontIdImage ? 90 : 50,
@@ -945,6 +1600,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         setVerificationStep('Registration Complete!');
         setSubmissionComplete(true);
       } else {
+        if (routeSubmissionErrorToStep(data.errorCode, data.message, data.validationErrors)) {
+          setDuplicateCheckResult(null);
+          setVerificationResult(null);
+          return;
+        }
+
         setVerificationStep('Registration Failed');
         setSubmissionErrorMessage(data.message || 'Failed to submit registration');
         // Handle specific error codes
@@ -975,6 +1636,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       } else if (error.message) {
         errorMessage = error.message;
       }
+
+      if (routeSubmissionErrorToStep(undefined, errorMessage)) {
+        setDuplicateCheckResult(null);
+        setVerificationResult(null);
+        return;
+      }
+
       setSubmissionErrorMessage(errorMessage);
       
       Alert.alert('Registration Failed', errorMessage, [{ text: 'OK' }]);
@@ -1017,7 +1685,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     if (currentStep === 2 && !validateStep2()) {
       return;
     }
-    if (currentStep === 3 && !validateStep3()) {
+    if (currentStep === 3 && !(await validateStep3())) {
       return;
     }
     if (currentStep === 4 && !validateStep4()) {
@@ -1112,7 +1780,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   };
 
   const renderStep1 = () => {
+    const mobileNumberErrorMessage = getMobileNumberError(mobileNumber);
+    const firstNameErrorMessage = getNameError(firstName, 'First');
+    const lastNameErrorMessage = getNameError(lastName, 'Last');
     const passwordErrorMessage = getPasswordError(password);
+    const passwordStrength = getPasswordStrength(password);
     const confirmPasswordErrorMessage = getConfirmPasswordError(confirmPassword, password);
 
     return (
@@ -1139,11 +1811,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               value={firstName}
               onChangeText={(text) => {
                 setFirstName(text);
-                if (text.trim()) clearStep1Error('firstName');
+                clearStep1Error('firstName');
               }}
+              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
             />
             <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
           </View>
+          {showErrors && step1Errors.firstName && (
+            <Text style={styles.errorText}>
+              {firstNameErrorMessage || 'First name must be 2–50 characters and contain letters only.'}
+            </Text>
+          )}
         </View>
 
         {/* Last Name */}
@@ -1157,11 +1835,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               value={lastName}
               onChangeText={(text) => {
                 setLastName(text);
-                if (text.trim()) clearStep1Error('lastName');
+                clearStep1Error('lastName');
               }}
+              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
             />
             <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
           </View>
+          {showErrors && step1Errors.lastName && (
+            <Text style={styles.errorText}>
+              {lastNameErrorMessage || 'Last name must be 2–50 characters and contain letters only.'}
+            </Text>
+          )}
         </View>
 
         {/* Date of Birth */}
@@ -1183,6 +1867,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               keyboardType="numeric"
               maxLength={10}
               editable={true}
+              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
             />
             <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.calendarIcons}>
               <Ionicons name="calendar" size={22} color="#2E7D32" />
@@ -1253,12 +1938,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             style={[
               styles.inputContainer,
               isMobileNumberFocused && styles.inputFocused,
-              showErrors && (step1Errors.mobileNumber || step1Errors.mobileNumberDuplicate) && styles.inputError,
+              showErrors && (step1Errors.mobileNumber || step1Errors.mobileNumberFormat || step1Errors.mobileNumberDuplicate) && styles.inputError,
             ]}
           >
             <TextInput
               style={styles.input}
-              placeholder="09123456789"
+              placeholder="09XXXXXXXXX"
               placeholderTextColor="#999"
               value={mobileNumber}
               onChangeText={(text) => {
@@ -1267,16 +1952,18 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 if (sanitized.trim()) {
                   clearStep1Error('mobileNumber');
                 }
-                setStep1Errors(prev => ({ ...prev, mobileNumberDuplicate: false }));
-                if (sanitized.length === 11) {
-                  checkMobileAvailability(sanitized);
-                } else {
+                setStep1Errors(prev => ({ ...prev, mobileNumberFormat: false, mobileNumberDuplicate: false }));
+                if (!/^09\d{9}$/.test(sanitized)) {
                   setMobileChecked(false);
+                  setMobileAvailabilityStatus('idle');
                 }
               }}
               keyboardType="phone-pad"
               maxLength={11}
-              onFocus={() => setIsMobileNumberFocused(true)}
+              onFocus={(event) => {
+                setIsMobileNumberFocused(true);
+                scrollFocusedInputIntoView(event.target as number);
+              }}
               onBlur={() => setIsMobileNumberFocused(false)}
             />
             {isCheckingMobile ? (
@@ -1287,9 +1974,27 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <Ionicons name="call" size={22} color="#2E7D32" style={styles.inputIconRight} />
             )}
           </View>
-          <Text style={styles.fieldHelperText}>Use 11 digits starting with 09 (e.g., 09123456789).</Text>
+          <Text style={styles.fieldHelperText}>Use 09XXXXXXXXX.</Text>
+          {mobileAvailabilityStatus === 'checking' && (
+            <Text style={styles.mobileInfoText}>Checking mobile number...</Text>
+          )}
+          {mobileAvailabilityStatus === 'available' && (
+            <Text style={styles.mobileSuccessText}>Mobile number is available.</Text>
+          )}
+          {mobileAvailabilityStatus === 'taken' && (
+            <Text style={styles.mobileWarningText}>This account already exists. Please sign in instead.</Text>
+          )}
+          {mobileAvailabilityStatus === 'error' && (
+            <Text style={styles.mobileWarningText}>Unable to check right now. You can still continue.</Text>
+          )}
+          {showErrors && step1Errors.mobileNumber && (
+            <Text style={styles.errorText}>Mobile number is required</Text>
+          )}
+          {showErrors && step1Errors.mobileNumberFormat && (
+            <Text style={styles.errorText}>{mobileNumberErrorMessage || 'Enter a valid mobile number'}</Text>
+          )}
           {showErrors && step1Errors.mobileNumberDuplicate && (
-            <Text style={styles.errorText}>This mobile number is already registered</Text>
+            <Text style={styles.errorText}>This account already exists. Please sign in instead.</Text>
           )}
         </View>
 
@@ -1306,20 +2011,37 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 // Strip whitespace as user types
                 const sanitizedText = text.replace(/\s/g, '');
                 setPassword(sanitizedText);
+                setPasswordServerError(null);
                 if (!getPasswordError(sanitizedText)) clearStep1Error('password');
               }}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
+              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.inputIconRight}>
               <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
             </TouchableOpacity>
           </View>
           <Text style={styles.fieldHelperText}>Use at least 8 characters with uppercase, lowercase, number, and special character.</Text>
+          {passwordStrength && (
+            <View style={styles.passwordStrengthContainer}>
+              <View style={styles.passwordStrengthTrack}>
+                <View
+                  style={[
+                    styles.passwordStrengthFill,
+                    { width: `${passwordStrength.progress}%`, backgroundColor: passwordStrength.color },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.passwordStrengthText, { color: passwordStrength.color }]}>
+                Password strength: {passwordStrength.label}
+              </Text>
+            </View>
+          )}
           {showErrors && step1Errors.password && (
             <Text style={styles.errorText}>
-              {passwordErrorMessage || 'Invalid password'}
+              {passwordServerError || passwordErrorMessage || 'Invalid password'}
             </Text>
           )}
         </View>
@@ -1349,6 +2071,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               secureTextEntry={!showConfirmPassword}
               autoCapitalize="none"
               autoCorrect={false}
+              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
             />
             <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.inputIconRight}>
               <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
@@ -1384,7 +2107,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           </View>
         </View>
         {showErrors && step1Errors.termsAccepted && (
-          <Text style={styles.errorTextTerms}>You must accept the terms and conditions</Text>
+          <Text style={styles.errorTextTerms}>You must agree to the Terms and Privacy Policy to continue.</Text>
         )}
       </View>
     </View>
@@ -1468,6 +2191,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 setStreetAddress(text);
                 if (text.trim() && showErrors) setStep2Errors(prev => ({ ...prev, streetAddress: false }));
               }}
+              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
             />
           </View>
         </View>
@@ -1493,6 +2217,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 autoCapitalize="characters"
                 maxLength={14}
                 editable={!tokenValidating && !!barangay}
+                onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
               />
               {tokenValidated && (
                 <Ionicons name="checkmark-circle" size={22} color="#2E7D32" style={styles.tokenIcon} />
@@ -1652,6 +2377,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       </View>
 
       <View style={styles.formFields}>
+        <View style={styles.captureGuideCard}>
+          <View style={styles.captureGuideHeader}>
+            <Ionicons name="camera-outline" size={18} color="#2E7D32" />
+            <Text style={styles.captureGuideTitle}>Before You Upload</Text>
+          </View>
+          <Text style={styles.captureGuideItem}>• Use bright, even lighting (no shadows)</Text>
+          <Text style={styles.captureGuideItem}>• Keep all 4 ID corners visible</Text>
+          <Text style={styles.captureGuideItem}>• Hold camera steady to avoid blur</Text>
+          <Text style={styles.captureGuideItem}>• Select the same ID type as your uploaded card</Text>
+        </View>
+
         {/* Select ID Type */}
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Select ID Type</Text>
@@ -1677,6 +2413,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                     setIdType(option);
                     setIdNumber(''); // Clear ID number when type changes
                     setShowIdTypeDropdown(false);
+                    setStep3ValidationMessage(null);
+                    setStep3ValidationWarnings([]);
+                    setStep3ValidationStatus('neutral');
                     if (showErrors) setStep3Errors(prev => ({ ...prev, idType: false, idNumber: false }));
                   }}
                 >
@@ -1705,29 +2444,29 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               keyboardType={getIdFormatInfo(idType).keyboardType}
               autoCapitalize={idType === 'Passport' ? 'characters' : 'none'}
               onChangeText={(text) => {
-                // For passport, allow letters and numbers; for others, only numbers
-                let filteredText = text;
-                if (idType === 'Passport') {
-                  // First character can be letter, rest are numbers
-                  filteredText = text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-                  if (filteredText.length > 1) {
-                    filteredText = filteredText[0] + filteredText.slice(1).replace(/[^0-9]/g, '');
-                  }
-                } else if (idType) {
-                  filteredText = text.replace(/[^0-9]/g, '');
-                }
+                const filteredText = idType ? sanitizeIdInput(idType, text) : text;
                 setIdNumber(filteredText);
+                setStep3ValidationMessage(null);
+                setStep3ValidationWarnings([]);
+                setStep3ValidationStatus('neutral');
                 if (validateIdNumber(idType, filteredText) && showErrors) {
                   setStep3Errors(prev => ({ ...prev, idNumber: false }));
                 }
               }}
               editable={!!idType}
+              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
             />
           </View>
+          {showErrors && step3Errors.idType && (
+            <Text style={styles.errorText}>Please select an ID type before entering your ID number.</Text>
+          )}
           {idType && (
             <Text style={styles.idFormatHint}>
               Format: {getIdFormatInfo(idType).hint} ({idNumber.length}/{getIdFormatInfo(idType).maxLength})
             </Text>
+          )}
+          {showErrors && step3Errors.idNumber && !idNumber.trim() && (
+            <Text style={styles.errorText}>ID number is required.</Text>
           )}
           {showErrors && step3Errors.idNumber && idNumber.trim() && (
             <Text style={styles.idFormatError}>
@@ -1757,6 +2496,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               </View>
             )}
           </TouchableOpacity>
+          {showErrors && step3Errors.frontIdImage && (
+            <Text style={styles.errorText}>Please upload a clear photo of the front side of your ID.</Text>
+          )}
         </View>
 
         {/* Back of ID */}
@@ -1780,7 +2522,49 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               </View>
             )}
           </TouchableOpacity>
+          {showErrors && step3Errors.backIdImage && (
+            <Text style={styles.errorText}>Please upload a clear photo of the back side of your ID.</Text>
+          )}
         </View>
+
+        {isStep3Validating && (
+          <View style={styles.step3StatusCard}>
+            <ActivityIndicator size="small" color="#2E7D32" />
+            <Text style={styles.step3StatusText}>Analyzing ID photos. Please wait...</Text>
+          </View>
+        )}
+
+        {!!step3ValidationMessage && (
+          <View
+            style={[
+              styles.step3ValidationBox,
+              step3ValidationStatus === 'success' && styles.step3ValidationBoxSuccess,
+              step3ValidationStatus === 'error' && styles.step3ValidationBoxError,
+            ]}
+          >
+            <Text
+              style={[
+                styles.step3ValidationText,
+                step3ValidationStatus === 'success' && styles.step3ValidationTextSuccess,
+                step3ValidationStatus === 'error' && styles.step3ValidationTextError,
+              ]}
+            >
+              {step3ValidationMessage}
+            </Text>
+            {step3ValidationWarnings.slice(0, 2).map((warning, index) => (
+              <Text key={`${warning}-${index}`} style={styles.step3WarningText}>
+                • {warning}
+              </Text>
+            ))}
+            {step3ValidationStatus === 'error' && (
+              <>
+                <Text style={styles.step3FixTip}>• Make sure all 4 corners of the ID are visible</Text>
+                <Text style={styles.step3FixTip}>• Avoid glare and blurry shots</Text>
+                <Text style={styles.step3FixTip}>• Upload the actual {idType || 'selected'} government ID</Text>
+              </>
+            )}
+          </View>
+        )}
 
         {/* Quick Tips */}
         <View style={styles.quickTipsContainer}>
@@ -2075,6 +2859,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   };
 
   return (
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoidingContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+    >
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -2109,6 +2898,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
@@ -2129,9 +2920,24 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 {currentStep === 1 ? 'Cancel' : 'Back'}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.nextButton} onPress={handleNextStep}>
+            <TouchableOpacity
+              style={[
+                styles.nextButton,
+                (isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')) && styles.nextButtonDisabled,
+              ]}
+              onPress={handleNextStep}
+              disabled={isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')}
+            >
               <Text style={styles.nextButtonText}>
-                {currentStep === 4 ? 'Verify & Submit' : currentStep === 3 ? 'Continue' : 'Next Step'}
+                {isStep3Validating
+                  ? 'Checking ID...'
+                  : currentStep === 3 && step3ValidationStatus === 'error'
+                    ? 'Fix ID Upload'
+                  : currentStep === 4
+                    ? 'Verify & Submit'
+                    : currentStep === 3
+                      ? 'Continue'
+                      : 'Next Step'}
               </Text>
               <Ionicons name={currentStep === 4 ? "shield-checkmark" : "arrow-forward"} size={22} color="#FFF" />
             </TouchableOpacity>
@@ -2526,10 +3332,14 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoidingContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#F5F7F5',
@@ -2758,6 +3568,44 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginLeft: 5,
   },
+  mobileInfoText: {
+    fontSize: 12,
+    color: '#2E7D32',
+    marginTop: 5,
+    marginLeft: 5,
+  },
+  mobileSuccessText: {
+    fontSize: 12,
+    color: '#2E7D32',
+    marginTop: 5,
+    marginLeft: 5,
+  },
+  mobileWarningText: {
+    fontSize: 12,
+    color: '#D97706',
+    marginTop: 5,
+    marginLeft: 5,
+  },
+  passwordStrengthContainer: {
+    marginTop: 8,
+    marginLeft: 5,
+    marginRight: 5,
+  },
+  passwordStrengthTrack: {
+    height: 6,
+    backgroundColor: '#E6EDE7',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  passwordStrengthFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  passwordStrengthText: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   // Password and Terms styles
   errorText: {
     fontSize: 12,
@@ -2898,6 +3746,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  nextButtonDisabled: {
+    opacity: 0.7,
+  },
   nextButtonText: {
     fontSize: 18,
     fontWeight: '600',
@@ -3022,6 +3873,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: -6,
   },
+  captureGuideCard: {
+    backgroundColor: '#EEF8F0',
+    borderWidth: 1,
+    borderColor: '#CFE8D4',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  captureGuideHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  captureGuideTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2E7D32',
+  },
+  captureGuideItem: {
+    fontSize: 12,
+    color: '#2A4A31',
+    lineHeight: 18,
+  },
   genderError: {
     borderRadius: 12,
   },
@@ -3040,6 +3916,62 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 4,
     fontWeight: '500',
+  },
+  step3StatusCard: {
+    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#DCEBD9',
+    backgroundColor: '#F3FBF4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  step3StatusText: {
+    color: '#2E7D32',
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  step3ValidationBox: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFF8E1',
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  step3ValidationBoxSuccess: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#C8E6C9',
+  },
+  step3ValidationBoxError: {
+    backgroundColor: '#FDECEA',
+    borderColor: '#F4C7C3',
+  },
+  step3ValidationText: {
+    fontSize: 13,
+    color: '#6D4C41',
+    fontWeight: '600',
+  },
+  step3ValidationTextSuccess: {
+    color: '#1B5E20',
+  },
+  step3ValidationTextError: {
+    color: '#B71C1C',
+  },
+  step3WarningText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#795548',
+  },
+  step3FixTip: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#8A1C1C',
   },
   // Bottom buttons
   bottomButtonsRow: {

@@ -16,7 +16,7 @@ import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
 import StaffUser from '../models/StaffUser';
 import User from '../models/User';
-import { AuthRequest } from '../middleware/unifiedAuth';
+import { AuthRequest, requireSuperadmin } from '../middleware/unifiedAuth';
 import { validateRequest } from '../validation/validateRequest';
 import {
   createDistributionBody,
@@ -90,6 +90,7 @@ const hasDistributionAccess = (scopedBarangays: string[], distribution: { barang
  */
 router.post(
   '/',
+  requireSuperadmin,
   async (req: AuthRequest, res: Response) => {
     try {
       const scopedBarangays = await getScopedBarangays(req.authUser);

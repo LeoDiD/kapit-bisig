@@ -3,13 +3,20 @@
  * Handles ID document verification, text extraction, and quality checks
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { resolveApiBaseUrl } from '../config/apiSecurity';
 
 // Encoding type constant
 const EncodingType = {
   Base64: 'base64' as const,
   UTF8: 'utf8' as const,
 };
+
+const VERIFICATION_API_BASE_URL = resolveApiBaseUrl(
+  process.env.EXPO_PUBLIC_API_URL,
+  'http://192.168.1.72:3001/api',
+  'IDValidationService OCR API',
+);
 
 // Types for ID validation
 export interface IDValidationResult {
@@ -42,6 +49,11 @@ export interface ImageQualityResult {
 
 // ID Type patterns for Philippine IDs
 const ID_PATTERNS = {
+  'PhilSys ID': {
+    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}/g,
+    keywords: ['PHILIPPINE', 'NATIONAL', 'IDENTIFICATION', 'PCN', 'PHILSYS'],
+    dateFormat: /\d{2}[\/\-]\d{2}[\/\-]\d{4}/g,
+  },
   'Philippine National ID': {
     numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}/g,
     keywords: ['PHILIPPINE', 'NATIONAL', 'IDENTIFICATION', 'PCN', 'PHILSYS'],
@@ -53,7 +65,7 @@ const ID_PATTERNS = {
     dateFormat: /\d{2}[\/\-]\d{2}[\/\-]\d{4}/g,
   },
   'Passport': {
-    numberPattern: /[A-Z]\d{8,9}/g,
+    numberPattern: /[A-Z]\d{7}/g,
     keywords: ['PASSPORT', 'REPUBLIC', 'PHILIPPINES', 'DFA'],
     dateFormat: /\d{2}\s?[A-Z]{3}\s?\d{4}/g,
   },
@@ -63,12 +75,12 @@ const ID_PATTERNS = {
     dateFormat: /\d{2}[\/\-]\d{2}[\/\-]\d{4}/g,
   },
   'PhilHealth ID': {
-    numberPattern: /\d{2}[-\s]?\d{9}[-\s]?\d{1}/g,
+    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}/g,
     keywords: ['PHILHEALTH', 'HEALTH', 'INSURANCE'],
     dateFormat: /\d{2}[\/\-]\d{2}[\/\-]\d{4}/g,
   },
   "Voter's ID": {
-    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{6}/g,
+    numberPattern: /[A-Z0-9]{6,25}/g,
     keywords: ['VOTER', 'COMELEC', 'COMMISSION', 'ELECTIONS'],
     dateFormat: /\d{2}[\/\-]\d{2}[\/\-]\d{4}/g,
   },
@@ -302,16 +314,14 @@ class IDValidationService {
         encoding: EncodingType.Base64,
       });
 
-      // Call your backend API
-      // Replace with your actual API endpoint
-      const response = await fetch('YOUR_API_ENDPOINT/ocr', {
+      const response = await fetch(`${VERIFICATION_API_BASE_URL}/verification/ocr`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           image: base64,
-          language: 'eng+fil', // English + Filipino
+          language: 'eng',
         }),
       });
 
@@ -415,7 +425,7 @@ class IDValidationService {
    */
   private extractDataFromText(text: string, idType: string): ExtractedIDData {
     const upperText = text.toUpperCase();
-    const patterns = ID_PATTERNS[idType as keyof typeof ID_PATTERNS] || ID_PATTERNS['Philippine National ID'];
+    const patterns = ID_PATTERNS[idType as keyof typeof ID_PATTERNS] || ID_PATTERNS['PhilSys ID'];
 
     // Extract ID number
     const idNumberMatch = upperText.match(patterns.numberPattern);
@@ -511,18 +521,19 @@ class IDValidationService {
     const cleanNumber = idNumber.replace(/[-\s]/g, '');
     
     switch (idType) {
+      case 'PhilSys ID':
       case 'Philippine National ID':
         return /^\d{12}$/.test(cleanNumber);
       case "Driver's License":
-        return /^[A-Z]?\d{11,12}$/.test(cleanNumber);
+        return /^[A-Z]\d{10}$/.test(cleanNumber);
       case 'Passport':
-        return /^[A-Z]\d{8,9}$/.test(cleanNumber);
+        return /^[A-Z]\d{7}$/.test(cleanNumber);
       case 'SSS ID':
         return /^\d{10}$/.test(cleanNumber);
       case 'PhilHealth ID':
         return /^\d{12}$/.test(cleanNumber);
       case "Voter's ID":
-        return /^\d{22}$/.test(cleanNumber);
+        return /^[A-Z0-9]{6,25}$/.test(cleanNumber);
       default:
         return cleanNumber.length >= 8;
     }

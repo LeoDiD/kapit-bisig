@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/AuthContext'
 // Barangay options are now computed dynamically per-user
 
 export default function DistributionPageClient() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, isSuperadmin } = useAuth()
   const scopedBarangays = useMemo(
     () => getScopedBarangays(user?.role, user?.assignedBarangays),
     [user?.role, user?.assignedBarangays],
@@ -169,14 +169,17 @@ export default function DistributionPageClient() {
         rows={rows}
         onOpenCreate={() => setCreateOpen(true)}
         onMarkClaimed={markClaimed}
+        canCreate={isSuperadmin}
       />
 
-      <NewDistributionModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreate={handleCreate}
-        barangayOptions={scopedBarangays}
-      />
+      {isSuperadmin && (
+        <NewDistributionModal
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreate={handleCreate}
+          barangayOptions={scopedBarangays}
+        />
+      )}
     </div>
   )
 }

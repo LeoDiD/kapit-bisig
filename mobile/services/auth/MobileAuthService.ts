@@ -97,6 +97,8 @@ export interface DashboardSummary {
 export interface AuthResponse {
   success: boolean;
   message?: string;
+  otpRequired?: boolean;
+  otpToken?: string;
   data?: {
     user: User;
     token: string;
@@ -212,6 +214,15 @@ class MobileAuthService {
         };
       }
 
+      if (data.otpRequired) {
+        return {
+          success: true,
+          otpRequired: true,
+          otpToken: data.otpToken,
+          message: data.message || 'Verification code sent.',
+        };
+      }
+
       if (!data.success || !data.data) {
         return {
           success: false,
@@ -240,6 +251,94 @@ class MobileAuthService {
       };
     } catch (error) {
       console.error('[MobileAuthService] Login error:', error);
+      return {
+        success: false,
+        message: `Unable to reach API server at ${API_CONFIG.baseUrl}. Make sure backend is running and EXPO_PUBLIC_API_URL is reachable from your device.`,
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  async verifyLoginOtp(otpToken: string, otp: string): Promise<AuthResponse> {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/mobile-auth/login/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ otpToken, otp }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.message || 'OTP verification failed',
+          code: data.code,
+        };
+      }
+
+      if (!data.success || !data.data) {
+        return {
+          success: false,
+          message: data.message || 'Invalid response from server',
+        };
+      }
+
+      const { user, token } = data.data;
+
+      if (user.role !== 'Volunteer' && user.role !== 'LGU_STAFF') {
+        return {
+          success: false,
+          message: 'This account is not allowed to use the mobile app.',
+          code: 'INVALID_ROLE',
+        };
+      }
+
+      await this.storeCredentials(token, user);
+
+      return {
+        success: true,
+        message: data.message || 'Login successful',
+        data: { user, token },
+      };
+    } catch (error) {
+      console.error('[MobileAuthService] OTP verification error:', error);
+      return {
+        success: false,
+        message: `Unable to reach API server at ${API_CONFIG.baseUrl}. Make sure backend is running and EXPO_PUBLIC_API_URL is reachable from your device.`,
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  async resendLoginOtp(otpToken: string): Promise<{ success: boolean; message?: string; code?: string }> {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/mobile-auth/login/resend-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ otpToken }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.message || 'Failed to resend OTP',
+          code: data.code,
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message || 'A new verification code has been sent.',
+      };
+    } catch (error) {
+      console.error('[MobileAuthService] OTP resend error:', error);
       return {
         success: false,
         message: `Unable to reach API server at ${API_CONFIG.baseUrl}. Make sure backend is running and EXPO_PUBLIC_API_URL is reachable from your device.`,

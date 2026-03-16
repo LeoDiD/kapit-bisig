@@ -22,7 +22,6 @@ import faceRoutes from './routes/faceRoutes';
 import householdRoutes from './routes/householdRoutes';
 import adminTokenRoutes from './routes/adminTokenRoutes';
 import distributionRoutes from './routes/distributionRoutes';
-import superadminAuthRoutes from './routes/superadminAuthRoutes';
 import unifiedAuthRoutes from './routes/unifiedAuthRoutes';
 import adminStaffRoutes from './routes/adminStaffRoutes';
 import forgotPasswordRoutes from './routes/forgotPasswordRoutes';
@@ -32,6 +31,7 @@ import reportRoutes from './routes/reportRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import profileRoutes from './routes/profileRoutes';
 import authRoutes from './routes/authRoutes';
+import verificationRoutes from './routes/verificationRoutes';
 import {
   startClaimConfirmationWorker,
   stopClaimConfirmationWorker,
@@ -90,8 +90,8 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 app.use(rejectNoSQLInjection);
 
@@ -116,7 +116,7 @@ app.use(csrfProtect);
 app.use('/api/auth', unifiedAuthRoutes); // unified login / logout / me
 app.use('/api/mobile-auth', authRoutes); // token-based auth for mobile Volunteer app
 app.use('/api/auth/forgot-password', forgotPasswordRoutes); // forgot password OTP flow
-app.use('/api/sa', superadminAuthRoutes); // legacy superadmin-only routes (kept for compat)
+// Legacy /api/sa login path disabled to prevent bypassing unified OTP flow.
 app.use('/api/admin/users', adminStaffRoutes); // SUPERADMIN manage staff
 
 app.use('/api/users', profileRoutes); // /api/users/me/* (must be before userRoutes)
@@ -125,6 +125,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/residents', residentRoutes); // route-level auth (register is public)
 app.use('/api/face', faceRoutes); // route-level auth where needed
 app.use('/api/household', householdRoutes);
+app.use('/api/verification', verificationRoutes);
 
 app.use('/api/admin/tokens', adminTokenRoutes);
 

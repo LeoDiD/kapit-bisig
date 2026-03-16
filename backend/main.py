@@ -15,7 +15,7 @@ NEW: MongoDB Integration for Resident Registration
 - Collection: face_registration_logs - logs all registration attempts (ALLOW/BLOCK/ERROR)
 """
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -46,14 +46,38 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# CORS allowlist configuration
+FACE_API_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("FACE_API_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+
 # Enable CORS for mobile app communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your app's domain
+    allow_origins=FACE_API_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+FACE_API_ADMIN_TOKEN = os.getenv("FACE_API_ADMIN_TOKEN", "").strip()
+
+def require_admin_auth(
+    authorization: Optional[str] = Header(default=None),
+    x_api_key: Optional[str] = Header(default=None),
+) -> None:
+    if not FACE_API_ADMIN_TOKEN:
+        raise HTTPException(status_code=503, detail="Admin token is not configured")
+
+    bearer_token = ""
+    if authorization and authorization.lower().startswith("bearer "):
+        bearer_token = authorization[7:].strip()
+
+    supplied = (x_api_key or "").strip() or bearer_token
+    if supplied != FACE_API_ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 # ============================================
 # CONFIGURATION
@@ -1702,7 +1726,7 @@ async def get_registered_users():
     }
 
 @app.delete("/api/face/user/{user_id}")
-async def delete_user(user_id: str):
+async def delete_user(user_id: str, _auth: None = Depends(require_admin_auth)):
     """
     Delete a registered user from the database
     """
@@ -1721,7 +1745,7 @@ async def delete_user(user_id: str):
     }
 
 @app.delete("/api/face/clear-all")
-async def clear_all_users():
+async def clear_all_users(_auth: None = Depends(require_admin_auth)):
     """
     Clear all registered users (for testing)
     """
@@ -1760,13 +1784,13 @@ if __name__ == "__main__":
         try:
             residents_count = db.residents.count_documents({})
             logs_count = db.face_registration_logs.count_documents({})
-            print(f"  ✓ MongoDB Connected: {MONGODB_DB_NAME}")
-            print(f"  ✓ Residents in DB: {residents_count}")
-            print(f"  ✓ Registration Logs: {logs_count}")
+            print(f"  [OK] MongoDB Connected: {MONGODB_DB_NAME}")
+            print(f"  [OK] Residents in DB: {residents_count}")
+            print(f"  [OK] Registration Logs: {logs_count}")
         except Exception as e:
-            print(f"  ✗ MongoDB Error: {e}")
+            print(f"  [ERROR] MongoDB Error: {e}")
     else:
-        print(f"  ✗ MongoDB Not Connected (using in-memory storage)")
+        print("  [ERROR] MongoDB Not Connected (using in-memory storage)")
     
     print("="*60)
     print("  API Docs: http://localhost:8000/docs")
@@ -1774,3 +1798,4 @@ if __name__ == "__main__":
     print("="*60 + "\n")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
