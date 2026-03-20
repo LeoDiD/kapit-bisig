@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { DashboardLayout, Header } from '@/components/layout'
 import api, { getScopedBarangays, ResidentRecord } from '@/lib/api'
 import { useAuth } from '@/lib/AuthContext'
+import FilterDropdown from '@/components/ui/FilterDropdown'
+import { AiMatchBadge, ResidentStatusBadge } from '@/components/residents/ResidentTableBadges'
 
 function maskResidentName(record: ResidentRecord): string {
   const raw =
@@ -23,6 +25,7 @@ function maskMobileNumber(_mobile: string | undefined): string {
 }
 
 export default function VerifiedResidentsPage() {
+  const PAGE_SIZE = 5
   const { user, loading, isSuperadmin } = useAuth()
   const router = useRouter()
 
@@ -31,6 +34,7 @@ export default function VerifiedResidentsPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [barangay, setBarangay] = useState('All Barangays')
+  const [currentPage, setCurrentPage] = useState(1)
 
   const barangayOptions = useMemo(
     () => ['All Barangays', ...getScopedBarangays(user?.role, user?.assignedBarangays)],
@@ -60,6 +64,7 @@ export default function VerifiedResidentsPage() {
         throw new Error(response.message || 'Failed to load verified residents.')
       }
       setRows(response.data)
+      setCurrentPage(1)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load verified residents.'
       setError(message)
@@ -81,6 +86,18 @@ export default function VerifiedResidentsPage() {
   const withHighMatch = useMemo(
     () => rows.filter((r) => r.verification?.aiVerificationStatus === 'High Match').length,
     [rows],
+  )
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(rows.length / PAGE_SIZE)),
+    [rows.length, PAGE_SIZE],
+  )
+  const pagedRows = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return rows.slice(start, start + PAGE_SIZE)
+  }, [rows, currentPage, PAGE_SIZE])
+  const pageNumbers = useMemo(
+    () => Array.from({ length: totalPages }, (_, i) => i + 1),
+    [totalPages],
   )
 
   if (loading || !user || !isSuperadmin) return null
@@ -114,17 +131,12 @@ export default function VerifiedResidentsPage() {
 
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-gray-500">Filter verified residents by barangay.</p>
-          <select
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm sm:w-72"
+          <FilterDropdown
+            className="w-full sm:w-72"
             value={barangay}
-            onChange={(e) => setBarangay(e.target.value)}
-          >
-            {barangayOptions.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setBarangay(v)}
+            options={barangayOptions.map((item) => ({ value: item, label: item }))}
+          />
         </div>
 
         {error ? (
@@ -157,7 +169,7 @@ export default function VerifiedResidentsPage() {
                   </td>
                 </tr>
               ) : (
-                rows.map((r) => {
+                pagedRows.map((r) => {
                   const id = r._id || r.id || ''
                   return (
                     <tr key={id} className="border-b border-gray-100">
@@ -165,21 +177,58 @@ export default function VerifiedResidentsPage() {
                       <td className="px-3 py-2">{maskMobileNumber(r.mobileNumber)}</td>
                       <td className="px-3 py-2">{r.barangay}</td>
                       <td className="px-3 py-2">
-                        {r.verification?.aiVerificationStatus || '-'}
-                        {typeof r.verification?.overallConfidence === 'number'
-                          ? ` (${r.verification.overallConfidence}%)`
-                          : ''}
+                        <AiMatchBadge record={r} />
                       </td>
                       <td className="px-3 py-2">
                         {r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}
                       </td>
-                      <td className="px-3 py-2">{r.status}</td>
+                      <td className="px-3 py-2">
+                        <ResidentStatusBadge status={r.status} />
+                      </td>
                     </tr>
                   )
                 })
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500">
+            Page {currentPage} of {totalPages} ({rows.length} total)
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            {pageNumbers.map((page) => (
+              <button
+                key={page}
+                type="button"
+                onClick={() => setCurrentPage(page)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                  page === currentPage
+                    ? 'bg-[#226538] text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
     </DashboardLayout>

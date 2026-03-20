@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Claim from '../models/Claim';
 
 const ALERT_WINDOW_MS = Number(process.env.CLAIM_ALERT_WINDOW_MS || 10 * 60 * 1000);
@@ -17,8 +18,8 @@ export async function runClaimOpsAlerts(): Promise<void> {
 
   const failedCount = await Claim.countDocuments({
     status: 'CHAIN_FAILED',
-    updatedAt: { $gte: windowStart },
-  });
+    updatedAt: mongoose.trusted({ $gte: windowStart }),
+  }).setOptions({ sanitizeFilter: false });
 
   if (failedCount >= CHAIN_FAILED_THRESHOLD && canAlert(lastFailedAlertAt)) {
     lastFailedAlertAt = Date.now();
@@ -28,8 +29,9 @@ export async function runClaimOpsAlerts(): Promise<void> {
   }
 
   const oldestPending = await Claim.findOne({
-    status: { $in: ['PENDING_CHAIN', 'CHAIN_SUBMITTED'] },
+    status: mongoose.trusted({ $in: ['PENDING_CHAIN', 'CHAIN_SUBMITTED'] }),
   })
+    .setOptions({ sanitizeFilter: false })
     .sort({ createdAt: 1 })
     .select('claimId createdAt status')
     .lean();

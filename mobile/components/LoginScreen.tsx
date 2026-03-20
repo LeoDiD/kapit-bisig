@@ -406,8 +406,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    left: 0,
-    top: 0,
+    left: 20,
+    top: Platform.OS === 'ios' ? 50 : 30,
     zIndex: 10,
     padding: 5,
   },
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   otpFormContainer: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     paddingTop: 28,
     paddingBottom: 20,
   },
@@ -482,6 +482,7 @@ const styles = StyleSheet.create({
   otpSection: {
     width: '100%',
     marginBottom: 16,
+    alignItems: 'center',
   },
   otpSectionCompact: {
     marginBottom: 12,
@@ -505,10 +506,13 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     textAlign: 'center',
     marginBottom: 22,
+    width: '100%',
   },
   otpBoxesContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
     width: '100%',
     marginTop: 6,
   },
@@ -563,6 +567,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    rowGap: 8,
     marginBottom: 18,
   },
   challengeActionDivider: {
@@ -585,9 +591,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loginButtonMain: {
+    width: '100%',
+    minHeight: 52,
     paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 8,
     marginBottom: 20,
     elevation: 3,

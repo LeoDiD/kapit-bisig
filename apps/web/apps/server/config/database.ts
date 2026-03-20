@@ -30,6 +30,23 @@ function validateMongoConfig(uri: string): void {
   }
 }
 
+async function dropLegacyStaffUsernameIndex(): Promise<void> {
+  try {
+    const db = mongoose.connection.db;
+    if (!db) return;
+
+    const collection = db.collection('staffusers');
+    const indexes = await collection.indexes();
+    const legacyIndex = indexes.find((idx) => idx.name === 'username_1');
+    if (!legacyIndex) return;
+
+    await collection.dropIndex('username_1');
+    console.log('Dropped legacy index: staffusers.username_1');
+  } catch (error) {
+    console.warn('Could not drop legacy index staffusers.username_1:', (error as Error).message);
+  }
+}
+
 export const connectDB = async (): Promise<void> => {
   const uri = MONGODB_URI || '';
   validateMongoConfig(uri);
@@ -59,6 +76,7 @@ export const connectDB = async (): Promise<void> => {
     };
 
     const conn = await mongoose.connect(uri, options);
+    await dropLegacyStaffUsernameIndex();
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     console.log(`Database: ${conn.connection.name}`);

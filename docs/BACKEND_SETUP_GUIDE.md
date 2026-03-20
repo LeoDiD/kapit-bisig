@@ -129,6 +129,8 @@ node server/scripts/generateResidentQr.js --mobile 09123456789
 # Generate QR for a specific resident code
 node server/scripts/generateResidentQr.js --code SJ-2026-000001
 ```
+# Generate contract address for blockchain
+npx hardhat run scripts/deploy.js --network sepolia
 
 This outputs compact QR text that can be resolved by:
 - `POST /api/household/qr/resolve`
@@ -219,15 +221,15 @@ File: `mobile/.env`
 Update both variables to your current laptop IP:
 
 ```env
-EXPO_PUBLIC_API_URL=http://10.202.8.83:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://10.202.8.83:8000
+EXPO_PUBLIC_API_URL=http://10.45.3.83:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://10.45.3.83:8000
 ```
 
 Example:
 
 ```env
-EXPO_PUBLIC_API_URL=http://10.202.8.83:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://10.202.8.83:8000
+EXPO_PUBLIC_API_URL=http://10.45.3.83:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://10.45.3.83:8000
 ```
 
 ### B. Web App Frontend (Optional, if opening web app from another device)
@@ -237,7 +239,7 @@ File: `apps/web/apps/.env.local`
 Update:
 
 ```env
-NEXT_PUBLIC_API_URL=http://10.202.8.83:3001/api
+NEXT_PUBLIC_API_URL=http://10.45.3.83:3001/api
 ```
 
 If you only use web app on the same laptop browser, `http://localhost:3001/api` is fine.
@@ -255,7 +257,7 @@ CORS_ORIGIN=*
 Or restrict to specific origin:
 
 ```env
-CORS_ORIGIN=http://10.202.8.83:3000
+CORS_ORIGIN=http://10.45.3.83:3000
 ```
 
 ### D. Backend Host Binding

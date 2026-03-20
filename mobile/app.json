@@ -7,7 +7,7 @@
       "supportsTablet": true
     },
     "android": {
-      "usesCleartextTraffic": true,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
@@ -19,7 +19,8 @@
       "favicon": "./assets/logo.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ]
   }
 }

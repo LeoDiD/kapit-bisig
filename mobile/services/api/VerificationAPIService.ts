@@ -24,7 +24,7 @@ const API_CONFIG = {
   // Replace with your actual backend URL
   baseUrl: resolveApiBaseUrl(
     process.env.EXPO_PUBLIC_API_URL,
-    'http://192.168.1.72:3001/api',
+    'http://10.45.3.83:3001/api',
     'VerificationAPIService',
   ),
   timeout: 30000, // 30 seconds for AI processing

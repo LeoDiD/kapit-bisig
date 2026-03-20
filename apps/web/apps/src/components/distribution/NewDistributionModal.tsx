@@ -30,6 +30,18 @@ const MIN_ASSIGN = 2
 const MAX_ASSIGN = 4
 const DEBOUNCE_MS = 300
 const NOTES_MAX = 2000
+const SCHEDULE_MIN_LEAD_MINUTES = 5
+const DISTRIBUTION_START_HOUR = 6
+const DISTRIBUTION_END_HOUR = 20
+
+function formatDateTimeLocal(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
 
 export default function NewDistributionModal({
   open,
@@ -108,6 +120,15 @@ export default function NewDistributionModal({
   }, [staffQuery])
 
   const targetScope = useMemo(() => [barangay, ...assignedBarangays], [barangay, assignedBarangays])
+  const scheduleMinLocal = useMemo(() => {
+    const minDate = new Date(Date.now() + SCHEDULE_MIN_LEAD_MINUTES * 60 * 1000)
+    return formatDateTimeLocal(minDate)
+  }, [open])
+  const scheduleMaxLocal = useMemo(() => {
+    const now = new Date()
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 0, 0)
+    return formatDateTimeLocal(endOfMonth)
+  }, [open])
 
   const hasScopeCoverage = (scopes: string[]) => {
     return targetScope.every((target) => scopes.includes(target))
@@ -136,11 +157,25 @@ export default function NewDistributionModal({
   const validateStep3 = (): StepFieldErrors => {
     const out: StepFieldErrors = {}
     const date = new Date(scheduled)
-    const minAllowed = Date.now() + 5 * 60 * 1000
+    const now = new Date()
+    const minAllowed = Date.now() + SCHEDULE_MIN_LEAD_MINUTES * 60 * 1000
     if (!scheduled.trim()) {
       out.scheduled = 'Scheduled date/time is required.'
-    } else if (Number.isNaN(date.getTime()) || date.getTime() < minAllowed) {
-      out.scheduled = 'Scheduled date/time must be at least 5 minutes from now.'
+    } else if (Number.isNaN(date.getTime())) {
+      out.scheduled = 'Scheduled date/time is invalid.'
+    } else if (date.getTime() < minAllowed) {
+      out.scheduled = `Scheduled date/time must be at least ${SCHEDULE_MIN_LEAD_MINUTES} minutes from now.`
+    } else if (date.getFullYear() !== now.getFullYear() || date.getMonth() !== now.getMonth()) {
+      const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+      out.scheduled = `Schedule must stay within ${monthLabel}. Next month is not allowed.`
+    } else {
+      const hour = date.getHours()
+      const minute = date.getMinutes()
+      const isBeforeStart = hour < DISTRIBUTION_START_HOUR
+      const isAfterEnd = hour > DISTRIBUTION_END_HOUR || (hour === DISTRIBUTION_END_HOUR && minute > 0)
+      if (isBeforeStart || isAfterEnd) {
+        out.scheduled = `Schedule must be between ${DISTRIBUTION_START_HOUR}:00 and ${DISTRIBUTION_END_HOUR}:00 only.`
+      }
     }
 
     if (notes.length > NOTES_MAX) {
@@ -373,12 +408,11 @@ export default function NewDistributionModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[120] overflow-y-auto" role="dialog" aria-modal="true">
-      <div className="min-h-full px-4 py-10 flex items-start justify-center">
-        <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-        <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] border border-gray-100 flex flex-col max-h-[calc(100vh-4rem)]">
-          <div className="p-5 border-b border-gray-100 bg-white shrink-0">
+      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]">
+          <div className="p-5 pb-3 border-b border-gray-100 bg-white shrink-0 rounded-t-3xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-lg font-semibold text-gray-900">Create Barangay Distribution</div>
@@ -405,56 +439,61 @@ export default function NewDistributionModal({
             </div>
           </div>
 
-          <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1 min-h-0" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+            <div className="min-h-[280px]">
             {step === 1 && (
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-2">Relief Giving Location (Host Barangay)</label>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Relief Giving Location (Host Barangay)</label>
 
-                <div className="relative">
-                  <button
-                    ref={barangayBtnRef}
-                    type="button"
-                    onClick={() => setBarangayOpen((v) => !v)}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
-                  >
-                    <span className={`text-sm ${barangay ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {barangay || 'Choose host barangay'}
-                    </span>
-                    <ChevronDownIcon />
-                  </button>
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] p-2">
+                    <div className="relative">
+                      <button
+                        ref={barangayBtnRef}
+                        type="button"
+                        onClick={() => setBarangayOpen((v) => !v)}
+                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-700"
+                      >
+                        <span className={`text-sm ${barangay ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {barangay || 'Choose host barangay'}
+                        </span>
+                        <ChevronDownIcon />
+                      </button>
 
-                  {barangayOpen ? (
-                    <div
-                      ref={barangayMenuRef}
-                      className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
-                    >
-                      {barangayOptions.map((b) => {
-                        const selected = b === barangay
-                        return (
-                          <button
-                            key={b}
-                            type="button"
-                            onClick={() => {
-                              setBarangay(b)
-                              setAssignedBarangays((prev) => prev.filter((x) => x !== b))
-                              setErrors({})
-                              setBarangayOpen(false)
-                            }}
-                            className={[
-                              'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-colors',
-                              selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
-                            ].join(' ')}
-                          >
-                            <span className="w-5 flex items-center justify-center">{selected ? <CheckIcon /> : null}</span>
-                            {b}
-                          </button>
-                        )
-                      })}
+                      {barangayOpen ? (
+                        <div
+                          ref={barangayMenuRef}
+                          className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
+                        >
+                          {barangayOptions.map((b) => {
+                            const selected = b === barangay
+                            return (
+                              <button
+                                key={b}
+                                type="button"
+                                onClick={() => {
+                                  setBarangay(b)
+                                  setAssignedBarangays((prev) => prev.filter((x) => x !== b))
+                                  setErrors({})
+                                  setBarangayOpen(false)
+                                }}
+                                className={[
+                                  'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-colors',
+                                  selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
+                                ].join(' ')}
+                              >
+                                <span className="w-5 flex items-center justify-center">{selected ? <CheckIcon /> : null}</span>
+                                {b}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
+                  </div>
 
-                {errors.barangay && <p className="mt-2 text-sm text-red-600">{errors.barangay}</p>}
+                  {errors.barangay && <p className="mt-2 text-sm text-red-600">{errors.barangay}</p>}
+                </div>
               </div>
             )}
 
@@ -499,18 +538,23 @@ export default function NewDistributionModal({
             )}
 
             {step === 3 && (
-              <>
+              <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2">Scheduled Date/Time</label>
                   <input
                     type="datetime-local"
                     value={scheduled}
+                    min={scheduleMinLocal}
+                    max={scheduleMaxLocal}
                     onChange={(e) => {
                       setScheduled(e.target.value)
                       setErrors({})
                     }}
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 text-sm text-gray-900"
                   />
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Allowed: current month only, {DISTRIBUTION_START_HOUR}:00-{DISTRIBUTION_END_HOUR}:00, at least {SCHEDULE_MIN_LEAD_MINUTES} minutes ahead.
+                  </p>
                   {errors.scheduled && <p className="mt-2 text-sm text-red-600">{errors.scheduled}</p>}
                 </div>
 
@@ -529,11 +573,11 @@ export default function NewDistributionModal({
                   <div className="mt-1 text-[11px] text-gray-500">{notes.length}/{NOTES_MAX}</div>
                   {errors.notes && <p className="mt-2 text-sm text-red-600">{errors.notes}</p>}
                 </div>
-              </>
+              </div>
             )}
 
             {step === 4 && (
-              <>
+              <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2">Assign Staff / Volunteers</label>
                   <input
@@ -616,12 +660,15 @@ export default function NewDistributionModal({
                 )}
 
                 {errors.assignedStaffIds && <p className="text-sm text-red-600">{errors.assignedStaffIds}</p>}
-              </>
+              </div>
             )}
 
             {errors.global && <p className="text-sm text-red-600">{errors.global}</p>}
+            </div>
+          </div>
 
-            <div className="pt-2 flex justify-end gap-3">
+          <div className="px-5 py-3 border-t border-gray-100 bg-white shrink-0 rounded-b-3xl">
+            <div className="flex flex-wrap justify-end gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={step === 1 ? onClose : goBack}
@@ -668,7 +715,6 @@ export default function NewDistributionModal({
               )}
             </div>
           </div>
-        </div>
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ This index is the primary entry point for project documentation.
 
 - Project overview and quickstart: `README.md`
 - API reference: `docs/API_DOCUMENTATION.md`
+- Database schema: `docs/DATABASE_SCHEMA.md`
 - Maintenance and operations: `docs/MAINTENANCE_NOTES.md`
 
 ## Setup and Integration

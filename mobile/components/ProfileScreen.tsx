@@ -116,18 +116,6 @@ export default function ProfileScreen({
     return parts.join(' ');
   };
 
-  const toMaskedName = (rawName?: string): string => {
-    const parts = String(rawName || '')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    if (parts.length === 0) return 'Uxxxx Uxxxx';
-    if (parts.length === 1) return `${parts[0][0]?.toUpperCase() || 'U'}xxxx`;
-    const firstInitial = parts[0][0]?.toUpperCase() || 'U';
-    const lastInitial = parts[parts.length - 1][0]?.toUpperCase() || 'U';
-    return `${firstInitial}xxxx ${lastInitial}xxxx`;
-  };
-
   const residentRawName = useMemo(() => {
     const cleanedFirst = sanitizeResidentFullName(residentProfile?.firstName || '');
     const cleanedLast = sanitizeResidentFullName(residentProfile?.lastName || '');
@@ -148,7 +136,7 @@ export default function ProfileScreen({
 
   const displayName = isVolunteer
     ? `${volunteerUser?.firstName || ''} ${volunteerUser?.lastName || ''}`.trim() || 'Staff'
-    : toMaskedName(residentRawName || 'Juan Dela Cruz');
+    : residentRawName || 'Juan Dela Cruz';
   const isVerified = isVolunteer ? true : residentProfile?.status === 'Approved';
   const residentCode = residentProfile?.residentCode || 'SJ-10293';
   const lguTown = 'Labrador';

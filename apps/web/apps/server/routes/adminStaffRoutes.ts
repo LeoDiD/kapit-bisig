@@ -146,6 +146,15 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
     });
   } catch (err) {
     console.error('[ADMIN_CREATE_STAFF]', err);
+    const mongoErr = err as { code?: number; keyPattern?: Record<string, unknown> };
+    if (mongoErr?.code === 11000) {
+      if (mongoErr.keyPattern?.email || mongoErr.keyPattern?.emailLower || mongoErr.keyPattern?.username) {
+        res.status(400).json({ success: false, message: 'Email is already in use.' });
+        return;
+      }
+      res.status(409).json({ success: false, message: 'Duplicate value violates a unique constraint.' });
+      return;
+    }
     res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });

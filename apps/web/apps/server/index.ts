@@ -45,6 +45,7 @@ import { csrfProtect } from './middleware/csrf';
 import {
   enforceHTTPSInProduction,
   getAllowedCorsOrigins,
+  isPrivateDevOrigin,
   rejectNoSQLInjection,
 } from './middleware/securityHardening';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -77,12 +78,15 @@ app.use(
   cors({
     origin: (origin, callback) => {
       const allowAllOrigins = allowedOrigins.includes('*');
+      const isDevPrivateOrigin = env.NODE_ENV !== 'production' && !!origin && isPrivateDevOrigin(origin);
 
-      if (!origin || allowAllOrigins || allowedOrigins.includes(origin)) {
+      if (!origin || allowAllOrigins || allowedOrigins.includes(origin) || isDevPrivateOrigin) {
         callback(null, true);
         return;
       }
-      callback(new Error('CORS origin not allowed'));
+
+      // Reject cleanly without converting this into an application error.
+      callback(null, false);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],

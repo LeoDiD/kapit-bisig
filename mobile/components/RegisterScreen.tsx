@@ -14,15 +14,15 @@ import {
   Animated,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useAIVerification } from '../hooks/useAIVerification';
-import { VerificationResult, idValidationService } from '../services/ai';
+import { VerificationResult } from '../services/ai';
 import { resolveApiBaseUrl } from '../services/config/apiSecurity';
 
 const { width } = Dimensions.get('window');
@@ -30,12 +30,12 @@ const { width } = Dimensions.get('window');
 // API Configuration
 const API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://192.168.1.72:3001/api',
+  'http://10.45.3.83:3001/api',
   'RegisterScreen API',
 );
 const FACE_API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_FACE_API_URL,
-  'http://192.168.1.72:8000',
+  'http://10.45.3.83:8000',
   'RegisterScreen Face API',
 );
 const FACE_CAPTURE_ATTEMPT_LIMIT = 10;
@@ -43,6 +43,13 @@ const FACE_CAPTURE_COOLDOWN_MS = 3000;
 const FILE_ENCODING = {
   Base64: 'base64' as const,
 };
+
+const VULNERABLE_MEMBER_OPTIONS = [
+  { id: 'senior', label: 'Senior Citizen', icon: 'walk-outline' },
+  { id: 'pwd', label: 'PWD', icon: 'accessibility-outline' },
+  { id: 'pregnant', label: 'Pregnant', icon: 'woman-outline' },
+  { id: 'children', label: 'Children (0-5)', icon: 'people-outline' },
+] as const;
 
 const inferImageMimeType = (uri: string): string => {
   const lower = uri.toLowerCase();
@@ -60,10 +67,9 @@ interface RegisterScreenProps {
 export default function RegisterScreen({ onBack, onComplete, onCancel }: RegisterScreenProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5; // Added Step 5: Verification Result
+  const insets = useSafeAreaInsets();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  // AI Verification Hook
-  const aiVerification = useAIVerification();
-  
   // Step 5: Verification Result
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,6 +99,20 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       console.log(`[Registration Verification] ${verificationStep} (${verificationProgress}%)`);
     }
   }, [isSubmitting, verificationStep, verificationProgress]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates.height || 0);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Step 1: Personal Info
   const [firstName, setFirstName] = useState('');
@@ -338,8 +358,31 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setTimeout(() => {
       const scrollResponder =
         (scrollViewRef.current as any)?.getScrollResponder?.() ?? (scrollViewRef.current as any);
-      scrollResponder?.scrollResponderScrollNativeHandleToKeyboard?.(target, 140, true);
+      const baseOffset = Platform.OS === 'android' ? 260 : 150;
+      const stepOffset = currentStep === 1 ? 80 : 0;
+      const keyboardOffset = keyboardHeight > 0 ? 30 : 0;
+      const extraOffset = baseOffset + stepOffset + keyboardOffset;
+      scrollResponder?.scrollResponderScrollNativeHandleToKeyboard?.(target, extraOffset, true);
     }, 120);
+  };
+
+  const handleInputFocus = (target?: number | null) => {
+    scrollFocusedInputIntoView(target);
+  };
+
+  const handleStep1PasswordFocus = (target?: number | null) => {
+    handleInputFocus(target);
+
+    // Fallback for devices where native handle-to-keyboard scroll is inconsistent.
+    if (currentStep === 1) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 220);
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Keep hook for inputs that already pass onBlur.
   };
 
   // Keep every step top-aligned, especially on small devices.
@@ -669,70 +712,20 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     return !Object.values(errors).some(Boolean);
   };
 
-  // Get ID format requirements based on ID type
-  const getIdFormatInfo = (type: string) => {
-    switch (type) {
-      case 'PhilSys ID':
-      case 'Philippine National ID':
-        return { minLength: 12, maxLength: 14, pattern: /^\d{12}$/, hint: '12 digits (e.g., 1234-5678-9012)', keyboardType: 'numeric' as const };
-      case "Driver's License":
-        return { minLength: 11, maxLength: 13, pattern: /^[A-Z]\d{10}$/, hint: 'N##-##-###### (e.g., N01-23-456789)', keyboardType: 'default' as const };
-      case 'Passport':
-        return { minLength: 8, maxLength: 8, pattern: /^[A-Z]\d{7}$/, hint: '1 letter + 7 digits (e.g., P1234567)', keyboardType: 'default' as const };
-      case 'SSS ID':
-        return { minLength: 10, maxLength: 12, pattern: /^\d{10}$/, hint: '##-#######-# or 10 digits', keyboardType: 'numeric' as const };
-      case 'PhilHealth ID':
-        return { minLength: 12, maxLength: 14, pattern: /^\d{12}$/, hint: '####-####-#### or 12 digits', keyboardType: 'numeric' as const };
-      case "Voter's ID":
-        return { minLength: 6, maxLength: 25, pattern: /^[A-Z0-9]{6,25}$/, hint: 'Variable format (6-25 letters/numbers)', keyboardType: 'default' as const };
-      default:
-        return { minLength: 1, maxLength: 30, pattern: /^.+$/, hint: 'Enter your ID number', keyboardType: 'default' as const };
-    }
+  // ID number validation is intentionally permissive to avoid blocking registration.
+  const getIdFormatInfo = (_type: string) => {
+    return {
+      minLength: 1,
+      maxLength: 30,
+      pattern: /^.+$/,
+      hint: 'No strict format check',
+      keyboardType: 'default' as const,
+    };
   };
 
-  const normalizeIdNumberForValidation = (type: string, rawValue: string): string => {
-    const value = (rawValue || '').trim().toUpperCase();
-    switch (type) {
-      case 'PhilSys ID':
-      case 'Philippine National ID':
-      case 'SSS ID':
-      case 'PhilHealth ID':
-        return value.replace(/\D/g, '');
-      case "Driver's License":
-      case "Voter's ID":
-      case 'Passport':
-        return value.replace(/[^A-Z0-9]/g, '');
-      default:
-        return value;
-    }
-  };
-
-  const sanitizeIdInput = (type: string, rawValue: string): string => {
+  const sanitizeIdInput = (_type: string, rawValue: string): string => {
     const value = rawValue.toUpperCase();
-    switch (type) {
-      case 'PhilSys ID':
-      case 'Philippine National ID':
-      case 'SSS ID':
-      case 'PhilHealth ID':
-        return value.replace(/[^0-9-\s]/g, '');
-      case 'Passport': {
-        const cleaned = value.replace(/[^A-Z0-9]/g, '');
-        if (cleaned.length <= 1) return cleaned;
-        return cleaned[0] + cleaned.slice(1).replace(/[^0-9]/g, '');
-      }
-      case "Driver's License":
-      case "Voter's ID":
-        return value.replace(/[^A-Z0-9-\s]/g, '');
-      default:
-        return value;
-    }
-  };
-
-  const validateIdNumber = (type: string, number: string): boolean => {
-    if (!number.trim()) return false;
-    const formatInfo = getIdFormatInfo(type);
-    const normalizedNumber = normalizeIdNumberForValidation(type, number);
-    return formatInfo.pattern.test(normalizedNumber);
+    return value.replace(/[^A-Z0-9\-\s]/g, '');
   };
 
   const validateStep3 = async () => {
@@ -740,10 +733,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setStep3ValidationWarnings([]);
     setStep3ValidationStatus('neutral');
 
-    const isIdNumberValid = validateIdNumber(idType, idNumber);
     const errors = {
       idType: !idType.trim(),
-      idNumber: !idNumber.trim() || !isIdNumberValid,
+      idNumber: !idNumber.trim(),
       frontIdImage: !frontIdImage,
       backIdImage: !backIdImage,
     };
@@ -767,159 +759,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       return false;
     }
 
-    try {
-      setIsStep3Validating(true);
-      setStep3ValidationStatus('neutral');
-      setStep3ValidationMessage('Checking your uploaded ID photos...');
-
-      const [frontResult, backResult] = await Promise.all([
-        aiVerification.validateFrontId(frontIdImage, idType),
-        aiVerification.validateBackId(backIdImage, idType),
-      ]);
-
-      const blockingIssues: string[] = [];
-      const warnings: string[] = [];
-      let frontLooksLikeNonId = false;
-      let backLooksLikeNonId = false;
-      let frontNeedsRetake = false;
-      let backNeedsRetake = false;
-      let typeMismatchDetected = false;
-
-      if (!frontResult.isValid) {
-        const frontCouldNotReadText = frontResult.errors.some((e) =>
-          e.toLowerCase().includes('could not read text')
-        );
-        const frontMissingIdNumber = frontResult.warnings.some((w) =>
-          w.toLowerCase().includes('could not extract id number')
-        );
-        const frontTypeMismatch = frontResult.warnings.some((w) =>
-          w.toLowerCase().includes('might not be a')
-        );
-        const frontQualityIssue = [...frontResult.errors, ...frontResult.warnings].some((item) => {
-          const text = item.toLowerCase();
-          return (
-            text.includes('blurry') ||
-            text.includes('too dark') ||
-            text.includes('too bright') ||
-            text.includes('overexposed') ||
-            text.includes('low contrast') ||
-            text.includes('better lighting')
-          );
-        });
-        frontLooksLikeNonId = frontCouldNotReadText || frontMissingIdNumber || frontTypeMismatch;
-        frontNeedsRetake = frontQualityIssue;
-        if (frontTypeMismatch) typeMismatchDetected = true;
-
-        setStep3Errors((prev) => ({ ...prev, frontIdImage: true }));
-        if (frontResult.errors.length > 0) {
-          blockingIssues.push(...frontResult.errors.map((e) => `Front ID: ${e}`));
-        } else if (frontResult.warnings.length > 0) {
-          blockingIssues.push(...frontResult.warnings.map((e) => `Front ID: ${e}`));
-        } else {
-          blockingIssues.push('Front ID image could not be verified. Please retake the photo.');
-        }
-      }
-
-      if (!backResult.isValid) {
-        const backCouldNotReadText = backResult.errors.some((e) =>
-          e.toLowerCase().includes('could not read text')
-        );
-        const backMissingIdNumber = backResult.warnings.some((w) =>
-          w.toLowerCase().includes('could not extract id number')
-        );
-        const backTypeMismatch = backResult.warnings.some((w) =>
-          w.toLowerCase().includes('might not be a')
-        );
-        const backQualityIssue = [...backResult.errors, ...backResult.warnings].some((item) => {
-          const text = item.toLowerCase();
-          return (
-            text.includes('blurry') ||
-            text.includes('too dark') ||
-            text.includes('too bright') ||
-            text.includes('overexposed') ||
-            text.includes('low contrast') ||
-            text.includes('better lighting')
-          );
-        });
-        backLooksLikeNonId = backCouldNotReadText || backMissingIdNumber || backTypeMismatch;
-        backNeedsRetake = backQualityIssue;
-        if (backTypeMismatch) typeMismatchDetected = true;
-
-        setStep3Errors((prev) => ({ ...prev, backIdImage: true }));
-        if (backResult.errors.length > 0) {
-          blockingIssues.push(...backResult.errors.map((e) => `Back ID: ${e}`));
-        } else if (backResult.warnings.length > 0) {
-          blockingIssues.push(...backResult.warnings.map((e) => `Back ID: ${e}`));
-        } else {
-          blockingIssues.push('Back ID image could not be verified. Please retake the photo.');
-        }
-      }
-
-      const extractedFrontData = frontResult.extractedData;
-      const usingFallbackSimulation = !!extractedFrontData?.rawText?.includes('[Analysis:');
-
-      if (extractedFrontData) {
-        const matchCheck = idValidationService.compareWithUserInput(extractedFrontData, {
-          fullName: `${firstName} ${lastName}`.trim(),
-          dateOfBirth,
-          idNumber,
-        });
-
-        if (!matchCheck.isMatch) {
-          for (const discrepancy of matchCheck.discrepancies) {
-            if (discrepancy === 'ID number does not match') {
-              blockingIssues.push('The ID number you entered does not match the ID photo. Please correct it.');
-            } else if (discrepancy === 'Name does not match the ID') {
-              blockingIssues.push('The name you entered does not match the uploaded ID. Please check your details or upload the correct ID.');
-            } else if (discrepancy === 'Date of birth does not match') {
-              blockingIssues.push('The date of birth you entered does not match the uploaded ID.');
-            } else if (!usingFallbackSimulation) {
-              warnings.push(discrepancy);
-            }
-          }
-        }
-      } else {
-        warnings.push('Could not extract enough details from the ID to cross-check name and birth date.');
-      }
-
-      if (usingFallbackSimulation) {
-        warnings.push('OCR backend is not configured yet, so detailed name/date matching is limited.');
-      }
-
-      if (blockingIssues.length > 0) {
-        setStep3ValidationWarnings(warnings);
-        setStep3ValidationStatus('error');
-
-        if (frontNeedsRetake || backNeedsRetake) {
-          setStep3ValidationMessage('Image quality is too low for ID verification. Please retake with better lighting and a steadier hand.');
-        } else if (typeMismatchDetected) {
-          setStep3ValidationMessage(`Selected ID type does not match uploaded ID. Please select the correct ID type or upload a valid ${idType}.`);
-        } else if (frontLooksLikeNonId || backLooksLikeNonId) {
-          setStep3ValidationMessage(
-            `This image does not look like a valid ${idType}. Please upload a clear photo of a real government ID.`
-          );
-        } else {
-          setStep3ValidationMessage(blockingIssues[0]);
-        }
-        return false;
-      }
-
-      setStep3ValidationWarnings(warnings);
-      setStep3ValidationStatus('success');
-      if (warnings.length > 0) {
-        setStep3ValidationMessage(`ID check passed. You can continue now. (${warnings[0]})`);
-      } else {
-        setStep3ValidationMessage('ID check passed. You can continue now.');
-      }
-      return true;
-    } catch (error) {
-      console.error('Step 3 AI validation error:', error);
-      setStep3ValidationStatus('error');
-      setStep3ValidationMessage('Unable to verify the ID right now. Check your connection and try again.');
-      return false;
-    } finally {
-      setIsStep3Validating(false);
-    }
+    return true;
   };
 
   const routeSubmissionErrorToStep = (
@@ -1813,7 +1653,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 setFirstName(text);
                 clearStep1Error('firstName');
               }}
-              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target as number)}
+              onBlur={handleInputBlur}
             />
             <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
           </View>
@@ -1837,7 +1678,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 setLastName(text);
                 clearStep1Error('lastName');
               }}
-              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target as number)}
+              onBlur={handleInputBlur}
             />
             <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
           </View>
@@ -1867,7 +1709,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               keyboardType="numeric"
               maxLength={10}
               editable={true}
-              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target as number)}
+              onBlur={handleInputBlur}
             />
             <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.calendarIcons}>
               <Ionicons name="calendar" size={22} color="#2E7D32" />
@@ -1962,9 +1805,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               maxLength={11}
               onFocus={(event) => {
                 setIsMobileNumberFocused(true);
-                scrollFocusedInputIntoView(event.target as number);
+                handleInputFocus(event.target as number);
               }}
-              onBlur={() => setIsMobileNumberFocused(false)}
+              onBlur={() => {
+                setIsMobileNumberFocused(false);
+                handleInputBlur();
+              }}
             />
             {isCheckingMobile ? (
               <ActivityIndicator size="small" color="#2E7D32" style={styles.inputIconRight} />
@@ -2017,7 +1863,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
-              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
+              onFocus={(event) => handleStep1PasswordFocus(event.target as number)}
+              onBlur={handleInputBlur}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.inputIconRight}>
               <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
@@ -2071,7 +1918,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               secureTextEntry={!showConfirmPassword}
               autoCapitalize="none"
               autoCorrect={false}
-              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
+              onFocus={(event) => handleStep1PasswordFocus(event.target as number)}
+              onBlur={handleInputBlur}
             />
             <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.inputIconRight}>
               <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
@@ -2191,7 +2039,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 setStreetAddress(text);
                 if (text.trim() && showErrors) setStep2Errors(prev => ({ ...prev, streetAddress: false }));
               }}
-              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target as number)}
+              onBlur={handleInputBlur}
             />
           </View>
         </View>
@@ -2217,7 +2066,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 autoCapitalize="characters"
                 maxLength={14}
                 editable={!tokenValidating && !!barangay}
-                onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
+                onFocus={(event) => handleInputFocus(event.target as number)}
+                onBlur={handleInputBlur}
               />
               {tokenValidated && (
                 <Ionicons name="checkmark-circle" size={22} color="#2E7D32" style={styles.tokenIcon} />
@@ -2310,12 +2160,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           </Text>
           
           <View style={styles.vulnerableGrid}>
-            {[
-              { id: 'senior', label: 'Senior Citizen', icon: 'walk' },
-              { id: 'pwd', label: 'PWD', icon: 'accessibility' },
-              { id: 'pregnant', label: 'Pregnant', icon: 'person' },
-              { id: 'children', label: 'Children (0-5)', icon: 'happy' },
-            ].map((item) => (
+            {VULNERABLE_MEMBER_OPTIONS.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={[
@@ -2442,19 +2287,20 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               value={idNumber}
               maxLength={getIdFormatInfo(idType).maxLength}
               keyboardType={getIdFormatInfo(idType).keyboardType}
-              autoCapitalize={idType === 'Passport' ? 'characters' : 'none'}
+              autoCapitalize="none"
               onChangeText={(text) => {
                 const filteredText = idType ? sanitizeIdInput(idType, text) : text;
                 setIdNumber(filteredText);
                 setStep3ValidationMessage(null);
                 setStep3ValidationWarnings([]);
                 setStep3ValidationStatus('neutral');
-                if (validateIdNumber(idType, filteredText) && showErrors) {
+                if (filteredText.trim() && showErrors) {
                   setStep3Errors(prev => ({ ...prev, idNumber: false }));
                 }
               }}
               editable={!!idType}
-              onFocus={(event) => scrollFocusedInputIntoView(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target as number)}
+              onBlur={handleInputBlur}
             />
           </View>
           {showErrors && step3Errors.idType && (
@@ -2467,11 +2313,6 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           )}
           {showErrors && step3Errors.idNumber && !idNumber.trim() && (
             <Text style={styles.errorText}>ID number is required.</Text>
-          )}
-          {showErrors && step3Errors.idNumber && idNumber.trim() && (
-            <Text style={styles.idFormatError}>
-              Invalid format. Required: {getIdFormatInfo(idType).hint}
-            </Text>
           )}
         </View>
 
@@ -2861,8 +2702,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoidingContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
     >
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -2896,7 +2737,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       <ScrollView 
         ref={scrollViewRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          currentStep !== 5 && styles.scrollContentWithBottomActions,
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -2909,11 +2753,25 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       </ScrollView>
 
       {/* Bottom Actions - Hide on Step 5 when submitting */}
-      {currentStep !== 5 && (
-        <View style={styles.bottomActions}>
+      {currentStep !== 5 && !(currentStep === 1 && keyboardHeight > 0) && (
+        <View
+          style={[
+            styles.bottomActions,
+            styles.bottomActionsFloating,
+            {
+              bottom: Platform.OS === 'ios' && keyboardHeight > 0
+                ? Math.max(keyboardHeight - insets.bottom, 0)
+                : 0,
+              paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom + 8, 14),
+            },
+          ]}
+        >
           <View style={styles.bottomButtonsRow}>
             <TouchableOpacity 
-              style={[styles.backButtonBottom, currentStep === 1 && styles.cancelButtonBottom]} 
+              style={[
+                styles.backButtonBottom,
+                currentStep === 1 && styles.cancelButtonBottom,
+              ]}
               onPress={handleBack}
             >
               <Text style={[styles.backButtonText, currentStep === 1 && styles.cancelButtonText]}>
@@ -2964,12 +2822,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               How many people are in each category?
             </Text>
             
-            {[
-              { id: 'senior', label: 'Senior Citizen', icon: 'walk' },
-              { id: 'pwd', label: 'PWD', icon: 'accessibility' },
-              { id: 'pregnant', label: 'Pregnant', icon: 'person' },
-              { id: 'children', label: 'Children (0-5)', icon: 'happy' },
-            ].filter(item => vulnerableMembers.includes(item.id)).map((item) => (
+            {VULNERABLE_MEMBER_OPTIONS.filter(item => vulnerableMembers.includes(item.id)).map((item) => (
               <View key={item.id} style={styles.vulnerableCountRow}>
                 <View style={styles.vulnerableCountInfo}>
                   <Ionicons name={item.icon as any} size={22} color="#2E7D32" />
@@ -3407,6 +3260,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
+  scrollContentWithBottomActions: {
+    paddingBottom: 120,
+  },
   formContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -3725,8 +3581,16 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
     backgroundColor: '#F5F7F5',
+    borderTopWidth: 1,
+    borderTopColor: '#E3E9E5',
+  },
+  bottomActionsFloating: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
   nextButton: {
     flex: 0.6,

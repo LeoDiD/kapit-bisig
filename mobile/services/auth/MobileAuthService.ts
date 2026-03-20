@@ -19,7 +19,7 @@ import { resolveApiBaseUrl } from '../config/apiSecurity';
 const API_CONFIG = {
   baseUrl: resolveApiBaseUrl(
     process.env.EXPO_PUBLIC_API_URL,
-    'http://192.168.1.72:3001/api',
+    'http://10.45.3.83:3001/api',
     'MobileAuthService',
   ),
   timeout: 15000,

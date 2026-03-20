@@ -14,9 +14,22 @@ const EncodingType = {
 
 const VERIFICATION_API_BASE_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://192.168.1.72:3001/api',
+  'http://10.45.3.83:3001/api',
   'IDValidationService OCR API',
 );
+
+// Low-device friendly quality thresholds
+const ID_QUALITY_THRESHOLDS = {
+  hardFailMinFileKB: 35,
+  warnMinFileKB: 70,
+  minBrightness: 0.25,
+  maxBrightness: 0.95,
+  maxBlur: 0.65,
+  minContrast: 0.25,
+  minAcceptableScore: 35,
+  maxBlockingIssues: 2,
+  minValidationConfidence: 0.4,
+};
 
 // Types for ID validation
 export interface IDValidationResult {
@@ -169,7 +182,7 @@ class IDValidationService {
       extractedData = this.extractDataFromText(ocrResult.text, expectedIdType);
       
       // Step 4: Validate extracted data
-      const validationResult = this.validateExtractedData(extractedData, expectedIdType, side);
+      const validationResult = this.validateExtractedData(extractedData, side);
       errors.push(...validationResult.errors);
       warnings.push(...validationResult.warnings);
       confidence = validationResult.confidence;
@@ -182,7 +195,7 @@ class IDValidationService {
       }
 
       return {
-        isValid: errors.length === 0 && confidence > 0.5,
+        isValid: errors.length === 0 && confidence > ID_QUALITY_THRESHOLDS.minValidationConfidence,
         confidence,
         extractedData,
         qualityScore: qualityResult.score,
@@ -224,12 +237,12 @@ class IDValidationService {
         };
       }
 
-      // Check file size (minimum 100KB for quality)
+      // Check file size with a more tolerant baseline for low-end devices
       const fileSizeKB = (fileInfo as any).size / 1024;
-      if (fileSizeKB < 50) {
+      if (fileSizeKB < ID_QUALITY_THRESHOLDS.hardFailMinFileKB) {
         issues.push('Image resolution is too low. Please capture a clearer photo.');
         score -= 30;
-      } else if (fileSizeKB < 100) {
+      } else if (fileSizeKB < ID_QUALITY_THRESHOLDS.warnMinFileKB) {
         issues.push('Image quality could be better. Consider retaking the photo.');
         score -= 15;
       }
@@ -245,26 +258,28 @@ class IDValidationService {
       const blur = this.estimateBlur(fileSizeKB);
       const contrast = this.estimateContrast(fileSizeKB);
 
-      if (brightness < 0.3) {
+      if (brightness < ID_QUALITY_THRESHOLDS.minBrightness) {
         issues.push('Image is too dark. Please use better lighting.');
         score -= 20;
-      } else if (brightness > 0.9) {
+      } else if (brightness > ID_QUALITY_THRESHOLDS.maxBrightness) {
         issues.push('Image is too bright or overexposed.');
         score -= 15;
       }
 
-      if (blur > 0.5) {
+      if (blur > ID_QUALITY_THRESHOLDS.maxBlur) {
         issues.push('Image appears blurry. Please hold the camera steady.');
         score -= 25;
       }
 
-      if (contrast < 0.3) {
+      if (contrast < ID_QUALITY_THRESHOLDS.minContrast) {
         issues.push('Image has low contrast. Please ensure good lighting.');
         score -= 15;
       }
 
       return {
-        isAcceptable: score >= 50 && issues.length <= 1,
+        isAcceptable:
+          score >= ID_QUALITY_THRESHOLDS.minAcceptableScore &&
+          issues.length <= ID_QUALITY_THRESHOLDS.maxBlockingIssues,
         score: Math.max(0, score),
         issues,
         brightness,
@@ -473,7 +488,6 @@ class IDValidationService {
    */
   private validateExtractedData(
     data: ExtractedIDData,
-    idType: string,
     side: 'front' | 'back'
   ): { errors: string[]; warnings: string[]; confidence: number } {
     const errors: string[] = [];
@@ -492,14 +506,6 @@ class IDValidationService {
         confidence *= 0.8;
       }
 
-      // Check ID number format
-      if (data.idNumber) {
-        const isValidFormat = this.validateIdNumberFormat(data.idNumber, idType);
-        if (!isValidFormat) {
-          warnings.push('ID number format does not match expected format.');
-          confidence *= 0.7;
-        }
-      }
     }
 
     // Check for expired ID
@@ -512,31 +518,6 @@ class IDValidationService {
     }
 
     return { errors, warnings, confidence };
-  }
-
-  /**
-   * Validate ID number format based on ID type
-   */
-  private validateIdNumberFormat(idNumber: string, idType: string): boolean {
-    const cleanNumber = idNumber.replace(/[-\s]/g, '');
-    
-    switch (idType) {
-      case 'PhilSys ID':
-      case 'Philippine National ID':
-        return /^\d{12}$/.test(cleanNumber);
-      case "Driver's License":
-        return /^[A-Z]\d{10}$/.test(cleanNumber);
-      case 'Passport':
-        return /^[A-Z]\d{7}$/.test(cleanNumber);
-      case 'SSS ID':
-        return /^\d{10}$/.test(cleanNumber);
-      case 'PhilHealth ID':
-        return /^\d{12}$/.test(cleanNumber);
-      case "Voter's ID":
-        return /^[A-Z0-9]{6,25}$/.test(cleanNumber);
-      default:
-        return cleanNumber.length >= 8;
-    }
   }
 
   /**
@@ -626,19 +607,8 @@ class IDValidationService {
     let matchScore = 0;
     let totalChecks = 0;
 
-    // Compare name
-    if (extractedData.fullName && userInput.fullName) {
-      totalChecks++;
-      const nameSimilarity = this.calculateStringSimilarity(
-        this.normalizeName(extractedData.fullName),
-        this.normalizeName(userInput.fullName)
-      );
-      if (nameSimilarity >= 0.7) {
-        matchScore++;
-      } else {
-        discrepancies.push('Name does not match the ID');
-      }
-    }
+    // Name matching is intentionally skipped because OCR name extraction is noisy
+    // and can cause false negatives during registration.
 
     // Compare ID number
     if (extractedData.idNumber && userInput.idNumber) {
@@ -652,21 +622,13 @@ class IDValidationService {
       }
     }
 
-    // Compare date of birth
-    if (extractedData.dateOfBirth && userInput.dateOfBirth) {
-      totalChecks++;
-      const extractedDate = this.normalizeDate(extractedData.dateOfBirth);
-      const userDate = this.normalizeDate(userInput.dateOfBirth);
-      if (extractedDate === userDate) {
-        matchScore++;
-      } else {
-        discrepancies.push('Date of birth does not match');
-      }
+    if (totalChecks === 0) {
+      discrepancies.push('Could not verify ID number from the uploaded ID.');
     }
 
     const score = totalChecks > 0 ? matchScore / totalChecks : 0;
     return {
-      isMatch: score >= 0.6 && discrepancies.length <= 1,
+      isMatch: totalChecks > 0 && score >= 1 && discrepancies.length === 0,
       matchScore: score,
       discrepancies,
     };

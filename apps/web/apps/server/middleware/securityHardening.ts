@@ -59,12 +59,18 @@ export function enforceHTTPSInProduction(
 
 export function getAllowedCorsOrigins(): string[] {
   const envValue = process.env.CORS_ORIGIN;
-  if (!envValue) return ['http://192.168.1.72:3000'];
+  if (!envValue) return ['http://localhost:3000'];
 
   return envValue
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+}
+
+export function isPrivateDevOrigin(origin: string): boolean {
+  const privateDevOriginRegex =
+    /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/i;
+  return privateDevOriginRegex.test(origin);
 }
 
 

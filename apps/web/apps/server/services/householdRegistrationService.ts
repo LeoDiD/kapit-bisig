@@ -29,7 +29,6 @@ import {
 } from '../utils/mobileNumber';
 import {
   normalizeIdNumber,
-  validateIdNumberFormat,
   validateIdType,
 } from '../utils/idVerification';
 import { persistVerificationImage } from '../utils/imageStorage';
@@ -628,14 +627,6 @@ export class HouseholdRegistrationService {
         field: 'idType',
         code: 'ID_TYPE_UNSUPPORTED',
         message: 'Unsupported ID type selected',
-      });
-    }
-
-    if (data.idType && data.idNumber && !validateIdNumberFormat(data.idType, normalizedIdNumber)) {
-      issues.push({
-        field: 'idNumber',
-        code: 'ID_NUMBER_INVALID_FORMAT',
-        message: 'ID number format does not match the selected ID type',
       });
     }
 

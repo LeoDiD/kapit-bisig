@@ -89,16 +89,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [initAuth])
 
   const login = useCallback(async (email: string, password?: string, rememberMe?: boolean, otp?: string): Promise<LoginResult> => {
+    const payload: { email: string; rememberMe: boolean; password?: string; otp?: string } = {
+      email: email.trim().toLowerCase(),
+      rememberMe: !!rememberMe,
+    }
+    if (typeof password === 'string' && password.length > 0) {
+      payload.password = password
+    }
+    if (typeof otp === 'string' && otp.length > 0) {
+      payload.otp = otp
+    }
+
     const res = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ email, password, rememberMe: !!rememberMe, otp }),
+      body: JSON.stringify(payload),
     })
 
     const json = await res.json()
     if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Login failed')
+      const firstValidationError =
+        Array.isArray(json.errors) && json.errors.length > 0
+          ? json.errors[0]?.message
+          : undefined
+      throw new Error(firstValidationError || json.message || 'Login failed')
     }
 
     if (json.otpRequired) {

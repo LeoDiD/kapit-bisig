@@ -85,13 +85,13 @@ def require_admin_auth(
 
 FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.65"))  # Similarity threshold for verification
 DUPLICATE_THRESHOLD = float(os.getenv("DUPLICATE_THRESHOLD", "0.70"))    # Threshold for duplicate detection during registration
-MIN_FACE_SIZE = int(os.getenv("MIN_FACE_SIZE", "100"))                   # Minimum face size in pixels
+MIN_FACE_SIZE = int(os.getenv("MIN_FACE_SIZE", "80"))                    # Minimum face size in pixels
 MODEL_NAME = os.getenv("MODEL_NAME", "Facenet")                          # DeepFace model: Facenet, VGG-Face, OpenFace, etc.
 DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "opencv")               # Faster on CPU; override to retinaface for accuracy
 DETECTOR_FOR_DETECT = os.getenv("DETECTOR_FOR_DETECT", "opencv")         # deepface or opencv
-BLUR_THRESHOLD = float(os.getenv("BLUR_THRESHOLD", "30"))                # Laplacian variance; lower = more tolerant
+BLUR_THRESHOLD = float(os.getenv("BLUR_THRESHOLD", "18"))                # Laplacian variance; lower = more tolerant
 LIVENESS_MIN_PASSES = int(os.getenv("LIVENESS_MIN_PASSES", "1"))         # Minimum checks that must pass
-LOW_RES_THRESHOLD = int(os.getenv("LOW_RES_THRESHOLD", "480"))           # px; below this treat liveness as uncertain
+LOW_RES_THRESHOLD = int(os.getenv("LOW_RES_THRESHOLD", "360"))           # px; below this treat liveness as uncertain
 MAX_IMAGE_DIM = int(os.getenv("MAX_IMAGE_DIM", "800"))                   # px; downscale large images for speed
 ENABLE_LOW_LIGHT_ENHANCEMENT = os.getenv("ENABLE_LOW_LIGHT_ENHANCEMENT", "true").lower() == "true"
 LOW_LIGHT_MEAN_THRESHOLD = float(os.getenv("LOW_LIGHT_MEAN_THRESHOLD", "75"))  # grayscale mean (0-255)
@@ -575,8 +575,8 @@ def check_face_size(face: list, image_width: int, image_height: int) -> bool:
     face_area = w * h
     image_area = image_width * image_height
     
-    # Face should be at least 10% of image area
-    min_ratio = 0.10
+    # Face should be at least 8% of image area (more tolerant for low-end cameras)
+    min_ratio = 0.08
     # Face should not be more than 80% of image area
     max_ratio = 0.80
     

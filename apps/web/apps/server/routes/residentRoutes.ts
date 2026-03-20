@@ -25,7 +25,7 @@ import {
   normalizePhilippineMobileNumber,
 } from '../utils/mobileNumber';
 import { validateBase64Image } from '../validation/imageValidation';
-import { normalizeIdNumber, validateIdNumberFormat, validateIdType } from '../utils/idVerification';
+import { normalizeIdNumber, validateIdType } from '../utils/idVerification';
 import { persistVerificationImage } from '../utils/imageStorage';
 
 const router = Router();
@@ -137,17 +137,6 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       });
     }
 
-    if (!validateIdNumberFormat(idType, normalizedIdNumber)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID number format does not match the selected ID type.',
-        error: {
-          code: 'ID_NUMBER_INVALID_FORMAT',
-          field: 'idNumber',
-        },
-      });
-    }
-
     if (!faceImage) {
       return res.status(400).json({
         success: false,
@@ -159,16 +148,16 @@ router.post('/register', validateRequest({ body: registerResidentBody }), async 
       validateBase64Image(frontIdImage, {
         fieldName: 'Front ID image',
         maxBytes: 2 * 1024 * 1024,
-        minWidth: 200,
-        minHeight: 200,
+        minWidth: 160,
+        minHeight: 160,
         maxWidth: 4096,
         maxHeight: 4096,
       }),
       validateBase64Image(backIdImage, {
         fieldName: 'Back ID image',
         maxBytes: 2 * 1024 * 1024,
-        minWidth: 200,
-        minHeight: 200,
+        minWidth: 160,
+        minHeight: 160,
         maxWidth: 4096,
         maxHeight: 4096,
       }),

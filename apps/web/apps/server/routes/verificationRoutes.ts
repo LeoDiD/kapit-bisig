@@ -56,8 +56,8 @@ router.post('/ocr', async (req: Request, res: Response) => {
   const imageValidation = await validateBase64Image(image, {
     fieldName: 'OCR image',
     maxBytes: 4 * 1024 * 1024,
-    minWidth: 200,
-    minHeight: 100,
+    minWidth: 160,
+    minHeight: 80,
     maxWidth: 5000,
     maxHeight: 5000,
   });

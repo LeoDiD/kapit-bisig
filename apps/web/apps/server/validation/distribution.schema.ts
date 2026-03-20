@@ -9,7 +9,7 @@ import { barangayEnum, objectId } from './shared';
 export const createDistributionBody = z.object({
   barangay: barangayEnum,
   assignedBarangays: z.array(barangayEnum)
-    .min(3, 'Select at least 3 assigned barangays')
+    .min(2, 'Select at least 2 assigned barangays')
     .max(4, 'Select up to 4 assigned barangays'),
   scheduled: z.string().min(1, 'Scheduled date is required').max(50),
   assignedStaffIds: z.array(objectId)
