@@ -18,15 +18,3 @@ export const recordClaimBatchBody = z.object({
   distributionId: trimmedString(1, 100),
   distributionSite: trimmedString(1, 200),
 }).strict();
-
-/* GET /api/claims/ledger */
-export const ledgerQuery = z.object({
-  barangay: z.string().max(100).optional(),
-  status: z.string().max(50).optional(),
-  search: z.string().max(200).optional(),
-}).strict();
-
-/* POST /api/claims/:claimId/retry-chain */
-export const retryChainParams = z.object({
-  claimId: z.string().min(1).max(50),
-}).strict();

@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +49,14 @@ interface DashboardStats {
   scopedBarangays: string[];
 }
 
+interface VolunteerNotificationItem {
+  _id: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt?: string;
+}
+
 export default function VolunteerDashboardScreen({
   volunteerUser,
   onNavigate,
@@ -66,6 +76,9 @@ export default function VolunteerDashboardScreen({
     scopedBarangays: [],
   });
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notifications, setNotifications] = useState<VolunteerNotificationItem[]>([]);
 
   const displayName = volunteerUser
     ? `${volunteerUser.firstName || ''} ${volunteerUser.lastName || ''}`.trim() || 'Staff Member'
@@ -140,12 +153,6 @@ export default function VolunteerDashboardScreen({
     }
   }, []);
 
-  useEffect(() => {
-    if (mobileAuthService.isLoggedIn()) {
-      loadDashboardData();
-    }
-  }, [loadDashboardData]);
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -164,6 +171,55 @@ export default function VolunteerDashboardScreen({
   };
 
   const featuredDistribution = distributions[0];
+  const unreadNotificationCount = notifications.filter((item) => !item.isRead).length;
+
+  const loadNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
+    try {
+      const result = await mobileAuthService.authenticatedRequest<{
+        success: boolean;
+        data?: { notifications?: VolunteerNotificationItem[] };
+      }>('/notifications?limit=30', { method: 'GET' });
+
+      if (result.success && result.data?.success && Array.isArray(result.data.data?.notifications)) {
+        setNotifications(result.data.data.notifications);
+      } else {
+        setNotifications([]);
+      }
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
+
+  const handleOpenNotifications = async () => {
+    setShowNotificationsModal(true);
+    await loadNotifications();
+  };
+
+  const handleNotificationPress = async (notification: VolunteerNotificationItem) => {
+    if (notification.isRead) return;
+
+    try {
+      await mobileAuthService.authenticatedRequest(`/notifications/${notification._id}/read`, {
+        method: 'PATCH',
+      });
+      setNotifications((prev) =>
+        prev.map((item) => (item._id === notification._id ? { ...item, isRead: true } : item)),
+      );
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (mobileAuthService.isLoggedIn()) {
+      loadDashboardData();
+      loadNotifications().catch(() => undefined);
+    }
+  }, [loadDashboardData, loadNotifications]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -199,9 +255,9 @@ export default function VolunteerDashboardScreen({
               <Text style={styles.scopeText}>Scope: {stats.scopedBarangays.join(', ')}</Text>
             )}
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity style={styles.notificationButton} onPress={handleOpenNotifications}>
             <Ionicons name="notifications-outline" size={24} color="#374151" />
-            <View style={styles.notificationDot} />
+            {unreadNotificationCount > 0 && <View style={styles.notificationDot} />}
           </TouchableOpacity>
         </View>
 
@@ -390,6 +446,60 @@ export default function VolunteerDashboardScreen({
         )}
       </ScrollView>
 
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showNotificationsModal}
+        onRequestClose={() => setShowNotificationsModal(false)}
+      >
+        <Pressable style={styles.notificationsOverlay} onPress={() => setShowNotificationsModal(false)}>
+          <Pressable style={styles.notificationsCard} onPress={() => undefined}>
+            <View style={styles.notificationsHeader}>
+              <Text style={styles.notificationsTitle}>Notifications</Text>
+              <TouchableOpacity onPress={() => setShowNotificationsModal(false)}>
+                <Ionicons name="close" size={22} color="#374151" />
+              </TouchableOpacity>
+            </View>
+
+            {notificationsLoading ? (
+              <View style={styles.notificationsLoading}>
+                <ActivityIndicator size="small" color="#16A34A" />
+              </View>
+            ) : notifications.length === 0 ? (
+              <Text style={styles.notificationsEmpty}>No notifications found.</Text>
+            ) : (
+              <ScrollView>
+                {notifications.map((item) => (
+                  <TouchableOpacity
+                    key={item._id}
+                    style={styles.notificationsItem}
+                    onPress={() => handleNotificationPress(item)}
+                  >
+                    <View
+                      style={[
+                        styles.notificationsItemDot,
+                        item.isRead && styles.notificationsItemDotRead,
+                      ]}
+                    />
+                    <View style={styles.notificationsItemContent}>
+                      <Text style={styles.notificationsItemTitle}>{item.title || 'Notification'}</Text>
+                      <Text style={styles.notificationsItemMessage}>
+                        {item.message || 'You have an update.'}
+                      </Text>
+                      {item.createdAt ? (
+                        <Text style={styles.notificationsItemDate}>
+                          {new Date(item.createdAt).toLocaleString('en-US')}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Bottom Navigation */}
       <View style={styles.bottomNavContainer}>
         <View style={styles.bottomNav}>
@@ -504,6 +614,75 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#EF4444',
+  },
+  notificationsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  notificationsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    maxHeight: '68%',
+  },
+  notificationsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  notificationsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  notificationsLoading: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  notificationsEmpty: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  notificationsItem: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  notificationsItemDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#16A34A',
+    marginTop: 6,
+    marginRight: 10,
+  },
+  notificationsItemDotRead: {
+    backgroundColor: '#D1D5DB',
+  },
+  notificationsItemContent: {
+    flex: 1,
+  },
+  notificationsItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  notificationsItemMessage: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#4B5563',
+    lineHeight: 18,
+  },
+  notificationsItemDate: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#9CA3AF',
   },
 
   // Progress Card

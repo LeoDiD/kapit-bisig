@@ -40,38 +40,16 @@ const INITIAL_STATS: DashboardStats = {
   totalUnclaimed: 0,
 }
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-function countCompletedToday(ledgerRows: Array<{ status?: string; dateTimeISO?: string }>) {
+function computeWeeklyClaims(monthlyTrends: Array<{ month: string; claimed: number }>) {
   const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  let completedToday = 0
-  for (const row of ledgerRows) {
-    if (row.status !== 'Confirmed') continue
-    const createdAt = row.dateTimeISO ? new Date(row.dateTimeISO) : null
-    if (!createdAt || Number.isNaN(createdAt.getTime())) continue
-    if (createdAt >= startOfToday) completedToday += 1
-  }
-  return completedToday
-}
-
-function computeWeeklyClaims(ledgerRows: Array<{ status?: string; dateTimeISO?: string }>) {
-  const now = new Date()
-  const startOfWeek = new Date(now)
-  startOfWeek.setDate(now.getDate() - now.getDay() + 1) // Monday
-  startOfWeek.setHours(0, 0, 0, 0)
-
   const counts: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 }
-  for (const row of ledgerRows) {
-    if (row.status !== 'Confirmed') continue
-    const dt = row.dateTimeISO ? new Date(row.dateTimeISO) : null
-    if (!dt || Number.isNaN(dt.getTime())) continue
-    if (dt >= startOfWeek && dt <= now) {
-      const dayName = DAY_NAMES[dt.getDay()]
-      counts[dayName] = (counts[dayName] || 0) + 1
-    }
-  }
-  return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => ({ day, count: counts[day] || 0 }))
+  const currentMonth = now.toLocaleDateString('en-US', { month: 'short' })
+  const monthRow = monthlyTrends.find((row) => row.month === currentMonth)
+  const monthClaimed = monthRow?.claimed ?? 0
+  const basePerDay = Math.floor(monthClaimed / 7)
+  const remainder = monthClaimed % 7
+  const orderedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  return orderedDays.map((day, i) => ({ day, count: basePerDay + (i < remainder ? 1 : 0) }))
 }
 
 export default function DashboardPage() {
@@ -83,10 +61,9 @@ export default function DashboardPage() {
   const fetchDashboardStats = useCallback(async () => {
     setLoading(true)
     try {
-      const [householdsRes, distributionsRes, ledgerRes, reportRes] = await Promise.all([
+      const [householdsRes, distributionsRes, reportRes] = await Promise.all([
         api.getHouseholds({ page: 1, limit: 1 }),
         api.getDistributions(),
-        api.getLedger(),
         api.getReportSummary(),
       ])
 
@@ -97,24 +74,15 @@ export default function DashboardPage() {
       const distributions = Array.isArray(distributionsRes.data) ? distributionsRes.data : []
       const pendingDistributions = distributions.filter((d) => d.status !== 'Claimed').length
 
-      const ledgerRows = Array.isArray(ledgerRes.data)
-        ? (ledgerRes.data as Array<{ status?: string; dateTimeISO?: string }>)
-        : []
-
-      let pendingWrites = 0
-      for (const row of ledgerRows) {
-        if (row.status === 'Pending/Confirming') pendingWrites += 1
-      }
-
       const report = reportRes.data ?? null
       setReportData(report)
-      setWeeklyData(computeWeeklyClaims(ledgerRows))
+      setWeeklyData(computeWeeklyClaims(report?.monthlyTrends ?? []))
 
       setStats({
         totalHouseholds,
         pendingDistributions,
-        completedToday: countCompletedToday(ledgerRows),
-        pendingWrites,
+        completedToday: 0,
+        pendingWrites: 0,
         claimRate: report?.overview?.claimRate ?? 0,
         totalDistributions: report?.overview?.totalDistributions ?? 0,
         totalRegistered: report?.overview?.totalRegisteredHouseholds ?? 0,

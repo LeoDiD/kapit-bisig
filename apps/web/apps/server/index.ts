@@ -32,10 +32,6 @@ import notificationRoutes from './routes/notificationRoutes';
 import profileRoutes from './routes/profileRoutes';
 import authRoutes from './routes/authRoutes';
 import verificationRoutes from './routes/verificationRoutes';
-import {
-  startClaimConfirmationWorker,
-  stopClaimConfirmationWorker,
-} from './services/claimConfirmationWorker';
 
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
@@ -49,7 +45,6 @@ import {
   rejectNoSQLInjection,
 } from './middleware/securityHardening';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import { startClaimChainQueue } from './services/claimChainQueue';
 
 const app: Express = express();
 const PORT = env.PORT;
@@ -154,15 +149,12 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
-    startClaimChainQueue();
-    startClaimConfirmationWorker();
 
     app.listen(PORT, () => {
       console.log(`⚡️ Server is running on port ${PORT} [${env.NODE_ENV}]`);
       console.log(`🔐 Authentication endpoints available at /api/auth`);
       console.log(`🏠 Household registration available at /api/household`);
       console.log(`🎫 Admin token management available at /api/admin/tokens`);
-      startClaimConfirmationWorker();
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -173,12 +165,10 @@ const startServer = async () => {
 startServer();
 
 process.on('SIGINT', () => {
-  stopClaimConfirmationWorker();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  stopClaimConfirmationWorker();
   process.exit(0);
 });
 

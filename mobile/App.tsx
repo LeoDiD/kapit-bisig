@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Alert } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Alert, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
 import SplashScreen from './components/SplashScreen';
 import HomeScreen from './components/HomeScreen';
 import ProfileScreen from './components/ProfileScreen';
@@ -20,6 +21,15 @@ type Screen = 'home' | 'qr' | 'profile';
 type AccountType = 'resident' | 'volunteer' | null;
 type SplashInitialView = 'landing' | 'login';
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [splashInitialView, setSplashInitialView] = useState<SplashInitialView>('landing');
@@ -28,6 +38,8 @@ export default function App() {
   const [volunteerUser, setVolunteerUser] = useState<VolunteerUser | null>(null);
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const notificationReceivedListener = useRef<Notifications.EventSubscription | null>(null);
+  const notificationResponseListener = useRef<Notifications.EventSubscription | null>(null);
   const isResidentPending = accountType === 'resident' && residentProfile?.status === 'Pending';
 
   const loadResidentProfile = async (): Promise<boolean> => {
@@ -123,6 +135,56 @@ export default function App() {
       initializeSession().catch(() => undefined);
     }
   }, [showSplash]);
+
+  useEffect(() => {
+    const registerForPushNotificationsAsync = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#16A34A',
+          });
+        }
+
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== 'granted') {
+          console.warn('Push notification permission not granted.');
+          return;
+        }
+      } catch (error) {
+        console.error('Push registration error:', error);
+      }
+    };
+
+    registerForPushNotificationsAsync().catch(() => undefined);
+
+    notificationReceivedListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('Push notification received:', notification.request.identifier);
+    });
+
+    notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = (response.notification.request.content.data || {}) as { screen?: Screen };
+      const targetScreen = data.screen;
+
+      if (targetScreen === 'home' || targetScreen === 'qr' || targetScreen === 'profile') {
+        handleNavigate(targetScreen);
+      } else {
+        handleNavigate('home');
+      }
+    });
+
+    return () => {
+      notificationReceivedListener.current?.remove();
+      notificationResponseListener.current?.remove();
+    };
+  }, [isResidentPending]);
 
   if (showSplash) {
     return (

@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 const DEV_HOST_ALLOWLIST = new Set(['localhost', '127.0.0.1', '::1']);
 
 function isPrivateIPv4(hostname: string): boolean {
@@ -54,3 +56,47 @@ export function resolveApiBaseUrl(
   return value.replace(/\/+$/, '');
 }
 
+function getExpoRuntimeHost(): string | null {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any)?.manifest2?.extra?.expoGo?.debuggerHost ||
+    (Constants as any)?.manifest?.debuggerHost;
+
+  if (!hostUri || typeof hostUri !== 'string') {
+    return null;
+  }
+
+  const host = hostUri.split(':')[0];
+  if (!host || DEV_HOST_ALLOWLIST.has(host)) {
+    return null;
+  }
+
+  return host;
+}
+
+export function resolveDevApiFallbackUrl(baseUrl: string): string | null {
+  if (!__DEV__) {
+    return null;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    return null;
+  }
+
+  const currentHost = parsed.hostname;
+  const isDevHost = DEV_HOST_ALLOWLIST.has(currentHost) || isPrivateIPv4(currentHost);
+  if (!isDevHost) {
+    return null;
+  }
+
+  const runtimeHost = getExpoRuntimeHost();
+  if (!runtimeHost || runtimeHost === currentHost) {
+    return null;
+  }
+
+  parsed.hostname = runtimeHost;
+  return parsed.toString().replace(/\/+$/, '');
+}

@@ -564,33 +564,6 @@ export const api = {
     return handleResponse<ApiResponse<ResidentRecord>>(response);
   },
 
-  // ==================== BLOCKCHAIN LEDGER ====================
-
-  /**
-   * Get ledger rows (blockchain claim records).
-   * Supports filtering by barangay, status, and free-text search.
-   */
-  async getLedger(params?: {
-    barangay?: string;
-    status?: string;
-    search?: string;
-  }): Promise<ApiResponse<any[]>> {
-    const sp = new URLSearchParams();
-    if (params?.barangay && params.barangay !== 'All Barangays')
-      sp.append('barangay', params.barangay);
-    if (params?.status && params.status !== 'All Status')
-      sp.append('status', params.status);
-    if (params?.search) sp.append('search', params.search);
-
-    const qs = sp.toString();
-    const url = `${API_URL}/claims/ledger${qs ? `?${qs}` : ''}`;
-    const response = await fetch(url, {
-      headers: createHeaders(),
-      credentials: 'include',
-    });
-    return handleResponse<ApiResponse<any[]>>(response);
-  },
-
   /**
    * Record a relief-pack claim (sends token + distribution info).
    */
@@ -609,7 +582,7 @@ export const api = {
   },
 
   /**
-   * Record multiple relief-pack claims in one on-chain batch submission.
+   * Record multiple relief-pack claims in one request.
    */
   async recordClaimBatch(data: {
     claimTokens: string[];
@@ -621,18 +594,6 @@ export const api = {
       headers: createHeaders('POST'),
       credentials: 'include',
       body: JSON.stringify(data),
-    });
-    return handleResponse<ApiResponse<any>>(response);
-  },
-
-  /**
-   * Retry a CHAIN_FAILED claim.
-   */
-  async retryClaimChain(claimId: string): Promise<ApiResponse<any>> {
-    const response = await fetch(`${API_URL}/claims/${claimId}/retry-chain`, {
-      method: 'POST',
-      headers: createHeaders('POST'),
-      credentials: 'include',
     });
     return handleResponse<ApiResponse<any>>(response);
   },

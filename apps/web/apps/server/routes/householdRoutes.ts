@@ -41,7 +41,7 @@ import Distribution from '../models/Distribution';
 import Claim from '../models/Claim';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
 import { computeEventHash, computeHouseholdHash } from '../utils/hashHelpers';
-import { isClaimedOnChain, submitClaimOnChain } from '../services/blockchainService';
+import { upsertDistributionClaimFromClaim } from '../services/distributionFlowService';
 import bcrypt from 'bcrypt';
 import {
   loginRateLimiter,
@@ -1909,10 +1909,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     if (existingClaim) {
       return res.json({
         success: true,
-        message:
-          existingClaim.status === 'CHAIN_FAILED'
-            ? 'Claim already recorded but blockchain submission failed. Please retry claim sync.'
-            : 'Resident already claimed for this distribution',
+        message: 'Resident already claimed for this distribution',
         alreadyClaimed: true,
         claimId: existingClaim.claimId,
         claimStatus: existingClaim.status,
@@ -1924,18 +1921,6 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
       `HH-${resident.barangay.slice(0, 2).toUpperCase()}-${residentId.slice(-4).toUpperCase()}`;
     const householdHash = computeHouseholdHash(householdId);
     const eventHash = computeEventHash(distributionId);
-
-    try {
-      const alreadyClaimedOnChain = await isClaimedOnChain(householdHash, eventHash);
-      if (alreadyClaimedOnChain) {
-        return res.status(409).json({
-          success: false,
-          message: 'Resident already has an on-chain claim record',
-        });
-      }
-    } catch {
-      // Keep endpoint responsive even if chain read fails.
-    }
 
     const claimId = `CLM-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
     const staffUserId = req.user?.userId || req.user?.id || 'unknown';
@@ -1978,30 +1963,17 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     if (!inserted) {
       return res.json({
         success: true,
-        message:
-          claim.status === 'CHAIN_FAILED'
-            ? 'Claim already recorded but blockchain submission failed. Please retry claim sync.'
-            : 'Resident already claimed for this distribution',
+        message: 'Resident already claimed for this distribution',
         alreadyClaimed: true,
         claimId: claim.claimId,
         claimStatus: claim.status,
       });
     }
 
-    try {
-      const submitted = await submitClaimOnChain(householdHash, eventHash);
-      claim.status = 'CHAIN_SUBMITTED';
-      claim.blockchain.txHash = submitted.txHash;
-      claim.blockchain.chainId = submitted.chainId;
-      claim.blockchain.contractAddress = submitted.contractAddress;
-      claim.blockchain.staffSigner = submitted.staffSigner;
-      claim.errorMessage = '';
-      await claim.save();
-    } catch (chainErr: any) {
-      claim.status = 'CHAIN_FAILED';
-      claim.errorMessage = chainErr?.message || 'On-chain submission failed';
-      await claim.save();
-    }
+    claim.status = 'CONFIRMED';
+    claim.errorMessage = '';
+    await claim.save();
+    await upsertDistributionClaimFromClaim(claim);
 
     return res.status(201).json({
       success: true,

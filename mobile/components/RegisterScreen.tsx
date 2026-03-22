@@ -11,7 +11,6 @@ import {
   Modal,
   Image,
   Alert,
-  Animated,
   ActivityIndicator,
   KeyboardAvoidingView,
   Keyboard,
@@ -23,7 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { VerificationResult } from '../services/ai';
-import { resolveApiBaseUrl } from '../services/config/apiSecurity';
+import { resolveApiBaseUrl, resolveDevApiFallbackUrl } from '../services/config/apiSecurity';
 
 const { width } = Dimensions.get('window');
 
@@ -252,18 +251,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       setMobileAvailabilityStatus('checking');
     }
 
-    try {
-      const response = await fetch(`${API_URL}/household/check-mobile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ mobileNumber }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success && data.available) {
+    const applyMobileAvailabilityResult = (isAvailable: boolean) => {
+      if (isAvailable) {
         if (isLatestRequest()) {
           setMobileChecked(true);
           setMobileAvailabilityStatus('available');
@@ -274,21 +263,75 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             }));
           }
         }
-        return true;
-      } else {
-        if (isLatestRequest()) {
-          setMobileChecked(false);
-          setMobileAvailabilityStatus('taken');
-          if (markDuplicateError) {
-            setStep1Errors(prev => ({
-              ...prev,
-              mobileNumberDuplicate: true,
-            }));
+      } else if (isLatestRequest()) {
+        setMobileChecked(false);
+        setMobileAvailabilityStatus('taken');
+        if (markDuplicateError) {
+          setStep1Errors(prev => ({
+            ...prev,
+            mobileNumberDuplicate: true,
+          }));
+        }
+      }
+    };
+
+    const requestMobileAvailability = async (baseUrl: string): Promise<{ available: boolean }> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      let response: Response;
+      try {
+        response = await fetch(`${baseUrl}/household/check-mobile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ mobileNumber }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (response.ok && data?.success === true && typeof data?.available === 'boolean') {
+        return { available: data.available };
+      }
+
+      throw new Error(data?.message || 'Mobile availability check failed');
+    };
+
+    try {
+      const result = await requestMobileAvailability(API_URL);
+      applyMobileAvailabilityResult(result.available);
+      return result.available;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isNetworkError =
+        message.includes('Network request failed') ||
+        message.includes('fetch failed') ||
+        message.includes('Failed to fetch') ||
+        message.toLowerCase().includes('aborted');
+
+      if (isNetworkError) {
+        const fallbackApiUrl = resolveDevApiFallbackUrl(API_URL);
+        if (fallbackApiUrl) {
+          try {
+            const retryResult = await requestMobileAvailability(fallbackApiUrl);
+            console.warn(`Mobile check retried via fallback API URL: ${fallbackApiUrl}`);
+            applyMobileAvailabilityResult(retryResult.available);
+            return retryResult.available;
+          } catch (fallbackError) {
+            console.error('Mobile check fallback error:', fallbackError);
           }
         }
-        return false;
       }
-    } catch (error) {
+
       console.error('Mobile check error:', error);
       if (isLatestRequest()) {
         setMobileChecked(false);
@@ -334,6 +377,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     barangay: false,
     streetAddress: false,
     householdToken: false,
+    vulnerableCountExceeded: false,
   });
   const [step3Errors, setStep3Errors] = useState({
     idType: false,
@@ -358,9 +402,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setTimeout(() => {
       const scrollResponder =
         (scrollViewRef.current as any)?.getScrollResponder?.() ?? (scrollViewRef.current as any);
-      const baseOffset = Platform.OS === 'android' ? 260 : 150;
-      const stepOffset = currentStep === 1 ? 80 : 0;
-      const keyboardOffset = keyboardHeight > 0 ? 30 : 0;
+      const baseOffset = Platform.OS === 'android' ? 180 : 120;
+      const stepOffset = currentStep === 1 ? 30 : 0;
+      const keyboardOffset = keyboardHeight > 0 ? 16 : 0;
       const extraOffset = baseOffset + stepOffset + keyboardOffset;
       scrollResponder?.scrollResponderScrollNativeHandleToKeyboard?.(target, extraOffset, true);
     }, 120);
@@ -372,13 +416,6 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   const handleStep1PasswordFocus = (target?: number | null) => {
     handleInputFocus(target);
-
-    // Fallback for devices where native handle-to-keyboard scroll is inconsistent.
-    if (currentStep === 1) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 220);
-    }
   };
 
   const handleInputBlur = () => {
@@ -393,8 +430,6 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
     return () => clearTimeout(timer);
   }, [currentStep]);
-
-  const progressPercentage = (currentStep / totalSteps) * 100;
 
   // Calculate age from date of birth
   const calculateAge = (dob: string): number => {
@@ -695,10 +730,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   };
 
   const validateStep2 = () => {
+    const totalVulnerableMembers = vulnerableMembers.reduce(
+      (sum, memberId) => sum + Math.max(1, vulnerableCounts[memberId] || 1),
+      0,
+    );
+    const vulnerableCountExceeded = totalVulnerableMembers > householdSize;
+
     const errors = {
       barangay: !barangay.trim(),
       streetAddress: !streetAddress.trim(),
       householdToken: !tokenValidated,  // Token must be validated
+      vulnerableCountExceeded,
     };
     setStep2Errors(errors);
     
@@ -707,6 +749,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     } else if (errors.streetAddress) {
       scrollViewRef.current?.scrollTo({ y: 100, animated: true });
+    } else if (errors.vulnerableCountExceeded) {
+      scrollViewRef.current?.scrollTo({ y: 520, animated: true });
     }
     
     return !Object.values(errors).some(Boolean);
@@ -895,6 +939,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       streetAddress: normalized.includes('street address is required'),
       householdToken:
         normalized.includes('household token is required') || normalized.includes('invalid token format'),
+      vulnerableCountExceeded: false,
     };
 
     const step3 = {
@@ -1612,11 +1657,24 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   };
 
   const toggleVulnerableMember = (member: string) => {
-    setVulnerableMembers(prev => 
-      prev.includes(member) 
+    setVulnerableMembers(prev => {
+      const nextMembers = prev.includes(member)
         ? prev.filter(m => m !== member)
-        : [...prev, member]
-    );
+        : [...prev, member];
+
+      if (showErrors) {
+        const totalSelected = nextMembers.reduce(
+          (sum, memberId) => sum + Math.max(1, vulnerableCounts[memberId] || 1),
+          0,
+        );
+        setStep2Errors(current => ({
+          ...current,
+          vulnerableCountExceeded: totalSelected > householdSize,
+        }));
+      }
+
+      return nextMembers;
+    });
   };
 
   const renderStep1 = () => {
@@ -2138,14 +2196,44 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           <View style={styles.householdSizeControls}>
             <TouchableOpacity 
               style={styles.sizeButton}
-              onPress={() => setHouseholdSize(prev => Math.max(1, prev - 1))}
+              onPress={() =>
+                setHouseholdSize(prev => {
+                  const nextSize = Math.max(1, prev - 1);
+                  if (showErrors) {
+                    const totalSelected = vulnerableMembers.reduce(
+                      (sum, memberId) => sum + Math.max(1, vulnerableCounts[memberId] || 1),
+                      0,
+                    );
+                    setStep2Errors(current => ({
+                      ...current,
+                      vulnerableCountExceeded: totalSelected > nextSize,
+                    }));
+                  }
+                  return nextSize;
+                })
+              }
             >
               <Ionicons name="remove" size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.sizeValue}>{householdSize}</Text>
             <TouchableOpacity 
               style={[styles.sizeButton, styles.sizeButtonPlus]}
-              onPress={() => setHouseholdSize(prev => prev + 1)}
+              onPress={() =>
+                setHouseholdSize(prev => {
+                  const nextSize = prev + 1;
+                  if (showErrors) {
+                    const totalSelected = vulnerableMembers.reduce(
+                      (sum, memberId) => sum + Math.max(1, vulnerableCounts[memberId] || 1),
+                      0,
+                    );
+                    setStep2Errors(current => ({
+                      ...current,
+                      vulnerableCountExceeded: totalSelected > nextSize,
+                    }));
+                  }
+                  return nextSize;
+                })
+              }
             >
               <Ionicons name="add" size={24} color="#FFF" />
             </TouchableOpacity>
@@ -2203,6 +2291,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               </Text>
               <Ionicons name="chevron-forward" size={18} color="#2E7D32" />
             </TouchableOpacity>
+          )}
+          <Text style={styles.vulnerableCountSummary}>
+            Selected vulnerable members: {vulnerableMembers.reduce(
+              (sum, memberId) => sum + Math.max(1, vulnerableCounts[memberId] || 1),
+              0,
+            )} / {householdSize}
+          </Text>
+          {showErrors && step2Errors.vulnerableCountExceeded && (
+            <Text style={styles.errorText}>
+              Vulnerable member count cannot be greater than household size.
+            </Text>
           )}
         </View>
       </View>
@@ -2728,8 +2827,24 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         <View style={styles.progressTextContainer}>
           <Text style={styles.stepText}>Step {currentStep} of {totalSteps}</Text>
         </View>
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
+        <View style={styles.progressSegmentsRow}>
+          {Array.from({ length: totalSteps }).map((_, index) => {
+            const stepNumber = index + 1;
+            const isCompleted = stepNumber < currentStep;
+            const isCurrent = stepNumber === currentStep;
+
+            return (
+              <View
+                key={`progress-segment-${stepNumber}`}
+                style={[
+                  styles.progressSegment,
+                  index !== totalSteps - 1 && styles.progressSegmentSpacing,
+                  isCompleted && styles.progressSegmentCompleted,
+                  isCurrent && styles.progressSegmentCurrent,
+                ]}
+              />
+            );
+          })}
         </View>
       </View>
 
@@ -2831,20 +2946,50 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 <View style={styles.vulnerableCountControls}>
                   <TouchableOpacity 
                     style={styles.countButton}
-                    onPress={() => setVulnerableCounts(prev => ({
-                      ...prev,
-                      [item.id]: Math.max(1, (prev[item.id] || 1) - 1)
-                    }))}
+                    onPress={() =>
+                      setVulnerableCounts(prev => {
+                        const nextCounts = {
+                          ...prev,
+                          [item.id]: Math.max(1, (prev[item.id] || 1) - 1),
+                        };
+                        if (showErrors) {
+                          const totalSelected = vulnerableMembers.reduce(
+                            (sum, memberId) => sum + Math.max(1, nextCounts[memberId] || 1),
+                            0,
+                          );
+                          setStep2Errors(current => ({
+                            ...current,
+                            vulnerableCountExceeded: totalSelected > householdSize,
+                          }));
+                        }
+                        return nextCounts;
+                      })
+                    }
                   >
                     <Ionicons name="remove" size={18} color="#333" />
                   </TouchableOpacity>
                   <Text style={styles.countValue}>{vulnerableCounts[item.id] || 1}</Text>
                   <TouchableOpacity 
                     style={[styles.countButton, styles.countButtonPlus]}
-                    onPress={() => setVulnerableCounts(prev => ({
-                      ...prev,
-                      [item.id]: (prev[item.id] || 1) + 1
-                    }))}
+                    onPress={() =>
+                      setVulnerableCounts(prev => {
+                        const nextCounts = {
+                          ...prev,
+                          [item.id]: (prev[item.id] || 1) + 1,
+                        };
+                        if (showErrors) {
+                          const totalSelected = vulnerableMembers.reduce(
+                            (sum, memberId) => sum + Math.max(1, nextCounts[memberId] || 1),
+                            0,
+                          );
+                          setStep2Errors(current => ({
+                            ...current,
+                            vulnerableCountExceeded: totalSelected > householdSize,
+                          }));
+                        }
+                        return nextCounts;
+                      })
+                    }
                   >
                     <Ionicons name="add" size={18} color="#FFF" />
                   </TouchableOpacity>
@@ -3202,7 +3347,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
   },
   backButton: {
@@ -3217,8 +3362,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#333',
   },
   headerRight: {
@@ -3226,7 +3371,7 @@ const styles = StyleSheet.create({
   },
   progressSection: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
   },
   progressTextContainer: {
@@ -3243,16 +3388,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 4,
-    overflow: 'hidden',
+  progressSegmentsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  progressBar: {
-    height: '100%',
+  progressSegment: {
+    flex: 1,
+    height: 10,
+    backgroundColor: '#D7E7D9',
+    borderRadius: 999,
+  },
+  progressSegmentSpacing: {
+    marginRight: 6,
+  },
+  progressSegmentCompleted: {
+    backgroundColor: '#66A96B',
+  },
+  progressSegmentCurrent: {
     backgroundColor: '#2E7D32',
-    borderRadius: 4,
   },
   scrollView: {
     flex: 1,
@@ -3271,9 +3424,9 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   titleBlack: {
     color: '#333',
@@ -3942,6 +4095,11 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
     marginBottom: 20,
+  },
+  vulnerableCountSummary: {
+    marginTop: 12,
+    fontSize: 12,
+    color: '#5F6B62',
   },
   vulnerableGrid: {
     flexDirection: 'row',

@@ -1,5 +1,4 @@
 import React from 'react'
-import Link from 'next/link'
 
 interface AlertItem {
   id: string
@@ -19,7 +18,7 @@ export default function LowStockAlert({ pendingWrites = 0, pendingDistributions 
   const alerts: AlertItem[] = []
 
   if (pendingWrites > 0) {
-    alerts.push({ id: 'pw', label: 'Blockchain writes pending', detail: `${pendingWrites} transaction(s) confirming`, severity: 'yellow' })
+    alerts.push({ id: 'pw', label: 'Claim sync pending', detail: `${pendingWrites} pending item(s)`, severity: 'yellow' })
   }
   if (pendingDistributions > 0) {
     alerts.push({ id: 'pd', label: 'Distributions unclaimed', detail: `${pendingDistributions} distribution(s) awaiting claims`, severity: 'red' })
@@ -82,12 +81,9 @@ export default function LowStockAlert({ pendingWrites = 0, pendingDistributions 
         </div>
       )}
 
-      <Link
-        href="/blockchain-ledger"
-        className="block w-full py-2.5 text-center border-2 border-gray-200 rounded-xl text-sm text-gray-600 font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors"
-      >
-        Open Blockchain Ledger
-      </Link>
+      <div className="block w-full py-2.5 text-center border-2 border-gray-200 rounded-xl text-sm text-gray-500 font-medium">
+        Claims are stored directly in the system database
+      </div>
     </div>
   )
 }

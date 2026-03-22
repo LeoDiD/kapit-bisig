@@ -15,7 +15,6 @@ import {
   UserPlus,
   House,
   ArrowLeftRight,
-  ScrollText,
   ChartNoAxesCombined,
   Settings,
   LogOut,
@@ -33,7 +32,6 @@ const mainNavItems = [
   { name: 'Code Generation', href: '/code-generation', icon: ShieldCheck, superadminOnly: true },
   { name: 'Households', href: '/households', icon: House, superadminOnly: false },
   { name: 'Distribution', href: '/distribution', icon: ArrowLeftRight, superadminOnly: false },
-  { name: 'Blockchain Ledger', href: '/blockchain-ledger', icon: ScrollText, superadminOnly: false },
   { name: 'Reports', href: '/reports', icon: ChartNoAxesCombined, superadminOnly: false },
 ]
 

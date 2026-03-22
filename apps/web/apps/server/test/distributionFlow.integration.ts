@@ -12,7 +12,6 @@ function setTestEnv(): void {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-123456789012345678901234567890';
   process.env.SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL || 'kapitbisig2026@gmail.com';
   process.env.SUPERADMIN_PASSWORD_HASH = process.env.SUPERADMIN_PASSWORD_HASH || 'hash';
-  process.env.BLOCKCHAIN_ENABLED = 'false';
 }
 
 async function waitFor<T>(
@@ -69,7 +68,6 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
   try {
     const { default: distributionRoutes } = await import('../routes/distributionRoutes');
     const { default: claimRoutes } = await import('../routes/claimRoutes');
-    const { startClaimChainQueue, stopClaimChainQueue } = await import('../services/claimChainQueue');
     const { default: StaffUser } = await import('../models/StaffUser');
     const { default: Resident } = await import('../models/Resident');
     const { default: HouseholdToken } = await import('../models/HouseholdToken');
@@ -99,8 +97,6 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     });
     app.use('/api/distributions', distributionRoutes);
     app.use('/api/claims', claimRoutes);
-
-    startClaimChainQueue();
 
     const resA = await Resident.create(buildResidentPayload(1, 'Bolo'));
     const resB = await Resident.create(buildResidentPayload(2, 'Dulig'));
@@ -163,7 +159,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         distributionId,
         distributionSite: 'Bolo Covered Court',
       });
-    assert.strictEqual(claim1.status, 202);
+    assert.strictEqual(claim1.status, 201);
 
     const claim2 = await request(app)
       .post('/api/claims/record-claim')
@@ -172,13 +168,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         distributionId,
         distributionSite: 'Bolo Covered Court',
       });
-    assert.strictEqual(claim2.status, 202);
-
-    await waitFor(
-      'claims confirmation',
-      async () => Claim.countDocuments({ distributionId, status: 'CONFIRMED' }),
-      (count) => count === 2,
-    );
+    assert.strictEqual(claim2.status, 201);
 
     await waitFor(
       'distribution claim sync',
@@ -204,7 +194,6 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       });
     assert.strictEqual(duplicateWithSameKey.status, 200);
 
-    stopClaimChainQueue();
   } finally {
     await mongoose.disconnect();
     await mongo.stop();

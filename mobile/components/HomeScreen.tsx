@@ -52,6 +52,14 @@ interface DistributionItem {
   notes?: string;
 }
 
+interface HomeNotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  date: string;
+  distributionId: string;
+}
+
 interface DistributionResponseItem {
   id?: string;
   _id?: string;
@@ -64,21 +72,44 @@ interface DistributionResponseItem {
   residentClaimStatus?: string | null;
 }
 
+function formatDistributionDate(date: Date): string {
+  return date
+    .toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
+    .replace(',', '');
+}
+
 function parseSchedule(scheduled?: string): { date: string; time: string } {
   if (!scheduled) {
     return { date: 'To be announced', time: '' };
   }
-  
-  // Try to parse the schedule string
-  const dateMatch = scheduled.match(/(\w+ \d+,? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/);
+
+  // Try to parse explicit date text first.
+  const dateMatch = scheduled.match(/(\w+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/);
   const timeMatch = scheduled.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?(?:\s*[-–]\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)?)/i);
-  
+
+  let dateText = scheduled;
+  if (dateMatch) {
+    const parsedDate = new Date(dateMatch[0]);
+    dateText = Number.isNaN(parsedDate.getTime())
+      ? dateMatch[0].replace(',', '')
+      : formatDistributionDate(parsedDate);
+  } else {
+    // Handle ISO-like values.
+    const parsedDate = new Date(scheduled);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      dateText = formatDistributionDate(parsedDate);
+    }
+  }
+
   return {
-    date: dateMatch ? dateMatch[0] : scheduled,
+    date: dateText,
     time: timeMatch ? timeMatch[0] : '',
   };
 }
-
 function toDistribution(item: DistributionResponseItem, index: number): DistributionItem {
   const coverageList = Array.from(new Set([item.barangay, ...(item.assignedBarangays ?? [])]));
   const targetAreas = coverageList.join(', ');
@@ -121,6 +152,8 @@ export default function HomeScreen({
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionItem | null>(null);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [readNotificationIds, setReadNotificationIds] = useState<Record<string, boolean>>({});
 
   const isVolunteer = accountType === 'volunteer';
   const isPendingResident = !isVolunteer && residentStatus === 'Pending';
@@ -181,7 +214,29 @@ export default function HomeScreen({
 
   // Get the featured distribution (first one) for the hero card
   const featuredDistribution = distributions[0];
-  const unreadUpdates = distributions.filter((item) => !item.residentClaimed).length;
+  const notifications: HomeNotificationItem[] = distributions.map((item) => ({
+    id: item.id,
+    distributionId: item.id,
+    title: item.residentClaimed ? 'Claim Confirmed' : 'New Distribution Update',
+    message: item.residentClaimed
+      ? `${item.hostBarangay} distribution is already marked claimed for your household.`
+      : `${item.hostBarangay} has a scheduled relief distribution.`,
+    date: item.date,
+  }));
+  const unreadUpdates = notifications.filter((item) => !readNotificationIds[item.id]).length;
+
+  const handleOpenNotifications = () => {
+    setShowNotificationsModal(true);
+  };
+
+  const handleNotificationPress = (notification: HomeNotificationItem) => {
+    const match = distributions.find((item) => item.id === notification.distributionId);
+    setReadNotificationIds((prev) => ({ ...prev, [notification.id]: true }));
+    setShowNotificationsModal(false);
+    if (match) {
+      setSelectedDistribution(match);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -212,6 +267,7 @@ export default function HomeScreen({
           <TouchableOpacity
             style={[styles.notificationButton, isPendingResident && styles.notificationButtonDisabled]}
             disabled={isPendingResident}
+            onPress={handleOpenNotifications}
           >
             <Ionicons name="notifications-outline" size={24} color="#6B7280" />
             {unreadUpdates > 0 && (
@@ -413,6 +469,53 @@ export default function HomeScreen({
             >
               <Text style={styles.modalActionText}>Close</Text>
             </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Notifications Modal */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showNotificationsModal}
+        onRequestClose={() => setShowNotificationsModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowNotificationsModal(false)}>
+          <Pressable style={styles.notificationModalCard} onPress={() => undefined}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Notifications</Text>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setShowNotificationsModal(false)}
+              >
+                <Ionicons name="close" size={20} color="#374151" />
+              </TouchableOpacity>
+            </View>
+
+            {notifications.length === 0 ? (
+              <Text style={styles.notificationEmptyText}>No notifications yet.</Text>
+            ) : (
+              <ScrollView style={styles.notificationList}>
+                {notifications.map((item) => {
+                  const isRead = !!readNotificationIds[item.id];
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.notificationItem}
+                      onPress={() => handleNotificationPress(item)}
+                    >
+                      <View style={[styles.notificationUnreadDot, isRead && styles.notificationUnreadDotRead]} />
+                      <View style={styles.notificationItemTextWrap}>
+                        <Text style={styles.notificationItemTitle}>{item.title}</Text>
+                        <Text style={styles.notificationItemMessage}>{item.message}</Text>
+                        <Text style={styles.notificationItemDate}>{item.date}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -800,6 +903,59 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  notificationModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  notificationList: {
+    marginTop: 4,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  notificationUnreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#16A34A',
+    marginRight: 10,
+    marginTop: 4,
+  },
+  notificationUnreadDotRead: {
+    backgroundColor: '#D1D5DB',
+  },
+  notificationItemTextWrap: {
+    flex: 1,
+    marginRight: 8,
+  },
+  notificationItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  notificationItemMessage: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#4B5563',
+    lineHeight: 18,
+  },
+  notificationItemDate: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  notificationEmptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingVertical: 24,
   },
 
   // Bottom Navigation

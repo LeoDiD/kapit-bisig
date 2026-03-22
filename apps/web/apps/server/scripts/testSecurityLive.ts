@@ -115,7 +115,6 @@ async function main() {
     const endpoints = [
       '/api/households',
       '/api/distributions',
-      '/api/claims/ledger',
       '/api/admin/users',
       '/api/residents',            // GET list now protected
     ];

@@ -17,9 +17,6 @@
 
 import { z } from 'zod';
 
-const ETH_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
-const ETH_PRIVATE_KEY_REGEX = /^(0x)?[a-fA-F0-9]{64}$/;
-
 /* ------------------------------------------------------------------ */
 /*  Schema                                                             */
 /* ------------------------------------------------------------------ */
@@ -70,47 +67,6 @@ const envSchema = z.object({
       return undefined; // will be derived from NODE_ENV
     }),
 
-  /* ---- Blockchain (Sepolia) ---- */
-  BLOCKCHAIN_ENABLED: z
-    .string()
-    .default('false')
-    .transform((v) => v.trim().toLowerCase())
-    .transform((v) => v === '1' || v === 'true' || v === 'yes' || v === 'on'),
-  CHAIN_ID: z
-    .string()
-    .default('11155111')
-    .transform((v) => parseInt(v, 10))
-    .refine((v) => Number.isFinite(v) && v > 0, 'CHAIN_ID must be a positive integer'),
-  RPC_URL: z.string().optional().transform((v) => (v || '').trim()),
-  CONTRACT_ADDRESS: z
-    .string()
-    .optional()
-    .transform((v) => (v || '').trim())
-    .refine(
-      (v) => v.length === 0 || ETH_ADDRESS_REGEX.test(v),
-      'CONTRACT_ADDRESS must be a valid Ethereum address (0x + 40 hex chars)',
-    ),
-  PRIVATE_KEY: z
-    .string()
-    .optional()
-    .transform((v) => (v || '').trim())
-    .refine(
-      (v) => v.length === 0 || ETH_PRIVATE_KEY_REGEX.test(v),
-      'PRIVATE_KEY must be a valid 32-byte hex key',
-    )
-    .transform((v) => {
-      if (!v) return '';
-      return v.startsWith('0x') ? v : `0x${v}`;
-    }),
-  CONFIRMATIONS_REQUIRED: z
-    .string()
-    .default('2')
-    .transform((v) => parseInt(v, 10))
-    .refine(
-      (v) => Number.isFinite(v) && v >= 1,
-      'CONFIRMATIONS_REQUIRED must be an integer >= 1',
-    ),
-
   /* ---- Face recognition backend ---- */
   FACE_RECOGNITION_API_URL: z.string().optional(),
 
@@ -139,21 +95,6 @@ if (!parsed.success) {
 }
 
 const envData = parsed.data;
-
-if (envData.BLOCKCHAIN_ENABLED) {
-  const missing = ['RPC_URL', 'CONTRACT_ADDRESS', 'PRIVATE_KEY'].filter((key) => {
-    const val = envData[key as 'RPC_URL' | 'CONTRACT_ADDRESS' | 'PRIVATE_KEY'];
-    return !val || !String(val).trim();
-  });
-
-  if (missing.length > 0) {
-    console.error('Environment validation failed:');
-    for (const key of missing) {
-      console.error(` - ${key}: ${key} is required when BLOCKCHAIN_ENABLED=true`);
-    }
-    throw new Error('Invalid environment configuration');
-  }
-}
 
 /**
  * Validated & typed environment object.
