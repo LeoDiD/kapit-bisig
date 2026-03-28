@@ -1,10 +1,9 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AddUserModal from './AddUserModal'
-import { api, BARANGAY_OPTIONS, getScopedBarangays, StaffUser, StaffStats } from '@/lib/api'
+import { api, getScopedBarangays, StaffUser } from '@/lib/api'
 import { showToast } from '@/lib/toast'
-import { TableSkeleton } from '@/components/ui/Skeleton'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { sanitizeAsciiText } from '@/lib/inputValidation'
 import { useAuth } from '@/lib/AuthContext'
@@ -12,6 +11,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 type FilterStatus = 'all' | 'active' | 'pending' | 'inactive'
 type FilterBarangay = string
+type AccountStatus = 'active' | 'pending' | 'inactive'
 
 const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'all', label: 'All Status' },
@@ -19,10 +19,6 @@ const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'pending', label: 'Pending' },
   { value: 'inactive', label: 'Not Active' },
 ]
-
-// Barangay filter options are now computed dynamically via getScopedBarangays()
-
-type AccountStatus = 'active' | 'pending' | 'inactive'
 
 function getAccountStatus(user: Pick<StaffUser, 'isActive' | 'lastLoginAt'>): AccountStatus {
   if (!user.isActive) return 'inactive'
@@ -34,53 +30,48 @@ export default function UsersTable() {
   const { user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const BARANGAY_FILTER_OPTIONS = useMemo(() => [
-    { value: 'all' as const, label: 'All Barangays' },
-    ...getScopedBarangays(user?.role, user?.assignedBarangays).map((b) => ({ value: b, label: b })),
-  ], [user?.role, user?.assignedBarangays])
+  const barangayOptions = useMemo(
+    () => [
+      { value: 'all' as const, label: 'All Barangays' },
+      ...getScopedBarangays(user?.role, user?.assignedBarangays).map((b) => ({ value: b, label: b })),
+    ],
+    [user?.role, user?.assignedBarangays]
+  )
 
-  // --- STATE ---
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [filterBarangay, setFilterBarangay] = useState<FilterBarangay>('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  
-  // Data state
+
   const [users, setUsers] = useState<StaffUser[]>([])
-  const [stats, setStats] = useState<StaffStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Row action dropdown
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; openUp: boolean } | null>(null)
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StaffUser | null>(null)
   const [deleting, setDeleting] = useState(false)
   const rowMenuRef = useRef<HTMLDivElement>(null)
 
-  // Status filter dropdown
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
   const statusMenuRef = useRef<HTMLDivElement>(null)
   const statusButtonRef = useRef<HTMLButtonElement>(null)
 
-  // Barangay filter dropdown
   const [barangayDropdownOpen, setBarangayDropdownOpen] = useState(false)
   const barangayMenuRef = useRef<HTMLDivElement>(null)
   const barangayButtonRef = useRef<HTMLButtonElement>(null)
 
-  // --- FETCH DATA ---
   const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       const params: { search?: string; status?: 'active' | 'pending' | 'inactive'; barangay?: string } = {}
       if (filterStatus !== 'all') params.status = filterStatus
       if (filterBarangay !== 'all') params.barangay = filterBarangay
       if (searchQuery) params.search = searchQuery
-      
+
       const response = await api.getStaffUsers(params)
-      
       if (response.success && response.data) {
         setUsers(response.data)
       }
@@ -92,24 +83,9 @@ export default function UsersTable() {
     }
   }, [filterBarangay, filterStatus, searchQuery])
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const response = await api.getStaffStats()
-      if (response.success && response.data) {
-        setStats(response.data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch stats:', err)
-    }
-  }, [])
-
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
-
-  useEffect(() => {
-    fetchStats()
-  }, [fetchStats])
 
   useEffect(() => {
     const shouldOpenAdd = searchParams.get('openAdd') === '1'
@@ -121,7 +97,6 @@ export default function UsersTable() {
     router.replace(query ? `/users?${query}` : '/users')
   }, [searchParams, router])
 
-  // --- CLICK OUTSIDE HANDLER ---
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node
@@ -147,7 +122,6 @@ export default function UsersTable() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // --- TOGGLE ROW DROPDOWN LOGIC ---
   const toggleRowDropdown = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
 
@@ -158,26 +132,16 @@ export default function UsersTable() {
     }
 
     const buttonRect = e.currentTarget.getBoundingClientRect()
-    const viewportHeight = window.innerHeight
-    const spaceBelow = viewportHeight - buttonRect.bottom
-    const spaceAbove = buttonRect.top
-    const menuHeight = 120
-    const menuWidth = 192
-
-    const shouldOpenUp = spaceBelow < menuHeight && spaceAbove >= menuHeight
-
+    const menuWidth = 208
     setDropdownPosition({
-      top: shouldOpenUp ? buttonRect.top - menuHeight : buttonRect.bottom + 8,
+      top: buttonRect.bottom + 8,
       left: buttonRect.right - menuWidth,
-      openUp: shouldOpenUp,
     })
     setActiveDropdown(id)
   }
 
-  // --- USER ACTIONS ---
   const handleUserCreated = () => {
     fetchUsers()
-    fetchStats()
   }
 
   const handleToggleActive = async (userId: string, currentlyActive: boolean) => {
@@ -185,7 +149,6 @@ export default function UsersTable() {
       await api.updateStaffUser(userId, { isActive: !currentlyActive })
       showToast.success(currentlyActive ? 'User deactivated.' : 'User activated.')
       fetchUsers()
-      fetchStats()
       setActiveDropdown(null)
     } catch (err) {
       console.error('Failed to update status:', err)
@@ -202,7 +165,6 @@ export default function UsersTable() {
       setDeleteTarget(null)
       setActiveDropdown(null)
       fetchUsers()
-      fetchStats()
     } catch (err) {
       console.error('Failed to delete user:', err)
       showToast.error('Failed to delete user.')
@@ -211,189 +173,185 @@ export default function UsersTable() {
     }
   }
 
-  // --- SUMMARY DATA ---
-  const summary = useMemo(() => {
-    if (stats) {
-      return { total: stats.total, active: stats.active, inactive: stats.inactive }
-    }
-    const activeCount = users.filter(u => getAccountStatus(u) === 'active').length
+  const metrics = useMemo(() => {
+    const active = users.filter((u) => getAccountStatus(u) === 'active').length
+    const pending = users.filter((u) => getAccountStatus(u) === 'pending').length
+    const inactive = users.filter((u) => getAccountStatus(u) === 'inactive').length
     return {
       total: users.length,
-      active: activeCount,
-      inactive: users.length - activeCount,
+      active,
+      pending,
+      inactive,
+      activeRate: users.length > 0 ? Math.round((active / users.length) * 100) : 0,
     }
-  }, [stats, users])
+  }, [users])
 
-  const selectedStatusLabel =
-    STATUS_OPTIONS.find(o => o.value === filterStatus)?.label ?? 'All Status'
-  const selectedBarangayLabel =
-    BARANGAY_FILTER_OPTIONS.find(o => o.value === filterBarangay)?.label ?? 'All Barangays'
+  const selectedStatusLabel = STATUS_OPTIONS.find((o) => o.value === filterStatus)?.label ?? 'All Status'
+  const selectedBarangayLabel = barangayOptions.find((o) => o.value === filterBarangay)?.label ?? 'All Barangays'
+
+  const hasActiveFilters = searchQuery.trim().length > 0 || filterStatus !== 'all' || filterBarangay !== 'all'
+  const activeFilterCount = [
+    searchQuery.trim().length > 0,
+    filterStatus !== 'all',
+    filterBarangay !== 'all',
+  ].filter(Boolean).length
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
   return (
     <>
-      {/* Top Metrics Ribbon */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl mb-6 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 overflow-hidden">
-        <StatSection 
-          label="Total Staff" 
-          value={summary.total} 
-          icon={<UsersMenuIcon className="w-5 h-5 text-gray-500" />} 
-        />
-        <StatSection 
-          label="Active Accounts" 
-          value={summary.active} 
-          icon={<CheckCircleIcon className="w-5 h-5 text-emerald-600" />} 
-        />
-        <StatSection 
-          label="Inactive / Pending" 
-          value={summary.inactive} 
-          icon={<DeactivateIcon className="w-5 h-5 text-amber-500" />} 
-        />
-      </div>
-
-      {/* Unified Table Container */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl flex flex-col overflow-hidden mb-12">
-        {/* Integrated Toolbar */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50/40 flex flex-col lg:flex-row gap-4 justify-between items-center">
-          <div className="relative w-full lg:max-w-md">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-               <SearchIcon />
-            </span>
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(sanitizeAsciiText(e.target.value))}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm text-gray-800 placeholder-gray-400 shadow-sm transition-all"
-            />
+      <section className="mb-6 rounded-3xl border border-gray-200 bg-gradient-to-br from-white via-white to-gray-50 p-4 sm:p-6 shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.16em] uppercase text-gray-500">Team Access Overview</p>
+            <h2 className="mt-1 text-xl sm:text-2xl font-black text-gray-900 leading-tight">LGU Staff Management Snapshot</h2>
           </div>
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2.5">
+            <p className="text-[11px] font-bold tracking-wider uppercase text-blue-700">Active Rate</p>
+            <p className="text-2xl font-black text-blue-800 leading-tight">{metrics.activeRate}%</p>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-3 w-full lg:w-auto">
-            {/* Status Filter */}
-            <div className="relative min-w-[150px]">
-              <button
-                ref={statusButtonRef}
-                type="button"
-                onClick={() => {
-                  setBarangayDropdownOpen(false)
-                  setStatusDropdownOpen(v => !v)
-                }}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors"
-              >
-                <span className="truncate">{selectedStatusLabel}</span>
-                <ChevronDownIcon />
-              </button>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Total Staff" value={metrics.total} helper="Visible accounts" icon={<UsersMenuIcon className="h-5 w-5 text-gray-700" />} iconBg="bg-gray-100" />
+          <StatCard label="Active Accounts" value={metrics.active} helper="Can access platform" icon={<CheckCircleIcon className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-100" progress={metrics.activeRate} progressClassName="bg-emerald-500" />
+          <StatCard label="Pending Accounts" value={metrics.pending} helper="Awaiting first login" icon={<ClockIcon className="h-5 w-5 text-amber-700" />} iconBg="bg-amber-100" />
+          <StatCard label="Inactive Accounts" value={metrics.inactive} helper="Currently disabled" icon={<DeactivateIcon className="h-5 w-5 text-slate-700" />} iconBg="bg-slate-200" />
+        </div>
+      </section>
 
-              {statusDropdownOpen && (
-                <div
-                  ref={statusMenuRef}
-                  className="absolute right-0 top-full mt-1.5 w-full bg-white rounded-xl border border-gray-200 shadow-lg p-1.5 z-50"
-                >
-                  {STATUS_OPTIONS.map(opt => {
-                    const selected = opt.value === filterStatus
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          setFilterStatus(opt.value)
-                          setStatusDropdownOpen(false)
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                          selected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'
-                        }`}
-                      >
-                        <span className="truncate">{opt.label}</span>
-                        {selected && <CheckIcon className="w-4 h-4" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+      <section className="mb-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+        <div className="border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500">User Directory</p>
+              <p className="mt-1 text-sm text-gray-700">{isLoading ? 'Loading staff accounts...' : `${users.length} visible account(s)`}</p>
             </div>
-
-            {/* Barangay Filter */}
-            <div className="relative min-w-[180px]">
-              <button
-                ref={barangayButtonRef}
-                type="button"
-                onClick={() => {
-                  setStatusDropdownOpen(false)
-                  setBarangayDropdownOpen(v => !v)
-                }}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors"
-              >
-                <span className="truncate">{selectedBarangayLabel}</span>
-                <ChevronDownIcon />
-              </button>
-
-              {barangayDropdownOpen && (
-                <div
-                  ref={barangayMenuRef}
-                  className="absolute right-0 top-full mt-1.5 w-[120%] bg-white rounded-xl border border-gray-200 shadow-lg p-1.5 z-50 max-h-60 overflow-y-auto custom-scrollbar"
-                >
-                  {BARANGAY_FILTER_OPTIONS.map(opt => {
-                    const selected = opt.value === filterBarangay
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          setFilterBarangay(opt.value)
-                          setBarangayDropdownOpen(false)
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                          selected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'
-                        }`}
-                      >
-                        <span className="truncate">{opt.label}</span>
-                        {selected && <CheckIcon className="w-4 h-4" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Add User */}
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center justify-center whitespace-nowrap gap-2 px-5 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-colors ml-1"
+              className="inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800"
             >
               + New Staff
             </button>
           </div>
         </div>
 
-        {/* Table Content */}
+        <div className="border-b border-gray-100 bg-gray-50/60 p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-md">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                <SearchIcon />
+              </span>
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(sanitizeAsciiText(e.target.value))}
+                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
+              <div className="relative min-w-[150px] flex-1 sm:flex-none">
+                <button
+                  ref={statusButtonRef}
+                  type="button"
+                  onClick={() => {
+                    setBarangayDropdownOpen(false)
+                    setStatusDropdownOpen((v) => !v)
+                  }}
+                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <span className="truncate">{selectedStatusLabel}</span>
+                  <ChevronDownIcon />
+                </button>
+
+                {statusDropdownOpen && (
+                  <DropdownMenu
+                    menuRef={statusMenuRef}
+                    items={STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+                    selected={filterStatus}
+                    onSelect={(value) => {
+                      setFilterStatus(value as FilterStatus)
+                      setStatusDropdownOpen(false)
+                    }}
+                  />
+                )}
+              </div>
+
+              <div className="relative min-w-[180px] flex-1 sm:flex-none">
+                <button
+                  ref={barangayButtonRef}
+                  type="button"
+                  onClick={() => {
+                    setStatusDropdownOpen(false)
+                    setBarangayDropdownOpen((v) => !v)
+                  }}
+                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <span className="truncate">{selectedBarangayLabel}</span>
+                  <ChevronDownIcon />
+                </button>
+
+                {barangayDropdownOpen && (
+                  <DropdownMenu
+                    menuRef={barangayMenuRef}
+                    items={barangayOptions}
+                    selected={filterBarangay}
+                    onSelect={(value) => {
+                      setFilterBarangay(value)
+                      setBarangayDropdownOpen(false)
+                    }}
+                    wide
+                  />
+                )}
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setFilterStatus('all')
+                    setFilterBarangay('all')
+                  }}
+                  className="inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                >
+                  Clear ({activeFilterCount})
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="overflow-x-auto w-full">
           {isLoading ? (
-            <div className="p-16 flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+            <div className="p-16 flex flex-col items-center justify-center">
+              <SpinnerIcon className="h-8 w-8 text-gray-700" />
+              <p className="mt-3 text-sm font-medium text-gray-600">Fetching staff accounts...</p>
             </div>
           ) : error ? (
             <div className="text-center p-16">
-              <p className="font-semibold text-lg text-red-600 mb-4">{error}</p>
-              <button 
+              <p className="mb-4 text-lg font-semibold text-red-600">{error}</p>
+              <button
                 onClick={fetchUsers}
-                className="px-5 py-2.5 bg-gray-900 text-white font-bold text-sm rounded-xl hover:bg-gray-800"
+                className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-gray-800"
               >
                 Retry Request
               </button>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
-              <thead className="bg-white border-b border-gray-200 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+            <table className="w-full min-w-[950px] border-collapse text-left">
+              <thead className="border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500">
                 <tr>
-                  <th className="px-6 py-4 w-[30%]">Staff Member</th>
-                  <th className="px-6 py-4 w-[25%]">Contact Email</th>
-                  <th className="px-6 py-4 w-[15%]">Status</th>
-                  <th className="px-6 py-4 w-[15%]">Registered On</th>
-                  <th className="px-6 py-4 text-right pr-6 w-[15%]">
+                  <th className="px-6 py-4">Staff Member</th>
+                  <th className="px-6 py-4">Contact Email</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Registered On</th>
+                  <th className="px-6 py-4 text-right pr-6">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
@@ -401,21 +359,21 @@ export default function UsersTable() {
 
               <tbody className="divide-y divide-gray-100 bg-white text-sm">
                 {users.length > 0 ? (
-                  users.map(u => (
-                    <tr key={u.id} className="hover:bg-blue-50/30 transition-colors group">
+                  users.map((u) => (
+                    <tr key={u.id} className="group transition-colors hover:bg-gray-50/70">
                       <td className="px-6 py-4 text-gray-900 font-bold whitespace-normal break-words">
                         <div className="flex items-center gap-4">
-                          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-bold flex flex-shrink-0 items-center justify-center text-xs">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-600">
                             {((u.firstName || u.fullName || 'S').charAt(0)).toUpperCase()}
                           </div>
                           <span className="font-bold text-gray-900">
-                             {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.fullName || '—'}
+                            {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.fullName || '--'}
                           </span>
                         </div>
                       </td>
 
                       <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal break-words">
-                        {u.email || '—'}
+                        {u.email || '--'}
                       </td>
 
                       <td className="px-6 py-4">
@@ -429,8 +387,8 @@ export default function UsersTable() {
                       <td className="px-6 py-4 text-right pr-6 relative">
                         <div className="inline-block" data-row-menu>
                           <button
-                            onClick={e => toggleRowDropdown(u.id, e)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-bold text-gray-700 rounded-lg bg-white hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            onClick={(e) => toggleRowDropdown(u.id, e)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 md:opacity-0 md:group-hover:opacity-100"
                           >
                             Manage <ChevronDownIcon />
                           </button>
@@ -449,9 +407,8 @@ export default function UsersTable() {
             </table>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* Fixed position dropdown menu */}
       {activeDropdown !== null && dropdownPosition && (
         <div
           ref={rowMenuRef}
@@ -461,25 +418,15 @@ export default function UsersTable() {
             left: dropdownPosition.left,
             zIndex: 9999,
           }}
-          className="w-48 bg-white rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-200 overflow-hidden"
+          className="w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
         >
           <div className="py-2 flex flex-col">
-            {/* Status Toggle */}
-            {users.find(u => u.id === activeDropdown)?.isActive ? (
-              <MenuItem 
-                icon={<DeactivateIcon className="w-4 h-4" />} 
-                label="Deactivate Account" 
-                onClick={() => handleToggleActive(activeDropdown, true)}
-              />
+            {users.find((u) => u.id === activeDropdown)?.isActive ? (
+              <MenuItem icon={<DeactivateIcon className="w-4 h-4" />} label="Deactivate Account" onClick={() => handleToggleActive(activeDropdown, true)} />
             ) : (
-              <MenuItem 
-                icon={<ActivateIcon className="w-4 h-4" />} 
-                label="Activate Account" 
-                onClick={() => handleToggleActive(activeDropdown, false)}
-                variant="success"
-              />
+              <MenuItem icon={<ActivateIcon className="w-4 h-4" />} label="Activate Account" onClick={() => handleToggleActive(activeDropdown, false)} variant="success" />
             )}
-            <div className="border-t border-gray-100 my-1" />
+            <div className="my-1 border-t border-gray-100" />
             <MenuItem
               icon={<DeleteIcon className="w-4 h-4" />}
               label="Delete User"
@@ -494,11 +441,7 @@ export default function UsersTable() {
         </div>
       )}
 
-      <AddUserModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onSuccess={handleUserCreated}
-      />
+      <AddUserModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={handleUserCreated} />
 
       <ConfirmModal
         isOpen={!!deleteTarget}
@@ -514,26 +457,82 @@ export default function UsersTable() {
   )
 }
 
-// --- HELPER COMPONENTS ---
-
-function StatSection({
+function StatCard({
   label,
   value,
+  helper,
   icon,
+  iconBg,
+  progress,
+  progressClassName,
 }: {
   label: string
   value: number
+  helper: string
   icon: React.ReactNode
+  iconBg: string
+  progress?: number
+  progressClassName?: string
+}) {
+  const clampedProgress = typeof progress === 'number' ? Math.min(100, Math.max(0, progress)) : undefined
+
+  return (
+    <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold tracking-wider uppercase text-gray-500">{label}</p>
+          <p className="mt-1 text-3xl font-black leading-tight text-gray-900">{value > 0 ? value : '--'}</p>
+          <p className="mt-1 text-xs text-gray-500">{helper}</p>
+        </div>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconBg}`}>{icon}</div>
+      </div>
+      {typeof clampedProgress === 'number' && (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
+          <div
+            className={`h-full rounded-full ${progressClassName ?? 'bg-gray-700'}`}
+            style={{ width: `${clampedProgress}%` }}
+          />
+        </div>
+      )}
+    </article>
+  )
+}
+
+function DropdownMenu({
+  menuRef,
+  items,
+  selected,
+  onSelect,
+  wide,
+}: {
+  menuRef: React.RefObject<HTMLDivElement>
+  items: { value: string; label: string }[]
+  selected: string
+  onSelect: (value: string) => void
+  wide?: boolean
 }) {
   return (
-    <div className="flex-1 flex items-center justify-between p-6 hover:bg-gray-50/50 transition-colors">
-      <div>
-        <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase mb-1">{label}</p>
-        <p className="text-3xl font-black text-gray-900 leading-tight">{value > 0 ? value : '--'}</p>
-      </div>
-      <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm">
-        {icon}
-      </div>
+    <div
+      ref={menuRef}
+      className={`absolute right-0 top-full z-50 mt-1.5 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg ${
+        wide ? 'w-[120%]' : 'w-full'
+      }`}
+    >
+      {items.map((opt) => {
+        const isSelected = opt.value === selected
+        return (
+          <button
+            key={opt.value}
+            onClick={() => onSelect(opt.value)}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+              isSelected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'
+            }`}
+          >
+            <span className="truncate">{opt.label}</span>
+            {isSelected && <CheckIcon className="w-4 h-4" />}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -550,14 +549,14 @@ function MenuItem({
   onClick?: () => void
 }) {
   const textColor =
-    variant === 'danger' 
-      ? 'text-red-600 hover:bg-red-50' 
-      : variant === 'success' 
-      ? 'text-emerald-600 hover:bg-emerald-50' 
-      : 'text-gray-700 hover:bg-gray-50'
-      
+    variant === 'danger'
+      ? 'text-red-600 hover:bg-red-50'
+      : variant === 'success'
+        ? 'text-emerald-600 hover:bg-emerald-50'
+        : 'text-gray-700 hover:bg-gray-50'
+
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-3 transition-colors ${textColor}`}
     >
@@ -588,64 +587,79 @@ function StatusBadge({ status }: { status: AccountStatus }) {
     <span
       className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${cls}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full mr-2 ${dotCls}`} />
+      <span className={`mr-2 h-1.5 w-1.5 rounded-full ${dotCls}`} />
       {label}
     </span>
   )
 }
 
-/* ----- Icons ----- */
+function SpinnerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" className="opacity-20" stroke="currentColor" strokeWidth="3" />
+      <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
 
-function SearchIcon({ className = "w-4 h-4" }: { className?: string }) {
+function SearchIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
   )
 }
-function ChevronDownIcon({ className = "w-4 h-4 text-gray-400" }: { className?: string }) {
+function ChevronDownIcon({ className = 'w-4 h-4 text-gray-400' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
     </svg>
   )
 }
-function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
+function CheckIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
     </svg>
   )
 }
-function UsersMenuIcon({ className = "w-4 h-4 text-gray-400" }: { className?: string }) {
+function UsersMenuIcon({ className = 'w-4 h-4 text-gray-400' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   )
 }
-function CheckCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
+function CheckCircleIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
 }
-function ActivateIcon({ className = "w-4 h-4" }: { className?: string }) {
+function ClockIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 22a10 10 0 110-20 10 10 0 010 20z" />
+    </svg>
+  )
+}
+function ActivateIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
 }
-function DeactivateIcon({ className = "w-4 h-4" }: { className?: string }) {
+function DeactivateIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
     </svg>
   )
 }
-function DeleteIcon({ className = "w-4 h-4" }: { className?: string }) {
+function DeleteIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />

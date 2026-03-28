@@ -16,58 +16,101 @@ export default function HouseholdStats({
   const claimed = counts?.claimed ?? 0
   const notClaimed = counts?.notClaimed ?? 0
   const withClaimHistory = counts?.withClaimHistory ?? 0
+  const claimRate = total > 0 ? Math.round((claimed / total) * 100) : 0
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <StatCard 
-        label="Total Households" 
-        value={total} 
-        icon={<UsersIcon className="w-5 h-5" />} 
-        accent="text-blue-600 bg-blue-50" 
-      />
-      <StatCard 
-        label="Claimed Subsidies" 
-        value={claimed} 
-        icon={<CheckCircleIcon className="w-5 h-5" />} 
-        accent="text-emerald-600 bg-emerald-50" 
-      />
-      <StatCard 
-        label="Pending / Unclaimed" 
-        value={notClaimed} 
-        icon={<HourglassIcon className="w-5 h-5" />} 
-        accent="text-[#D97706] bg-amber-50" 
-      />
-      <StatCard 
-        label="With Claim History" 
-        value={withClaimHistory} 
-        icon={<HistoryIcon className="w-5 h-5" />} 
-        accent="text-slate-600 bg-slate-100" 
-      />
-    </div>
+    <section className="mb-6 rounded-3xl border border-gray-200 bg-gradient-to-br from-white via-white to-sky-50/40 p-4 sm:p-6 shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.16em] uppercase text-gray-500">Household Overview</p>
+          <h2 className="mt-1 text-xl sm:text-2xl font-black text-gray-900 leading-tight">Population Assistance Snapshot</h2>
+        </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2.5">
+          <p className="text-[11px] font-bold tracking-wider uppercase text-emerald-700">Claim Rate</p>
+          <p className="text-2xl font-black text-emerald-800 leading-tight">{claimRate}%</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <StatCard
+          label="Total Households"
+          value={total}
+          helper="Registered records"
+          icon={<UsersIcon className="w-5 h-5" />}
+          accent="text-blue-700 bg-blue-100"
+        />
+        <StatCard
+          label="Claimed Subsidies"
+          value={claimed}
+          helper="Ready for next cycle"
+          icon={<CheckCircleIcon className="w-5 h-5" />}
+          accent="text-emerald-700 bg-emerald-100"
+          progress={claimRate}
+          progressColor="bg-emerald-500"
+        />
+        <StatCard
+          label="Pending / Unclaimed"
+          value={notClaimed}
+          helper="Needs follow-up"
+          icon={<HourglassIcon className="w-5 h-5" />}
+          accent="text-amber-700 bg-amber-100"
+          progress={100 - claimRate}
+          progressColor="bg-amber-500"
+        />
+        <StatCard
+          label="With Claim History"
+          value={withClaimHistory}
+          helper="Previously assisted"
+          icon={<HistoryIcon className="w-5 h-5" />}
+          accent="text-slate-700 bg-slate-200"
+        />
+      </div>
+    </section>
   )
 }
 
 function StatCard({ 
   label, 
   value, 
+  helper,
   icon, 
-  accent 
+  accent,
+  progress,
+  progressColor,
 }: { 
-  label: string, 
-  value: number, 
-  icon: React.ReactNode, 
-  accent: string 
+  label: string
+  value: number
+  helper: string
+  icon: React.ReactNode
+  accent: string
+  progress?: number
+  progressColor?: string
 }) {
+  const clampedProgress = typeof progress === 'number'
+    ? Math.min(100, Math.max(0, progress))
+    : undefined
+
   return (
-    <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-5 flex items-center justify-between transition-shadow hover:shadow-md">
-       <div>
-         <p className="text-xs font-bold tracking-wider text-gray-500 uppercase mb-1">{label}</p>
-         <h3 className="text-3xl font-black text-gray-900">{value > 0 ? value : '--'}</h3>
-       </div>
-       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${accent}`}>
-         {icon}
-       </div>
-    </div>
+    <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase">{label}</p>
+          <h3 className="mt-1 text-3xl font-black text-gray-900 leading-tight">{value > 0 ? value : '--'}</h3>
+          <p className="mt-1 text-xs text-gray-500">{helper}</p>
+        </div>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${accent}`}>
+          {icon}
+        </div>
+      </div>
+      {typeof clampedProgress === 'number' && (
+        <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className={`h-full rounded-full ${progressColor ?? 'bg-gray-700'}`}
+            style={{ width: `${clampedProgress}%` }}
+          />
+        </div>
+      )}
+    </article>
   )
 }
 

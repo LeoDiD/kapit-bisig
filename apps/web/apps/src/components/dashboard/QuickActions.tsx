@@ -27,15 +27,15 @@ const actions: QuickAction[] = [
 
 export default function QuickActions() {
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100 h-full flex flex-col">
+    <div className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100">
       <h3 className="text-base font-bold text-gray-800 mb-3">Quick Actions</h3>
 
-      <div className="grid grid-cols-2 gap-3 flex-1 content-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-3">
         {actions.map((action, index) => (
           <Link
             key={index}
             href={action.href}
-            className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-gray-100 hover:border-green-500 hover:bg-green-50 transition-all group"
+            className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-gray-100 hover:border-green-500 hover:bg-green-50 transition-all group min-h-[120px]"
           >
             <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-green-100 flex items-center justify-center text-gray-500 group-hover:text-green-600 transition-colors">
               {action.icon}

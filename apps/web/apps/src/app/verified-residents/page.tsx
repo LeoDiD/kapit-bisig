@@ -87,6 +87,15 @@ export default function VerifiedResidentsPage() {
     () => rows.filter((r) => r.verification?.aiVerificationStatus === 'High Match').length,
     [rows],
   )
+  const verifiedLast7Days = useMemo(() => {
+    const now = Date.now()
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000
+    return rows.filter((r) => {
+      if (!r.createdAt) return false
+      const t = new Date(r.createdAt).getTime()
+      return Number.isFinite(t) && now - t <= sevenDaysMs
+    }).length
+  }, [rows])
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(rows.length / PAGE_SIZE)),
     [rows.length, PAGE_SIZE],
@@ -109,85 +118,108 @@ export default function VerifiedResidentsPage() {
         subtitle="All approved resident registrations"
       />
 
-      {/* Top Metrics Ribbon */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl mb-6 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 overflow-hidden">
-        <StatSection 
-          label="Total Verified" 
-          value={rows.length} 
-          icon={<CheckCircleIcon className="w-5 h-5 text-emerald-600" />} 
-        />
-        <StatSection 
-          label="Barangays Rep." 
-          value={uniqueBarangayCount} 
-          icon={<MapIcon className="w-5 h-5 text-sky-600" />} 
-        />
-        <StatSection 
-          label="High AI Match" 
-          value={withHighMatch} 
-          icon={<SparklesIcon className="w-5 h-5 text-violet-600" />} 
-        />
-      </div>
-
-      {/* Unified Table Container */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl flex flex-col overflow-hidden mb-12">
-        {/* Integrated Toolbar */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50/40 flex flex-col lg:flex-row gap-4 justify-between items-center">
-          
-          <div className="flex items-center gap-3 w-full lg:w-auto">
-             <div className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200 flex items-center gap-2">
-                <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                Resident inputs masked for data privacy
-             </div>
+      <section className="mb-6 rounded-3xl border border-gray-200 bg-gradient-to-br from-white via-white to-gray-50 p-4 sm:p-6 shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.16em] uppercase text-gray-500">Verification Overview</p>
+            <h2 className="mt-1 text-xl sm:text-2xl font-black text-gray-900 leading-tight">Approved Resident Verification Snapshot</h2>
           </div>
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2.5">
+            <p className="text-[11px] font-bold tracking-wider uppercase text-blue-700">Verified Last 7 Days</p>
+            <p className="text-2xl font-black text-blue-800 leading-tight">
+              {verifiedLast7Days}
+            </p>
+            <p className="text-[11px] font-semibold text-blue-700/80">
+              {rows.length > 0 ? `${Math.round((verifiedLast7Days / rows.length) * 100)}% of total verified` : 'No verified records yet'}
+            </p>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-3 w-full lg:w-auto">
-            {/* Filters */}
-            <div className="w-full lg:w-[220px]">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <StatCard
+            label="Total Verified"
+            value={rows.length}
+            helper="Approved registrations"
+            icon={<CheckCircleIcon className="h-5 w-5 text-emerald-700" />}
+            iconBg="bg-emerald-100"
+          />
+          <StatCard
+            label="Barangays Represented"
+            value={uniqueBarangayCount}
+            helper="Covered barangays"
+            icon={<MapIcon className="h-5 w-5 text-sky-700" />}
+            iconBg="bg-sky-100"
+          />
+          <StatCard
+            label="High AI Match"
+            value={withHighMatch}
+            helper="Strong confidence records"
+            icon={<SparklesIcon className="h-5 w-5 text-violet-700" />}
+            iconBg="bg-violet-100"
+          />
+        </div>
+      </section>
+
+      <section className="mb-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+        <div className="border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500">Verified Directory</p>
+              <p className="mt-1 text-sm text-gray-700">
+                {fetching ? 'Loading verified residents...' : `${rows.length} verified resident(s)`}
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+              <LockIcon className="w-4 h-4" />
+              Resident inputs masked for privacy
+            </div>
+          </div>
+        </div>
+
+        <div className="border-b border-gray-100 bg-gray-50/60 p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full sm:w-[260px]">
               <FilterDropdown
                 value={barangay}
                 onChange={(v) => setBarangay(v)}
                 options={barangayOptions.map((item) => ({ value: item, label: item }))}
               />
             </div>
-            
-            {/* Refresh */}
             <button
               onClick={fetchResidents}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-colors whitespace-nowrap lg:mt-0"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <RefreshIcon className="w-4 h-4" />
               Refresh
             </button>
           </div>
         </div>
 
-        {/* Table Content */}
         <div className="overflow-x-auto w-full">
           {error ? (
-             <div className="p-8 text-center text-red-600 font-semibold text-sm">
-               {error}
-             </div>
+            <div className="p-10 text-center">
+              <p className="text-sm font-semibold text-red-600">{error}</p>
+            </div>
           ) : (
-            <table className="w-full text-left border-collapse table-fixed min-w-[1000px] lg:min-w-0">
-              <thead className="bg-white border-b border-gray-200 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+            <table className="w-full min-w-[980px] border-collapse text-left">
+              <thead className="bg-white border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-4 w-[20%]">Name</th>
-                  <th className="px-6 py-4 w-[15%]">Mobile</th>
-                  <th className="px-6 py-4 w-[15%]">Barangay</th>
-                  <th className="px-6 py-4 w-[20%]">AI Match</th>
-                  <th className="px-6 py-4 w-[15%]">Submitted</th>
-                  <th className="px-6 py-4 w-[15%] text-right pr-6">Status</th>
+                  <th className="px-6 py-4">Name</th>
+                  <th className="px-6 py-4">Mobile</th>
+                  <th className="px-6 py-4">Barangay</th>
+                  <th className="px-6 py-4">AI Match</th>
+                  <th className="px-6 py-4">Submitted</th>
+                  <th className="px-6 py-4 text-right pr-6">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white text-sm">
                 {fetching ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-16 text-center">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+                      <div className="inline-flex flex-col items-center">
+                        <SpinnerIcon className="h-8 w-8 text-gray-700" />
+                        <span className="mt-2 text-xs font-medium text-gray-500">Fetching verified residents...</span>
+                      </div>
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
@@ -200,7 +232,7 @@ export default function VerifiedResidentsPage() {
                   pagedRows.map((r) => {
                     const id = r._id || r.id || ''
                     return (
-                      <tr key={id} className="hover:bg-blue-50/30 transition-colors group">
+                      <tr key={id} className="hover:bg-gray-50/70 transition-colors group">
                         <td className="px-6 py-4 font-bold text-gray-900 whitespace-normal break-words">{maskResidentName(r)}</td>
                         <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal break-words">{maskMobileNumber(r.mobileNumber)}</td>
                         <td className="px-6 py-4 text-gray-600 font-medium">{r.barangay}</td>
@@ -222,7 +254,6 @@ export default function VerifiedResidentsPage() {
           )}
         </div>
 
-        {/* Integrated Pagination Footer */}
         {rows.length > 0 && !fetching && !error && (
           <div className="bg-gray-50/50 border-t border-gray-100 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs font-bold text-gray-500 tracking-wide uppercase">
@@ -262,32 +293,62 @@ export default function VerifiedResidentsPage() {
             </div>
           </div>
         )}
-      </div>
+      </section>
     </DashboardLayout>
   )
 }
 
-// --- HELPER COMPONENTS ---
-
-function StatSection({
+function StatCard({
   label,
   value,
+  helper,
   icon,
+  iconBg,
 }: {
   label: string
   value: number
+  helper: string
   icon: React.ReactNode
+  iconBg: string
 }) {
   return (
-    <div className="flex-1 flex items-center justify-between p-6 hover:bg-gray-50/50 transition-colors">
-      <div>
-        <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase mb-1">{label}</p>
-        <p className="text-3xl font-black text-gray-900 leading-tight">{value > 0 ? value : '--'}</p>
+    <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase mb-1">{label}</p>
+          <p className="text-3xl font-black text-gray-900 leading-tight">{value > 0 ? value : '--'}</p>
+          <p className="mt-1 text-xs text-gray-500">{helper}</p>
+        </div>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconBg}`}>
+          {icon}
+        </div>
       </div>
-      <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm">
-        {icon}
-      </div>
-    </div>
+    </article>
+  )
+}
+
+function SpinnerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" className="opacity-20" stroke="currentColor" strokeWidth="3" />
+      <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function LockIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+  )
+}
+
+function RefreshIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
   )
 }
 

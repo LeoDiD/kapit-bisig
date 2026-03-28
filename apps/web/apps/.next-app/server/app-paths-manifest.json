@@ -1,5 +1,8 @@
 {
+  "/code-generation/page": "app/code-generation/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/users/page": "app/users/page.js",
-  "/distribution/page": "app/distribution/page.js"
+  "/reports/page": "app/reports/page.js",
+  "/households/page": "app/households/page.js",
+  "/distribution/page": "app/distribution/page.js",
+  "/users/page": "app/users/page.js"
 }

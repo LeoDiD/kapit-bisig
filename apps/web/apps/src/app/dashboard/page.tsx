@@ -42,7 +42,6 @@ const INITIAL_STATS: DashboardStats = {
 
 function computeWeeklyClaims(monthlyTrends: Array<{ month: string; claimed: number }>) {
   const now = new Date()
-  const counts: Record<string, number> = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 }
   const currentMonth = now.toLocaleDateString('en-US', { month: 'short' })
   const monthRow = monthlyTrends.find((row) => row.month === currentMonth)
   const monthClaimed = monthRow?.claimed ?? 0
@@ -103,6 +102,19 @@ export default function DashboardPage() {
 
   const monthlyTrends = useMemo(() => reportData?.monthlyTrends ?? [], [reportData])
   const barangayBreakdown = useMemo(() => reportData?.barangayBreakdown ?? [], [reportData])
+  const coverageRate = useMemo(
+    () => (stats.totalRegistered > 0 ? Math.round((stats.totalClaimed / stats.totalRegistered) * 100) : 0),
+    [stats.totalClaimed, stats.totalRegistered]
+  )
+  const priorityTag = useMemo(() => {
+    if (stats.totalUnclaimed >= 100) return 'High Priority'
+    if (stats.totalUnclaimed > 0) return 'Moderate Priority'
+    return 'Stable'
+  }, [stats.totalUnclaimed])
+  const currentPeriod = useMemo(
+    () => new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    []
+  )
 
   return (
     <DashboardLayout>
@@ -111,80 +123,110 @@ export default function DashboardPage() {
         subtitle="Overview of relief distribution activities"
       />
 
-      {/* ─── Stats Cards ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatsCard
-          title="Total Households"
-          value={loading ? '...' : stats.totalHouseholds.toLocaleString()}
-          variant="blue"
-          icon={<HouseholdIcon className="w-5 h-5" />}
-          subtitle="Registered households"
-        />
-        <StatsCard
-          title="Pending Distributions"
-          value={loading ? '...' : stats.pendingDistributions.toLocaleString()}
-          variant="yellow"
-          icon={<PendingIcon className="w-5 h-5" />}
-          trend={stats.pendingDistributions > 0 ? 'up' : 'neutral'}
-        />
-        <StatsCard
-          title="Completed Today"
-          value={loading ? '...' : stats.completedToday.toLocaleString()}
-          variant="green"
-          icon={<CompletedIcon className="w-5 h-5" />}
-          trend={stats.completedToday > 0 ? 'up' : 'neutral'}
-        />
-        <StatsCard
-          title="Claim Rate"
-          value={loading ? '...' : `${stats.claimRate.toFixed(1)}%`}
-          variant="orange"
-          icon={<ChartIcon className="w-5 h-5" />}
-          trend={stats.claimRate >= 70 ? 'up' : stats.claimRate > 0 ? 'down' : 'neutral'}
-          subtitle={`${stats.totalClaimed} of ${stats.totalRegistered} households`}
-        />
-      </div>
+      <section className="mb-6 rounded-3xl border border-gray-200 bg-gradient-to-br from-white via-white to-slate-50 p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.16em] uppercase text-gray-500">LGU Executive Briefing</p>
+            <h2 className="mt-1 text-xl sm:text-2xl font-black text-gray-900 leading-tight">Relief Distribution Command Center</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Reporting period: <span className="font-semibold text-gray-800">{currentPeriod}</span>
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+              priorityTag === 'High Priority'
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : priorityTag === 'Moderate Priority'
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            }`}>
+              {priorityTag}
+            </span>
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700">
+              Coverage {coverageRate}%
+            </span>
+          </div>
+        </div>
 
-      {/* ─── Charts Row ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
-        <div className="lg:col-span-3">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatsCard
+            title="Total Households"
+            value={loading ? '...' : stats.totalHouseholds.toLocaleString()}
+            variant="blue"
+            icon={<HouseholdIcon className="w-5 h-5" />}
+            subtitle="Registered households"
+          />
+          <StatsCard
+            title="Pending Distributions"
+            value={loading ? '...' : stats.pendingDistributions.toLocaleString()}
+            variant="yellow"
+            icon={<PendingIcon className="w-5 h-5" />}
+            trend={stats.pendingDistributions > 0 ? 'up' : 'neutral'}
+          />
+          <StatsCard
+            title="Completed Today"
+            value={loading ? '...' : stats.completedToday.toLocaleString()}
+            variant="green"
+            icon={<CompletedIcon className="w-5 h-5" />}
+            trend={stats.completedToday > 0 ? 'up' : 'neutral'}
+          />
+          <StatsCard
+            title="Claim Rate"
+            value={loading ? '...' : `${stats.claimRate.toFixed(1)}%`}
+            variant="orange"
+            icon={<ChartIcon className="w-5 h-5" />}
+            trend={stats.claimRate >= 70 ? 'up' : stats.claimRate > 0 ? 'down' : 'neutral'}
+            subtitle={`${stats.totalClaimed} of ${stats.totalRegistered} households`}
+          />
+        </div>
+      </section>
+
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-8">
           <DistributionTrendsChart data={monthlyTrends} loading={loading} />
         </div>
-        <div className="lg:col-span-2">
-          <WeeklyClaimChart data={weeklyData} loading={loading} />
+        <div className="lg:col-span-4">
+          <LowStockAlert
+            pendingWrites={stats.pendingWrites}
+            pendingDistributions={stats.pendingDistributions}
+            unclaimedHouseholds={stats.totalUnclaimed}
+            loading={loading}
+          />
         </div>
       </div>
 
-      {/* ─── Bottom 3-Column Grid ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <BarangayDistributionChart data={barangayBreakdown} loading={loading} />
-        <LowStockAlert
-          pendingWrites={stats.pendingWrites}
-          pendingDistributions={stats.pendingDistributions}
-          unclaimedHouseholds={stats.totalUnclaimed}
-          loading={loading}
-        />
-        <SmartInsights
-          totalDistributions={stats.totalDistributions}
-          claimRate={stats.claimRate}
-          totalRegistered={stats.totalRegistered}
-          totalClaimed={stats.totalClaimed}
-          totalUnclaimed={stats.totalUnclaimed}
-          barangayBreakdown={barangayBreakdown}
-          verificationMethods={reportData?.verificationMethods}
-          loading={loading}
-        />
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <WeeklyClaimChart data={weeklyData} loading={loading} />
+        </div>
+        <div className="lg:col-span-8">
+          <BarangayDistributionChart data={barangayBreakdown} loading={loading} />
+        </div>
       </div>
 
-      {/* ─── Bottom Row ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RecentDistributions />
-        <QuickActions />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <SmartInsights
+            totalDistributions={stats.totalDistributions}
+            claimRate={stats.claimRate}
+            totalRegistered={stats.totalRegistered}
+            totalClaimed={stats.totalClaimed}
+            totalUnclaimed={stats.totalUnclaimed}
+            barangayBreakdown={barangayBreakdown}
+            verificationMethods={reportData?.verificationMethods}
+            loading={loading}
+          />
+        </div>
+        <div className="lg:col-span-4">
+          <QuickActions />
+        </div>
+        <div className="lg:col-span-4">
+          <RecentDistributions />
+        </div>
       </div>
     </DashboardLayout>
   )
 }
-
-// ─── Icon Components ───
 
 function HouseholdIcon({ className }: { className?: string }) {
   return (
@@ -217,4 +259,3 @@ function ChartIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-

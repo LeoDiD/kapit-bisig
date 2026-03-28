@@ -58,21 +58,14 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-r border-slate-200 dark:border-slate-800 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] z-40 transition-colors">
-      
-      {/* Ambient glassmorphic glow (Brand Colors) */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -left-16 w-64 h-64 bg-[#004A1C] rounded-full blur-[70px] opacity-[0.05]" />
-        <div className="absolute top-1/2 -right-20 w-56 h-56 bg-[#ECC323] rounded-full blur-[80px] opacity-[0.05]" />
-        <div className="absolute -bottom-32 -left-16 w-64 h-64 bg-[#004A1C] rounded-full blur-[70px] opacity-[0.03]" />
-      </div>
+    <Sidebar className="bg-white border-r border-slate-200 dark:border-slate-800 dark:bg-slate-900 z-40 transition-colors">
 
       <button
         type="button"
         onClick={toggleSidebar}
         aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
         title={open ? 'Collapse sidebar' : 'Expand sidebar'}
-        className="absolute right-0 top-6 z-50 inline-flex h-6 w-6 translate-x-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 shadow-sm transition-all duration-300 hover:text-[#004A1C] dark:hover:text-[#ECC323] hover:border-[#ECC323] hover:shadow-[0_0_12px_rgba(236,195,35,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ECC323]/50 hover:scale-110"
+        className="absolute right-0 top-6 z-50 inline-flex h-6 w-6 translate-x-[30%] cursor-pointer items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 shadow-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
       >
         {open ? <ChevronLeft className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
       </button>
@@ -235,7 +228,7 @@ function NavItem({
       className={cn(
         'group relative flex items-center rounded-xl py-2.5 pr-2 mb-1 transition-all duration-300 ease-out overflow-hidden',
         isActive 
-          ? 'bg-gradient-to-r from-[#004A1C]/[0.08] dark:from-[#ECC323]/[0.15] to-transparent font-semibold text-[#004A1C] dark:text-[#ECC323]' 
+          ? 'bg-slate-100 dark:bg-slate-800 font-semibold text-[#004A1C] dark:text-[#ECC323]'
           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-[#004A1C] dark:hover:text-[#ECC323]'
       )}
     >
