@@ -11,50 +11,95 @@ export default function DistributionStats({
   householdsServed: number
   barangays: number
 }) {
+  const total = claimed + unclaimed
+  const claimRate = total > 0 ? Math.round((claimed / total) * 100) : 0
+  const unclaimedRate = total > 0 ? Math.round((unclaimed / total) * 100) : 0
+
   return (
-    <div className="bg-white border border-gray-200 shadow-sm rounded-2xl mb-6 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 overflow-hidden">
-      <StatSection 
-        label="Total Barangays" 
-        value={barangays} 
-        icon={<PinIcon className="w-5 h-5 text-gray-500" />} 
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <StatCard
+        label="Total Barangays"
+        value={barangays}
+        icon={<PinIcon className="w-5 h-5" />}
+        iconBg="bg-blue-50 text-blue-600"
+        accentColor="border-blue-400"
+        subtext="covered areas"
       />
-      <StatSection 
-        label="Households Served" 
-        value={householdsServed} 
-        icon={<UsersIcon className="w-5 h-5 text-blue-600" />} 
+      <StatCard
+        label="Households Served"
+        value={householdsServed}
+        icon={<UsersIcon className="w-5 h-5" />}
+        iconBg="bg-indigo-50 text-indigo-600"
+        accentColor="border-indigo-400"
+        subtext="total beneficiaries"
       />
-      <StatSection 
-        label="Claimed Subsidies" 
-        value={claimed} 
-        icon={<CheckCircleIcon className="w-5 h-5 text-emerald-600" />} 
+      <StatCard
+        label="Claimed Subsidies"
+        value={claimed}
+        icon={<CheckCircleIcon className="w-5 h-5" />}
+        iconBg="bg-emerald-50 text-emerald-600"
+        accentColor="border-emerald-400"
+        subtext={`${claimRate}% claim rate`}
+        progress={claimRate}
+        progressColor="bg-emerald-500"
       />
-      <StatSection 
-        label="Unclaimed / Pending" 
-        value={unclaimed} 
-        icon={<ClockIcon className="w-5 h-5 text-amber-500" />} 
+      <StatCard
+        label="Unclaimed / Pending"
+        value={unclaimed}
+        icon={<ClockIcon className="w-5 h-5" />}
+        iconBg="bg-amber-50 text-amber-600"
+        accentColor="border-amber-400"
+        subtext={total > 0 ? `${unclaimedRate}% still pending` : 'no distributions'}
+        progress={total > 0 ? unclaimedRate : 0}
+        progressColor="bg-amber-400"
       />
     </div>
   )
 }
 
-function StatSection({
+function StatCard({
   label,
   value,
   icon,
+  iconBg,
+  accentColor,
+  subtext,
+  progress,
+  progressColor,
 }: {
   label: string
   value: number
   icon: React.ReactNode
+  iconBg: string
+  accentColor: string
+  subtext?: string
+  progress?: number
+  progressColor?: string
 }) {
   return (
-    <div className="flex-1 flex items-center justify-between p-6 hover:bg-gray-50/50 transition-colors">
+    <div className={`bg-white rounded-2xl border-t-4 ${accentColor} border-x border-b border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow`}>
+      <div className="flex items-start justify-between">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBg}`}>
+          {icon}
+        </div>
+        <span className="text-3xl font-black text-gray-900 leading-none">
+          {value > 0 ? value : '--'}
+        </span>
+      </div>
       <div>
-        <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase mb-1">{label}</p>
-        <p className="text-3xl font-black text-gray-900 leading-tight">{value > 0 ? value : '--'}</p>
+        <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase">{label}</p>
+        {subtext && (
+          <p className="text-xs text-gray-400 mt-0.5">{subtext}</p>
+        )}
       </div>
-      <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm">
-        {icon}
-      </div>
+      {progress !== undefined && progressColor && (
+        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full ${progressColor} transition-all duration-500`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
     </div>
   )
 }
