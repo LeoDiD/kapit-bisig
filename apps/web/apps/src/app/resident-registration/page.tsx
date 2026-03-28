@@ -9,16 +9,11 @@ import { showToast } from '@/lib/toast'
 import FilterDropdown from '@/components/ui/FilterDropdown'
 import { AiMatchBadge, ResidentStatusBadge } from '@/components/residents/ResidentTableBadges'
 
-function maskResidentName(record: ResidentRecord): string {
+function getResidentName(record: ResidentRecord): string {
   const raw =
     record.fullName?.trim() ||
     `${record.firstName || ''} ${record.lastName || ''}`.trim()
-  if (!raw) return 'Uxxxx Uxxxx'
-
-  const parts = raw.split(/\s+/).filter(Boolean)
-  const firstInitial = (parts[0]?.[0] || 'U').toUpperCase()
-  const lastInitial = (parts.length > 1 ? parts[parts.length - 1]?.[0] : parts[0]?.[0] || 'U').toUpperCase()
-  return `${firstInitial}xxxx ${lastInitial}xxxx`
+  return raw || 'Unknown Resident'
 }
 
 function maskMobileNumber(_mobile: string | undefined): string {
@@ -258,71 +253,107 @@ export default function ResidentRegistrationPage() {
         subtitle="Pending registration requests from mobile app with approval actions"
       />
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Data Privacy: Resident personally identifiable information is masked in this table.
+      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl flex flex-col overflow-hidden mb-12">
+        {/* Integrated Toolbar */}
+        <div className="p-4 border-b border-gray-100 bg-gray-50/40 flex flex-col lg:flex-row gap-4 justify-between items-center">
+          
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            {/* Action Group when selected */}
+            {selectedPendingIds.length > 0 ? (
+              <div className="flex items-center bg-blue-50/80 px-3 py-1.5 rounded-lg border border-blue-100">
+                <span className="text-sm font-bold text-blue-800 mr-3">
+                  {selectedPendingIds.length} Selected
+                </span>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => onApprove(selectedPendingIds[0])} // it determines bulk mode inside
+                  className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 rounded-lg transition-colors mr-2 disabled:opacity-50 shadow-sm"
+                >
+                  Approve Selected
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => onReject(selectedPendingIds[0])}
+                  className="px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-lg transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  Reject Selected
+                </button>
+              </div>
+            ) : (
+              <div className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200 flex items-center gap-2">
+                <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Mobile numbers masked for data privacy
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            {/* Filters */}
+            <div className="w-full lg:w-[200px]">
+              <FilterDropdown
+                value={barangay}
+                onChange={(v) => setBarangay(v)}
+                options={barangayOptions.map((item) => ({ value: item, label: item }))}
+              />
+            </div>
+            
+            {/* Refresh */}
+            <button
+              onClick={fetchResidents}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-colors whitespace-nowrap"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+          </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <FilterDropdown
-            value={barangay}
-            onChange={(v) => setBarangay(v)}
-            options={barangayOptions.map((item) => ({ value: item, label: item }))}
-          />
-          <button
-            type="button"
-            onClick={fetchResidents}
-            className="rounded-xl bg-[#226538] px-4 py-2 text-sm font-semibold text-white shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition-colors hover:bg-[#1a4f2b]"
-          >
-            Refresh
-          </button>
-        </div>
-
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-sm text-gray-600">
-            Selected pending registrations: <span className="font-semibold">{selectedPendingIds.length}</span>
-          </p>
-          <span className="text-xs text-gray-500">Use row Approve/Reject to apply selected items.</span>
-        </div>
-
-        {error ? (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-        ) : null}
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-left border-collapse table-fixed min-w-[980px] lg:min-w-0">
-              <thead className="bg-gray-50 text-gray-500 text-sm">
+        {/* Table Content */}
+        <div className="overflow-x-auto w-full">
+          {error ? (
+            <div className="p-8 text-center text-red-600 font-semibold text-sm">
+              {error}
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse table-fixed min-w-[1000px] lg:min-w-0">
+              <thead className="bg-white border-b border-gray-200 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3 font-medium w-[6%]">
+                  <th className="px-6 py-4 w-[5%]">
                     <input
                       type="checkbox"
                       checked={allPendingSelected}
                       disabled={pendingIds.length === 0 || bulkBusy}
                       onChange={(e) => toggleSelectAllPending(e.target.checked)}
                       aria-label="Select all pending registrations"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
                     />
                   </th>
-                  <th className="px-4 py-3 font-medium w-[18%]">Name</th>
-                  <th className="px-4 py-3 font-medium w-[14%]">Mobile</th>
-                  <th className="px-4 py-3 font-medium w-[14%]">Barangay</th>
-                  <th className="px-4 py-3 font-medium w-[18%]">AI Match</th>
-                  <th className="px-4 py-3 font-medium w-[18%]">Submitted</th>
-                  <th className="px-4 py-3 font-medium w-[10%]">Status</th>
-                  <th className="px-4 py-3 font-medium w-[18%]">Action</th>
+                  <th className="px-6 py-4 w-[18%]">Name</th>
+                  <th className="px-6 py-4 w-[14%]">Mobile</th>
+                  <th className="px-6 py-4 w-[14%]">Barangay</th>
+                  <th className="px-6 py-4 w-[18%]">AI Match</th>
+                  <th className="px-6 py-4 w-[13%]">Submitted</th>
+                  <th className="px-6 py-4 w-[8%] text-center">Status</th>
+                  <th className="px-6 py-4 w-[10%] text-right pr-6">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
+              <tbody className="divide-y divide-gray-100 bg-white text-sm">
               {fetching ? (
-                <tr>
-                  <td className="px-4 py-5 text-gray-500" colSpan={8}>
-                    Loading registrations...
-                  </td>
-                </tr>
+                 <tr>
+                 <td colSpan={8} className="px-6 py-16 text-center">
+                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+                 </td>
+               </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-5 text-gray-500" colSpan={8}>
-                    No registrations found.
+                  <td className="px-6 py-16 text-center text-gray-500 font-medium" colSpan={8}>
+                    No pending resident registrations found filtering by {barangay}.
                   </td>
                 </tr>
               ) : (
@@ -331,51 +362,59 @@ export default function ResidentRegistrationPage() {
                   const isPending = r.status === 'Pending'
                   const isBusy = busyId === id || bulkBusy
                   const isSelected = selectedIds.includes(id)
+
                   return (
-                    <tr key={id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
+                    <tr key={id} className={`group border-l-[3px] transition-colors ${isSelected ? 'bg-blue-50/40 border-l-blue-500' : 'hover:bg-gray-50 border-l-transparent'}`}>
+                      <td className="px-6 py-4">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           disabled={!isPending || isBusy || !id}
                           onChange={(e) => toggleSelectRow(id, e.target.checked)}
-                          aria-label={`Select registration ${maskResidentName(r)}`}
+                          aria-label={`Select registration ${getResidentName(r)}`}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
                         />
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-800">{maskResidentName(r)}</td>
-                      <td className="px-4 py-3 text-gray-700">{maskMobileNumber(r.mobileNumber)}</td>
-                      <td className="px-4 py-3 text-gray-700">{r.barangay}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4 font-bold text-gray-900 whitespace-normal break-words">{getResidentName(r)}</td>
+                      <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal break-words">{maskMobileNumber(r.mobileNumber)}</td>
+                      <td className="px-6 py-4 text-gray-600 font-medium">{r.barangay}</td>
+                      <td className="px-6 py-4">
                         <AiMatchBadge record={r} />
                       </td>
-                      <td className="px-4 py-3 text-gray-700">
-                        {r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}
+                      <td className="px-6 py-4 text-gray-500 text-xs font-bold tracking-wide whitespace-normal">
+                        {r.createdAt ? new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4 text-center">
                         <ResidentStatusBadge status={r.status} />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4 text-right pr-6">
                         {isPending ? (
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                             <button
                               type="button"
                               disabled={isBusy}
                               onClick={() => onApprove(id)}
-                              className="rounded-xl bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-60"
+                              className="rounded-lg border-[1.5px] border-gray-200 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-400 transition-all hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 disabled:opacity-50"
+                              title="Approve"
                             >
-                              Approve
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
                             </button>
                             <button
                               type="button"
                               disabled={isBusy}
                               onClick={() => onReject(id)}
-                              className="rounded-xl bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+                              className="rounded-lg border-[1.5px] border-gray-200 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-400 transition-all hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 disabled:opacity-50"
+                              title="Reject"
                             >
-                              Reject
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
                             </button>
                           </div>
                         ) : (
-                          <span className="text-gray-500">No action</span>
+                          <span className="text-gray-400 text-xs font-bold">-</span>
                         )}
                       </td>
                     </tr>
@@ -384,9 +423,9 @@ export default function ResidentRegistrationPage() {
               )}
               </tbody>
             </table>
-          </div>
+          )}
         </div>
-      </section>
+      </div>
     </DashboardLayout>
   )
 }

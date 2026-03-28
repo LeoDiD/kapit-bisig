@@ -5,10 +5,13 @@ const { execSync } = require('child_process')
 const port = process.argv[2] || '3000'
 
 function killWindows() {
-  const output = execSync(`netstat -ano -p tcp | findstr :${port}`, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  })
+  const readNetstat = () =>
+    execSync(`netstat -ano -p tcp | findstr :${port}`, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+
+  const output = readNetstat()
 
   const pids = new Set()
   for (const line of output.split(/\r?\n/)) {
@@ -23,10 +26,22 @@ function killWindows() {
 
   for (const pid of pids) {
     try {
-      execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' })
+      // Kill process tree to avoid orphaned Next child processes keeping files locked.
+      execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' })
       console.log(`Freed port ${port} by killing PID ${pid}`)
     } catch {
       // Ignore already-dead processes.
+    }
+  }
+
+  // Wait briefly until the port is truly free before Next starts.
+  const deadline = Date.now() + 5000
+  while (Date.now() < deadline) {
+    try {
+      const current = readNetstat()
+      if (!current.includes(`:${port}`)) return
+    } catch {
+      return
     }
   }
 }
@@ -60,4 +75,3 @@ try {
 } catch {
   // No process found for this port (or missing tools). Continue silently.
 }
-

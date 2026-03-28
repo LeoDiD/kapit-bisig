@@ -236,28 +236,45 @@ export default function UsersTable() {
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)]">
-        {/* Header Actions */}
-        <div className="p-4 border-b border-gray-100 flex flex-col lg:flex-row gap-2 justify-between items-center">
-          <div className="flex flex-col md:flex-row gap-2 w-full lg:w-auto flex-1">
-            {/* Search */}
-            <div className="relative flex-1 max-w-sm">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(sanitizeAsciiText(e.target.value))}
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
-              />
-            </div>
+      {/* Top Metrics Ribbon */}
+      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl mb-6 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 overflow-hidden">
+        <StatSection 
+          label="Total Staff" 
+          value={summary.total} 
+          icon={<UsersMenuIcon className="w-5 h-5 text-gray-500" />} 
+        />
+        <StatSection 
+          label="Active Accounts" 
+          value={summary.active} 
+          icon={<CheckCircleIcon className="w-5 h-5 text-emerald-600" />} 
+        />
+        <StatSection 
+          label="Inactive / Pending" 
+          value={summary.inactive} 
+          icon={<DeactivateIcon className="w-5 h-5 text-amber-500" />} 
+        />
+      </div>
 
+      {/* Unified Table Container */}
+      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl flex flex-col overflow-hidden mb-12">
+        {/* Integrated Toolbar */}
+        <div className="p-4 border-b border-gray-100 bg-gray-50/40 flex flex-col lg:flex-row gap-4 justify-between items-center">
+          <div className="relative w-full lg:max-w-md">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+               <SearchIcon />
+            </span>
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(sanitizeAsciiText(e.target.value))}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm text-gray-800 placeholder-gray-400 shadow-sm transition-all"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 w-full lg:w-auto">
             {/* Status Filter */}
-            <div className="relative min-w-[140px]">
+            <div className="relative min-w-[150px]">
               <button
                 ref={statusButtonRef}
                 type="button"
@@ -265,18 +282,16 @@ export default function UsersTable() {
                   setBarangayDropdownOpen(false)
                   setStatusDropdownOpen(v => !v)
                 }}
-                className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors"
               >
-                <span className="text-xs">{selectedStatusLabel}</span>
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <span className="truncate">{selectedStatusLabel}</span>
+                <ChevronDownIcon />
               </button>
 
               {statusDropdownOpen && (
                 <div
                   ref={statusMenuRef}
-                  className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
+                  className="absolute right-0 top-full mt-1.5 w-full bg-white rounded-xl border border-gray-200 shadow-lg p-1.5 z-50"
                 >
                   {STATUS_OPTIONS.map(opt => {
                     const selected = opt.value === filterStatus
@@ -288,19 +303,12 @@ export default function UsersTable() {
                           setFilterStatus(opt.value)
                           setStatusDropdownOpen(false)
                         }}
-                        className={[
-                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
-                        ].join(' ')}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                          selected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'
+                        }`}
                       >
-                        <span className="w-5 flex items-center justify-center">
-                          {selected ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : null}
-                        </span>
-                        <span>{opt.label}</span>
+                        <span className="truncate">{opt.label}</span>
+                        {selected && <CheckIcon className="w-4 h-4" />}
                       </button>
                     )
                   })}
@@ -309,7 +317,7 @@ export default function UsersTable() {
             </div>
 
             {/* Barangay Filter */}
-            <div className="relative min-w-[170px]">
+            <div className="relative min-w-[180px]">
               <button
                 ref={barangayButtonRef}
                 type="button"
@@ -317,18 +325,16 @@ export default function UsersTable() {
                   setStatusDropdownOpen(false)
                   setBarangayDropdownOpen(v => !v)
                 }}
-                className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors"
               >
-                <span className="text-xs truncate">{selectedBarangayLabel}</span>
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <span className="truncate">{selectedBarangayLabel}</span>
+                <ChevronDownIcon />
               </button>
 
               {barangayDropdownOpen && (
                 <div
                   ref={barangayMenuRef}
-                  className="absolute left-0 top-full mt-2 w-full bg-white rounded-xl border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] p-1 z-50"
+                  className="absolute right-0 top-full mt-1.5 w-[120%] bg-white rounded-xl border border-gray-200 shadow-lg p-1.5 z-50 max-h-60 overflow-y-auto custom-scrollbar"
                 >
                   {BARANGAY_FILTER_OPTIONS.map(opt => {
                     const selected = opt.value === filterBarangay
@@ -340,101 +346,102 @@ export default function UsersTable() {
                           setFilterBarangay(opt.value)
                           setBarangayDropdownOpen(false)
                         }}
-                        className={[
-                          'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                          selected ? 'bg-[#EAB308] text-gray-900' : 'text-gray-700 hover:bg-gray-50',
-                        ].join(' ')}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                          selected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'
+                        }`}
                       >
-                        <span className="w-5 flex items-center justify-center">
-                          {selected ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : null}
-                        </span>
                         <span className="truncate">{opt.label}</span>
+                        {selected && <CheckIcon className="w-4 h-4" />}
                       </button>
                     )
                   })}
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Add User */}
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 bg-[#0F533A] hover:bg-[#0a3f2c] text-white px-4 py-2 rounded-xl transition-colors font-medium text-sm shadow-[0_2px_10px_rgba(0,0,0,0.10)]"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Staff
-          </button>
+            {/* Add User */}
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center justify-center whitespace-nowrap gap-2 px-5 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-colors ml-1"
+            >
+              + New Staff
+            </button>
+          </div>
         </div>
 
         {/* Table Content */}
         <div className="overflow-x-auto w-full">
           {isLoading ? (
-            <TableSkeleton rows={6} columns={5} />
+            <div className="p-16 flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+            </div>
           ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-red-500 mb-4">{error}</p>
+            <div className="text-center p-16">
+              <p className="font-semibold text-lg text-red-600 mb-4">{error}</p>
               <button 
                 onClick={fetchUsers}
-                className="px-4 py-2 bg-[#0F533A] text-white rounded-xl hover:bg-[#0a3f2c]"
+                className="px-5 py-2.5 bg-gray-900 text-white font-bold text-sm rounded-xl hover:bg-gray-800"
               >
-                Retry
+                Retry Request
               </button>
             </div>
           ) : (
             <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
-              <thead className="bg-gray-50 text-gray-500 text-sm">
+              <thead className="bg-white border-b border-gray-200 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3 font-medium w-[25%]">Name</th>
-                  <th className="px-4 py-3 font-medium w-[30%]">Email</th>
-                  <th className="px-4 py-3 font-medium w-[10%]">Status</th>
-                  <th className="px-4 py-3 font-medium w-[18%]">Created</th>
-                  <th className="px-4 py-3 font-medium text-right w-[17%]"></th>
+                  <th className="px-6 py-4 w-[30%]">Staff Member</th>
+                  <th className="px-6 py-4 w-[25%]">Contact Email</th>
+                  <th className="px-6 py-4 w-[15%]">Status</th>
+                  <th className="px-6 py-4 w-[15%]">Registered On</th>
+                  <th className="px-6 py-4 text-right pr-6 w-[15%]">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-gray-100 text-sm">
+              <tbody className="divide-y divide-gray-100 bg-white text-sm">
                 {users.length > 0 ? (
-                  users.map(user => (
-                    <tr key={user.id} className="hover:bg-gray-50 relative">
-                      <td className="px-4 py-3 text-gray-800 font-medium whitespace-normal break-words">
-                        {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.fullName || '—'}
+                  users.map(u => (
+                    <tr key={u.id} className="hover:bg-blue-50/30 transition-colors group">
+                      <td className="px-6 py-4 text-gray-900 font-bold whitespace-normal break-words">
+                        <div className="flex items-center gap-4">
+                          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-bold flex flex-shrink-0 items-center justify-center text-xs">
+                            {((u.firstName || u.fullName || 'S').charAt(0)).toUpperCase()}
+                          </div>
+                          <span className="font-bold text-gray-900">
+                             {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.fullName || '—'}
+                          </span>
+                        </div>
                       </td>
 
-                      <td className="px-4 py-3 text-gray-600 whitespace-normal break-words">
-                        {user.email || '—'}
+                      <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal break-words">
+                        {u.email || '—'}
                       </td>
 
-                      <td className="px-4 py-3">
-                        <StatusBadge status={getAccountStatus(user)} />
+                      <td className="px-6 py-4">
+                        <StatusBadge status={getAccountStatus(u)} />
                       </td>
 
-                      <td className="px-4 py-3 text-gray-600 whitespace-normal">
-                        {formatDate(user.createdAt)}
+                      <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal">
+                        {formatDate(u.createdAt)}
                       </td>
 
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={e => toggleRowDropdown(user.id, e)}
-                          className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
-                        >
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                          </svg>
-                        </button>
+                      <td className="px-6 py-4 text-right pr-6 relative">
+                        <div className="inline-block" data-row-menu>
+                          <button
+                            onClick={e => toggleRowDropdown(u.id, e)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-bold text-gray-700 rounded-lg bg-white hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          >
+                            Manage <ChevronDownIcon />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                      No staff users found.
+                    <td colSpan={5} className="px-6 py-16 text-center text-gray-500 font-medium">
+                      No staff accounts found matching your filters.
                     </td>
                   </tr>
                 )}
@@ -442,13 +449,6 @@ export default function UsersTable() {
             </table>
           )}
         </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SummaryCard value={summary.total} label="Total Staff" color="green" />
-        <SummaryCard value={summary.active} label="Active" color="yellow" />
-        <SummaryCard value={summary.inactive} label="Not Active" color="gray" />
       </div>
 
       {/* Fixed position dropdown menu */}
@@ -461,26 +461,28 @@ export default function UsersTable() {
             left: dropdownPosition.left,
             zIndex: 9999,
           }}
-          className="w-48 bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.12)] border border-gray-100 overflow-hidden"
+          className="w-48 bg-white rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-200 overflow-hidden"
         >
           <div className="py-2 flex flex-col">
             {/* Status Toggle */}
             {users.find(u => u.id === activeDropdown)?.isActive ? (
               <MenuItem 
-                icon={<DeactivateIcon />} 
-                label="Deactivate" 
+                icon={<DeactivateIcon className="w-4 h-4" />} 
+                label="Deactivate Account" 
                 onClick={() => handleToggleActive(activeDropdown, true)}
               />
             ) : (
               <MenuItem 
-                icon={<ActivateIcon />} 
-                label="Activate" 
+                icon={<ActivateIcon className="w-4 h-4" />} 
+                label="Activate Account" 
                 onClick={() => handleToggleActive(activeDropdown, false)}
+                variant="success"
               />
             )}
+            <div className="border-t border-gray-100 my-1" />
             <MenuItem
-              icon={<DeleteIcon />}
-              label="Delete"
+              icon={<DeleteIcon className="w-4 h-4" />}
+              label="Delete User"
               variant="danger"
               onClick={() => {
                 const target = users.find((u) => u.id === activeDropdown)
@@ -514,17 +516,24 @@ export default function UsersTable() {
 
 // --- HELPER COMPONENTS ---
 
-function SummaryCard({ value, label, color }: { value: number; label: string; color: 'green' | 'yellow' | 'gray' }) {
-  const colorClasses = {
-    green: 'text-[#0F533A]',
-    yellow: 'text-[#EAB308]',
-    gray: 'text-gray-600',
-  }
-  
+function StatSection({
+  label,
+  value,
+  icon,
+}: {
+  label: string
+  value: number
+  icon: React.ReactNode
+}) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-6 flex flex-col items-center justify-center">
-      <div className={`text-3xl font-semibold ${colorClasses[color]}`}>{value}</div>
-      <div className="mt-1 text-sm text-gray-600">{label}</div>
+    <div className="flex-1 flex items-center justify-between p-6 hover:bg-gray-50/50 transition-colors">
+      <div>
+        <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase mb-1">{label}</p>
+        <p className="text-3xl font-black text-gray-900 leading-tight">{value > 0 ? value : '--'}</p>
+      </div>
+      <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm">
+        {icon}
+      </div>
     </div>
   )
 }
@@ -537,58 +546,109 @@ function MenuItem({
 }: {
   icon: React.ReactNode
   label: string
-  variant?: 'default' | 'danger'
+  variant?: 'default' | 'danger' | 'success'
   onClick?: () => void
 }) {
   const textColor =
-    variant === 'danger' ? 'text-red-500 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-50'
+    variant === 'danger' 
+      ? 'text-red-600 hover:bg-red-50' 
+      : variant === 'success' 
+      ? 'text-emerald-600 hover:bg-emerald-50' 
+      : 'text-gray-700 hover:bg-gray-50'
+      
   return (
     <button 
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition-colors ${textColor}`}
+      className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-3 transition-colors ${textColor}`}
     >
-      <span className={variant === 'danger' ? 'text-red-500' : 'text-gray-500'}>{icon}</span>
+      <span className="opacity-80">{icon}</span>
       {label}
     </button>
   )
 }
 
 function StatusBadge({ status }: { status: AccountStatus }) {
-  const style =
+  const cls =
     status === 'active'
-      ? 'bg-green-500 text-white'
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
       : status === 'pending'
-      ? 'bg-amber-500 text-white'
-      : 'bg-gray-400 text-white'
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-gray-100 text-gray-600 border-gray-300'
+
+  const dotCls =
+    status === 'active'
+      ? 'bg-emerald-500'
+      : status === 'pending'
+        ? 'bg-amber-500'
+        : 'bg-gray-400'
+
   const label = status === 'active' ? 'Active' : status === 'pending' ? 'Pending' : 'Inactive'
 
   return (
-    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${style}`}>
+    <span
+      className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${cls}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full mr-2 ${dotCls}`} />
       {label}
     </span>
   )
 }
 
-function ActivateIcon() {
+/* ----- Icons ----- */
+
+function SearchIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
   )
 }
-
-function DeactivateIcon() {
+function ChevronDownIcon({ className = "w-4 h-4 text-gray-400" }: { className?: string }) {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
     </svg>
   )
 }
-
-function DeleteIcon() {
+function CheckIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+function UsersMenuIcon({ className = "w-4 h-4 text-gray-400" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  )
+}
+function CheckCircleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+function ActivateIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+function DeactivateIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+    </svg>
+  )
+}
+function DeleteIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
     </svg>
   )
 }

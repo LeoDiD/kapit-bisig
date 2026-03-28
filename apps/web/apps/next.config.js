@@ -17,6 +17,8 @@ function resolveApiProxyTarget() {
 
 const nextConfig = {
   reactStrictMode: true,
+  // Use a dedicated build directory to avoid Windows file-lock issues on `.next/trace`.
+  distDir: '.next-app',
   async rewrites() {
     const target = resolveApiProxyTarget()
     return [

@@ -71,7 +71,7 @@ export function SidebarInset({
   return (
     <main
       className={cn(
-        'min-h-screen w-full transition-[margin-left] duration-200 ease-in-out md:ml-16',
+        'flex flex-1 flex-col min-h-screen transition-[margin-left] duration-200 ease-in-out md:ml-16 min-w-0',
         open && 'md:ml-56',
         className
       )}

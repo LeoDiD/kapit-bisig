@@ -417,7 +417,7 @@ export default function CodeGenerationTable() {
   }
 
   return (
-    <div className="space-y-6 bg-slate-50 p-1">
+    <div className="space-y-6 lg:space-y-8 pb-12 w-full max-w-[1400px]">
       <CodeGenerationForm
         barangay={barangay}
         setBarangay={setBarangay}

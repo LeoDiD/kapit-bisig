@@ -169,168 +169,165 @@ export default function DistributionsTable({
         distribution={householdsDistribution}
       />
 
-      {/* Filters */}
-      <div className="flex flex-col lg:flex-row gap-4 mb-5 items-stretch lg:items-center">
-        <div className="relative flex-1 max-w-xl">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <SearchIcon />
-          </span>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search distributions..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
-          />
+      {/* Unified Table Container */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden mb-12">
+        {/* Integrated Toolbar */}
+        <div className="p-4 border-b border-gray-100 bg-gray-50/40 flex flex-col lg:flex-row gap-4 justify-between items-center">
+           <div className="relative w-full lg:max-w-md">
+             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+               <SearchIcon />
+             </span>
+             <input
+               value={query}
+               onChange={(e) => setQuery(e.target.value)}
+               placeholder="Search distributions..."
+               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm text-gray-800 placeholder-gray-400 shadow-sm transition-all"
+             />
+           </div>
+
+           <div className="flex items-center gap-3 w-full lg:w-auto">
+             {/* Barangay Filter */}
+             <div className="relative min-w-[180px]">
+               <button
+                 ref={barangayBtnRef}
+                 type="button"
+                 onClick={() => {
+                   setBarangayOpen((v) => !v)
+                   setStatusOpen(false)
+                   setActiveMenu(null)
+                 }}
+                 className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors"
+               >
+                 <span className="truncate">{barangayLabel}</span>
+                 <ChevronDownIcon />
+               </button>
+               {barangayOpen ? (
+                 <DropdownMenu menuRef={barangayMenuRef} items={barangayOptions} selected={barangay} onSelect={(v) => { setBarangay(v); setBarangayOpen(false) }} />
+               ) : null}
+             </div>
+
+             {/* Status Filter */}
+             <div className="relative min-w-[150px]">
+               <button
+                 ref={statusBtnRef}
+                 type="button"
+                 onClick={() => {
+                   setStatusOpen((v) => !v)
+                   setBarangayOpen(false)
+                   setActiveMenu(null)
+                 }}
+                 className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors"
+               >
+                 <span className="truncate">{statusLabel}</span>
+                 <ChevronDownIcon />
+               </button>
+               {statusOpen ? (
+                 <DropdownMenu menuRef={statusMenuRef} items={statusOptions} selected={status} onSelect={(v) => { setStatus(v); setStatusOpen(false) }} />
+               ) : null}
+             </div>
+
+             {/* New Distribution Button */}
+             {canCreate && (
+               <button
+                 type="button"
+                 onClick={onOpenCreate}
+                 className="inline-flex items-center justify-center whitespace-nowrap gap-2 px-5 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-colors ml-1"
+               >
+                 + New
+               </button>
+             )}
+           </div>
         </div>
 
-        <div className="relative min-w-[200px]">
-          <button
-            ref={barangayBtnRef}
-            type="button"
-            onClick={() => {
-              setBarangayOpen((v) => !v)
-              setStatusOpen(false)
-              setActiveMenu(null)
-            }}
-            className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
-          >
-            <span className="text-xs">{barangayLabel}</span>
-            <ChevronDownIcon />
-          </button>
-
-          {barangayOpen ? (
-            <DropdownMenu
-              menuRef={barangayMenuRef}
-              items={barangayOptions}
-              selected={barangay}
-              onSelect={(v) => {
-                setBarangay(v)
-                setBarangayOpen(false)
-              }}
-            />
-          ) : null}
-        </div>
-
-        <div className="relative min-w-[170px]">
-          <button
-            ref={statusBtnRef}
-            type="button"
-            onClick={() => {
-              setStatusOpen((v) => !v)
-              setBarangayOpen(false)
-              setActiveMenu(null)
-            }}
-            className="w-full flex items-center justify-between px-4 py-2 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
-          >
-            <span className="text-xs">{statusLabel}</span>
-            <ChevronDownIcon />
-          </button>
-
-          {statusOpen ? (
-            <DropdownMenu
-              menuRef={statusMenuRef}
-              items={statusOptions}
-              selected={status}
-              onSelect={(v) => {
-                setStatus(v)
-                setStatusOpen(false)
-              }}
-            />
-          ) : null}
-        </div>
-
-        {canCreate && (
-          <button
-            type="button"
-            onClick={onOpenCreate}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] text-white text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)]"
-          >
-            + New Distribution
-          </button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden">
+        {/* Data Grid */}
         <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
-            <thead className="bg-gray-50 text-gray-500 text-xs">
+          <table className="w-full text-left border-collapse min-w-[900px]">
+            <thead className="bg-white border-b border-gray-200 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3 font-medium w-[18%]">Barangay</th>
-                <th className="px-4 py-3 font-medium w-[14%]">Households</th>
-                <th className="px-4 py-3 font-medium w-[14%]">Claimed</th>
-                <th className="px-4 py-3 font-medium w-[16%]">Scheduled</th>
-                <th className="px-4 py-3 font-medium w-[15%]">Status</th>
-                <th className="px-4 py-3 font-medium w-[15%]">Claimed At</th>
-                <th className="px-4 py-3 font-medium w-[6%]"></th>
+                <th className="px-6 py-4">Barangay</th>
+                <th className="px-6 py-4">Households Serving</th>
+                <th className="px-6 py-4">Claims</th>
+                <th className="px-6 py-4">Scheduled For</th>
+                <th className="px-6 py-4">Current Status</th>
+                <th className="px-6 py-4">Claimed On</th>
+                <th className="px-6 py-4 text-right pr-6 relative">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100 text-[13px]">
+            <tbody className="divide-y divide-gray-100 bg-white">
               {filtered.length ? (
-                filtered.map((r) => {
-                  return (
-                    <tr key={r.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-700">
-                          <PinMiniIcon />
-                          <div className="leading-tight">
-                            <div className="text-xs text-gray-400">Barangay</div>
-                            <div className="font-medium">{r.barangay}</div>
-                          </div>
+                filtered.map((r) => (
+                  <tr key={r.id} className="hover:bg-blue-50/40 transition-colors group">
+                    {/* Barangay */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-bold flex flex-shrink-0 items-center justify-center text-xs">
+                          {r.barangay.charAt(0)}
                         </div>
-                      </td>
+                        <span className="font-bold text-gray-900">{r.barangay}</span>
+                      </div>
+                    </td>
 
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <UsersMiniIcon />
-                          <span className="font-medium">{r.registeredHouseholds > 0 ? r.registeredHouseholds : '--'}</span>
-                        </div>
-                      </td>
+                    {/* Households */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-gray-700 font-medium text-sm">
+                        <UsersMiniIcon />
+                        {r.registeredHouseholds > 0 ? r.registeredHouseholds : '--'}
+                      </div>
+                    </td>
 
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          {r.claimedHouseholds > 0 ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                              <CheckMiniIcon />
-                              {r.claimedHouseholds}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-400">0</span>
-                          )}
-                          {r.registeredHouseholds > 0 && (
-                            <span className="text-[11px] text-gray-400">/ {r.registeredHouseholds}</span>
-                          )}
-                        </div>
-                      </td>
+                    {/* Claims */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {r.claimedHouseholds > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <CheckMiniIcon />
+                            {r.claimedHouseholds}
+                          </span>
+                        ) : (
+                          <span className="text-sm font-medium text-gray-400">0</span>
+                        )}
+                        {r.registeredHouseholds > 0 && (
+                          <span className="text-[11px] font-bold text-gray-400">/ {r.registeredHouseholds}</span>
+                        )}
+                      </div>
+                    </td>
 
-                      <td className="px-4 py-3 text-gray-600">{r.scheduled}</td>
+                    {/* Scheduled */}
+                    <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                      {r.scheduled}
+                    </td>
 
-                      <td className="px-4 py-3 overflow-hidden">
-                        <StatusPill status={r.status} />
-                      </td>
+                    {/* Status */}
+                    <td className="px-6 py-4">
+                      <StatusPill status={r.status} />
+                    </td>
 
-                      <td className="px-4 py-3 text-gray-600">
-                        {r.claimedAt ? new Date(r.claimedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
-                      </td>
+                    {/* Claimed At */}
+                    <td className="px-6 py-4 text-sm font-medium text-gray-600">
+                      {r.claimedAt ? new Date(r.claimedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                    </td>
 
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-block" data-row-menu>
-                          <button
-                            onClick={(e) => toggleRowMenu(r.id, e)}
-                            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
-                          >
-                            <DotsIcon />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
+                    {/* Actions */}
+                    <td className="px-6 py-4 text-right pr-6 relative">
+                       {/* Discoverable explicit manage button that opens the 3-dots menu */}
+                       <div className="inline-block" data-row-menu>
+                         <button
+                           onClick={(e) => toggleRowMenu(r.id, e)}
+                           className="inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-bold text-gray-700 rounded-lg bg-white hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                         >
+                           Manage <ChevronDownIcon />
+                         </button>
+                       </div>
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-gray-500 text-sm">
-                    No distributions found matching your filters.
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <p className="text-gray-500 font-medium">No distributions found matching your filter criteria.</p>
                   </td>
                 </tr>
               )}
@@ -434,19 +431,16 @@ function DropdownMenu({
 function StatusPill({ status }: { status: DistributionStatus }) {
   const cls =
     status === 'Claimed'
-      ? 'bg-green-600 text-white'
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
       : status === 'Partially Claimed'
-        ? 'bg-orange-500 text-white'
-        : 'bg-[#EAB308] text-white'
+        ? 'bg-blue-50 text-blue-700 border-blue-200'
+        : 'bg-amber-50 text-amber-700 border-amber-200'
 
   return (
     <span
-      className={[
-        'inline-flex max-w-full items-center justify-center rounded-full px-3 py-1 text-xs font-medium',
-        'leading-tight text-center whitespace-normal break-words',
-        cls,
-      ].join(' ')}
+      className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${cls}`}
     >
+      <span className={`w-1.5 h-1.5 rounded-full mr-2 ${status === 'Claimed' ? 'bg-emerald-500' : status === 'Partially Claimed' ? 'bg-blue-500' : 'bg-amber-500'}`} />
       {status}
     </span>
   )

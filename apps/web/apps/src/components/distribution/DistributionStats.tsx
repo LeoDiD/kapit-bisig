@@ -12,54 +12,48 @@ export default function DistributionStats({
   barangays: number
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-      <StatCard
-        icon={<ClockIcon className="w-4 h-4 text-[#D97706]" />}
-        iconBg="bg-[#FEF3C7]"
-        value={unclaimed}
-        label="Unclaimed"
+    <div className="bg-white border border-gray-200 shadow-sm rounded-2xl mb-6 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100 overflow-hidden">
+      <StatSection 
+        label="Total Barangays" 
+        value={barangays} 
+        icon={<PinIcon className="w-5 h-5 text-gray-500" />} 
       />
-      <StatCard
-        icon={<CheckCircleIcon className="w-4 h-4 text-green-700" />}
-        iconBg="bg-green-100"
-        value={claimed}
-        label="Claimed"
+      <StatSection 
+        label="Households Served" 
+        value={householdsServed} 
+        icon={<UsersIcon className="w-5 h-5 text-blue-600" />} 
       />
-      <StatCard
-        icon={<UsersIcon className="w-4 h-4 text-blue-700" />}
-        iconBg="bg-blue-100"
-        value={householdsServed}
-        label="Households Served"
+      <StatSection 
+        label="Claimed Subsidies" 
+        value={claimed} 
+        icon={<CheckCircleIcon className="w-5 h-5 text-emerald-600" />} 
       />
-      <StatCard
-        icon={<PinIcon className="w-4 h-4 text-gray-700" />}
-        iconBg="bg-gray-200"
-        value={barangays}
-        label="Barangays"
+      <StatSection 
+        label="Unclaimed / Pending" 
+        value={unclaimed} 
+        icon={<ClockIcon className="w-5 h-5 text-amber-500" />} 
       />
     </div>
   )
 }
 
-function StatCard({
-  icon,
-  iconBg,
-  value,
+function StatSection({
   label,
+  value,
+  icon,
 }: {
-  icon: React.ReactNode
-  iconBg: string
-  value: number
   label: string
+  value: number
+  icon: React.ReactNode
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-4 flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBg}`}>
-        {icon}
-      </div>
+    <div className="flex-1 flex items-center justify-between p-6 hover:bg-gray-50/50 transition-colors">
       <div>
-        <div className="text-xl font-bold text-gray-900 leading-tight">{value}</div>
-        <div className="text-xs text-gray-500">{label}</div>
+        <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase mb-1">{label}</p>
+        <p className="text-3xl font-black text-gray-900 leading-tight">{value > 0 ? value : '--'}</p>
+      </div>
+      <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm">
+        {icon}
       </div>
     </div>
   )

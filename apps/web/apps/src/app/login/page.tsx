@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
@@ -12,7 +12,7 @@ export default function LoginPage() {
   const { user, loading: authLoading, login, verifyLoginOtp, resendLoginOtp } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [otp, setOtp] = useState('')
+  const [otpDigits, setOtpDigits] = useState<string[]>(() => Array(6).fill(''))
   const [otpToken, setOtpToken] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
@@ -20,6 +20,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isResendingOtp, setIsResendingOtp] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const otpInputRefs = useRef<Array<HTMLInputElement | null>>([])
+  const otp = otpDigits.join('')
 
   useEffect(() => {
     const saved = localStorage.getItem('rememberMe')
@@ -34,7 +36,7 @@ export default function LoginPage() {
 
   const resetOtpChallenge = () => {
     setOtpToken(null)
-    setOtp('')
+    setOtpDigits(Array(6).fill(''))
   }
 
   const completeLogin = async () => {
@@ -92,7 +94,7 @@ export default function LoginPage() {
 
       if (result.otpRequired) {
         setOtpToken(result.otpToken)
-        setOtp('')
+        setOtpDigits(Array(6).fill(''))
         setPassword('')
         showToast.success(result.message || 'Verification code sent.')
         return
@@ -137,7 +139,7 @@ export default function LoginPage() {
   const handleOtpModeToggle = () => {
     setIsOtpLoginMode((prev) => !prev)
     setPassword('')
-    setOtp('')
+    setOtpDigits(Array(6).fill(''))
     setError(null)
     resetOtpChallenge()
   }
@@ -148,12 +150,52 @@ export default function LoginPage() {
     setError(null)
   }
 
+  const handleOtpDigitChange = (index: number, rawValue: string) => {
+    if (isLoading) return
+    const digit = rawValue.replace(/\D/g, '').slice(-1)
+    const next = [...otpDigits]
+    next[index] = digit || ''
+    setOtpDigits(next)
+    if (digit && index < 5) {
+      otpInputRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus()
+    }
+    if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault()
+      otpInputRefs.current[index - 1]?.focus()
+    }
+    if (e.key === 'ArrowRight' && index < 5) {
+      e.preventDefault()
+      otpInputRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (!pasted) return
+    const next = Array(6).fill('') as string[]
+    pasted.split('').forEach((digit, index) => {
+      next[index] = digit
+    })
+    setOtpDigits(next)
+    const focusIndex = Math.min(pasted.length, 6) - 1
+    if (focusIndex >= 0) {
+      otpInputRefs.current[focusIndex]?.focus()
+    }
+  }
+
   return (
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[url('/images/picW.png')] bg-cover bg-center"></div>
-          <div className="absolute inset-0 bg-gradient-to-br from-[#226538]/90 via-[#226538]/80 to-[#226538]/60"></div>
+          <div className="absolute inset-0 bg-[#226538]/80"></div>
         </div>
 
         <div className="relative z-10 flex flex-col justify-center items-center text-center p-12 text-white h-full w-full">
@@ -170,10 +212,10 @@ export default function LoginPage() {
           </p>
 
           <div className="grid grid-cols-2 gap-4 max-w-md w-full">
-            <FeatureCard title="Precise" description="Data Driven aid Delivery" color="bg-[#226538]/90" />
-            <FeatureCard title="Equitable" description="Fairness Through AI Prioritization" color="bg-[#226538]/90" />
-            <FeatureCard title="Transparent" description="Blockchain-verified relief Tracking" color="bg-[#226538]/90" />
-            <FeatureCard title="Resilient" description="Strengthening LGU disaster response" color="bg-[#226538]/90" />
+            <FeatureCard title="Precise" description="Data Driven aid Delivery" />
+            <FeatureCard title="Equitable" description="Fairness Through AI Prioritization" />
+            <FeatureCard title="Transparent" description="Blockchain-verified relief Tracking" />
+            <FeatureCard title="Resilient" description="Strengthening LGU disaster response" />
           </div>
         </div>
       </div>
@@ -246,7 +288,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(sanitizeAsciiText(e.target.value))}
                   maxLength={MAX_TEXT_LENGTH}
                   placeholder="Enter your registered email"
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="block w-full pl-10 pr-3 py-3 bg-transparent border-b-2 border-gray-300 focus:outline-none focus:border-[#226538] transition-colors text-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
                   required
                   disabled={isLoading || isChallengeMode}
                   autoComplete="email"
@@ -272,7 +314,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(sanitizeNoWhitespace(e.target.value))}
                     maxLength={MAX_TEXT_LENGTH}
                     placeholder="........"
-                    className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="block w-full pl-10 pr-12 py-3 bg-transparent border-b-2 border-gray-300 focus:outline-none focus:border-[#226538] transition-colors text-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
                     required
                     disabled={isLoading}
                     autoComplete="current-password"
@@ -303,17 +345,29 @@ export default function LoginPage() {
                 <label htmlFor="otp" className="block text-sm font-semibold text-gray-700 mb-2">
                   {isChallengeMode ? 'Email Verification Code' : 'One-Time Password (OTP)'}
                 </label>
-                <input
-                  type="text"
-                  id="otp"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="Enter 6-digit OTP"
-                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] transition-colors text-gray-900 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
-                  required
-                  disabled={isLoading}
-                  inputMode="numeric"
-                />
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => {
+                        otpInputRefs.current[index] = el
+                      }}
+                      type="text"
+                      id={index === 0 ? 'otp' : undefined}
+                      value={otpDigits[index] ?? ''}
+                      onChange={(e) => handleOtpDigitChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      onPaste={handleOtpPaste}
+                      className="h-12 w-12 text-center text-lg font-semibold bg-transparent border-b-2 border-gray-300 focus:outline-none focus:border-[#226538] transition-colors text-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                      required
+                      disabled={isLoading}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={1}
+                      aria-label={`OTP digit ${index + 1}`}
+                    />
+                  ))}
+                </div>
                 {isChallengeMode && (
                   <p className="mt-2 text-xs text-gray-500">
                     Complete sign-in by entering the code sent after your password was verified.
@@ -360,7 +414,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-[#226538] hover:bg-[#1b502d] text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#226538] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-[#226538] hover:bg-[#1b502d] text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#226538] focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 transform hover:scale-105"
             >
               {isLoading ? (
                 <>
@@ -385,14 +439,12 @@ export default function LoginPage() {
 function FeatureCard({
   title,
   description,
-  color,
 }: {
   title: string
   description: string
-  color: string
 }) {
   return (
-    <div className={`${color} backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:scale-105 transition-transform cursor-default shadow-lg`}>
+    <div className={`bg-black/20 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:scale-105 transition-transform cursor-default shadow-lg`}>
       <h3 className="text-lg font-bold text-[#ECC323] mb-1">{title}</h3>
       <p className="text-xs text-white/90 leading-relaxed">{description}</p>
     </div>

@@ -1,6 +1,5 @@
 import React from 'react'
-import type { Metadata } from 'next'
-import { Montserrat } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/AuthContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
@@ -9,7 +8,7 @@ import TopLoadingBar from '@/components/layout/TopLoadingBar'
 import './globals.css'
 
 // 2. Configure the font with necessary weights
-const montserrat = Montserrat({ 
+const inter = Inter({ 
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'], 
 })
@@ -51,7 +50,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className={montserrat.className}>
+      <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
             <RouteLoadingProvider>

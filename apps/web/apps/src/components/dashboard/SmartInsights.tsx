@@ -92,7 +92,7 @@ export default function SmartInsights(props: SmartInsightsProps) {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-100/60 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)]">
+      <div className="bg-gray-50 rounded-2xl p-5">
         <div className="h-4 w-32 bg-blue-200/50 rounded animate-pulse mb-4" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -104,7 +104,7 @@ export default function SmartInsights(props: SmartInsightsProps) {
   }
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-100/60 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)]">
+    <div className="bg-gray-50 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-bold text-gray-800">Smart Insights</h3>
       </div>
