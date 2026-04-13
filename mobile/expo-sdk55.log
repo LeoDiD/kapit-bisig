@@ -1,0 +1,38 @@
+env: load .env
+env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_FACE_API_URL EXPO_PUBLIC_SMS_API_KEY
+Starting project at D:\kapit-bisig\mobile
+› Could not resolve react-native! Is it installed and a project dependency?
+Error: Cannot find module '@react-native/debugger-frontend'
+Require stack:
+- D:\kapit-bisig\mobile\node_modules\@react-native\dev-middleware\dist\createDevMiddleware.js
+- D:\kapit-bisig\mobile\node_modules\@react-native\dev-middleware\dist\index.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\server\metro\debugging\createDebugMiddleware.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\server\metro\instantiateMetro.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\server\metro\MetroBundlerDevServer.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\server\DevServerManager.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\startAsync.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\index.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\bin\cli
+- D:\kapit-bisig\mobile\node_modules\expo\bin\cli
+Error: Cannot find module '@react-native/debugger-frontend'
+Require stack:
+- D:\kapit-bisig\mobile\node_modules\@react-native\dev-middleware\dist\createDevMiddleware.js
+- D:\kapit-bisig\mobile\node_modules\@react-native\dev-middleware\dist\index.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\server\metro\debugging\createDebugMiddleware.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\server\metro\instantiateMetro.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\server\metro\MetroBundlerDevServer.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\server\DevServerManager.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\startAsync.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\src\start\index.js
+- D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\build\bin\cli
+- D:\kapit-bisig\mobile\node_modules\expo\bin\cli
+    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+    at Function.Module._load (node:internal/modules/cjs/loader:1043:27)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (D:\kapit-bisig\mobile\node_modules\@react-native\dev-middleware\dist\createDevMiddleware.js:17:3)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1096:12)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)

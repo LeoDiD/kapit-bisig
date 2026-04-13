@@ -1,0 +1,6 @@
+[Error: EPERM: operation not permitted, open 'D:\kapit-bisig\apps\web\apps\.next-app\trace'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'open',
+  path: 'D:\\kapit-bisig\\apps\\web\\apps\\.next-app\\trace'
+}

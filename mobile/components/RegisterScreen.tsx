@@ -396,7 +396,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   // Refs for scrolling to errors
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const scrollFocusedInputIntoView = (target?: number | null) => {
+  const scrollFocusedInputIntoView = (target?: unknown) => {
     if (!target) return;
 
     setTimeout(() => {
@@ -406,15 +406,15 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       const stepOffset = currentStep === 1 ? 30 : 0;
       const keyboardOffset = keyboardHeight > 0 ? 16 : 0;
       const extraOffset = baseOffset + stepOffset + keyboardOffset;
-      scrollResponder?.scrollResponderScrollNativeHandleToKeyboard?.(target, extraOffset, true);
+      scrollResponder?.scrollResponderScrollNativeHandleToKeyboard?.(target as any, extraOffset, true);
     }, 120);
   };
 
-  const handleInputFocus = (target?: number | null) => {
+  const handleInputFocus = (target?: unknown) => {
     scrollFocusedInputIntoView(target);
   };
 
-  const handleStep1PasswordFocus = (target?: number | null) => {
+  const handleStep1PasswordFocus = (target?: unknown) => {
     handleInputFocus(target);
   };
 
@@ -984,6 +984,20 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     return false;
   };
 
+  const returnToFaceStepAfterSubmissionError = (message?: string) => {
+    setDuplicateCheckResult(null);
+    setVerificationResult(null);
+    setIsSubmitting(false);
+    setVerificationProgress(0);
+    setVerificationStep('');
+    setSubmissionComplete(false);
+    setSubmissionErrorMessage(null);
+    setShowErrors(true);
+    setCurrentStep(4);
+
+    Alert.alert('Registration Failed', message || 'Failed to submit registration', [{ text: 'OK' }]);
+  };
+
   // Image picker functions
   const openImagePicker = async (side: 'front' | 'back') => {
     setCurrentImageSide(side);
@@ -1507,7 +1521,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         } else if (data.errorCode === 'DUPLICATE_MOBILE') {
           Alert.alert('Already Registered', 'This mobile number is already registered.', [{ text: 'OK' }]);
         } else {
-          Alert.alert('Registration Error', data.message || 'Failed to submit registration');
+          returnToFaceStepAfterSubmissionError(data.message || 'Failed to submit registration');
+          return;
         }
       }
     } catch (error: any) {
@@ -1528,9 +1543,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         return;
       }
 
-      setSubmissionErrorMessage(errorMessage);
-      
-      Alert.alert('Registration Failed', errorMessage, [{ text: 'OK' }]);
+      returnToFaceStepAfterSubmissionError(errorMessage);
+      return;
     } finally {
       setIsSubmitting(false);
     }
@@ -1599,7 +1613,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   const handleBack = () => {
     if (currentStep === 5) {
-      if (submissionComplete || duplicateCheckResult?.decision === 'BLOCK' || !!submissionErrorMessage) {
+      if (submissionComplete || duplicateCheckResult?.decision === 'BLOCK') {
         onCancel();
         return;
       }
@@ -1711,7 +1725,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 setFirstName(text);
                 clearStep1Error('firstName');
               }}
-              onFocus={(event) => handleInputFocus(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target)}
               onBlur={handleInputBlur}
             />
             <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
@@ -1736,7 +1750,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 setLastName(text);
                 clearStep1Error('lastName');
               }}
-              onFocus={(event) => handleInputFocus(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target)}
               onBlur={handleInputBlur}
             />
             <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
@@ -1767,7 +1781,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               keyboardType="numeric"
               maxLength={10}
               editable={true}
-              onFocus={(event) => handleInputFocus(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target)}
               onBlur={handleInputBlur}
             />
             <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.calendarIcons}>
@@ -1863,7 +1877,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               maxLength={11}
               onFocus={(event) => {
                 setIsMobileNumberFocused(true);
-                handleInputFocus(event.target as number);
+                handleInputFocus(event.target);
               }}
               onBlur={() => {
                 setIsMobileNumberFocused(false);
@@ -1921,7 +1935,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
-              onFocus={(event) => handleStep1PasswordFocus(event.target as number)}
+              onFocus={(event) => handleStep1PasswordFocus(event.target)}
               onBlur={handleInputBlur}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.inputIconRight}>
@@ -1976,7 +1990,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               secureTextEntry={!showConfirmPassword}
               autoCapitalize="none"
               autoCorrect={false}
-              onFocus={(event) => handleStep1PasswordFocus(event.target as number)}
+              onFocus={(event) => handleStep1PasswordFocus(event.target)}
               onBlur={handleInputBlur}
             />
             <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.inputIconRight}>
@@ -2097,7 +2111,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 setStreetAddress(text);
                 if (text.trim() && showErrors) setStep2Errors(prev => ({ ...prev, streetAddress: false }));
               }}
-              onFocus={(event) => handleInputFocus(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target)}
               onBlur={handleInputBlur}
             />
           </View>
@@ -2124,7 +2138,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 autoCapitalize="characters"
                 maxLength={14}
                 editable={!tokenValidating && !!barangay}
-                onFocus={(event) => handleInputFocus(event.target as number)}
+                onFocus={(event) => handleInputFocus(event.target)}
                 onBlur={handleInputBlur}
               />
               {tokenValidated && (
@@ -2398,7 +2412,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 }
               }}
               editable={!!idType}
-              onFocus={(event) => handleInputFocus(event.target as number)}
+              onFocus={(event) => handleInputFocus(event.target)}
               onBlur={handleInputBlur}
             />
           </View>
@@ -2768,7 +2782,14 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 if (duplicateCheckResult?.decision === 'BLOCK') {
                   onCancel();
                 } else if (submissionErrorMessage) {
-                  onCancel();
+                  setDuplicateCheckResult(null);
+                  setVerificationResult(null);
+                  setIsSubmitting(false);
+                  setVerificationProgress(0);
+                  setVerificationStep('');
+                  setSubmissionComplete(false);
+                  setSubmissionErrorMessage(null);
+                  setCurrentStep(4);
                 } else if (duplicateCheckResult?.decision === 'ERROR') {
                   // Retry - go back to face capture
                   setDuplicateCheckResult(null);
@@ -2782,12 +2803,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               }}
             >
               <Text style={styles.completeButtonText}>
-                {duplicateCheckResult?.decision === 'ERROR'
+                {duplicateCheckResult?.decision === 'ERROR' || submissionErrorMessage
                   ? 'Retry Photo'
                   : 'Back to Splash'}
               </Text>
               <Ionicons 
-                name={duplicateCheckResult?.decision === 'ERROR' ? "refresh" : "home"} 
+                name={duplicateCheckResult?.decision === 'ERROR' || submissionErrorMessage ? "refresh" : "home"} 
                 size={22} 
                 color="#FFF" 
               />

@@ -1114,6 +1114,7 @@ router.get('/dashboard-summary', authMiddleware, async (req: AuthenticatedReques
         },
       }),
       Claim.countDocuments({
+        claimCategory: 'DISTRIBUTION',
         barangay: mongoose.trusted({ $in: scopedBarangays }),
         status: 'CONFIRMED',
         createdAt: {

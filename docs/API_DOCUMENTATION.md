@@ -21,6 +21,7 @@ Mounted route groups from `apps/web/apps/server/index.ts`:
 - `/api/distributions` (protected)
 - `/api/claims` (protected)
 - `/api/households` (protected)
+- `/api/beneficiaries`
 
 ### Express Face Routes
 
@@ -31,6 +32,24 @@ From `apps/web/apps/server/routes/faceRoutes.ts`:
 - `POST /api/face/verify`
 - `GET /api/face/health`
 - `POST /api/face/check-duplicate`
+
+### Express Target Beneficiary Routes
+
+Base path: `http://localhost:3001/api/beneficiaries`
+
+- `GET /events`
+- `GET /events/active`
+- `POST /events`
+- `POST /proof-submissions`
+- `GET /admin/proof-submissions`
+- `PATCH /admin/proof-submissions/:id/review`
+- `POST /scan/validate`
+- `POST /scan/claim`
+- `GET /events/:id/offline-pack`
+- `POST /sync/proof-submissions`
+- `POST /sync/claims`
+
+See `docs/TARGET_BENEFICIARY_IMPLEMENTATION.md` for request/response rules and event-scoped beneficiary logic.
 
 ## 2. FastAPI Face Recognition API (Python)
 

@@ -13,12 +13,16 @@ import {
   Pressable,
   ImageBackground,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { mobileAuthService } from '../services/auth/MobileAuthService';
 import { fetchResidentDistributions, getResidentToken } from '../services/api/ResidentQrService';
 import PendingAccessBanner from './PendingAccessBanner';
+import { Typography } from './ui/Typography';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { theme } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -29,7 +33,7 @@ interface HomeScreenProps {
   claimStatus?: 'claimed' | 'not-claimed';
   residentCode?: string;
   streetAddress?: string;
-  onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
+  onNavigate?: (screen: 'home' | 'qr' | 'profile' | 'proof-request') => void;
   accountType?: 'resident' | 'volunteer';
   residentStatus?: string;
 }
@@ -148,6 +152,7 @@ export default function HomeScreen({
   accountType = 'resident',
   residentStatus,
 }: HomeScreenProps) {
+  const insets = useSafeAreaInsets();
   const [distributions, setDistributions] = useState<DistributionItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -244,6 +249,7 @@ export default function HomeScreen({
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
+          { paddingBottom: insets.bottom + 100 },
           !loading && distributions.length === 0 && styles.scrollContentCentered
         ]}
         refreshControl={
@@ -259,22 +265,24 @@ export default function HomeScreen({
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greetingText}>Hi, {userName} 👋</Text>
-            <Text style={styles.greetingSubtext}>
+            <Typography variant="h1" style={styles.greetingText}>
+              Hi, {userName} 👋
+            </Typography>
+            <Typography variant="body" color={theme.colors.textSecondary} style={styles.greetingSubtext}>
               {isPendingResident ? 'Account pending admin review' : 'Relief distribution updates'}
-            </Text>
+            </Typography>
           </View>
           <TouchableOpacity
             style={[styles.notificationButton, isPendingResident && styles.notificationButtonDisabled]}
             disabled={isPendingResident}
             onPress={handleOpenNotifications}
           >
-            <Ionicons name="notifications-outline" size={24} color="#6B7280" />
+            <Ionicons name="notifications-outline" size={24} color={theme.colors.textSecondary} />
             {unreadUpdates > 0 && (
               <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>
+                <Typography variant="body" style={styles.notificationBadgeText}>
                   {unreadUpdates > 9 ? '9+' : String(unreadUpdates)}
-                </Text>
+                </Typography>
               </View>
             )}
           </TouchableOpacity>
@@ -285,32 +293,58 @@ export default function HomeScreen({
           <PendingAccessBanner message="Your account is pending approval. Distribution feed, notifications, and QR are disabled until approved." />
         )}
 
+        {!isVolunteer && !isPendingResident && (
+          <View style={styles.proofCtaWrap}>
+            <Card style={styles.proofCtaCard}>
+              <View style={styles.proofCtaIcon}>
+                <Ionicons name="document-text-outline" size={22} color="#166534" />
+              </View>
+              <View style={styles.proofCtaTextWrap}>
+                <Typography variant="body" weight="semiBold">Need disaster assistance?</Typography>
+                <Typography variant="body" color={theme.colors.textSecondary}>
+                  Send 3 to 5 proof photos so admins can review your eligibility for the active event.
+                </Typography>
+              </View>
+              <Button
+                title="Submit proof"
+                icon="arrow-forward"
+                onPress={() => onNavigate?.('proof-request')}
+                style={styles.proofCtaButton}
+              />
+            </Card>
+          </View>
+        )}
+
         {!isPendingResident && (loading || distributions.length > 0) && (
-          <Text style={styles.sectionLabel}>UPCOMING DISTRIBUTION</Text>
+          <Typography variant="body" weight="semiBold" color={theme.colors.textMuted} style={styles.sectionLabel}>
+            UPCOMING DISTRIBUTION
+          </Typography>
         )}
 
         {/* Loading State */}
         {loading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#16A34A" />
-            <Text style={styles.loadingText}>Loading distributions...</Text>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Typography variant="body" color={theme.colors.textSecondary} style={styles.loadingText}>
+              Loading distributions...
+            </Typography>
           </View>
         )}
 
         {/* Empty State */}
         {!loading && distributions.length === 0 && (
-          <View style={styles.emptyStateContainer}>
-            <View style={styles.emptyStateIconWrapper}>
-              <Ionicons name="calendar-outline" size={56} color="#D1D5DB" style={styles.emptyStateIcon} />
+          <View style={[styles.emptyStateContainer, { paddingHorizontal: theme.spacing.xl }]}>
+            <View style={[styles.emptyStateIconWrapper, { backgroundColor: theme.colors.primaryLight, padding: 24, borderRadius: 50, marginBottom: 24 }]}>
+              <Ionicons name="calendar-outline" size={48} color={theme.colors.primary} />
             </View>
-            <Text style={styles.emptyStateTitle}>
+            <Typography variant="h3" weight="semiBold" align="center">
               {isPendingResident ? 'Account pending approval' : 'No active distribution right now'}
-            </Text>
-            <Text style={styles.emptyStateText}>
+            </Typography>
+            <Typography variant="body" color="#6B7280" align="center" style={{ marginTop: 8 }}>
               {isPendingResident
                 ? 'You can use Home and Profile while waiting. Distribution and announcements unlock after approval.'
                 : "We'll notify you when the next relief schedule is available."}
-            </Text>
+            </Typography>
           </View>
         )}
 
@@ -363,14 +397,13 @@ export default function HomeScreen({
               </View>
 
               {/* View Details Button */}
-              <TouchableOpacity 
-                style={styles.viewDetailsButton}
+              <Button
+                variant={featuredDistribution.residentClaimed ? "secondary" : "primary"}
+                title={featuredDistribution.residentClaimed ? "View Claim Details" : "View Distribution Details"}
+                icon="arrow-forward"
                 onPress={() => setSelectedDistribution(featuredDistribution)}
-              >
-                <Text style={styles.viewDetailsText}>
-                  {featuredDistribution.residentClaimed ? 'View Claim Details' : 'View Distribution Details'}
-                </Text>
-              </TouchableOpacity>
+                style={{ marginTop: 8 }}
+              />
             </View>
           </View>
         )}
@@ -521,16 +554,16 @@ export default function HomeScreen({
       </Modal>
 
       {/* Bottom Navigation */}
-      <View style={styles.bottomNavContainer}>
+      <View style={[styles.bottomNavContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : theme.spacing.md }]}>
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="home" size={22} color="#16A34A" />
-            <Text style={[styles.navText, styles.navTextActive]}>HOME</Text>
+            <Ionicons name="home" size={22} color={theme.colors.primary} />
+            <Typography variant="body" style={[styles.navText, styles.navTextActive]}>HOME</Typography>
           </TouchableOpacity>
           <View style={styles.navItemPlaceholder} />
           <TouchableOpacity style={styles.navItem} onPress={() => onNavigate?.('profile')}>
-            <Ionicons name="person-outline" size={22} color="#9CA3AF" />
-            <Text style={styles.navText}>PROFILE</Text>
+            <Ionicons name="person-outline" size={22} color={theme.colors.textMuted} />
+            <Typography variant="body" style={styles.navText}>PROFILE</Typography>
           </TouchableOpacity>
         </View>
         
@@ -540,7 +573,7 @@ export default function HomeScreen({
           onPress={() => onNavigate?.('qr')}
           disabled={isPendingResident}
         >
-          <MaterialCommunityIcons name="qrcode-scan" size={26} color="#FFFFFF" />
+          <MaterialCommunityIcons name="qrcode-scan" size={26} color={theme.colors.surface} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -635,6 +668,28 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     paddingHorizontal: 24,
     marginBottom: 16,
+  },
+  proofCtaWrap: {
+    paddingHorizontal: 24,
+    marginBottom: 18,
+  },
+  proofCtaCard: {
+    backgroundColor: '#F0FDF4',
+    gap: 14,
+  },
+  proofCtaIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proofCtaTextWrap: {
+    gap: 6,
+  },
+  proofCtaButton: {
+    marginTop: 4,
   },
 
   // Loading State
@@ -964,16 +1019,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: theme.colors.divider,
   },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 28,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
   },
   navItem: {
     alignItems: 'center',
@@ -985,13 +1040,13 @@ const styles = StyleSheet.create({
   },
   navText: {
     fontSize: 10,
-    color: '#9CA3AF',
-    marginTop: 4,
+    color: theme.colors.textMuted,
+    marginTop: theme.spacing.xs,
     fontWeight: '600',
     letterSpacing: 0.5,
   },
   navTextActive: {
-    color: '#16A34A',
+    color: theme.colors.primary,
   },
   floatingQrButton: {
     position: 'absolute',
@@ -1001,7 +1056,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -1010,9 +1065,9 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     borderWidth: 4,
-    borderColor: '#FFFFFF',
+    borderColor: theme.colors.surface,
   },
   floatingQrButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: theme.colors.textMuted,
   },
 });

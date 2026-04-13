@@ -11,7 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   getResidentToken,
@@ -25,6 +25,9 @@ import {
 } from '../services/auth/MobileAuthService';
 import * as ImagePicker from 'expo-image-picker';
 import PendingAccessBanner from './PendingAccessBanner';
+import { Typography } from './ui/Typography';
+import { Card } from './ui/Card';
+import { triggerTestNotification } from '../services/notifications/TestNotificationService';
 
 interface ProfileScreenProps {
   onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
@@ -49,7 +52,7 @@ const SettingsItem = ({ icon, label, onPress, disabled = false }: SettingsItemPr
     <View style={styles.settingsIconWrapper}>
       <Ionicons name={icon} size={20} color="#6B7280" />
     </View>
-    <Text style={styles.settingsLabel}>{label}</Text>
+    <Typography variant="body" weight="medium" style={{ flex: 1, marginLeft: 14 }}>{label}</Typography>
     <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
   </TouchableOpacity>
 );
@@ -63,8 +66,8 @@ interface InfoRowProps {
 const InfoRow = ({ label, value, showDivider = true }: InfoRowProps) => (
   <>
     <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+      <Typography variant="body" color="#9CA3AF">{label}</Typography>
+      <Typography variant="body" weight="medium" style={[styles.infoValue, { flex: 1, textAlign: 'right' }]}>{value}</Typography>
     </View>
     {showDivider && <View style={styles.infoDivider} />}
   </>
@@ -80,6 +83,7 @@ export default function ProfileScreen({
   onResidentProfileUpdated,
   onVolunteerProfileUpdated,
 }: ProfileScreenProps) {
+  const insets = useSafeAreaInsets();
   const isVolunteer = accountType === 'volunteer';
   const isPendingResident = !isVolunteer && residentStatus === 'Pending';
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -290,6 +294,16 @@ export default function ProfileScreen({
     onLogout?.();
   };
 
+  const handleTestNotification = async () => {
+    try {
+      await triggerTestNotification();
+      Alert.alert('Notification Sent', 'A test notification was scheduled. Check your notification tray now.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to send a test notification.';
+      Alert.alert('Notification Failed', message);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {isVolunteer && (
@@ -306,7 +320,7 @@ export default function ProfileScreen({
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Profile Identity Section */}
@@ -323,7 +337,7 @@ export default function ProfileScreen({
           </View>
 
           {/* Name */}
-          <Text style={styles.profileName}>{displayName}</Text>
+          <Typography variant="h2" weight="semiBold" style={{ marginTop: 12 }}>{displayName}</Typography>
 
           {/* Verified Badge */}
           <View style={styles.verifiedBadge}>
@@ -332,12 +346,12 @@ export default function ProfileScreen({
               size={16} 
               color={isVerified ? '#16A34A' : '#F59E0B'} 
             />
-            <Text style={styles.verifiedText}>
+            <Typography variant="caption" weight="medium" color={isVerified ? '#16A34A' : '#F59E0B'} style={{ marginLeft: 4 }}>
               {isVolunteer ? 'Active Staff' : isVerified ? 'Verified Household' : 'Pending Verification'}
-            </Text>
+            </Typography>
           </View>
 
-          {isVolunteer && <Text style={styles.residentCode}>Resident Code: {residentCode}</Text>}
+          {isVolunteer && <Typography variant="caption" color="#9CA3AF" style={{ marginTop: 8 }}>Resident Code: {residentCode}</Typography>}
         </View>
 
         {isVolunteer ? (
@@ -383,6 +397,12 @@ export default function ProfileScreen({
           />
           <View style={styles.settingsDivider} />
           <SettingsItem
+            icon="paper-plane-outline"
+            label="Test Notification"
+            onPress={handleTestNotification}
+          />
+          <View style={styles.settingsDivider} />
+          <SettingsItem
             icon="shield-checkmark-outline"
             label="Privacy & Security"
             onPress={() => Alert.alert('Privacy & Security', 'Security settings are available on the web admin panel.')}
@@ -401,14 +421,14 @@ export default function ProfileScreen({
             <View style={styles.logoutIconWrapper}>
               <Ionicons name="log-out-outline" size={20} color="#DC2626" />
             </View>
-            <Text style={styles.logoutText}>Log Out</Text>
+            <Typography variant="body" weight="semiBold" color="#DC2626" style={{ flex: 1, marginLeft: 14 }}>Log Out</Typography>
             <Ionicons name="chevron-forward" size={18} color="#FCA5A5" />
           </TouchableOpacity>
         </View>
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View style={styles.bottomNavContainer}>
+      <View style={[styles.bottomNavContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.bottomNavItem} onPress={() => onNavigate?.('home')}>
             <Ionicons name="home-outline" size={22} color="#9CA3AF" />

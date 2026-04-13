@@ -229,6 +229,62 @@ export interface ResidentRecord {
   };
 }
 
+export interface DisasterEventRecord {
+  id?: string;
+  _id?: string;
+  name: string;
+  disasterType: 'Typhoon' | 'Flood' | 'Storm Surge' | 'Landslide' | 'Earthquake' | 'Fire' | 'Other';
+  description?: string;
+  barangays: string[];
+  eventDate: string;
+  submissionDeadline?: string | null;
+  status: 'Draft' | 'Active' | 'Closed';
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BeneficiaryProofSubmissionRecord {
+  id?: string;
+  _id?: string;
+  damageType: 'Flood' | 'House Damage' | 'Storm Surge' | 'Landslide' | 'Livelihood Loss' | 'Other';
+  description: string;
+  supportingInfo?: string;
+  dateSubmitted: string;
+  photoProofUrl: string;
+  photoProofUrls?: string[];
+  status: 'Pending Verification' | 'Approved' | 'Rejected';
+  submissionVersion: number;
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  resident: {
+    _id: string;
+    residentCode: string;
+    fullName: string;
+    barangay: string;
+    status: 'Pending' | 'Approved' | 'Rejected';
+  };
+  event: {
+    _id: string;
+    name: string;
+    disasterType: string;
+    status: 'Draft' | 'Active' | 'Closed';
+  };
+}
+
+export interface BeneficiaryProofQueueSummary {
+  total: number;
+  pendingVerification: number;
+  approved: number;
+  rejected: number;
+}
+
+export interface BeneficiaryProofSubmissionListResponse extends PaginatedApiResponse<BeneficiaryProofSubmissionRecord[]> {
+  summary?: BeneficiaryProofQueueSummary;
+}
+
 // ========================== HELPERS ==========================
 
 /**
@@ -562,6 +618,128 @@ export const api = {
       body: JSON.stringify(payload),
     });
     return handleResponse<ApiResponse<ResidentRecord>>(response);
+  },
+
+  /**
+   * Get disaster events used for target beneficiary review.
+   */
+  async getBeneficiaryEvents(params?: {
+    status?: 'Draft' | 'Active' | 'Closed';
+    barangay?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedApiResponse<DisasterEventRecord[]>> {
+    const sp = new URLSearchParams();
+    if (params?.status) sp.append('status', params.status);
+    if (params?.barangay && params.barangay !== 'All Barangays') sp.append('barangay', params.barangay);
+    if (typeof params?.page === 'number') sp.append('page', String(params.page));
+    if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+
+    const qs = sp.toString();
+    const response = await fetch(`${API_URL}/beneficiaries/events${qs ? `?${qs}` : ''}`, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<PaginatedApiResponse<DisasterEventRecord[]>>(response);
+  },
+
+  /**
+   * Get current active disaster event for target beneficiary flow.
+   */
+  async getActiveBeneficiaryEvent(): Promise<ApiResponse<DisasterEventRecord | null>> {
+    const response = await fetch(`${API_URL}/beneficiaries/events/active`, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<DisasterEventRecord | null>>(response);
+  },
+
+  /**
+   * Create a new disaster event.
+   */
+  async createBeneficiaryEvent(data: {
+    name: string;
+    disasterType: DisasterEventRecord['disasterType'];
+    description?: string;
+    barangays: string[];
+    eventDate: string;
+    submissionDeadline?: string;
+    status?: DisasterEventRecord['status'];
+  }): Promise<ApiResponse<DisasterEventRecord>> {
+    const response = await fetch(`${API_URL}/beneficiaries/events`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<DisasterEventRecord>>(response);
+  },
+
+  /**
+   * Get proof submissions for target beneficiary verification.
+   */
+  async getBeneficiaryProofSubmissions(params?: {
+    disasterEventId?: string;
+    residentId?: string;
+    status?: 'Pending Verification' | 'Approved' | 'Rejected';
+    barangay?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<BeneficiaryProofSubmissionListResponse> {
+    const sp = new URLSearchParams();
+    if (params?.disasterEventId) sp.append('disasterEventId', params.disasterEventId);
+    if (params?.residentId) sp.append('residentId', params.residentId);
+    if (params?.status) sp.append('status', params.status);
+    if (params?.barangay && params.barangay !== 'All Barangays') sp.append('barangay', params.barangay);
+    if (params?.search) sp.append('search', params.search);
+    if (typeof params?.page === 'number') sp.append('page', String(params.page));
+    if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+
+    const qs = sp.toString();
+    const response = await fetch(`${API_URL}/beneficiaries/admin/proof-submissions${qs ? `?${qs}` : ''}`, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<BeneficiaryProofSubmissionListResponse>(response);
+  },
+
+  /**
+   * Approve or reject a proof submission.
+   */
+  async reviewBeneficiaryProofSubmission(
+    id: string,
+    payload: { decision: 'Approved' | 'Rejected'; rejectionReason?: string },
+  ): Promise<ApiResponse<{
+    proofSubmission: BeneficiaryProofSubmissionRecord;
+    eligibility: {
+      id?: string;
+      _id?: string;
+      status: 'Eligible' | 'Not Eligible';
+      registrationStatus: 'Pending' | 'Approved' | 'Rejected';
+      proofStatus: 'Pending Sync' | 'Pending Verification' | 'Approved' | 'Rejected';
+      rejectionReason?: string;
+      reviewedAt?: string | null;
+    };
+  }>> {
+    const response = await fetch(`${API_URL}/beneficiaries/admin/proof-submissions/${id}/review`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<ApiResponse<{
+      proofSubmission: BeneficiaryProofSubmissionRecord;
+      eligibility: {
+        id?: string;
+        _id?: string;
+        status: 'Eligible' | 'Not Eligible';
+        registrationStatus: 'Pending' | 'Approved' | 'Rejected';
+        proofStatus: 'Pending Sync' | 'Pending Verification' | 'Approved' | 'Rejected';
+        rejectionReason?: string;
+        reviewedAt?: string | null;
+      };
+    }>>(response);
   },
 
   /**

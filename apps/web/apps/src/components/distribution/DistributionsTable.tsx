@@ -227,15 +227,15 @@ export default function DistributionsTable({
              </div>
 
              {/* New Distribution Button */}
-             {canCreate && (
-               <button
-                 type="button"
-                 onClick={onOpenCreate}
-                 className="inline-flex items-center justify-center whitespace-nowrap gap-2 px-5 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-colors ml-1"
-               >
-                 + New
-               </button>
-             )}
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={onOpenCreate}
+                  className="ml-1 inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-[#0F533A] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0b412d]"
+                >
+                  + New Distribution
+                </button>
+              )}
            </div>
         </div>
 

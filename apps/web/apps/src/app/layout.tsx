@@ -1,17 +1,11 @@
 import React from 'react'
-import { Inter } from 'next/font/google'
+import type { Metadata } from 'next'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/AuthContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
 import { RouteLoadingProvider } from '@/lib/RouteLoadingContext'
 import TopLoadingBar from '@/components/layout/TopLoadingBar'
 import './globals.css'
-
-// 2. Configure the font with necessary weights
-const inter = Inter({ 
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'], 
-})
 
 export const metadata: Metadata = {
   title: 'Kapit-Bisig',
@@ -50,7 +44,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className={inter.className}>
+      <body className="antialiased">
         <ThemeProvider>
           <AuthProvider>
             <RouteLoadingProvider>

@@ -16,6 +16,7 @@ import {
   House,
   ArrowLeftRight,
   ChartNoAxesCombined,
+  FileText,
   Settings,
   LogOut,
 } from 'lucide-react'
@@ -32,6 +33,7 @@ const mainNavItems = [
   { name: 'Code Generation', href: '/code-generation', icon: ShieldCheck, superadminOnly: true },
   { name: 'Households', href: '/households', icon: House, superadminOnly: false },
   { name: 'Distribution', href: '/distribution', icon: ArrowLeftRight, superadminOnly: false },
+  { name: 'Target Beneficiaries', href: '/target-beneficiaries', icon: FileText, superadminOnly: false },
   { name: 'Reports', href: '/reports', icon: ChartNoAxesCombined, superadminOnly: false },
 ]
 

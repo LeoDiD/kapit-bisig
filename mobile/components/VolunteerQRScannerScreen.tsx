@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Audio } from 'expo-av';
 import { mobileAuthService } from '../services/auth/MobileAuthService';
 
 interface VolunteerQRScannerScreenProps {
@@ -51,8 +50,6 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   const [activeDistribution, setActiveDistribution] = useState<ScannerDistribution | null>(null);
   const [claimStatusText, setClaimStatusText] = useState<string | null>(null);
   const lastScanRef = useRef<{ data: string; at: number } | null>(null);
-  const successSoundRef = useRef<Audio.Sound | null>(null);
-
   const toMaskedName = (rawName?: string): string => {
     const parts = String(rawName || '')
       .trim()
@@ -71,35 +68,8 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadSound = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-        });
-        const { sound } = await Audio.Sound.createAsync(
-          require('../assets/sounds/qr-success.wav'),
-          { shouldPlay: false, volume: 1.0 }
-        );
-        if (isMounted) {
-          successSoundRef.current = sound;
-        } else {
-          await sound.unloadAsync();
-        }
-      } catch (err) {
-        console.warn('[VolunteerQRScannerScreen] Failed to load success sound', err);
-      }
-    };
-
-    loadSound();
-
     return () => {
-      isMounted = false;
-      if (successSoundRef.current) {
-        successSoundRef.current.unloadAsync().catch(() => undefined);
-        successSoundRef.current = null;
-      }
+      lastScanRef.current = null;
     };
   }, []);
 
@@ -128,14 +98,7 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   }, []);
 
   const playSuccessFeedback = async () => {
-    try {
-      Vibration.vibrate(80);
-      if (successSoundRef.current) {
-        await successSoundRef.current.replayAsync();
-      }
-    } catch (err) {
-      console.warn('[VolunteerQRScannerScreen] Failed to play feedback', err);
-    }
+    Vibration.vibrate(80);
   };
 
   const handleQrScanned = async ({ data }: { data: string }) => {

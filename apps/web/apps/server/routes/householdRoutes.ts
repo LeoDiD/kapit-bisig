@@ -1157,6 +1157,7 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
       }));
 
     const residentClaims = await Claim.find({
+      claimCategory: 'DISTRIBUTION',
       residentId: userId,
       status: mongoose.trusted({ $in: [...CLAIMED_STATUSES] }),
     })
@@ -1725,6 +1726,7 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
       if (distributionId && typeof distributionId === 'string') {
         alreadyClaimed = Boolean(
           await Claim.findOne({
+            claimCategory: 'DISTRIBUTION',
             residentId: cached.residentId,
             distributionId: distributionId.trim(),
             status: mongoose.trusted({ $in: [...CLAIMED_STATUSES] }),
@@ -1781,6 +1783,7 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
     if (distributionId && typeof distributionId === 'string') {
       alreadyClaimed = Boolean(
         await Claim.findOne({
+          claimCategory: 'DISTRIBUTION',
           residentId: resident._id.toString(),
           distributionId: distributionId.trim(),
           status: mongoose.trusted({ $in: [...CLAIMED_STATUSES] }),
@@ -1901,6 +1904,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     // Idempotency guard for scanner retries and race conditions.
     // Unique index is (householdId, distributionId), so check exactly that pair.
     const existingClaim = await Claim.findOne({
+      claimCategory: 'DISTRIBUTION',
       householdId,
       distributionId,
     })
@@ -1928,7 +1932,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     const distributionSite = `${distribution.barangay} Barangay Hall`;
 
     const upsertResult = await Claim.updateOne(
-      { householdId, distributionId },
+      { householdId, distributionId, claimCategory: 'DISTRIBUTION' },
       {
         $setOnInsert: {
           claimId,
@@ -1940,6 +1944,11 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
           distributionSite,
           staffUserId,
           staffName,
+          claimCategory: 'DISTRIBUTION',
+          claimStatus: 'Claimed',
+          scannedBy: staffUserId,
+          scannedAt: new Date(),
+          source: 'ONLINE',
           status: 'PENDING_CHAIN',
           blockchain: {
             householdHash,
@@ -1952,7 +1961,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     );
 
     const inserted = upsertResult.upsertedCount === 1;
-    const claim = await Claim.findOne({ householdId, distributionId });
+    const claim = await Claim.findOne({ householdId, distributionId, claimCategory: 'DISTRIBUTION' });
     if (!claim) {
       return res.status(500).json({
         success: false,
@@ -1988,7 +1997,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
       const distributionId = typeof req.body?.distributionId === 'string' ? req.body.distributionId.trim() : '';
 
       const existingClaim = residentId && distributionId
-        ? await Claim.findOne({ householdId: residentId, distributionId }).lean()
+        ? await Claim.findOne({ householdId: residentId, distributionId, claimCategory: 'DISTRIBUTION' }).lean()
         : null;
 
       return res.json({

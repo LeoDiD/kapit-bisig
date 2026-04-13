@@ -10,14 +10,19 @@ import {
   Alert,
   Modal,
   Pressable,
+  Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
   DashboardSummary,
   mobileAuthService,
   User as VolunteerUser,
 } from '../services/auth/MobileAuthService';
+import { theme } from '../theme';
+import { Typography } from './ui/Typography';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
 
 interface VolunteerDashboardScreenProps {
   volunteerUser?: VolunteerUser | null;
@@ -62,6 +67,7 @@ export default function VolunteerDashboardScreen({
   onNavigate,
   onLogout,
 }: VolunteerDashboardScreenProps) {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [distributions, setDistributions] = useState<DistributionData[]>([]);
@@ -225,13 +231,13 @@ export default function VolunteerDashboardScreen({
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#16A34A"
-            colors={['#16A34A']}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -256,7 +262,7 @@ export default function VolunteerDashboardScreen({
             )}
           </View>
           <TouchableOpacity style={styles.notificationButton} onPress={handleOpenNotifications}>
-            <Ionicons name="notifications-outline" size={24} color="#374151" />
+            <Ionicons name="notifications-outline" size={24} color={theme.colors.textPrimary} />
             {unreadNotificationCount > 0 && <View style={styles.notificationDot} />}
           </TouchableOpacity>
         </View>
@@ -306,7 +312,7 @@ export default function VolunteerDashboardScreen({
                 <Ionicons
                   name={stats.scansTrend >= 0 ? 'arrow-up' : 'arrow-down'}
                   size={12}
-                  color={stats.scansTrend >= 0 ? '#16A34A' : '#EF4444'}
+                  color={stats.scansTrend >= 0 ? theme.colors.success : theme.colors.error}
                 />
                 <Text
                   style={[
@@ -325,11 +331,11 @@ export default function VolunteerDashboardScreen({
 
         <View style={styles.statusStrip}>
           <View style={styles.statusItem}>
-            <Ionicons name="layers-outline" size={16} color="#16A34A" />
+            <Ionicons name="layers-outline" size={16} color={theme.colors.success} />
             <Text style={styles.statusText}>ACTIVE DISTRIBUTIONS: {stats.activeDistributions}</Text>
           </View>
           <View style={styles.statusItem}>
-            <Ionicons name="checkmark-done-outline" size={16} color="#16A34A" />
+            <Ionicons name="checkmark-done-outline" size={16} color={theme.colors.success} />
             <Text style={styles.statusText}>CONFIRMED TODAY: {stats.confirmedClaimsToday}</Text>
           </View>
         </View>
@@ -337,15 +343,15 @@ export default function VolunteerDashboardScreen({
         {/* System Status Strip */}
         <View style={styles.statusStrip}>
           <View style={styles.statusItem}>
-            <Ionicons name="checkmark" size={16} color="#16A34A" />
+            <Ionicons name="checkmark" size={16} color={theme.colors.success} />
             <Text style={styles.statusText}>AUTHENTICATED</Text>
           </View>
           <View style={styles.statusItem}>
-            <Ionicons name="checkmark" size={16} color="#16A34A" />
+            <Ionicons name="checkmark" size={16} color={theme.colors.success} />
             <Text style={styles.statusText}>SCANNER READY</Text>
           </View>
           <View style={styles.statusItem}>
-            <Ionicons name="checkmark" size={16} color="#16A34A" />
+            <Ionicons name="checkmark" size={16} color={theme.colors.success} />
             <Text style={styles.statusText}>ACTIVE</Text>
           </View>
         </View>
@@ -358,7 +364,7 @@ export default function VolunteerDashboardScreen({
 
         {loading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#16A34A" />
+            <ActivityIndicator size="large" color={theme.colors.primary} />
           </View>
         )}
 
@@ -377,7 +383,7 @@ export default function VolunteerDashboardScreen({
             <View style={styles.distributionInfo}>
               <View style={styles.infoRow}>
                 <View style={styles.infoIconWrapper}>
-                  <Ionicons name="location-outline" size={18} color="#16A34A" />
+                  <Ionicons name="location-outline" size={18} color={theme.colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>COVERAGE</Text>
@@ -391,7 +397,7 @@ export default function VolunteerDashboardScreen({
 
               <View style={styles.infoRow}>
                 <View style={styles.infoIconWrapper}>
-                  <Ionicons name="time-outline" size={18} color="#16A34A" />
+                  <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>SCHEDULE</Text>
@@ -401,7 +407,7 @@ export default function VolunteerDashboardScreen({
 
               <View style={styles.infoRow}>
                 <View style={styles.infoIconWrapper}>
-                  <Ionicons name="people-outline" size={18} color="#16A34A" />
+                  <Ionicons name="people-outline" size={18} color={theme.colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>HOUSEHOLDS</Text>
@@ -419,29 +425,31 @@ export default function VolunteerDashboardScreen({
                   <Text style={styles.urgentText}>URGENT</Text>
                 </View>
               )}
-              <TouchableOpacity
-                style={styles.detailsButton}
+              <Button
+                variant="outline"
+                title="Details"
+                icon="arrow-forward"
+                size="sm"
                 onPress={() =>
                   Alert.alert(
                     featuredDistribution.title,
                     `Coverage: ${featuredDistribution.coverage.join(', ')}\nSchedule: ${featuredDistribution.schedule}`
                   )
                 }
-              >
-                <Text style={styles.detailsButtonText}>Details</Text>
-                <Ionicons name="arrow-forward" size={16} color="#16A34A" />
-              </TouchableOpacity>
+              />
             </View>
           </View>
         )}
 
         {!loading && distributions.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="radio-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyStateTitle}>No live distributions</Text>
-            <Text style={styles.emptyStateText}>
+          <View style={[styles.emptyState, { paddingHorizontal: 32 }]}>
+            <View style={{ backgroundColor: theme.colors.divider, padding: 24, borderRadius: 50, marginBottom: 24 }}>
+              <Ionicons name="radio-outline" size={48} color={theme.colors.textMuted} />
+            </View>
+            <Typography variant="h3" weight="semiBold" align="center">No live distributions</Typography>
+            <Typography variant="body" color={theme.colors.textSecondary} align="center" style={{ marginTop: 8 }}>
               Distributions will appear here when they go live.
-            </Text>
+            </Typography>
           </View>
         )}
       </ScrollView>
@@ -457,13 +465,13 @@ export default function VolunteerDashboardScreen({
             <View style={styles.notificationsHeader}>
               <Text style={styles.notificationsTitle}>Notifications</Text>
               <TouchableOpacity onPress={() => setShowNotificationsModal(false)}>
-                <Ionicons name="close" size={22} color="#374151" />
+                <Ionicons name="close" size={22} color={theme.colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
             {notificationsLoading ? (
               <View style={styles.notificationsLoading}>
-                <ActivityIndicator size="small" color="#16A34A" />
+                <ActivityIndicator size="small" color={theme.colors.primary} />
               </View>
             ) : notifications.length === 0 ? (
               <Text style={styles.notificationsEmpty}>No notifications found.</Text>
@@ -501,22 +509,22 @@ export default function VolunteerDashboardScreen({
       </Modal>
 
       {/* Bottom Navigation */}
-      <View style={styles.bottomNavContainer}>
+      <View style={[styles.bottomNavContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.bottomNavItem}>
-            <Ionicons name="home" size={22} color="#16A34A" />
+            <Ionicons name="home" size={22} color={theme.colors.primary} />
             <Text style={[styles.bottomNavText, styles.bottomNavTextActive]}>HOME</Text>
           </TouchableOpacity>
           <View style={styles.bottomNavPlaceholder} />
           <TouchableOpacity style={styles.bottomNavItem} onPress={() => onNavigate?.('profile')}>
-            <Ionicons name="person-outline" size={22} color="#9CA3AF" />
+            <Ionicons name="person-outline" size={22} color={theme.colors.textMuted} />
             <Text style={styles.bottomNavText}>PROFILE</Text>
           </TouchableOpacity>
         </View>
         
         {/* Floating QR Button */}
         <TouchableOpacity style={styles.floatingQrButton} onPress={() => onNavigate?.('qr')}>
-          <Ionicons name="qr-code-outline" size={26} color="#FFFFFF" />
+          <Ionicons name="qr-code-outline" size={26} color={theme.colors.surface} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -524,10 +532,9 @@ export default function VolunteerDashboardScreen({
 }
 
 const styles = StyleSheet.create({
-  // Main Container
   container: {
     flex: 1,
-    backgroundColor: '#F8FAF9',
+    backgroundColor: theme.colors.background,
   },
   scrollView: {
     flex: 1,
@@ -535,8 +542,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 120,
   },
-
-  // Header Section
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -544,7 +549,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 40,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
   },
   headerLeft: {
     flex: 1,
@@ -557,11 +562,11 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#1F2937',
+    color: theme.colors.textPrimary,
     letterSpacing: -0.5,
   },
   staffBadge: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.divider,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,

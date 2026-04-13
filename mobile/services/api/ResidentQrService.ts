@@ -1,5 +1,6 @@
 import { resolveApiBaseUrl } from '../config/apiSecurity';
 import * as SecureStore from 'expo-secure-store';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const API_BASE_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
@@ -11,6 +12,7 @@ const STORAGE_KEYS = {
   RESIDENT_TOKEN: 'kapitbisigresidenttoken',
   RESIDENT_SESSION: 'kapitbisigresidentsession',
 } as const;
+const PROOF_QUEUE_FILE = `${FileSystem.documentDirectory || ''}resident-proof-sync-queue.json`;
 
 export interface ResidentSession {
   token: string;
@@ -74,6 +76,35 @@ export interface ResidentDistributionItem {
   createdAt?: string;
   residentClaimed?: boolean;
   residentClaimStatus?: string | null;
+}
+
+export interface ResidentDisasterEvent {
+  id?: string;
+  _id?: string;
+  name: string;
+  disasterType: string;
+  description?: string;
+  barangays: string[];
+  eventDate: string;
+  submissionDeadline?: string | null;
+  status: 'Draft' | 'Active' | 'Closed';
+}
+
+export interface ResidentProofSubmissionPayload {
+  disasterEventId: string;
+  damageType: 'Flood' | 'House Damage' | 'Storm Surge' | 'Landslide' | 'Livelihood Loss' | 'Other';
+  description: string;
+  supportingInfo?: string;
+  dateSubmitted: string;
+  photoProofs: string[];
+  clientGeneratedId: string;
+  deviceId?: string;
+}
+
+export interface ResidentQueuedProofSubmission extends ResidentProofSubmissionPayload {
+  queuedAt: string;
+  syncStatus: 'Pending Sync' | 'Failed';
+  lastError?: string;
 }
 
 interface ApiResponse<T> {
@@ -398,6 +429,181 @@ export async function fetchResidentDistributions(
       message: 'Network error while fetching distributions.',
     };
   }
+}
+
+export async function fetchActiveBeneficiaryEvent(
+  token: string
+): Promise<{ success: boolean; message?: string; data?: ResidentDisasterEvent | null }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/beneficiaries/events/active`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const payload = await parseApiResponse<ResidentDisasterEvent | null>(response);
+    if (!response.ok || !payload.success) {
+      return {
+        success: false,
+        message: payload.message || 'Failed to load the active disaster event.',
+      };
+    }
+
+    return {
+      success: true,
+      data: payload.data ?? null,
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while loading the active disaster event.',
+    };
+  }
+}
+
+export async function submitResidentProofSubmission(
+  token: string,
+  payload: ResidentProofSubmissionPayload
+): Promise<{ success: boolean; message?: string; queued?: boolean }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/beneficiaries/proof-submissions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const parsed = await parseApiResponse<unknown>(response);
+    if (!response.ok || !parsed.success) {
+      return {
+        success: false,
+        message: parsed.message || 'Failed to submit disaster proof.',
+      };
+    }
+
+    return {
+      success: true,
+      queued: false,
+      message: parsed.message || 'Disaster proof submitted successfully.',
+    };
+  } catch {
+    const queue = await readProofQueue();
+    queue.push({
+      ...payload,
+      deviceId: payload.deviceId || buildProofDeviceId(),
+      queuedAt: new Date().toISOString(),
+      syncStatus: 'Pending Sync',
+    });
+    await writeProofQueue(queue);
+
+    return {
+      success: true,
+      queued: true,
+      message: 'No internet connection. The request was saved and will sync automatically.',
+    };
+  }
+}
+
+export async function getQueuedResidentProofSubmissions(): Promise<ResidentQueuedProofSubmission[]> {
+  return readProofQueue();
+}
+
+export async function syncQueuedResidentProofSubmissions(
+  token: string
+): Promise<{ success: boolean; syncedCount: number; failedCount: number; message?: string }> {
+  const queue = await readProofQueue();
+  if (queue.length === 0) {
+    return { success: true, syncedCount: 0, failedCount: 0 };
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/beneficiaries/sync/proof-submissions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        deviceId: queue[0]?.deviceId || buildProofDeviceId(),
+        submissions: queue.map(({ queuedAt, syncStatus, lastError, ...item }) => item),
+      }),
+    });
+
+    const parsed = await parseApiResponse<{
+      synced?: Array<{ clientGeneratedId: string; syncStatus: 'Synced' | 'Failed'; error?: string }>;
+    }>(response);
+
+    if (!response.ok || !parsed.success) {
+      return {
+        success: false,
+        syncedCount: 0,
+        failedCount: queue.length,
+        message: parsed.message || 'Failed to sync queued proof submissions.',
+      };
+    }
+
+    const resultMap = new Map(
+      (parsed.data?.synced || []).map((item) => [item.clientGeneratedId, item]),
+    );
+
+    const remainingQueue = queue
+      .map((item) => {
+        const result = resultMap.get(item.clientGeneratedId);
+        if (result?.syncStatus === 'Synced') {
+          return null;
+        }
+        return {
+          ...item,
+          syncStatus: 'Failed' as const,
+          lastError: result?.error || item.lastError || 'Sync failed.',
+        };
+      })
+      .filter(Boolean) as ResidentQueuedProofSubmission[];
+
+    await writeProofQueue(remainingQueue);
+
+    return {
+      success: true,
+      syncedCount: queue.length - remainingQueue.length,
+      failedCount: remainingQueue.length,
+      message: remainingQueue.length > 0
+        ? 'Some queued proof requests still need internet to sync.'
+        : 'Queued proof requests synced successfully.',
+    };
+  } catch {
+    return {
+      success: false,
+      syncedCount: 0,
+      failedCount: queue.length,
+      message: 'Still offline. Saved proof requests will sync once the connection returns.',
+    };
+  }
+}
+
+async function readProofQueue(): Promise<ResidentQueuedProofSubmission[]> {
+  try {
+    const file = await FileSystem.readAsStringAsync(PROOF_QUEUE_FILE, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    const parsed = JSON.parse(file);
+    return Array.isArray(parsed) ? (parsed as ResidentQueuedProofSubmission[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeProofQueue(queue: ResidentQueuedProofSubmission[]): Promise<void> {
+  await FileSystem.writeAsStringAsync(PROOF_QUEUE_FILE, JSON.stringify(queue), {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+}
+
+function buildProofDeviceId(): string {
+  return `resident-proof-device-${Date.now()}`;
 }
 
 export async function residentForgotPasswordSendOtp(

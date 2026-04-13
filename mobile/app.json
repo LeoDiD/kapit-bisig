@@ -21,7 +21,21 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-notifications"
-    ]
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#16A34A",
+          "defaultChannel": "default"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0f27a006-752a-408c-a8c7-95c83e3157d4"
+      }
+    },
+    "owner": "angela-gabriele"
   }
 }

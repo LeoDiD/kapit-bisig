@@ -1,0 +1,29 @@
+
+> kapit-bisig-web@1.0.0 dev
+> node scripts/dev-with-warmup.js 3000
+
+Freed port 3000 by killing PID 17456
+   ▲ Next.js 14.0.4
+   - Local:        http://localhost:3000
+   - Environments: .env.local
+
+Warmup / failed: This operation was aborted
+ ✓ Ready in 8.2s
+ ○ Compiling / ...
+Warmup / failed: This operation was aborted
+Warmup / failed: This operation was aborted
+Warmup / failed: This operation was aborted
+ ✓ Compiled / in 18.9s (449 modules)
+ ✓ Compiled in 2.1s (223 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2s (487 modules)
+Warmup / failed: This operation was aborted
+Warmup / -> 200
+Warming core app routes...
+Warmup / -> 200
+Warmup /login -> 200
+ ○ Compiling /target-beneficiaries ...
+ ✓ Compiled /target-beneficiaries in 2.9s (609 modules)
+Warmup /target-beneficiaries -> 200
+Warmup complete. You can open the app now.
+[?25h

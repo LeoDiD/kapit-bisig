@@ -20,7 +20,11 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mobileAuthService, User } from '../services/auth/MobileAuthService';
+import { theme } from '../theme';
+import { Typography } from './ui/Typography';
+import { Button } from './ui/Button';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: User) => void;
@@ -28,6 +32,7 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps) {
+  const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const otpInputRef = useRef<TextInput | null>(null);
   const otpScales = useRef(Array.from({ length: 6 }, () => new Animated.Value(1))).current;
@@ -327,19 +332,16 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles.loginKeyboardView}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          isOtpChallenge && styles.scrollContentOtp,
-        ]}
+        contentContainerStyle={styles.loginScrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <TouchableOpacity onPress={onBack} style={styles.loginBackButton}>
             <Ionicons name="arrow-back" size={24} color="#2E7D32" />
           </TouchableOpacity>
         )}
@@ -350,7 +352,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
               <Text style={styles.welcomeGreen}>Welcome </Text>
               <Text style={styles.welcomeYellow}>Back!</Text>
             </Text>
-            <Text style={styles.volunteerSubtitle}>LGU Staff Portal</Text>
+            <Text style={styles.brandTagline}>LGU Staff Portal</Text>
           </View>
         )}
 
@@ -359,21 +361,12 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
 
           {!!error && <Text style={styles.loginErrorText}>{error}</Text>}
 
-          <TouchableOpacity
-            style={[
-              styles.loginButtonMain,
-              isLoginReady ? styles.loginButtonMainActive : styles.loginButtonMainInactive,
-              isLoading && styles.loginButtonMainDisabled,
-            ]}
+          <Button
+            title={isOtpChallenge ? 'Verify Code' : 'Login'}
             onPress={handleLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.loginButtonMainText}>{isOtpChallenge ? 'Verify Code' : 'Sign In'}</Text>
-            )}
-          </TouchableOpacity>
+            disabled={!isLoginReady || isLoading}
+            style={{ width: '100%', marginTop: theme.spacing.sm, marginBottom: theme.spacing.lg }}
+          />
 
           {!isOtpChallenge && (
             <View style={styles.infoContainer}>
@@ -389,22 +382,19 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loginKeyboardView: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 18,
   },
-  scrollContent: {
+  loginScrollContent: {
     flexGrow: 1,
+    alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 40,
     paddingTop: 40,
     paddingBottom: 30,
   },
-  scrollContentOtp: {
-    justifyContent: 'flex-start',
-    paddingTop: 22,
-  },
-  backButton: {
+  loginBackButton: {
     position: 'absolute',
     left: 20,
     top: Platform.OS === 'ios' ? 50 : 30,
@@ -419,7 +409,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     fontStyle: 'italic',
-    textAlign: 'center',
   },
   welcomeGreen: {
     color: '#2E7D32',
@@ -427,17 +416,15 @@ const styles = StyleSheet.create({
   welcomeYellow: {
     color: '#ECC323',
   },
-  volunteerSubtitle: {
+  brandTagline: {
+    marginTop: 8,
+    fontSize: 13,
     color: '#6B7280',
-    marginTop: 6,
-    fontSize: 14,
-    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   formContainer: {
     width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
@@ -446,9 +433,8 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   otpFormContainer: {
-    alignItems: 'stretch',
-    paddingTop: 28,
-    paddingBottom: 20,
+    paddingTop: 32,
+    paddingBottom: 24,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -457,11 +443,11 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     borderRadius: 8,
     paddingHorizontal: 15,
-    marginBottom: 8,
+    marginBottom: 15,
     backgroundColor: '#FFFFFF',
   },
   inputContainerError: {
-    borderColor: '#B00020',
+    borderColor: theme.colors.error,
   },
   inputContainerFocused: {
     borderColor: '#2E7D32',
@@ -477,67 +463,67 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   eyeIcon: {
-    padding: 5,
+    padding: theme.spacing.xs,
   },
   otpSection: {
     width: '100%',
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
     alignItems: 'center',
   },
   otpSectionCompact: {
-    marginBottom: 12,
+    marginBottom: theme.spacing.sm,
   },
   otpScreenTitle: {
-    fontSize: 20,
+    fontSize: theme.typography.size.lg,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 18,
+    marginBottom: theme.spacing.md,
   },
   otpDescription: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: theme.spacing.xs,
   },
   otpEmailText: {
-    fontSize: 14,
+    fontSize: theme.typography.size.sm,
     fontWeight: '700',
-    color: '#2E7D32',
+    color: theme.colors.primary,
     textAlign: 'center',
-    marginBottom: 22,
+    marginBottom: theme.spacing.lg,
     width: '100%',
   },
   otpBoxesContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: theme.spacing.sm,
     width: '100%',
-    marginTop: 6,
+    marginTop: theme.spacing.xs,
   },
   otpBoxesContainerError: {},
   otpBox: {
     minWidth: 40,
-    borderRadius: 10,
+    borderRadius: theme.borderRadius.sm,
     borderWidth: 1.5,
-    borderColor: '#DCE4F8',
-    backgroundColor: '#FFFFFF',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   otpBoxFilled: {
-    borderColor: '#2E7D32',
-    backgroundColor: '#FFFFFF',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surface,
   },
   otpBoxActive: {
-    borderColor: '#2E7D32',
+    borderColor: theme.colors.primary,
     borderWidth: 2,
   },
   otpBoxText: {
-    fontSize: 22,
+    fontSize: theme.typography.size.xl,
     fontWeight: '700',
-    color: '#2E7D32',
+    color: theme.colors.primary,
   },
   otpHiddenInput: {
     position: 'absolute',
@@ -546,21 +532,21 @@ const styles = StyleSheet.create({
     height: 1,
   },
   fieldError: {
-    color: '#B00020',
+    color: theme.colors.error,
     fontSize: 13,
-    marginBottom: 10,
+    marginBottom: theme.spacing.sm,
     marginLeft: 2,
   },
   fieldErrorCentered: {
-    color: '#B00020',
+    color: theme.colors.error,
     fontSize: 13,
-    marginBottom: 10,
+    marginBottom: theme.spacing.sm,
     textAlign: 'center',
   },
   loginErrorText: {
-    color: '#B00020',
+    color: theme.colors.error,
     fontSize: 13,
-    marginBottom: 12,
+    marginBottom: theme.spacing.sm,
     textAlign: 'center',
   },
   challengeActions: {
@@ -569,67 +555,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     rowGap: 8,
-    marginBottom: 18,
+    marginBottom: theme.spacing.md,
   },
   challengeActionDivider: {
     width: 1,
     height: 14,
-    backgroundColor: '#D1D5DB',
-    marginHorizontal: 10,
+    backgroundColor: theme.colors.divider,
+    marginHorizontal: theme.spacing.sm,
   },
   challengeLinkButton: {
     paddingVertical: 4,
   },
   challengeLinkText: {
-    color: '#2E7D32',
-    fontSize: 14,
+    color: theme.colors.primary,
+    fontSize: theme.typography.size.sm,
     fontWeight: '600',
   },
   challengeLinkTextMuted: {
-    color: '#6B7280',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loginButtonMain: {
-    width: '100%',
-    minHeight: 52,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  loginButtonMainInactive: {
-    backgroundColor: '#BDBDBD',
-  },
-  loginButtonMainActive: {
-    backgroundColor: '#2E7D32',
-  },
-  loginButtonMainDisabled: {
-    opacity: 0.7,
-  },
-  loginButtonMainText: {
-    color: '#FFFFFF',
-    fontSize: 17,
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.size.sm,
     fontWeight: '600',
   },
   infoContainer: {
-    marginTop: 2,
+    marginTop: theme.spacing.lg,
     alignItems: 'center',
   },
   infoText: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.textPrimary,
     textAlign: 'center',
     lineHeight: 20,
   },

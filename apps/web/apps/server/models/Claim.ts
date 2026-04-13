@@ -20,6 +20,10 @@ export type ClaimStatus =
   | 'CONFIRMED'
   | 'CHAIN_FAILED';
 
+export type ClaimCategory = 'DISTRIBUTION' | 'DISASTER_EVENT';
+export type ResidentClaimStatus = 'Not Claimed' | 'Claimed';
+export type ClaimSource = 'ONLINE' | 'OFFLINE_SYNC';
+
 export interface IClaim extends Document {
   claimId: string;
   householdId: string;
@@ -30,6 +34,18 @@ export interface IClaim extends Document {
   distributionSite: string;
   staffUserId: string;
   staffName: string;
+  claimCategory: ClaimCategory;
+  claimStatus: ResidentClaimStatus;
+  disasterEventId?: string;
+  scannedBy?: string;
+  scannedAt?: Date;
+  source: ClaimSource;
+  syncMetadata?: {
+    deviceId?: string;
+    clientGeneratedId?: string;
+    offlineCapturedAt?: Date;
+    syncedAt?: Date;
+  };
   status: ClaimStatus;
   blockchain: {
     txHash?: string;
@@ -88,6 +104,42 @@ const ClaimSchema = new Schema<IClaim>(
       type: String,
       required: true,
     },
+    claimCategory: {
+      type: String,
+      enum: ['DISTRIBUTION', 'DISASTER_EVENT'],
+      default: 'DISTRIBUTION',
+      index: true,
+    },
+    claimStatus: {
+      type: String,
+      enum: ['Not Claimed', 'Claimed'],
+      default: 'Claimed',
+      index: true,
+    },
+    disasterEventId: {
+      type: String,
+      default: '',
+      index: true,
+    },
+    scannedBy: {
+      type: String,
+      default: '',
+    },
+    scannedAt: {
+      type: Date,
+      default: null,
+    },
+    source: {
+      type: String,
+      enum: ['ONLINE', 'OFFLINE_SYNC'],
+      default: 'ONLINE',
+    },
+    syncMetadata: {
+      deviceId: { type: String, default: '' },
+      clientGeneratedId: { type: String, default: '' },
+      offlineCapturedAt: { type: Date, default: null },
+      syncedAt: { type: Date, default: null },
+    },
     status: {
       type: String,
       enum: ['PENDING_CHAIN', 'CHAIN_SUBMITTED', 'CONFIRMED', 'CHAIN_FAILED'],
@@ -113,6 +165,7 @@ const ClaimSchema = new Schema<IClaim>(
 
 // Compound index: one claim per household per distribution
 ClaimSchema.index({ householdId: 1, distributionId: 1 }, { unique: true });
+ClaimSchema.index({ claimCategory: 1, disasterEventId: 1, residentId: 1 });
 
 /**
  * Transform output to include id field

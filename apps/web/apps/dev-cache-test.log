@@ -1,0 +1,17 @@
+
+> kapit-bisig-web@1.0.0 dev
+> node scripts/free-port.js 3000 && npm run clean:next && next dev -p 3000
+
+
+> kapit-bisig-web@1.0.0 clean:next
+> node scripts/clean-next-artifacts.js
+
+   ▲ Next.js 14.0.4
+   - Local:        http://localhost:3000
+   - Environments: .env.local
+
+ ✓ Ready in 12.6s
+ ○ Compiling /target-beneficiaries ...
+ ✓ Compiled /target-beneficiaries in 26.3s (612 modules)
+ ✓ Compiled in 3.6s (306 modules)
+[?25h

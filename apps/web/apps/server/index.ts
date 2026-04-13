@@ -32,6 +32,7 @@ import notificationRoutes from './routes/notificationRoutes';
 import profileRoutes from './routes/profileRoutes';
 import authRoutes from './routes/authRoutes';
 import verificationRoutes from './routes/verificationRoutes';
+import beneficiaryRoutes from './routes/beneficiaryRoutes';
 
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
@@ -125,6 +126,7 @@ app.use('/api/residents', residentRoutes); // route-level auth (register is publ
 app.use('/api/face', faceRoutes); // route-level auth where needed
 app.use('/api/household', householdRoutes);
 app.use('/api/verification', verificationRoutes);
+app.use('/api/beneficiaries', beneficiaryRoutes);
 
 app.use('/api/admin/tokens', adminTokenRoutes);
 
@@ -150,8 +152,8 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    app.listen(PORT, () => {
-      console.log(`⚡️ Server is running on port ${PORT} [${env.NODE_ENV}]`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`⚡️ Server is running on port ${PORT} [0.0.0.0] [${env.NODE_ENV}]`);
       console.log(`🔐 Authentication endpoints available at /api/auth`);
       console.log(`🏠 Household registration available at /api/household`);
       console.log(`🎫 Admin token management available at /api/admin/tokens`);

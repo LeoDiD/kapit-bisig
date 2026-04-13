@@ -15,6 +15,7 @@ export * as adminStaffSchemas from './adminStaff.schema';
 export * as adminTokenSchemas from './adminToken.schema';
 export * as distributionSchemas from './distribution.schema';
 export * as claimSchemas from './claim.schema';
+export * as beneficiarySchemas from './beneficiary.schema';
 export * as householdSchemas from './household.schema';
 export * as householdListSchemas from './householdList.schema';
 export * as residentSchemas from './resident.schema';

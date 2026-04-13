@@ -332,6 +332,38 @@ cat .env.local | Select-String "MONGODB"
 node -e "const mongoose = require('mongoose'); mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/kapit-bisig').then(() => console.log('Connected!')).catch(e => console.error(e))"
 ```
 
+### Issue: Expo QR code opens but Expo Go says `Failed to download`, or terminal shows `Networking has been disabled`
+
+**Likely cause:** Expo LAN mode is relying on a local Wi-Fi route or port that is not reachable from the phone.
+
+**Solution:** Start the mobile app with tunnel mode first, then fall back to LAN only when both devices are on the same Wi-Fi.
+
+```powershell
+cd d:\kapit-bisig\mobile
+
+# Recommended for phone testing
+npm start
+
+# Optional: use LAN only when laptop and phone are on the same Wi-Fi
+npm run start:lan
+```
+
+If Expo still fails to start cleanly:
+
+```powershell
+# Close old Metro / Expo Node processes
+Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# Clear Expo local state and restart
+Remove-Item .expo -Recurse -Force -ErrorAction SilentlyContinue
+npm start
+```
+
+Also verify:
+- Your phone and laptop are on the same Wi-Fi if using `npm run start:lan`
+- `mobile/.env` uses your laptop's current IPv4 address for `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_FACE_API_URL`
+- Windows Firewall is not blocking `node.exe` on private networks
+
 ---
 
 ## Quick Start Summary
@@ -363,3 +395,4 @@ node server/scripts/generateTestTokenSimple.js 10
 
 *Last Updated: February 2026*
 
+npm start -- --clear

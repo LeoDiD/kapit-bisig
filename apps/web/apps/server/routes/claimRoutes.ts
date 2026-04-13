@@ -299,7 +299,7 @@ async function prepareClaimDraft(
   // [RISK-5 MITIGATION] Household identity for hashing must be stable per resident, not per token doc.
   const householdId = residentId;
 
-  const existingClaim = await Claim.findOne({ householdId, distributionId });
+  const existingClaim = await Claim.findOne({ householdId, distributionId, claimCategory: 'DISTRIBUTION' });
   if (existingClaim) {
     return {
       ok: false,
@@ -313,6 +313,7 @@ async function prepareClaimDraft(
   const eventHash = computeEventHash(distributionId);
 
   const existingHouseholdHashClaim = await Claim.findOne({
+    claimCategory: 'DISTRIBUTION',
     distributionId,
     'blockchain.householdHash': householdHash,
   });
@@ -534,7 +535,7 @@ router.post(
 
       console.log(`[2] Household found: ${householdCode} | ${barangay}`);
 
-      const existingClaim = await Claim.findOne({ householdId, distributionId });
+      const existingClaim = await Claim.findOne({ householdId, distributionId, claimCategory: 'DISTRIBUTION' });
       if (existingClaim) {
         console.error(
           `[ERROR] Duplicate claim blocked (DB): householdCode=${householdCode} barangay=${barangay}`,
@@ -554,6 +555,7 @@ router.post(
       );
 
       const existingHouseholdHashClaim = await Claim.findOne({
+        claimCategory: 'DISTRIBUTION',
         distributionId,
         'blockchain.householdHash': householdHash,
       });
@@ -571,7 +573,7 @@ router.post(
       const staffName = req.authUser?.sub || 'Unknown Staff';
 
       const claim = await runWithOptionalTransaction(async (session) => {
-        const existingInTxn = await Claim.findOne({ householdId, distributionId }).session(session || null);
+        const existingInTxn = await Claim.findOne({ householdId, distributionId, claimCategory: 'DISTRIBUTION' }).session(session || null);
         if (existingInTxn) {
           throw new Error('DUPLICATE_CLAIM_IN_TXN');
         }
@@ -586,6 +588,11 @@ router.post(
           distributionSite,
           staffUserId,
           staffName,
+          claimCategory: 'DISTRIBUTION' as const,
+          claimStatus: 'Claimed' as const,
+          scannedBy: staffUserId,
+          scannedAt: new Date(),
+          source: 'ONLINE' as const,
           status: 'PENDING_CHAIN' as const,
           blockchain: {
             householdHash,
@@ -775,6 +782,11 @@ router.post(
           distributionSite,
           staffUserId,
           staffName,
+          claimCategory: 'DISTRIBUTION',
+          claimStatus: 'Claimed',
+          scannedBy: staffUserId,
+          scannedAt: new Date(),
+          source: 'ONLINE',
           status: 'PENDING_CHAIN',
           blockchain: {
             householdHash: draft.householdHash,

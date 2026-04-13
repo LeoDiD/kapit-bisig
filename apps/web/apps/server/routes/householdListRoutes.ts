@@ -99,6 +99,7 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
     // Build a Set of resident IDs that have at least one CONFIRMED claim
     const residentIds = residents.map((r) => r._id.toString());
     const confirmedClaims = await Claim.find({
+      claimCategory: 'DISTRIBUTION',
       residentId: mongoose.trusted({ $in: residentIds }),
       status: 'CONFIRMED',
     })

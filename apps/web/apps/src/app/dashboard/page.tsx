@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { DashboardLayout, Header } from '@/components/layout'
 import {
-  StatsCard,
   LowStockAlert,
   QuickActions,
   DistributionTrendsChart,
@@ -106,11 +105,6 @@ export default function DashboardPage() {
     () => (stats.totalRegistered > 0 ? Math.round((stats.totalClaimed / stats.totalRegistered) * 100) : 0),
     [stats.totalClaimed, stats.totalRegistered]
   )
-  const priorityTag = useMemo(() => {
-    if (stats.totalUnclaimed >= 100) return 'High Priority'
-    if (stats.totalUnclaimed > 0) return 'Moderate Priority'
-    return 'Stable'
-  }, [stats.totalUnclaimed])
   const currentPeriod = useMemo(
     () => new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
     []
@@ -123,60 +117,45 @@ export default function DashboardPage() {
         subtitle="Overview of relief distribution activities"
       />
 
-      <section className="mb-6 rounded-3xl border border-gray-200 bg-gradient-to-br from-white via-white to-slate-50 p-4 sm:p-6 shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.16em] uppercase text-gray-500">LGU Executive Briefing</p>
-            <h2 className="mt-1 text-xl sm:text-2xl font-black text-gray-900 leading-tight">Relief Distribution Command Center</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Reporting period: <span className="font-semibold text-gray-800">{currentPeriod}</span>
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${
-              priorityTag === 'High Priority'
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : priorityTag === 'Moderate Priority'
-                  ? 'border-amber-200 bg-amber-50 text-amber-700'
-                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}>
-              {priorityTag}
-            </span>
-            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700">
-              Coverage {coverageRate}%
-            </span>
+      <section className="mb-8 rounded-[28px] border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-6 py-5 sm:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Executive Summary
+              </p>
+              <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950 sm:text-4xl">
+                Relief distribution overview
+              </h2>
+            </div>
+            <div className="text-sm font-medium text-slate-500">{currentPeriod}</div>
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <StatsCard
-            title="Total Households"
+        <div className="grid grid-cols-1 divide-y divide-slate-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+          <DeckMetricCell
+            title="Households"
             value={loading ? '...' : stats.totalHouseholds.toLocaleString()}
-            variant="blue"
-            icon={<HouseholdIcon className="w-5 h-5" />}
-            subtitle="Registered households"
+            subtitle="Registered"
+            icon={<HouseholdIcon className="h-5 w-5" />}
           />
-          <StatsCard
-            title="Pending Distributions"
+          <DeckMetricCell
+            title="Pending"
             value={loading ? '...' : stats.pendingDistributions.toLocaleString()}
-            variant="yellow"
-            icon={<PendingIcon className="w-5 h-5" />}
-            trend={stats.pendingDistributions > 0 ? 'up' : 'neutral'}
+            subtitle="Distributions"
+            icon={<PendingIcon className="h-5 w-5" />}
           />
-          <StatsCard
-            title="Completed Today"
+          <DeckMetricCell
+            title="Completed"
             value={loading ? '...' : stats.completedToday.toLocaleString()}
-            variant="green"
-            icon={<CompletedIcon className="w-5 h-5" />}
-            trend={stats.completedToday > 0 ? 'up' : 'neutral'}
+            subtitle="Today"
+            icon={<CompletedIcon className="h-5 w-5" />}
           />
-          <StatsCard
+          <DeckMetricCell
             title="Claim Rate"
-            value={loading ? '...' : `${stats.claimRate.toFixed(1)}%`}
-            variant="orange"
-            icon={<ChartIcon className="w-5 h-5" />}
-            trend={stats.claimRate >= 70 ? 'up' : stats.claimRate > 0 ? 'down' : 'neutral'}
-            subtitle={`${stats.totalClaimed} of ${stats.totalRegistered} households`}
+            value={loading ? '...' : `${coverageRate}%`}
+            subtitle={`${stats.totalClaimed} of ${stats.totalRegistered}`}
+            icon={<ChartIcon className="h-5 w-5" />}
           />
         </div>
       </section>
@@ -257,5 +236,32 @@ function ChartIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
+  )
+}
+
+function DeckMetricCell({
+  title,
+  value,
+  subtitle,
+  icon,
+}: {
+  title: string
+  value: string
+  subtitle: string
+  icon: React.ReactNode
+}) {
+  return (
+    <div className="min-w-0 px-6 py-5 sm:px-7 sm:py-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</p>
+          <h3 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-slate-950">{value}</h3>
+          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+        </div>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600">
+          {icon}
+        </div>
+      </div>
+    </div>
   )
 }

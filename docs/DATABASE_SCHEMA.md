@@ -89,6 +89,12 @@ This project uses MongoDB (via Mongoose). Main application data is in the `kapit
   - `householdId`, `residentId`, `householdCode`
   - `barangay`, `distributionId`, `distributionSite`
   - `staffUserId`, `staffName`
+  - `claimCategory` (`DISTRIBUTION|DISASTER_EVENT`)
+  - `claimStatus` (`Not Claimed|Claimed`)
+  - `disasterEventId`
+  - `scannedBy`, `scannedAt`
+  - `source` (`ONLINE|OFFLINE_SYNC`)
+  - `syncMetadata.deviceId`, `syncMetadata.clientGeneratedId`, `syncMetadata.offlineCapturedAt`, `syncMetadata.syncedAt`
   - `status` (`PENDING_CHAIN|CHAIN_SUBMITTED|CONFIRMED|CHAIN_FAILED`)
   - `blockchain.txHash`, `blockchain.blockNumber`, `blockchain.chainId`, `blockchain.contractAddress`, `blockchain.householdHash`, `blockchain.eventHash`, `blockchain.staffSigner`
   - `errorMessage`
@@ -100,6 +106,66 @@ This project uses MongoDB (via Mongoose). Main application data is in the `kapit
   - `{ barangay: 1 }`
   - `{ status: 1 }`
   - `{ householdId: 1, distributionId: 1 }` unique
+  - `{ claimCategory: 1, disasterEventId: 1, residentId: 1 }`
+
+### `disasterevents`
+- Source model: `server/models/DisasterEvent.ts`
+- Primary fields:
+  - `name`, `disasterType`, `description`
+  - `barangays[]`
+  - `eventDate`, `submissionDeadline`
+  - `status` (`Draft|Active|Closed`)
+  - `createdBy`, `updatedBy`
+  - `createdAt`, `updatedAt`
+- Indexes:
+  - `{ status: 1, eventDate: -1 }`
+  - `{ barangays: 1, status: 1, eventDate: -1 }`
+
+### `proofsubmissions`
+- Source model: `server/models/ProofSubmission.ts`
+- Primary fields:
+  - `residentId` (ref `Resident`)
+  - `disasterEventId` (ref `DisasterEvent`)
+  - `damageType`, `description`, `supportingInfo`
+  - `dateSubmitted`, `photoProofUrl`
+  - `status` (`Pending Sync|Pending Verification|Approved|Rejected`)
+  - `syncSource` (`ONLINE|OFFLINE_SYNC`)
+  - `submissionVersion`
+  - `clientGeneratedId`, `submittedViaDeviceId`
+  - `rejectionReason`, `reviewedBy`, `reviewedAt`
+  - `createdAt`, `updatedAt`
+- Indexes:
+  - `{ residentId: 1, disasterEventId: 1 }` unique
+  - `{ disasterEventId: 1, status: 1, createdAt: -1 }`
+
+### `beneficiaryeligibilities`
+- Source model: `server/models/BeneficiaryEligibility.ts`
+- Primary fields:
+  - `residentId` (ref `Resident`)
+  - `disasterEventId` (ref `DisasterEvent`)
+  - `proofSubmissionId` (ref `ProofSubmission`)
+  - `status` (`Eligible|Not Eligible`)
+  - `registrationStatus`, `proofStatus`
+  - `rejectionReason`, `reviewedBy`, `reviewedAt`, `lastQualifiedAt`
+  - `createdAt`, `updatedAt`
+- Indexes:
+  - `{ residentId: 1, disasterEventId: 1 }` unique
+  - `{ disasterEventId: 1, status: 1 }`
+
+### `offlinesyncqueues`
+- Source model: `server/models/OfflineSyncQueue.ts`
+- Primary fields:
+  - `queueType` (`PROOF_SUBMISSION|CLAIM`)
+  - `syncStatus` (`Pending|Processing|Synced|Failed`)
+  - `actorId`, `actorRole`
+  - `residentId`, `disasterEventId`
+  - `proofSubmissionId`, `claimMongoId`, `claimId`
+  - `clientGeneratedId`, `deviceId`
+  - `payload`, `errorMessage`, `syncedAt`
+  - `createdAt`, `updatedAt`
+- Indexes:
+  - `{ actorId: 1, queueType: 1, clientGeneratedId: 1 }` unique
+  - `{ disasterEventId: 1, queueType: 1, syncStatus: 1 }`
 
 ## Auth and User Collections
 
@@ -272,4 +338,3 @@ This project uses MongoDB (via Mongoose). Main application data is in the `kapit
 - `residentpasswordresetotps.residentId -> residents._id`
 - `loginverifyotps.userId -> staffusers._id`
 - `users.createdBy -> users._id`
-

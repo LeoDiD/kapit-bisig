@@ -5,6 +5,7 @@ import AddUserModal from './AddUserModal'
 import { api, getScopedBarangays, StaffUser } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
 import { sanitizeAsciiText } from '@/lib/inputValidation'
 import { useAuth } from '@/lib/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -203,23 +204,44 @@ export default function UsersTable() {
 
   return (
     <>
-      <section className="mb-6 rounded-3xl border border-gray-200 bg-gradient-to-br from-white via-white to-gray-50 p-4 sm:p-6 shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.16em] uppercase text-gray-500">Team Access Overview</p>
-            <h2 className="mt-1 text-xl sm:text-2xl font-black text-gray-900 leading-tight">LGU Staff Management Snapshot</h2>
-          </div>
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2.5">
-            <p className="text-[11px] font-bold tracking-wider uppercase text-blue-700">Active Rate</p>
-            <p className="text-2xl font-black text-blue-800 leading-tight">{metrics.activeRate}%</p>
+      <section className="mb-6 rounded-[28px] border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Team Access Overview</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950">
+                Staff account summary
+              </h2>
+            </div>
+            <p className="text-sm text-slate-500">Active rate {metrics.activeRate}%</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Total Staff" value={metrics.total} helper="Visible accounts" icon={<UsersMenuIcon className="h-5 w-5 text-gray-700" />} iconBg="bg-gray-100" />
-          <StatCard label="Active Accounts" value={metrics.active} helper="Can access platform" icon={<CheckCircleIcon className="h-5 w-5 text-emerald-700" />} iconBg="bg-emerald-100" progress={metrics.activeRate} progressClassName="bg-emerald-500" />
-          <StatCard label="Pending Accounts" value={metrics.pending} helper="Awaiting first login" icon={<ClockIcon className="h-5 w-5 text-amber-700" />} iconBg="bg-amber-100" />
-          <StatCard label="Inactive Accounts" value={metrics.inactive} helper="Currently disabled" icon={<DeactivateIcon className="h-5 w-5 text-slate-700" />} iconBg="bg-slate-200" />
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
+          <SummaryMetricCard
+            label="Total Staff"
+            value={metrics.total}
+            helper="Visible accounts"
+            icon={<UsersMenuIcon className="h-5 w-5" />}
+          />
+          <SummaryMetricCard
+            label="Active"
+            value={metrics.active}
+            helper="Can access platform"
+            icon={<CheckCircleIcon className="h-5 w-5" />}
+          />
+          <SummaryMetricCard
+            label="Pending"
+            value={metrics.pending}
+            helper="Awaiting first login"
+            icon={<ClockIcon className="h-5 w-5" />}
+          />
+          <SummaryMetricCard
+            label="Inactive"
+            value={metrics.inactive}
+            helper="Currently disabled"
+            icon={<DeactivateIcon className="h-5 w-5" />}
+          />
         </div>
       </section>
 
@@ -454,47 +476,6 @@ export default function UsersTable() {
         onCancel={() => !deleting && setDeleteTarget(null)}
       />
     </>
-  )
-}
-
-function StatCard({
-  label,
-  value,
-  helper,
-  icon,
-  iconBg,
-  progress,
-  progressClassName,
-}: {
-  label: string
-  value: number
-  helper: string
-  icon: React.ReactNode
-  iconBg: string
-  progress?: number
-  progressClassName?: string
-}) {
-  const clampedProgress = typeof progress === 'number' ? Math.min(100, Math.max(0, progress)) : undefined
-
-  return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-bold tracking-wider uppercase text-gray-500">{label}</p>
-          <p className="mt-1 text-3xl font-black leading-tight text-gray-900">{value > 0 ? value : '--'}</p>
-          <p className="mt-1 text-xs text-gray-500">{helper}</p>
-        </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconBg}`}>{icon}</div>
-      </div>
-      {typeof clampedProgress === 'number' && (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
-          <div
-            className={`h-full rounded-full ${progressClassName ?? 'bg-gray-700'}`}
-            style={{ width: `${clampedProgress}%` }}
-          />
-        </div>
-      )}
-    </article>
   )
 }
 

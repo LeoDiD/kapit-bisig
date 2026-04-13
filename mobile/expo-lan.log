@@ -1,0 +1,11 @@
+env: load .env
+env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_FACE_API_URL EXPO_PUBLIC_SMS_API_KEY
+Starting project at D:\kapit-bisig\mobile
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Error: GetEnv.NoBoolean: 1  is not a boolean.
+Error: GetEnv.NoBoolean: 1  is not a boolean.
+    at Object.boolish (D:\kapit-bisig\mobile\node_modules\getenv\index.js:70:15)
+    at D:\kapit-bisig\mobile\node_modules\getenv\index.js:84:27
+    at Env.EXPO_NO_DEPENDENCY_VALIDATION (D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\src\utils\env.ts:276:19)
+    at startAsync (D:\kapit-bisig\mobile\node_modules\expo\node_modules\@expo\cli\src\start\startAsync.ts:109:12)

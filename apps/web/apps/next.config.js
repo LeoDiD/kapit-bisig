@@ -19,12 +19,26 @@ const nextConfig = {
   reactStrictMode: true,
   // Use a dedicated build directory to avoid Windows file-lock issues on `.next/trace`.
   distDir: '.next-app',
+  webpack(config, { dev }) {
+    if (dev) {
+      // Avoid flaky Windows filesystem cache pack-file races in Next dev mode.
+      config.cache = {
+        type: 'memory',
+      }
+    }
+
+    return config
+  },
   async rewrites() {
     const target = resolveApiProxyTarget()
     return [
       {
         source: '/api/:path*',
         destination: `${target}/:path*`,
+      },
+      {
+        source: '/uploads/:path*',
+        destination: `${target.replace(/\/api\/?$/, '')}/uploads/:path*`,
       },
     ]
   },
