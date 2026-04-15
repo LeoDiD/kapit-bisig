@@ -165,9 +165,13 @@ const themeInitScript = `
   try {
     var t = localStorage.getItem('kb-theme') || 'light';
     var s = localStorage.getItem('kb-text-size') || 'medium';
-    var resolved = t;
-    if (t === 'system') {
-      resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    var pathname = window.location.pathname || '/';
+    var resolved = 'light';
+    if (pathname !== '/login') {
+      resolved = t;
+      if (t === 'system') {
+        resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
     }
     if (resolved === 'dark') document.documentElement.classList.add('dark');
     document.documentElement.setAttribute('data-theme', resolved);
@@ -187,12 +191,12 @@ function RootLayout({ children }) {
                     }
                 }, void 0, false, {
                     fileName: "<[project]/src/app/layout.tsx>",
-                    lineNumber: 45,
+                    lineNumber: 49,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/app/layout.tsx>",
-                lineNumber: 44,
+                lineNumber: 48,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"]("body", {
@@ -203,7 +207,7 @@ function RootLayout({ children }) {
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$rsc$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$TopLoadingBar$2e$tsx__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                     fileName: "<[project]/src/app/layout.tsx>",
-                                    lineNumber: 51,
+                                    lineNumber: 55,
                                     columnNumber: 13
                                 }, this),
                                 children,
@@ -220,34 +224,34 @@ function RootLayout({ children }) {
                                     closeButton: true
                                 }, void 0, false, {
                                     fileName: "<[project]/src/app/layout.tsx>",
-                                    lineNumber: 53,
+                                    lineNumber: 57,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/app/layout.tsx>",
-                            lineNumber: 50,
+                            lineNumber: 54,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/app/layout.tsx>",
-                        lineNumber: 49,
+                        lineNumber: 53,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "<[project]/src/app/layout.tsx>",
-                    lineNumber: 48,
+                    lineNumber: 52,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/app/layout.tsx>",
-                lineNumber: 47,
+                lineNumber: 51,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/app/layout.tsx>",
-        lineNumber: 43,
+        lineNumber: 47,
         columnNumber: 5
     }, this);
 }

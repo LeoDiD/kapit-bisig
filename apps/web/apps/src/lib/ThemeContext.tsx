@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 
 export type Theme = 'light' | 'dark' | 'system'
 export type TextSize = 'small' | 'medium' | 'large'
@@ -26,8 +27,12 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function applyThemeToDOM(t: Theme) {
-  const resolved = t === 'system' ? getSystemTheme() : t
+function isThemeLockedToLight(pathname?: string | null) {
+  return pathname === '/login'
+}
+
+function applyThemeToDOM(t: Theme, pathname?: string | null) {
+  const resolved = isThemeLockedToLight(pathname) ? 'light' : (t === 'system' ? getSystemTheme() : t)
   const root = document.documentElement
   if (resolved === 'dark') {
     root.classList.add('dark')
@@ -43,6 +48,7 @@ function applyTextSizeToDOM(size: TextSize) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [theme, setThemeState] = useState<Theme>('light')
   const [textSize, setTextSizeState] = useState<TextSize>('medium')
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')
@@ -60,30 +66,36 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     setThemeState(t)
     setTextSizeState(s)
-    const resolved = applyThemeToDOM(t)
+    const resolved = applyThemeToDOM(t, pathname)
     setResolvedTheme(resolved)
     applyTextSizeToDOM(s)
     setMounted(true)
-  }, [])
+  }, [pathname])
 
   // Listen for system theme changes when theme is 'system'
   useEffect(() => {
     if (!mounted || theme !== 'system') return
     const mql = window.matchMedia('(prefers-color-scheme: dark)')
     const handler = () => {
-      const resolved = applyThemeToDOM('system')
+      const resolved = applyThemeToDOM('system', pathname)
       setResolvedTheme(resolved)
     }
     mql.addEventListener('change', handler)
     return () => mql.removeEventListener('change', handler)
-  }, [theme, mounted])
+  }, [theme, mounted, pathname])
+
+  useEffect(() => {
+    if (!mounted) return
+    const resolved = applyThemeToDOM(theme, pathname)
+    setResolvedTheme(resolved)
+  }, [mounted, pathname, theme])
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t)
     localStorage.setItem('kb-theme', t)
-    const resolved = applyThemeToDOM(t)
+    const resolved = applyThemeToDOM(t, pathname)
     setResolvedTheme(resolved)
-  }, [])
+  }, [pathname])
 
   const setTextSize = useCallback((s: TextSize) => {
     setTextSizeState(s)

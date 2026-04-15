@@ -1516,8 +1516,10 @@ __turbopack_esm__({
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/node_modules/next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/node_modules/next/dist/server/future/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/node_modules/next/navigation.js [app-ssr] (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 'use client';
+;
 ;
 ;
 const ThemeContext = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["createContext"](null);
@@ -1530,8 +1532,11 @@ function getSystemTheme() {
     if (typeof window === 'undefined') return 'light';
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
-function applyThemeToDOM(t) {
-    const resolved = t === 'system' ? getSystemTheme() : t;
+function isThemeLockedToLight(pathname) {
+    return pathname === '/login';
+}
+function applyThemeToDOM(t, pathname) {
+    const resolved = isThemeLockedToLight(pathname) ? 'light' : t === 'system' ? getSystemTheme() : t;
     const root = document.documentElement;
     if (resolved === 'dark') {
         root.classList.add('dark');
@@ -1545,6 +1550,7 @@ function applyTextSizeToDOM(size) {
     document.documentElement.setAttribute('data-text-size', size);
 }
 function ThemeProvider({ children }) {
+    const pathname = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["usePathname"]();
     const [theme, setThemeState] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"]('light');
     const [textSize, setTextSizeState] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"]('medium');
     const [resolvedTheme, setResolvedTheme] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"]('light');
@@ -1565,31 +1571,45 @@ function ThemeProvider({ children }) {
         ].includes(storedSize) ? storedSize : 'medium';
         setThemeState(t);
         setTextSizeState(s);
-        const resolved = applyThemeToDOM(t);
+        const resolved = applyThemeToDOM(t, pathname);
         setResolvedTheme(resolved);
         applyTextSizeToDOM(s);
         setMounted(true);
-    }, []);
+    }, [
+        pathname
+    ]);
     // Listen for system theme changes when theme is 'system'
     __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"](()=>{
         if (!mounted || theme !== 'system') return;
         const mql = window.matchMedia('(prefers-color-scheme: dark)');
         const handler = ()=>{
-            const resolved = applyThemeToDOM('system');
+            const resolved = applyThemeToDOM('system', pathname);
             setResolvedTheme(resolved);
         };
         mql.addEventListener('change', handler);
         return ()=>mql.removeEventListener('change', handler);
     }, [
         theme,
-        mounted
+        mounted,
+        pathname
+    ]);
+    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"](()=>{
+        if (!mounted) return;
+        const resolved = applyThemeToDOM(theme, pathname);
+        setResolvedTheme(resolved);
+    }, [
+        mounted,
+        pathname,
+        theme
     ]);
     const setTheme = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"]((t)=>{
         setThemeState(t);
         localStorage.setItem('kb-theme', t);
-        const resolved = applyThemeToDOM(t);
+        const resolved = applyThemeToDOM(t, pathname);
         setResolvedTheme(resolved);
-    }, []);
+    }, [
+        pathname
+    ]);
     const setTextSize = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"]((s)=>{
         setTextSizeState(s);
         localStorage.setItem('kb-text-size', s);
@@ -1606,7 +1626,7 @@ function ThemeProvider({ children }) {
         children: children
     }, void 0, false, {
         fileName: "<[project]/src/lib/ThemeContext.tsx>",
-        lineNumber: 95,
+        lineNumber: 107,
         columnNumber: 5
     }, this);
 }

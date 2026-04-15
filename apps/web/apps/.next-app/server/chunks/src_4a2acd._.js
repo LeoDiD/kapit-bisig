@@ -3614,78 +3614,80 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 const iconVariantStyles = {
-    default: 'bg-gray-100 text-gray-600',
-    yellow: 'bg-amber-50 text-amber-600',
-    green: 'bg-emerald-50 text-emerald-600',
-    red: 'bg-red-50 text-red-500',
-    blue: 'bg-blue-50 text-blue-600',
-    orange: 'bg-orange-50 text-orange-600'
+    default: 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300',
+    yellow: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
+    green: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300',
+    red: 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-300',
+    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300',
+    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300'
 };
 const borderAccent = {
-    default: 'border-gray-100',
-    yellow: 'border-amber-100',
-    green: 'border-emerald-100',
-    red: 'border-red-100',
-    blue: 'border-blue-100',
-    orange: 'border-orange-100'
+    default: 'border-gray-100 dark:border-slate-700',
+    yellow: 'border-amber-100 dark:border-amber-900/40',
+    green: 'border-emerald-100 dark:border-emerald-900/40',
+    red: 'border-red-100 dark:border-red-900/40',
+    blue: 'border-blue-100 dark:border-blue-900/40',
+    orange: 'border-orange-100 dark:border-orange-900/40'
 };
 function StatsCard({ title, value, icon, variant = 'default', subtitle, trend }) {
+    const trendClasses = trend === 'up' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : trend === 'down' ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400';
+    const trendSymbol = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '—';
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-        className: `rounded-2xl p-4 border bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] transition-all hover:scale-[1.02] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] ${borderAccent[variant]}`,
+        className: `rounded-2xl border bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] transition-all hover:scale-[1.02] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] dark:bg-slate-900 ${borderAccent[variant]}`,
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "flex items-start justify-between mb-3",
+                className: "mb-3 flex items-start justify-between",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: `w-10 h-10 rounded-xl flex items-center justify-center ${iconVariantStyles[variant]}`,
+                        className: `flex h-10 w-10 items-center justify-center rounded-xl ${iconVariantStyles[variant]}`,
                         children: icon
                     }, void 0, false, {
                         fileName: "<[project]/src/components/dashboard/StatsCard.tsx>",
-                        lineNumber: 41,
+                        lineNumber: 52,
                         columnNumber: 9
                     }, this),
                     trend && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                        className: `text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${trend === 'up' ? 'text-emerald-700 bg-emerald-50' : trend === 'down' ? 'text-red-600 bg-red-50' : 'text-gray-500 bg-gray-100'}`,
-                        children: trend === 'up' ? '▲' : trend === 'down' ? '▼' : '—'
+                        className: `rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${trendClasses}`,
+                        children: trendSymbol
                     }, void 0, false, {
                         fileName: "<[project]/src/components/dashboard/StatsCard.tsx>",
-                        lineNumber: 45,
+                        lineNumber: 56,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/dashboard/StatsCard.tsx>",
-                lineNumber: 40,
+                lineNumber: 51,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                className: "text-2xl font-bold text-gray-800 leading-tight",
+                className: "text-2xl font-bold leading-tight text-gray-800 dark:text-slate-100",
                 children: value
             }, void 0, false, {
                 fileName: "<[project]/src/components/dashboard/StatsCard.tsx>",
-                lineNumber: 54,
+                lineNumber: 61,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                className: "text-xs text-gray-500 mt-0.5",
+                className: "mt-0.5 text-xs text-gray-500 dark:text-slate-400",
                 children: title
             }, void 0, false, {
                 fileName: "<[project]/src/components/dashboard/StatsCard.tsx>",
-                lineNumber: 57,
+                lineNumber: 62,
                 columnNumber: 7
             }, this),
-            subtitle && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                className: "text-[10px] text-gray-400 mt-1",
+            subtitle ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
+                className: "mt-1 text-[10px] text-gray-400 dark:text-slate-500",
                 children: subtitle
             }, void 0, false, {
                 fileName: "<[project]/src/components/dashboard/StatsCard.tsx>",
-                lineNumber: 61,
-                columnNumber: 9
-            }, this)
+                lineNumber: 63,
+                columnNumber: 19
+            }, this) : null
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/dashboard/StatsCard.tsx>",
-        lineNumber: 39,
+        lineNumber: 48,
         columnNumber: 5
     }, this);
 }
@@ -6872,10 +6874,10 @@ function DashboardPage() {
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("section", {
-                className: "mb-8 rounded-[28px] border border-slate-200 bg-white shadow-sm",
+                className: "mb-8 rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-slate-200 px-6 py-5 sm:px-8",
+                        className: "border-b border-slate-200 px-6 py-5 dark:border-slate-700 sm:px-8",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between",
                             children: [
@@ -6883,7 +6885,7 @@ function DashboardPage() {
                                     className: "min-w-0",
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                            className: "text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500",
+                                            className: "text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400",
                                             children: "Executive Summary"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/app/dashboard/page.tsx>",
@@ -6891,7 +6893,7 @@ function DashboardPage() {
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("h2", {
-                                            className: "mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950 sm:text-4xl",
+                                            className: "mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-100 sm:text-4xl",
                                             children: "Relief distribution overview"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/app/dashboard/page.tsx>",
@@ -6905,7 +6907,7 @@ function DashboardPage() {
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                    className: "text-sm font-medium text-slate-500",
+                                    className: "text-sm font-medium text-slate-500 dark:text-slate-400",
                                     children: currentPeriod
                                 }, void 0, false, {
                                     fileName: "<[project]/src/app/dashboard/page.tsx>",
@@ -6924,7 +6926,7 @@ function DashboardPage() {
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "grid grid-cols-1 divide-y divide-slate-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4",
+                        className: "grid grid-cols-1 divide-y divide-slate-200 dark:divide-slate-700 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4",
                         children: [
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](DeckMetricCell, {
                                 title: "Households",
@@ -7241,7 +7243,7 @@ function DeckMetricCell({ title, value, subtitle, icon }) {
                     className: "min-w-0",
                     children: [
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500",
+                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400",
                             children: title
                         }, void 0, false, {
                             fileName: "<[project]/src/app/dashboard/page.tsx>",
@@ -7249,7 +7251,7 @@ function DeckMetricCell({ title, value, subtitle, icon }) {
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
-                            className: "mt-3 text-3xl font-bold tracking-[-0.04em] text-slate-950",
+                            className: "mt-3 text-3xl font-bold tracking-[-0.04em] text-slate-950 dark:text-slate-100",
                             children: value
                         }, void 0, false, {
                             fileName: "<[project]/src/app/dashboard/page.tsx>",
@@ -7257,7 +7259,7 @@ function DeckMetricCell({ title, value, subtitle, icon }) {
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-1 text-sm text-slate-500",
+                            className: "mt-1 text-sm text-slate-500 dark:text-slate-400",
                             children: subtitle
                         }, void 0, false, {
                             fileName: "<[project]/src/app/dashboard/page.tsx>",
@@ -7271,7 +7273,7 @@ function DeckMetricCell({ title, value, subtitle, icon }) {
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600",
+                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
                     children: icon
                 }, void 0, false, {
                     fileName: "<[project]/src/app/dashboard/page.tsx>",

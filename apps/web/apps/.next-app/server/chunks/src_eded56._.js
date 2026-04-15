@@ -1193,17 +1193,17 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "mb-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)]",
+                className: "mb-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700 dark:bg-slate-900",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 sm:px-6",
+                        className: "border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 dark:border-slate-700 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 sm:px-6",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                            className: "text-xs font-semibold tracking-[0.14em] uppercase text-gray-500",
+                                            className: "text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400",
                                             children: "Household Records"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1211,7 +1211,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                            className: "mt-1 text-sm text-gray-700",
+                                            className: "mt-1 text-sm text-gray-700 dark:text-slate-300",
                                             children: loading ? 'Loading household data...' : `${rows.length} visible result(s)`
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1267,7 +1267,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-gray-100 bg-gray-50/60 p-4 sm:p-5",
+                        className: "border-b border-gray-100 bg-gray-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/70 sm:p-5",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
                             children: [
@@ -1275,7 +1275,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     className: "relative w-full lg:max-w-md",
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                            className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400",
+                                            className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500",
                                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SearchIcon, {}, void 0, false, {
                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
                                                 lineNumber: 111,
@@ -1291,7 +1291,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                             placeholder: "Search by head, code, barangay, or address...",
                                             value: searchQuery,
                                             onChange: (e)=>onSearchChange(e.target.value),
-                                            className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
                                             lineNumber: 113,
@@ -1315,7 +1315,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                         setBarangayOpen(!barangayOpen);
                                                         setStatusOpen(false);
                                                     },
-                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50",
+                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             className: "truncate",
@@ -1367,7 +1367,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                         setStatusOpen(!statusOpen);
                                                         setBarangayOpen(false);
                                                     },
-                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50",
+                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             className: "truncate",
@@ -1417,7 +1417,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                 onBarangayChange('All Barangays');
                                                 onStatusChange('All Status');
                                             },
-                                            className: "inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100",
+                                            className: "inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
                                             children: [
                                                 "Clear (",
                                                 activeFilterCount,
@@ -1496,7 +1496,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                             lineNumber: 197,
                             columnNumber: 13
                         }, this) : !hasAnyRows || rows.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                            className: "p-20 flex flex-col items-center justify-center text-gray-500",
+                            className: "p-20 flex flex-col items-center justify-center text-gray-500 dark:text-slate-400",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](UsersMenuIcon, {
                                     className: "mb-4 h-12 w-12 opacity-50"
@@ -1506,7 +1506,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                    className: "font-bold text-gray-900",
+                                    className: "font-bold text-gray-900 dark:text-slate-100",
                                     children: "No households found"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1531,7 +1531,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("thead", {
                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
-                                        className: "border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500",
+                                        className: "border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
                                                 className: "px-6 py-4 font-bold",
@@ -1600,9 +1600,9 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
-                                    className: "divide-y divide-gray-100 bg-white",
+                                    className: "divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900",
                                     children: rows.map((item)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
-                                            className: "group transition-colors hover:bg-gray-50/80",
+                                            className: "group transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/55",
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
@@ -1610,7 +1610,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                         className: "flex items-center gap-4",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                className: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 font-bold text-blue-700",
+                                                                className: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
                                                                 children: item.familyHeadName.charAt(0)
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1620,7 +1620,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                                 children: [
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                        className: "text-sm font-bold text-gray-900",
+                                                                        className: "text-sm font-bold text-gray-900 dark:text-slate-100",
                                                                         children: item.familyHeadName
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1628,7 +1628,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                        className: "mt-0.5 max-w-[260px] truncate line-clamp-1 text-xs text-gray-500",
+                                                                        className: "mt-0.5 max-w-[260px] truncate line-clamp-1 text-xs text-gray-500 dark:text-slate-400",
                                                                         children: [
                                                                             item.householdCode ? `#${item.householdCode} | ` : '',
                                                                             item.address
@@ -1658,7 +1658,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                        className: "rounded-md bg-gray-100 px-2.5 py-1 text-sm font-medium text-gray-700",
+                                                        className: "rounded-md bg-gray-100 px-2.5 py-1 text-sm font-medium text-gray-700 dark:bg-slate-800 dark:text-slate-200",
                                                         children: item.barangay
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1686,7 +1686,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-sm font-medium text-gray-600",
+                                                    className: "px-6 py-4 text-sm font-medium text-gray-600 dark:text-slate-300",
                                                     children: formatDate(item.lastClaimedAt)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1694,12 +1694,12 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-sm text-gray-600",
+                                                    className: "px-6 py-4 text-sm text-gray-600 dark:text-slate-300",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "flex items-center gap-1.5 font-medium",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](UsersMenuIcon, {
-                                                                className: "h-4 w-4 text-gray-400"
+                                                                className: "h-4 w-4 text-gray-400 dark:text-slate-500"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
                                                                 lineNumber: 260,
@@ -1721,7 +1721,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                     className: "px-6 py-4 pr-6 text-right",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                         onClick: ()=>handleViewProfile(item),
-                                                        className: "inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 md:opacity-0 md:group-hover:opacity-100",
+                                                        className: "inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500/60 dark:hover:bg-slate-700/80 dark:hover:text-blue-300 md:opacity-0 md:group-hover:opacity-100",
                                                         children: "View Details"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1776,12 +1776,12 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
 function DropdownMenu({ menuRef, items, selected, onSelect }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         ref: menuRef,
-        className: "absolute right-0 top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg md:w-[120%]",
+        className: "absolute right-0 top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900 md:w-[120%]",
         children: items.map((opt)=>{
             const isSelected = opt.value === selected;
             return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                 onClick: ()=>onSelect(opt.value),
-                className: `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'}`,
+                className: `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-700 hover:bg-gray-50 font-medium dark:text-slate-200 dark:hover:bg-slate-800/80'}`,
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                         className: "truncate",
@@ -1835,7 +1835,7 @@ function SearchIcon() {
 }
 function ChevronDownIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-4 h-4 text-gray-400",
+        className: "w-4 h-4 text-gray-400 dark:text-slate-500",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -1947,7 +1947,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("article", {
-        className: `rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm ${className}`.trim(),
+        className: `rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 ${className}`.trim(),
         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
             className: "flex items-start justify-between gap-3",
             children: [
@@ -1955,7 +1955,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                     className: "min-w-0",
                     children: [
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500",
+                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400",
                             children: label
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -1963,7 +1963,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-2 text-3xl font-bold leading-tight tracking-[-0.04em] text-slate-950",
+                            className: "mt-2 text-3xl font-bold leading-tight tracking-[-0.04em] text-slate-950 dark:text-slate-100",
                             children: value || value === 0 ? value : '--'
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -1971,7 +1971,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                             columnNumber: 11
                         }, this),
                         helper ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-1 text-sm text-slate-500",
+                            className: "mt-1 text-sm text-slate-500 dark:text-slate-400",
                             children: helper
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -1985,7 +1985,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600",
+                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
                     children: icon
                 }, void 0, false, {
                     fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",

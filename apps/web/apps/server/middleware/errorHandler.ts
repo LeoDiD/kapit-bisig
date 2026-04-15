@@ -15,6 +15,19 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'type' in err &&
+    (err as { type?: string }).type === 'entity.parse.failed'
+  ) {
+    res.status(400).json({
+      success: false,
+      message: 'Invalid JSON body.',
+    });
+    return;
+  }
+
   console.error('[UNHANDLED_ERROR]', err);
 
   if (

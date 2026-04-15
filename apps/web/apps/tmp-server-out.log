@@ -1,0 +1,7 @@
+MongoDB Connected: 127.0.0.1
+Database: kapit-bisig
+Mongoose debug logging: disabled
+⚡️ Server is running on port 3002 [0.0.0.0] [development]
+🔐 Authentication endpoints available at /api/auth
+🏠 Household registration available at /api/household
+🎫 Admin token management available at /api/admin/tokens

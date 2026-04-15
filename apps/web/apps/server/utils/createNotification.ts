@@ -7,6 +7,7 @@
 
 import Notification, { NotificationType } from '../models/Notification';
 import StaffUser from '../models/StaffUser';
+import Resident from '../models/Resident';
 import mongoose from 'mongoose';
 
 interface NotificationPayload {
@@ -107,4 +108,48 @@ export async function broadcastNotification(
   payload: Omit<NotificationPayload, 'userId'>,
 ): Promise<void> {
   await broadcastScopedNotification(payload);
+}
+
+interface ResidentBroadcastPayload extends Omit<NotificationPayload, 'userId'> {
+  targetBarangays: string[];
+  residentStatuses?: Array<'Approved' | 'Pending' | 'Rejected'>;
+}
+
+/**
+ * Broadcast a notification to residents in the given barangays.
+ */
+export async function broadcastResidentNotification(
+  payload: ResidentBroadcastPayload,
+): Promise<void> {
+  try {
+    const targetBarangays = normalizeBarangays(payload.targetBarangays);
+    if (targetBarangays.length === 0) return;
+
+    const residentStatuses = payload.residentStatuses?.length
+      ? payload.residentStatuses
+      : ['Approved'];
+
+    const residents = await Resident.find({
+      barangay: mongoose.trusted({ $in: targetBarangays }),
+      status: mongoose.trusted({ $in: residentStatuses }),
+    })
+      .setOptions({ sanitizeFilter: false })
+      .select('_id')
+      .lean();
+
+    if (residents.length === 0) return;
+
+    await Notification.insertMany(
+      residents.map((resident) => ({
+        userId: resident._id,
+        title: payload.title,
+        message: payload.message,
+        type: payload.type,
+        meta: payload.meta,
+      })),
+      { ordered: false },
+    );
+  } catch (err: any) {
+    console.warn('[broadcastResidentNotification] Failed:', err.message);
+  }
 }

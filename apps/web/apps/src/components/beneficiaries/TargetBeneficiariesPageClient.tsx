@@ -16,6 +16,7 @@ import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
 const ALL_STATUSES = '__ALL_STATUSES__'
 const ALL_BARANGAYS = 'All Barangays'
 const PAGE_SIZE = 12
+const PENDING_STATUS = 'Pending Verification'
 
 type ReviewDecision = 'Approved' | 'Rejected'
 
@@ -116,12 +117,12 @@ function RejectReasonModal({
   return createPortal(
     <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
-      <div className="relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+      <div className="relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-500">Reject Submission</p>
-        <h3 className="mt-2 text-xl font-black text-gray-900">Provide a rejection reason</h3>
-        <p className="mt-2 text-sm text-gray-600">
-          This rejection note will be stored for <span className="font-semibold text-gray-900">{residentName}</span> under{' '}
-          <span className="font-semibold text-gray-900">{eventName}</span>.
+        <h3 className="mt-2 text-xl font-black text-gray-900 dark:text-slate-100">Provide a rejection reason</h3>
+        <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
+          This rejection note will be stored for <span className="font-semibold text-gray-900 dark:text-slate-100">{residentName}</span> under{' '}
+          <span className="font-semibold text-gray-900 dark:text-slate-100">{eventName}</span>.
         </p>
 
         <textarea
@@ -129,7 +130,7 @@ function RejectReasonModal({
           onChange={(event) => onReasonChange(event.target.value)}
           rows={5}
           placeholder="Explain why the submission does not qualify for this disaster event."
-          className="mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+          className="mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
         />
 
         <div className="mt-5 flex items-center justify-end gap-3">
@@ -137,7 +138,7 @@ function RejectReasonModal({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Cancel
           </button>
@@ -170,7 +171,7 @@ export default function TargetBeneficiariesPageClient() {
   const [proofLoading, setProofLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [selectedStatus, setSelectedStatus] = useState<string>(ALL_STATUSES)
+  const [selectedStatus, setSelectedStatus] = useState<string>(PENDING_STATUS)
   const [selectedBarangay, setSelectedBarangay] = useState<string>(ALL_BARANGAYS)
   const [searchInput, setSearchInput] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
@@ -230,7 +231,7 @@ export default function TargetBeneficiariesPageClient() {
   }, [searchInput])
 
   const handleClearFilters = useCallback(() => {
-    setSelectedStatus(ALL_STATUSES)
+    setSelectedStatus(PENDING_STATUS)
     setSelectedBarangay(ALL_BARANGAYS)
     setSearchInput('')
     setAppliedSearch('')
@@ -266,29 +267,49 @@ export default function TargetBeneficiariesPageClient() {
 
     setReviewLoading(true)
     try {
+      const reviewedId = getProofId(reviewTarget)
       const response = await api.reviewBeneficiaryProofSubmission(getProofId(reviewTarget), {
         decision: reviewDecision,
         rejectionReason: reviewDecision === 'Rejected' ? reviewReason.trim() : undefined,
       })
       showToast.success(response.message || `Submission ${reviewDecision.toLowerCase()}.`)
       closeReviewModals()
-      await fetchProofQueue()
+
+      // Keep the review queue focused on items that still need action.
+      setProofRows((prev) => prev.filter((row) => getProofId(row) !== reviewedId))
+      setProofSummary((prev) => ({
+        total: Math.max(0, prev.total - 1),
+        pendingVerification: Math.max(0, prev.pendingVerification - 1),
+        approved: reviewDecision === 'Approved' ? prev.approved + 1 : prev.approved,
+        rejected: reviewDecision === 'Rejected' ? prev.rejected + 1 : prev.rejected,
+      }))
+
+      if (page > 1 && proofRows.length === 1) {
+        setPage((prev) => Math.max(1, prev - 1))
+        return
+      }
+
+      if (selectedStatus !== PENDING_STATUS) {
+        setSelectedStatus(PENDING_STATUS)
+        setPage(1)
+        return
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update proof submission.'
       showToast.error(message)
       setReviewLoading(false)
     }
-  }, [closeReviewModals, fetchProofQueue, reviewDecision, reviewReason, reviewTarget])
+  }, [closeReviewModals, page, proofRows.length, reviewDecision, reviewReason, reviewTarget, selectedStatus])
 
   if (loading) return null
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_12px_40px_rgba(0,0,0,0.22)]">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Target Beneficiary Control</p>
-          <h2 className="mt-2 text-2xl font-black text-gray-900">Event-scoped eligibility review</h2>
-          <p className="mt-2 max-w-3xl text-sm text-gray-600">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400">Target Beneficiary Control</p>
+          <h2 className="mt-2 text-2xl font-black text-gray-900 dark:text-slate-100">Event-scoped eligibility review</h2>
+          <p className="mt-2 max-w-3xl text-sm text-gray-600 dark:text-slate-400">
             Review affected-resident proof submissions, approve target beneficiaries for the current disaster event,
             and keep the verification queue aligned with per-event claim eligibility.
           </p>
@@ -302,13 +323,13 @@ export default function TargetBeneficiariesPageClient() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
-        <div className="border-b border-gray-100 bg-gray-50/70 px-5 py-4">
+      <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_12px_40px_rgba(0,0,0,0.22)]">
+        <div className="border-b border-gray-100 bg-gray-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/80">
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Verification Queue</p>
-              <h3 className="mt-1 text-lg font-black text-gray-900">Proof submission review queue</h3>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400">Verification Queue</p>
+              <h3 className="mt-1 text-lg font-black text-gray-900 dark:text-slate-100">Proof submission review queue</h3>
+              <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                 Approve affected-resident proof submissions so eligible residents can be marked for their matching relief event.
               </p>
             </div>
@@ -327,13 +348,13 @@ export default function TargetBeneficiariesPageClient() {
                       }
                     }}
                     placeholder="Search resident or code"
-                    className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                    className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleApplySearch}
-                  className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800"
+                  className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                 >
                   Search
                 </button>
@@ -345,10 +366,10 @@ export default function TargetBeneficiariesPageClient() {
                   setSelectedStatus(event.target.value)
                   setPage(1)
                 }}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
               >
-                <option value={ALL_STATUSES}>All Statuses</option>
                 <option value="Pending Verification">Pending Verification</option>
+                <option value={ALL_STATUSES}>All Statuses</option>
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Rejected</option>
               </select>
@@ -359,7 +380,7 @@ export default function TargetBeneficiariesPageClient() {
                   setSelectedBarangay(event.target.value)
                   setPage(1)
                 }}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
               >
                 <option value={ALL_BARANGAYS}>{ALL_BARANGAYS}</option>
                 {scopedBarangays.map((barangay) => (
@@ -375,7 +396,7 @@ export default function TargetBeneficiariesPageClient() {
             <button
               type="button"
               onClick={() => void fetchProofQueue()}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <RefreshIcon className="h-3.5 w-3.5" />
               Refresh queue
@@ -383,16 +404,16 @@ export default function TargetBeneficiariesPageClient() {
             <button
               type="button"
               onClick={handleClearFilters}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               Reset filters
             </button>
             {appliedSearch ? (
-              <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+              <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
                 Search: {appliedSearch}
               </span>
             ) : null}
-            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600">
+            <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
               {proofSummary.total} matched submission{proofSummary.total === 1 ? '' : 's'}
             </span>
           </div>
@@ -407,7 +428,7 @@ export default function TargetBeneficiariesPageClient() {
             <div className="space-y-2 p-3 sm:p-4">
               {proofLoading ? (
                 <div className="px-6 py-16 text-center">
-                  <div className="inline-flex flex-col items-center gap-2 text-gray-500">
+                  <div className="inline-flex flex-col items-center gap-2 text-gray-500 dark:text-slate-400">
                     <SpinnerIcon className="h-8 w-8" />
                     <span className="text-xs font-semibold uppercase tracking-[0.16em]">Loading proof queue</span>
                   </div>
@@ -415,8 +436,8 @@ export default function TargetBeneficiariesPageClient() {
               ) : proofRows.length === 0 ? (
                 <div className="px-6 py-16 text-center">
                   <div className="mx-auto max-w-xl">
-                    <p className="text-base font-bold text-gray-800">No proof submissions matched this filter</p>
-                    <p className="mt-2 text-sm text-gray-600">
+                    <p className="text-base font-bold text-gray-800 dark:text-slate-100">No proof submissions matched this filter</p>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
                       Try clearing filters, changing the search, or waiting for residents to sync new disaster proof requests.
                     </p>
                   </div>
@@ -435,24 +456,24 @@ export default function TargetBeneficiariesPageClient() {
                   return (
                     <article
                       key={rowId}
-                      className="rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-colors hover:bg-gray-50/70"
+                      className="rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-colors hover:bg-gray-50/70 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-900/80"
                     >
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0 flex-1 space-y-2">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <p className="truncate text-sm font-black text-gray-900 sm:text-base">{row.resident.fullName}</p>
+                                <p className="truncate text-sm font-black text-gray-900 dark:text-slate-100 sm:text-base">{row.resident.fullName}</p>
                                 <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusBadgeClass(row.status)}`}>
                                   {row.status}
                                 </span>
-                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                   {row.damageType}
                                 </span>
                               </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500 dark:text-slate-400">
                                 <span className="font-semibold uppercase tracking-[0.12em]">{row.resident.residentCode}</span>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 dark:bg-slate-800 dark:text-slate-200">
                                   <MapPinIcon className="h-3.5 w-3.5" />
                                   {row.resident.barangay}
                                 </span>
@@ -471,7 +492,7 @@ export default function TargetBeneficiariesPageClient() {
                                     href={url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="group relative block h-12 w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm"
+                                    className="group relative block h-12 w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm dark:border-slate-700 dark:bg-slate-800"
                                     title={`Proof photo ${index + 1}`}
                                   >
                                     <img
@@ -485,7 +506,7 @@ export default function TargetBeneficiariesPageClient() {
                                   href={proofUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                                 >
                                   <ImageIcon className="h-3.5 w-3.5" />
                                   {proofUrls.length > 1 ? `${proofUrls.length} photos` : 'View proof'}
@@ -495,18 +516,18 @@ export default function TargetBeneficiariesPageClient() {
                           </div>
 
                           <div className="grid gap-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-                            <div className="rounded-xl bg-gray-50 px-3 py-2">
-                              <p className="text-sm text-gray-700">{truncateText(row.description, 120)}</p>
+                            <div className="rounded-xl bg-gray-50 px-3 py-2 dark:bg-slate-800/80">
+                              <p className="text-sm text-gray-700 dark:text-slate-200">{truncateText(row.description, 120)}</p>
                               {row.supportingInfo ? (
-                                <p className="mt-1 text-[11px] text-gray-500">{truncateText(row.supportingInfo, 90)}</p>
+                                <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">{truncateText(row.supportingInfo, 90)}</p>
                               ) : null}
                             </div>
 
-                            <div className="rounded-xl bg-gray-50 px-3 py-2">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Review</p>
-                              <p className="mt-1 text-sm text-gray-600">{truncateText(reviewNote, 90)}</p>
+                            <div className="rounded-xl bg-gray-50 px-3 py-2 dark:bg-slate-800/80">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-slate-400">Review</p>
+                              <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">{truncateText(reviewNote, 90)}</p>
                               {row.reviewedAt ? (
-                                <p className="mt-1 text-[11px] text-gray-500">Reviewed {formatDateTime(row.reviewedAt)}</p>
+                                <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">Reviewed {formatDateTime(row.reviewedAt)}</p>
                               ) : null}
                             </div>
                           </div>
@@ -531,7 +552,7 @@ export default function TargetBeneficiariesPageClient() {
                               </button>
                             </div>
                           ) : (
-                            <div className="rounded-xl border border-dashed border-gray-200 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                            <div className="rounded-xl border border-dashed border-gray-200 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:border-slate-700 dark:text-slate-500">
                               No action needed
                             </div>
                           )}
@@ -543,14 +564,14 @@ export default function TargetBeneficiariesPageClient() {
               )}
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">Page {page} of {totalPages}</p>
+            <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500 dark:text-slate-400">Page {page} of {totalPages}</p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                   disabled={page <= 1 || proofLoading}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Prev
                 </button>
@@ -558,7 +579,7 @@ export default function TargetBeneficiariesPageClient() {
                   type="button"
                   onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={page >= totalPages || proofLoading}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Next
                 </button>

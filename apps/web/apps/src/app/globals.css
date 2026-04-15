@@ -59,6 +59,15 @@ html * {
 html.dark .bg-white {
   background-color: rgb(30 41 59) !important; /* slate-800 */
 }
+html.dark .bg-white\/50 {
+  background-color: rgb(30 41 59 / 0.5) !important; /* slate-800/50 */
+}
+html.dark .bg-white\/70 {
+  background-color: rgb(30 41 59 / 0.7) !important; /* slate-800/70 */
+}
+html.dark .bg-white\/80 {
+  background-color: rgb(30 41 59 / 0.8) !important; /* slate-800/80 */
+}
 html.dark .bg-gray-50 {
   background-color: rgb(30 41 59 / 0.7) !important; /* slate-800/70 */
 }
@@ -96,6 +105,10 @@ html.dark .border-slate-200 {
 html.dark .border-slate-300 {
   border-color: rgb(71 85 105) !important; /* slate-500 */
 }
+html.dark .border-white,
+html.dark .border-white\/80 {
+  border-color: rgb(51 65 85 / 0.6) !important; /* slate-600/60 */
+}
 html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
   border-color: rgb(51 65 85 / 0.5) !important; /* slate-600/50 */
 }
@@ -104,6 +117,14 @@ html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
 }
 
 /* ── Text colors ── */
+html.dark .text-gray-300,
+html.dark .text-slate-300 {
+  color: rgb(203 213 225) !important; /* slate-300 */
+}
+html.dark .text-gray-950,
+html.dark .text-slate-950 {
+  color: rgb(248 250 252) !important; /* slate-50 */
+}
 html.dark .text-gray-900,
 html.dark .text-slate-900 {
   color: rgb(241 245 249) !important; /* slate-100 */
@@ -127,9 +148,14 @@ html.dark .text-slate-500 {
 html.dark .text-gray-400 {
   color: rgb(100 116 139) !important; /* slate-500 */
 }
+html.dark .text-slate-400 {
+  color: rgb(148 163 184) !important; /* slate-400 */
+}
 
 /* ── Placeholder text ── */
+html.dark .placeholder-gray-400::placeholder,
 html.dark .placeholder-gray-500::placeholder,
+html.dark .placeholder\:text-gray-400::placeholder,
 html.dark .placeholder\:text-gray-500::placeholder,
 html.dark input::placeholder,
 html.dark textarea::placeholder {
@@ -139,16 +165,19 @@ html.dark textarea::placeholder {
 /* ── Hover states ── */
 html.dark .hover\:bg-gray-50:hover,
 html.dark .hover\:bg-slate-50:hover {
-  background-color: rgb(51 65 85 / 0.3) !important; /* slate-600/30 */
+  background-color: rgb(71 85 105 / 0.22) !important; /* slate-500/22 */
 }
 html.dark .hover\:bg-gray-100:hover {
-  background-color: rgb(51 65 85 / 0.5) !important; /* slate-600/50 */
+  background-color: rgb(71 85 105 / 0.3) !important; /* slate-500/30 */
 }
 html.dark .hover\:bg-gray-200:hover {
-  background-color: rgb(51 65 85) !important; /* slate-600 */
+  background-color: rgb(71 85 105 / 0.45) !important; /* slate-500/45 */
+}
+html.dark .hover\:bg-white:hover {
+  background-color: rgb(71 85 105 / 0.24) !important; /* slate-500/24 */
 }
 html.dark .hover\:bg-white\/70:hover {
-  background-color: rgb(51 65 85 / 0.5) !important; /* slate-600/50 */
+  background-color: rgb(71 85 105 / 0.24) !important; /* slate-500/24 */
 }
 html.dark .hover\:bg-red-50:hover {
   background-color: rgb(127 29 29 / 0.15) !important; /* red-900/15 */
@@ -164,6 +193,13 @@ html.dark .hover\:text-gray-700:hover {
 }
 html.dark .hover\:text-gray-600:hover {
   color: rgb(148 163 184) !important; /* slate-400 */
+}
+html.dark .hover\:text-gray-500:hover,
+html.dark .hover\:text-slate-500:hover {
+  color: rgb(203 213 225) !important; /* slate-300 */
+}
+html.dark .hover\:text-slate-400:hover {
+  color: rgb(226 232 240) !important; /* slate-200 */
 }
 html.dark .hover\:border-gray-300:hover {
   border-color: rgb(71 85 105) !important; /* slate-500 */
@@ -305,6 +341,15 @@ html.dark .text-blue-600 {
 }
 html.dark .text-blue-700 {
   color: rgb(147 197 253) !important; /* blue-300 */
+}
+html.dark .text-blue-800 {
+  color: rgb(191 219 254) !important; /* blue-200 */
+}
+html.dark .text-purple-700 {
+  color: rgb(216 180 254) !important; /* purple-300 */
+}
+html.dark .text-orange-700 {
+  color: rgb(253 186 116) !important; /* orange-300 */
 }
 
 /* ── Skeleton/loading pulse in dark mode ── */

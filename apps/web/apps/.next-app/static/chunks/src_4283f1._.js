@@ -1158,11 +1158,13 @@ var _s = __turbopack_refresh__.signature();
 'use client';
 ;
 ;
+const ROWS_PER_PAGE = 5;
 function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuery, onSearchChange, barangay, barangayOptions, onBarangayChange, status, statusOptions, onStatusChange }) {
     _s();
     // Modal
     const [selectedHousehold, setSelectedHousehold] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](null);
     const [isModalOpen, setIsModalOpen] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](false);
+    const [page, setPage] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](1);
     // Dropdowns
     const [barangayOpen, setBarangayOpen] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](false);
     const [statusOpen, setStatusOpen] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](false);
@@ -1179,6 +1181,13 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
         document.addEventListener('mousedown', handleClickOutside);
         return ()=>document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"](()=>{
+        setPage(1);
+    }, [
+        searchQuery,
+        barangay,
+        status
+    ]);
     const handleViewProfile = (household)=>{
         setSelectedHousehold(household);
         setIsModalOpen(true);
@@ -1206,38 +1215,46 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
     }, [
         rows
     ]);
+    const totalPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+    const currentPage = Math.min(page, totalPages);
+    const paginatedRows = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"](()=>rows.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE), [
+        rows,
+        currentPage
+    ]);
+    const rangeStart = rows.length === 0 ? 0 : (currentPage - 1) * ROWS_PER_PAGE + 1;
+    const rangeEnd = Math.min(currentPage * ROWS_PER_PAGE, rows.length);
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "mb-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)]",
+                className: "mb-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700 dark:bg-slate-900",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 sm:px-6",
+                        className: "border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 dark:border-slate-700 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 sm:px-6",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                            className: "text-xs font-semibold tracking-[0.14em] uppercase text-gray-500",
+                                            className: "text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400",
                                             children: "Household Records"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 91,
+                                            lineNumber: 107,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                            className: "mt-1 text-sm text-gray-700",
+                                            className: "mt-1 text-sm text-gray-700 dark:text-slate-300",
                                             children: loading ? 'Loading household data...' : `${rows.length} visible result(s)`
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 92,
+                                            lineNumber: 108,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 90,
+                                    lineNumber: 106,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1251,7 +1268,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 97,
+                                            lineNumber: 113,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1262,28 +1279,28 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 100,
+                                            lineNumber: 116,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 96,
+                                    lineNumber: 112,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                            lineNumber: 89,
+                            lineNumber: 105,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 88,
+                        lineNumber: 104,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-gray-100 bg-gray-50/60 p-4 sm:p-5",
+                        className: "border-b border-gray-100 bg-gray-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/70 sm:p-5",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
                             children: [
@@ -1291,15 +1308,15 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     className: "relative w-full lg:max-w-md",
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                            className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400",
+                                            className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500",
                                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SearchIcon, {}, void 0, false, {
                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                lineNumber: 111,
+                                                lineNumber: 127,
                                                 columnNumber: 17
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 110,
+                                            lineNumber: 126,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
@@ -1307,16 +1324,16 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                             placeholder: "Search by head, code, barangay, or address...",
                                             value: searchQuery,
                                             onChange: (e)=>onSearchChange(e.target.value),
-                                            className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 113,
+                                            lineNumber: 129,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 109,
+                                    lineNumber: 125,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1331,25 +1348,25 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                         setBarangayOpen(!barangayOpen);
                                                         setStatusOpen(false);
                                                     },
-                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50",
+                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             className: "truncate",
                                                             children: barangay
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                            lineNumber: 132,
+                                                            lineNumber: 148,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
                                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                            lineNumber: 133,
+                                                            lineNumber: 149,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 124,
+                                                    lineNumber: 140,
                                                     columnNumber: 17
                                                 }, this),
                                                 barangayOpen && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](DropdownMenu, {
@@ -1365,13 +1382,13 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                     }
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 136,
+                                                    lineNumber: 152,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 123,
+                                            lineNumber: 139,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1383,25 +1400,25 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                         setStatusOpen(!statusOpen);
                                                         setBarangayOpen(false);
                                                     },
-                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50",
+                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             className: "truncate",
                                                             children: status
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                            lineNumber: 157,
+                                                            lineNumber: 173,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
                                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                            lineNumber: 158,
+                                                            lineNumber: 174,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 149,
+                                                    lineNumber: 165,
                                                     columnNumber: 17
                                                 }, this),
                                                 statusOpen && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](DropdownMenu, {
@@ -1417,13 +1434,13 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                     }
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 161,
+                                                    lineNumber: 177,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 148,
+                                            lineNumber: 164,
                                             columnNumber: 15
                                         }, this),
                                         hasActiveFilters && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -1433,7 +1450,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                 onBarangayChange('All Barangays');
                                                 onStatusChange('All Status');
                                             },
-                                            className: "inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100",
+                                            className: "inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
                                             children: [
                                                 "Clear (",
                                                 activeFilterCount,
@@ -1441,24 +1458,24 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 174,
+                                            lineNumber: 190,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 122,
+                                    lineNumber: 138,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                            lineNumber: 108,
+                            lineNumber: 124,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 107,
+                        lineNumber: 123,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1470,7 +1487,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     className: "h-8 w-8 text-gray-700"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 193,
+                                    lineNumber: 209,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -1478,13 +1495,13 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     children: "Fetching households..."
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 194,
+                                    lineNumber: 210,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                            lineNumber: 192,
+                            lineNumber: 208,
                             columnNumber: 13
                         }, this) : error ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "p-16 text-center",
@@ -1494,7 +1511,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     children: error
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 198,
+                                    lineNumber: 214,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -1503,30 +1520,30 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     children: "Retry Fetch"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 199,
+                                    lineNumber: 215,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                            lineNumber: 197,
+                            lineNumber: 213,
                             columnNumber: 13
                         }, this) : !hasAnyRows || rows.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                            className: "p-20 flex flex-col items-center justify-center text-gray-500",
+                            className: "p-20 flex flex-col items-center justify-center text-gray-500 dark:text-slate-400",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersMenuIcon, {
                                     className: "mb-4 h-12 w-12 opacity-50"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 208,
+                                    lineNumber: 224,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                    className: "font-bold text-gray-900",
+                                    className: "font-bold text-gray-900 dark:text-slate-100",
                                     children: "No households found"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 209,
+                                    lineNumber: 225,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -1534,27 +1551,27 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                     children: "Try adjusting your active filters or clear them."
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 210,
+                                    lineNumber: 226,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                            lineNumber: 207,
+                            lineNumber: 223,
                             columnNumber: 13
                         }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("table", {
                             className: "w-full min-w-[950px] border-collapse text-left",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("thead", {
                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
-                                        className: "border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500",
+                                        className: "border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
                                                 className: "px-6 py-4 font-bold",
                                                 children: "Household & Address"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                lineNumber: 216,
+                                                lineNumber: 232,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -1562,7 +1579,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                 children: "Barangay"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                lineNumber: 217,
+                                                lineNumber: 233,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -1570,7 +1587,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                 children: "Status"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                lineNumber: 218,
+                                                lineNumber: 234,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -1578,7 +1595,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                 children: "Last Claimed"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                lineNumber: 219,
+                                                lineNumber: 235,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -1586,7 +1603,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                 children: "Members"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                lineNumber: 220,
+                                                lineNumber: 236,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -1596,29 +1613,29 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                     children: "Actions"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 222,
+                                                    lineNumber: 238,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                lineNumber: 221,
+                                                lineNumber: 237,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                        lineNumber: 215,
+                                        lineNumber: 231,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 214,
+                                    lineNumber: 230,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
-                                    className: "divide-y divide-gray-100 bg-white",
-                                    children: rows.map((item)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
-                                            className: "group transition-colors hover:bg-gray-50/80",
+                                    className: "divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900",
+                                    children: paginatedRows.map((item)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
+                                            className: "group transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/55",
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
@@ -1626,64 +1643,64 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                         className: "flex items-center gap-4",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                className: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 font-bold text-blue-700",
+                                                                className: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
                                                                 children: item.familyHeadName.charAt(0)
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                                lineNumber: 231,
+                                                                lineNumber: 247,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                                 children: [
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                        className: "text-sm font-bold text-gray-900",
+                                                                        className: "text-sm font-bold text-gray-900 dark:text-slate-100",
                                                                         children: item.familyHeadName
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                                        lineNumber: 235,
+                                                                        lineNumber: 251,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                        className: "mt-0.5 max-w-[260px] truncate line-clamp-1 text-xs text-gray-500",
+                                                                        className: "mt-0.5 max-w-[260px] truncate line-clamp-1 text-xs text-gray-500 dark:text-slate-400",
                                                                         children: [
                                                                             item.householdCode ? `#${item.householdCode} | ` : '',
                                                                             item.address
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                                        lineNumber: 236,
+                                                                        lineNumber: 252,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                                lineNumber: 234,
+                                                                lineNumber: 250,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                        lineNumber: 230,
+                                                        lineNumber: 246,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 229,
+                                                    lineNumber: 245,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                        className: "rounded-md bg-gray-100 px-2.5 py-1 text-sm font-medium text-gray-700",
+                                                        className: "rounded-md bg-gray-100 px-2.5 py-1 text-sm font-medium text-gray-700 dark:bg-slate-800 dark:text-slate-200",
                                                         children: item.barangay
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                        lineNumber: 244,
+                                                        lineNumber: 260,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 243,
+                                                    lineNumber: 259,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -1693,88 +1710,156 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                         children: item.claimStatus
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                        lineNumber: 247,
+                                                        lineNumber: 263,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 246,
+                                                    lineNumber: 262,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-sm font-medium text-gray-600",
+                                                    className: "px-6 py-4 text-sm font-medium text-gray-600 dark:text-slate-300",
                                                     children: formatDate(item.lastClaimedAt)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 257,
+                                                    lineNumber: 273,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-sm text-gray-600",
+                                                    className: "px-6 py-4 text-sm text-gray-600 dark:text-slate-300",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "flex items-center gap-1.5 font-medium",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersMenuIcon, {
-                                                                className: "h-4 w-4 text-gray-400"
+                                                                className: "h-4 w-4 text-gray-400 dark:text-slate-500"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                                lineNumber: 260,
+                                                                lineNumber: 276,
                                                                 columnNumber: 25
                                                             }, this),
                                                             item.familyMembersCount
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                        lineNumber: 259,
+                                                        lineNumber: 275,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 258,
+                                                    lineNumber: 274,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4 pr-6 text-right",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                         onClick: ()=>handleViewProfile(item),
-                                                        className: "inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 md:opacity-0 md:group-hover:opacity-100",
+                                                        className: "inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500/60 dark:hover:bg-slate-700/80 dark:hover:text-blue-300 md:opacity-0 md:group-hover:opacity-100",
                                                         children: "View Details"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                        lineNumber: 265,
+                                                        lineNumber: 281,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                                    lineNumber: 264,
+                                                    lineNumber: 280,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, item.id, true, {
                                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                            lineNumber: 228,
+                                            lineNumber: 244,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                                    lineNumber: 226,
+                                    lineNumber: 242,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                            lineNumber: 213,
+                            lineNumber: 229,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 190,
+                        lineNumber: 206,
                         columnNumber: 9
+                    }, this),
+                    !loading && !error && rows.length > 0 && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                        className: "flex flex-col gap-3 border-t border-gray-100 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-6",
+                        children: [
+                            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
+                                className: "text-xs font-medium text-gray-500 dark:text-slate-400",
+                                children: [
+                                    "Showing ",
+                                    rangeStart,
+                                    "-",
+                                    rangeEnd,
+                                    " of ",
+                                    rows.length
+                                ]
+                            }, void 0, true, {
+                                fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                                lineNumber: 297,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                className: "flex items-center gap-2",
+                                children: [
+                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                                        type: "button",
+                                        onClick: ()=>setPage((prev)=>Math.max(1, prev - 1)),
+                                        disabled: currentPage <= 1,
+                                        className: "rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
+                                        children: "Previous"
+                                    }, void 0, false, {
+                                        fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                                        lineNumber: 302,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                        className: "min-w-[88px] text-center text-xs font-semibold text-gray-600 dark:text-slate-300",
+                                        children: [
+                                            "Page ",
+                                            currentPage,
+                                            " of ",
+                                            totalPages
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                                        lineNumber: 311,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                                        type: "button",
+                                        onClick: ()=>setPage((prev)=>Math.min(totalPages, prev + 1)),
+                                        disabled: currentPage >= totalPages,
+                                        className: "rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
+                                        children: "Next"
+                                    }, void 0, false, {
+                                        fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                                        lineNumber: 315,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                                lineNumber: 301,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                        lineNumber: 296,
+                        columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 87,
+                lineNumber: 103,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$households$2f$HouseholdProfileModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -1783,49 +1868,49 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                 data: selectedHousehold
             }, void 0, false, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 280,
+                lineNumber: 328,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true);
 }
-_s(HouseholdsTable, "gf23R/J+gOkxeVqi4bbFPq81kH4=");
+_s(HouseholdsTable, "zkG4jdUngjN0ZvZzUwSNB0kGQQ4=");
 _c = HouseholdsTable;
 function DropdownMenu({ menuRef, items, selected, onSelect }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         ref: menuRef,
-        className: "absolute right-0 top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg md:w-[120%]",
+        className: "absolute right-0 top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900 md:w-[120%]",
         children: items.map((opt)=>{
             const isSelected = opt.value === selected;
             return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                 onClick: ()=>onSelect(opt.value),
-                className: `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'}`,
+                className: `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-700 hover:bg-gray-50 font-medium dark:text-slate-200 dark:hover:bg-slate-800/80'}`,
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                         className: "truncate",
                         children: opt.label
                     }, void 0, false, {
                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 315,
+                        lineNumber: 363,
                         columnNumber: 13
                     }, this),
                     isSelected && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
                         className: "w-4 h-4"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 316,
+                        lineNumber: 364,
                         columnNumber: 28
                     }, this)
                 ]
             }, opt.value, true, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 308,
+                lineNumber: 356,
                 columnNumber: 11
             }, this);
         })
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 301,
+        lineNumber: 349,
         columnNumber: 5
     }, this);
 }
@@ -1843,19 +1928,19 @@ function SearchIcon() {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 327,
+            lineNumber: 375,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 326,
+        lineNumber: 374,
         columnNumber: 5
     }, this);
 }
 _c2 = SearchIcon;
 function ChevronDownIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-4 h-4 text-gray-400",
+        className: "w-4 h-4 text-gray-400 dark:text-slate-500",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -1866,12 +1951,12 @@ function ChevronDownIcon() {
             d: "M19 9l-7 7-7-7"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 334,
+            lineNumber: 382,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 333,
+        lineNumber: 381,
         columnNumber: 5
     }, this);
 }
@@ -1889,12 +1974,12 @@ function CheckIcon({ className }) {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 341,
+            lineNumber: 389,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 340,
+        lineNumber: 388,
         columnNumber: 5
     }, this);
 }
@@ -1912,12 +1997,12 @@ function UsersMenuIcon({ className }) {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 348,
+            lineNumber: 396,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 347,
+        lineNumber: 395,
         columnNumber: 5
     }, this);
 }
@@ -1937,7 +2022,7 @@ function SpinnerIcon({ className }) {
                 strokeWidth: "3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 355,
+                lineNumber: 403,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -1947,13 +2032,13 @@ function SpinnerIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 356,
+                lineNumber: 404,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 354,
+        lineNumber: 402,
         columnNumber: 5
     }, this);
 }
@@ -1979,7 +2064,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("article", {
-        className: `rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm ${className}`.trim(),
+        className: `rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 ${className}`.trim(),
         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
             className: "flex items-start justify-between gap-3",
             children: [
@@ -1987,7 +2072,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                     className: "min-w-0",
                     children: [
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500",
+                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400",
                             children: label
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -1995,7 +2080,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-2 text-3xl font-bold leading-tight tracking-[-0.04em] text-slate-950",
+                            className: "mt-2 text-3xl font-bold leading-tight tracking-[-0.04em] text-slate-950 dark:text-slate-100",
                             children: value || value === 0 ? value : '--'
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -2003,7 +2088,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                             columnNumber: 11
                         }, this),
                         helper ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-1 text-sm text-slate-500",
+                            className: "mt-1 text-sm text-slate-500 dark:text-slate-400",
                             children: helper
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -2017,7 +2102,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600",
+                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
                     children: icon
                 }, void 0, false, {
                     fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",

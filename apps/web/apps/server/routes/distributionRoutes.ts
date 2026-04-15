@@ -16,14 +16,14 @@ import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
 import StaffUser from '../models/StaffUser';
 import User from '../models/User';
-import { AuthRequest, requireSuperadmin } from '../middleware/unifiedAuth';
+import { AuthRequest, requireStaffOrSuperadmin } from '../middleware/unifiedAuth';
 import { validateRequest } from '../validation/validateRequest';
 import {
   createDistributionBody,
   distributionIdParams,
 } from '../validation/distribution.schema';
 import { logAudit } from '../utils/audit';
-import { broadcastScopedNotification } from '../utils/createNotification';
+import { broadcastResidentNotification, broadcastScopedNotification } from '../utils/createNotification';
 import { getTargetBarangays } from '../services/distributionFlowService';
 
 const router = Router();
@@ -50,6 +50,18 @@ function idempotencyCacheKey(userKey: string, key: string): string {
 
 function hasCoverage(scopes: string[], targets: string[]): boolean {
   return targets.every((target) => scopes.includes(target));
+}
+
+function hasAnyCoverage(scopes: string[], targets: string[]): boolean {
+  return scopes.some((scope) => targets.includes(scope));
+}
+
+function normalizeScope(targets: string[]): string[] {
+  return Array.from(new Set(targets.filter(Boolean)));
+}
+
+function getUncoveredTargets(teamScopes: string[][], targets: string[]): string[] {
+  return targets.filter((target) => !teamScopes.some((scopes) => scopes.includes(target)));
 }
 
 const isScopedRole = (role?: string) => role === 'LGU_STAFF' || role === 'Volunteer';
@@ -90,9 +102,16 @@ const hasDistributionAccess = (scopedBarangays: string[], distribution: { barang
  */
 router.post(
   '/',
-  requireSuperadmin,
+  requireStaffOrSuperadmin,
   async (req: AuthRequest, res: Response) => {
     try {
+      if (req.authUser?.role !== 'SUPERADMIN' && req.authUser?.role !== 'LGU_STAFF') {
+        return res.status(403).json({
+          success: false,
+          message: 'Forbidden',
+        });
+      }
+
       const scopedBarangays = await getScopedBarangays(req.authUser);
       let parsed;
       try {
@@ -129,10 +148,11 @@ router.post(
         }
       }
 
-      // Scope check: staff can only create within assigned barangays
+      const coverageScope = normalizeScope([barangay, ...assignedBarangays]);
+
+      // Scope check: LGU staff can only create distributions within their assigned barangays.
       if (req.authUser?.role === 'LGU_STAFF') {
-        const allTargets = [barangay, ...assignedBarangays];
-        const outOfScope = allTargets.find((b) => !scopedBarangays.includes(b));
+        const outOfScope = coverageScope.find((b) => !scopedBarangays.includes(b));
         if (outOfScope) {
           return res.status(403).json({
             success: false,
@@ -166,22 +186,48 @@ router.post(
         return res.status(400).json({
           success: false,
           code: 'INVALID_ASSIGNED_STAFF',
-          message: 'Only VOLUNTEER, LGU_STAFF, or SUPERADMIN can be assigned',
+          message: 'Only active LGU staff can be assigned to a distribution',
+        });
+      }
+
+      const outOfScopeAssignees = staffDocs
+        .filter((doc) => !hasAnyCoverage(doc.assignedBarangays ?? [], coverageScope))
+        .map((doc) => doc._id.toString());
+
+      if (outOfScopeAssignees.length > 0) {
+        return res.status(403).json({
+          success: false,
+          code: 'OUT_OF_SCOPE_STAFF',
+          message: 'Some selected staff are not assigned to any barangay in this distribution.',
+          outOfScopeStaffIds: outOfScopeAssignees,
+        });
+      }
+
+      const uncoveredTargets = getUncoveredTargets(
+        staffDocs.map((doc) => normalizeScope(doc.assignedBarangays ?? [])),
+        coverageScope,
+      );
+
+      if (uncoveredTargets.length > 0) {
+        return res.status(400).json({
+          success: false,
+          code: 'INSUFFICIENT_SCOPE_COVERAGE',
+          message: 'Selected staff do not collectively cover every barangay in this distribution.',
+          uncoveredBarangays: uncoveredTargets,
         });
       }
 
       if (req.authUser?.role === 'LGU_STAFF') {
-        const targetScope = [barangay, ...assignedBarangays];
-        const outOfScopeAssignees = staffDocs
-          .filter((doc) => !hasCoverage(doc.assignedBarangays ?? [], targetScope))
+        const outOfScopeAssigneesForRequester = staffDocs
+          .filter((doc) => !hasCoverage(scopedBarangays, normalizeScope(doc.assignedBarangays ?? [])))
           .map((doc) => doc._id.toString());
 
-        if (outOfScopeAssignees.length > 0) {
+        if (outOfScopeAssigneesForRequester.length > 0) {
           return res.status(403).json({
             success: false,
             code: 'OUT_OF_SCOPE_STAFF',
-            message: 'Some selected staff are out of scope for this distribution.',
-            outOfScopeStaffIds: outOfScopeAssignees,
+            message: 'Some selected staff are outside your barangay scope.',
+            outOfScopeStaffIds: outOfScopeAssigneesForRequester,
           });
         }
       }
@@ -213,13 +259,28 @@ router.post(
         assignedStaffCount: uniqueStaffIds.length,
       });
 
-      // Notify all staff about the new distribution
-      broadcastScopedNotification({
+      // Notify staff assigned to the covered barangays.
+      await broadcastScopedNotification({
         title: 'New Distribution',
         message: `A relief distribution for ${barangay} has been scheduled on ${scheduled}.`,
         type: 'dispatch',
         meta: { distributionId: distribution._id.toString(), barangay, assignedBarangays, scheduled },
-        targetBarangays: [barangay, ...assignedBarangays],
+        targetBarangays,
+      });
+
+      // Notify approved residents in the covered barangays.
+      await broadcastResidentNotification({
+        title: 'New Relief Distribution',
+        message: `A relief distribution covering ${targetBarangays.join(', ')} has been scheduled on ${scheduled}.`,
+        type: 'dispatch',
+        meta: {
+          distributionId: distribution._id.toString(),
+          barangay,
+          assignedBarangays,
+          targetBarangays,
+          scheduled,
+        },
+        targetBarangays,
       });
 
       res.status(201).json({

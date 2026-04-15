@@ -34,7 +34,7 @@ export default function DistributionDetailsModal({
                     {distribution.barangay}
                   </div>
                   <div className="text-xs text-gray-500">
-                    Distribution Details
+                    Host Barangay
                   </div>
                 </div>
               </div>
@@ -79,13 +79,29 @@ export default function DistributionDetailsModal({
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex items-center gap-2 text-gray-500 text-xs mb-3">
                 <UsersIcon />
-                <span>Household Coverage</span>
+                <span>Covered Households</span>
               </div>
               <div className="text-xl font-bold text-gray-900">
                 <span className="text-[#0F533A]">{distribution.households}</span>
                 <span className="text-gray-400 text-sm font-normal ml-1">households</span>
               </div>
             </div>
+
+            {!!distribution.assignedBarangays?.length && (
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="text-gray-500 text-xs mb-2">Covered Barangays</div>
+                <div className="flex flex-wrap gap-2">
+                  {distribution.assignedBarangays.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Notes (if any) */}
             {distribution.notes && (

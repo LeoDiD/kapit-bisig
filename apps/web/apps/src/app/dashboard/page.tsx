@@ -117,22 +117,22 @@ export default function DashboardPage() {
         subtitle="Overview of relief distribution activities"
       />
 
-      <section className="mb-8 rounded-[28px] border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-6 py-5 sm:px-8">
+      <section className="mb-8 rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-700 sm:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
                 Executive Summary
               </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950 sm:text-4xl">
+              <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-100 sm:text-4xl">
                 Relief distribution overview
               </h2>
             </div>
-            <div className="text-sm font-medium text-slate-500">{currentPeriod}</div>
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">{currentPeriod}</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 divide-y divide-slate-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+        <div className="grid grid-cols-1 divide-y divide-slate-200 dark:divide-slate-700 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
           <DeckMetricCell
             title="Households"
             value={loading ? '...' : stats.totalHouseholds.toLocaleString()}
@@ -254,11 +254,11 @@ function DeckMetricCell({
     <div className="min-w-0 px-6 py-5 sm:px-7 sm:py-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</p>
-          <h3 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-slate-950">{value}</h3>
-          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{title}</p>
+          <h3 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-slate-950 dark:text-slate-100">{value}</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
         </div>
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
           {icon}
         </div>
       </div>

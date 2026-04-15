@@ -78,11 +78,6 @@ export default function DistributionPageClient() {
     [rows]
   )
 
-  const bannerText = useMemo(() => {
-    if (unclaimedCount <= 0) return ''
-    return `${unclaimedCount} barangay distribution(s) are waiting to be claimed by residents.`
-  }, [unclaimedCount])
-
   const handleCreate = async (payload: CreateDistributionPayload) => {
     try {
       setError(null)
@@ -153,18 +148,6 @@ export default function DistributionPageClient() {
         </div>
       )}
 
-      {unclaimedCount > 0 ? (
-        <div className="mb-6 bg-[#FEF3C7] border border-[#FDE68A] rounded-2xl px-5 py-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#FDE68A] flex items-center justify-center">
-            <BoxIcon className="w-5 h-5 text-[#9A6A00]" />
-          </div>
-          <div>
-            <div className="font-semibold text-gray-800">Unclaimed Distributions</div>
-            <div className="text-sm text-gray-600">{bannerText}</div>
-          </div>
-        </div>
-      ) : null}
-
       <DistributionsTable
         rows={rows}
         onOpenCreate={() => setCreateOpen(true)}
@@ -181,15 +164,5 @@ export default function DistributionPageClient() {
         />
       )}
     </div>
-  )
-}
-
-function BoxIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 8l-9-5-9 5 9 5 9-5z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8v8l9 5 9-5V8" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 13v8" />
-    </svg>
   )
 }

@@ -35,8 +35,84 @@ interface ResolveQrPayload {
 interface ScannerDistribution {
   id: string;
   barangay: string;
+  assignedBarangays?: string[];
   scheduled?: string;
   status?: string;
+  registeredHouseholds?: number;
+  claimedHouseholds?: number;
+}
+
+type ScannerTone = 'ready' | 'working' | 'success' | 'warning' | 'error';
+
+function formatScheduleLabel(value?: string): string {
+  if (!value) return 'No schedule yet';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function getToneStyles(tone: ScannerTone) {
+  if (tone === 'success') {
+    return {
+      chipBg: '#DCFCE7',
+      chipText: '#166534',
+      panelBg: '#F4FFF7',
+      panelBorder: '#BBF7D0',
+      icon: 'checkmark-circle' as const,
+      iconColor: '#16A34A',
+    };
+  }
+
+  if (tone === 'warning') {
+    return {
+      chipBg: '#FEF3C7',
+      chipText: '#92400E',
+      panelBg: '#FFFDF6',
+      panelBorder: '#FCD34D',
+      icon: 'alert-circle' as const,
+      iconColor: '#D97706',
+    };
+  }
+
+  if (tone === 'error') {
+    return {
+      chipBg: '#FEE2E2',
+      chipText: '#B91C1C',
+      panelBg: '#FFF8F8',
+      panelBorder: '#FECACA',
+      icon: 'close-circle' as const,
+      iconColor: '#DC2626',
+    };
+  }
+
+  if (tone === 'working') {
+    return {
+      chipBg: '#DBEAFE',
+      chipText: '#1D4ED8',
+      panelBg: '#F8FBFF',
+      panelBorder: '#BFDBFE',
+      icon: 'scan-circle' as const,
+      iconColor: '#2563EB',
+    };
+  }
+
+  return {
+    chipBg: '#E2E8F0',
+    chipText: '#334155',
+    panelBg: '#FFFFFF',
+    panelBorder: '#E2E8F0',
+    icon: 'qr-code-outline' as const,
+    iconColor: '#475569',
+  };
 }
 
 export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerScreenProps) {
@@ -50,18 +126,22 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   const [activeDistribution, setActiveDistribution] = useState<ScannerDistribution | null>(null);
   const [claimStatusText, setClaimStatusText] = useState<string | null>(null);
   const lastScanRef = useRef<{ data: string; at: number } | null>(null);
+
   const toMaskedName = (rawName?: string): string => {
     const parts = String(rawName || '')
       .trim()
       .split(/\s+/)
       .filter(Boolean);
+
     if (parts.length === 0) {
       return 'Uxxxx Uxxxx';
     }
+
     if (parts.length === 1) {
       const firstInitial = parts[0][0]?.toUpperCase() || 'U';
       return `${firstInitial}xxxx`;
     }
+
     const firstInitial = parts[0][0]?.toUpperCase() || 'U';
     const lastInitial = parts[parts.length - 1][0]?.toUpperCase() || 'U';
     return `${firstInitial}xxxx ${lastInitial}xxxx`;
@@ -77,7 +157,16 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     const loadActiveDistribution = async () => {
       const response = await mobileAuthService.authenticatedRequest<{
         success: boolean;
-        data?: Array<{ id?: string; _id?: string; barangay: string; scheduled?: string; status?: string }>;
+        data?: Array<{
+          id?: string;
+          _id?: string;
+          barangay: string;
+          assignedBarangays?: string[];
+          scheduled?: string;
+          status?: string;
+          registeredHouseholds?: number;
+          claimedHouseholds?: number;
+        }>;
       }>('/distributions', { method: 'GET' });
 
       if (!response.success || !response.data?.success || !Array.isArray(response.data.data)) {
@@ -86,11 +175,15 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
 
       const firstActive = response.data.data.find((d) => d.status !== 'Claimed');
       if (!firstActive) return;
+
       setActiveDistribution({
         id: firstActive.id || firstActive._id || '',
         barangay: firstActive.barangay,
+        assignedBarangays: firstActive.assignedBarangays || [],
         scheduled: firstActive.scheduled,
         status: firstActive.status,
+        registeredHouseholds: firstActive.registeredHouseholds,
+        claimedHouseholds: firstActive.claimedHouseholds,
       });
     };
 
@@ -114,6 +207,7 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     ) {
       return;
     }
+
     lastScanRef.current = { data, at: now };
     Vibration.vibrate(40);
 
@@ -152,7 +246,6 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     await playSuccessFeedback();
     setResolveLatencyMs(Date.now() - startedAt);
 
-    // Auto-record claim for the selected active distribution.
     if (activeDistribution?.id && resident.residentId && !resident.alreadyClaimed) {
       const claimResponse = await mobileAuthService.authenticatedRequest<{
         success: boolean;
@@ -167,15 +260,19 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
       });
 
       if (claimResponse.success && claimResponse.data?.success) {
-        setClaimStatusText(claimResponse.data.alreadyClaimed
-          ? 'Resident already claimed for this distribution'
-          : 'Claim recorded. Resident can receive relief now.');
+        setClaimStatusText(
+          claimResponse.data.alreadyClaimed
+            ? 'Resident already claimed for this distribution.'
+            : 'Claim recorded. Relief can now be released.',
+        );
         setResolvedResident((prev) => (prev ? { ...prev, alreadyClaimed: true } : prev));
       } else {
         setClaimStatusText(claimResponse.error || claimResponse.data?.message || 'Claim record failed.');
       }
     } else if (resident.alreadyClaimed) {
-      setClaimStatusText('Resident already claimed for this distribution');
+      setClaimStatusText('Resident already claimed for this distribution.');
+    } else if (!activeDistribution?.id) {
+      setClaimStatusText('Validation-only mode. No active distribution is selected for claim recording.');
     }
 
     setIsResolving(false);
@@ -189,12 +286,30 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     setClaimStatusText(null);
   };
 
+  const includedBarangays = activeDistribution
+    ? [activeDistribution.barangay, ...(activeDistribution.assignedBarangays || [])]
+    : [];
+  const coveredBarangayCount = Array.from(new Set(includedBarangays.filter(Boolean))).length;
+  const claimCountText = activeDistribution?.registeredHouseholds
+    ? `${activeDistribution.claimedHouseholds || 0}/${activeDistribution.registeredHouseholds} claimed`
+    : activeDistribution?.claimedHouseholds
+      ? `${activeDistribution.claimedHouseholds} claimed`
+      : 'No claim totals yet';
+
+  let scannerTone: ScannerTone = 'ready';
+  if (isResolving) scannerTone = 'working';
+  else if (error) scannerTone = 'error';
+  else if (resolvedResident?.alreadyClaimed) scannerTone = 'warning';
+  else if (resolvedResident) scannerTone = 'success';
+
+  const tone = getToneStyles(scannerTone);
+
   if (!permission) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingBlock}>
-          <ActivityIndicator color="#15803D" />
-          <Text style={styles.loadingText}>Checking camera permissions...</Text>
+          <ActivityIndicator color="#0F766E" />
+          <Text style={styles.loadingText}>Preparing scanner...</Text>
         </View>
       </SafeAreaView>
     );
@@ -204,18 +319,20 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={styles.iconButton}>
-            <Ionicons name="arrow-back" size={22} color="#1F2937" />
+          <TouchableOpacity onPress={onBack} style={styles.roundButton}>
+            <Ionicons name="arrow-back" size={20} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Volunteer QR Scanner</Text>
-          <View style={styles.iconSpacer} />
+          <Text style={styles.headerTitle}>Claim Scanner</Text>
+          <View style={styles.roundButtonGhost} />
         </View>
 
-        <View style={styles.permissionContainer}>
-          <Ionicons name="camera-outline" size={34} color="#15803D" />
-          <Text style={styles.permissionTitle}>Camera permission is required</Text>
+        <View style={styles.permissionWrap}>
+          <View style={styles.permissionIcon}>
+            <Ionicons name="camera-outline" size={30} color="#0F766E" />
+          </View>
+          <Text style={styles.permissionTitle}>Camera access is needed</Text>
           <Text style={styles.permissionText}>
-            Allow camera access so volunteer accounts can scan resident QR codes.
+            Allow camera access so volunteer accounts can scan resident QR codes during distribution.
           </Text>
           <TouchableOpacity style={styles.primaryButton} onPress={requestPermission}>
             <Text style={styles.primaryButtonText}>Allow Camera</Text>
@@ -228,83 +345,196 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.iconButton}>
-          <Ionicons name="arrow-back" size={22} color="#1F2937" />
+        <TouchableOpacity onPress={onBack} style={styles.roundButton}>
+          <Ionicons name="arrow-back" size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Volunteer QR Scanner</Text>
-        <TouchableOpacity onPress={handleScanAgain} style={styles.iconButton}>
-          <Ionicons name="refresh-outline" size={22} color="#1F2937" />
+        <Text style={styles.headerTitle}>Claim Scanner</Text>
+        <TouchableOpacity onPress={handleScanAgain} style={styles.roundButton}>
+          <Ionicons name="refresh-outline" size={20} color="#0F172A" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-        <View style={styles.panel}>
-          {activeDistribution ? (
-            <View style={styles.distributionBadge}>
-              <Text style={styles.distributionBadgeText}>
-                Distribution: {activeDistribution.barangay}
+      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View>
+              <Text style={styles.eyebrow}>Distribution Scanning</Text>
+              <Text style={styles.heroTitle}>Scan resident QR and confirm release</Text>
+            </View>
+            <View style={[styles.stateChip, { backgroundColor: tone.chipBg }]}>
+              <Text style={[styles.stateChipText, { color: tone.chipText }]}>
+                {scannerTone === 'working'
+                  ? 'Checking'
+                  : scannerTone === 'success'
+                    ? 'Approved'
+                    : scannerTone === 'warning'
+                      ? 'Already Claimed'
+                      : scannerTone === 'error'
+                        ? 'Needs Retry'
+                        : 'Ready'}
               </Text>
             </View>
-          ) : (
-            <Text style={styles.distributionMissingText}>
-              No active distribution selected. Scan will validate only.
-            </Text>
-          )}
+          </View>
 
-          <View style={styles.cameraWrapper}>
+          <Text style={styles.heroSubtext}>
+            Keep the QR inside the frame. Claims are recorded automatically when the resident is eligible for the active distribution.
+          </Text>
+        </View>
+
+        <View style={styles.distributionCard}>
+          <View style={styles.distributionTopRow}>
+            <View style={styles.distributionHostBlock}>
+              <Text style={styles.distributionLabel}>Active Host Barangay</Text>
+              <Text style={styles.distributionHost}>{activeDistribution?.barangay || 'No active distribution'}</Text>
+            </View>
+            <View style={styles.distributionModePill}>
+              <Ionicons
+                name={activeDistribution ? 'radio-button-on' : 'alert-circle-outline'}
+                size={14}
+                color={activeDistribution ? '#0F766E' : '#B45309'}
+              />
+              <Text style={[styles.distributionModeText, { color: activeDistribution ? '#0F766E' : '#B45309' }]}>
+                {activeDistribution ? 'Live Claim Mode' : 'Validation Only'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.distributionMetaRow}>
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Schedule</Text>
+              <Text style={styles.metaValue}>{formatScheduleLabel(activeDistribution?.scheduled)}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Coverage</Text>
+              <Text style={styles.metaValue}>{coveredBarangayCount || 0} barangays</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Progress</Text>
+              <Text style={styles.metaValue}>{claimCountText}</Text>
+            </View>
+          </View>
+
+          {includedBarangays.length > 0 && (
+            <View style={styles.coverageWrap}>
+              {Array.from(new Set(includedBarangays)).map((item) => (
+                <View key={item} style={styles.coverageChip}>
+                  <Text style={styles.coverageChipText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.scannerCard}>
+          <View style={styles.scannerHeader}>
+            <View>
+              <Text style={styles.scannerTitle}>Live QR Frame</Text>
+              <Text style={styles.scannerHint}>
+                {hasScanned ? 'Scanner is paused until you reset.' : 'Position the code inside the frame for fast validation.'}
+              </Text>
+            </View>
+            <View style={styles.scannerBadge}>
+              <Text style={styles.scannerBadgeText}>{hasScanned ? 'Paused' : 'Scanning'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.cameraShell}>
             <CameraView
               style={styles.camera}
               facing="back"
               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
               onBarcodeScanned={hasScanned ? undefined : handleQrScanned}
             />
-            <View style={styles.overlayBox}>
-              <View style={styles.scanFrame}>
-                <View style={[styles.corner, styles.cornerTopLeft]} />
-                <View style={[styles.corner, styles.cornerTopRight]} />
-                <View style={[styles.corner, styles.cornerBottomLeft]} />
-                <View style={[styles.corner, styles.cornerBottomRight]} />
-              </View>
-              <Text style={styles.overlayText}>Align resident QR inside this box</Text>
+
+            <View style={styles.cameraShadeTop} />
+            <View style={styles.cameraShadeBottom}>
+              <Text style={styles.overlayCaption}>Align permanent resident QR inside the scan area</Text>
+            </View>
+
+            <View style={styles.scanFrame}>
+              <View style={[styles.corner, styles.cornerTopLeft]} />
+              <View style={[styles.corner, styles.cornerTopRight]} />
+              <View style={[styles.corner, styles.cornerBottomLeft]} />
+              <View style={[styles.corner, styles.cornerBottomRight]} />
+              {!hasScanned && <View style={styles.scanLine} />}
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.feedbackCard, { backgroundColor: tone.panelBg, borderColor: tone.panelBorder }]}>
+          <View style={styles.feedbackHeader}>
+            <View style={[styles.feedbackIconWrap, { backgroundColor: tone.chipBg }]}>
+              {isResolving ? (
+                <ActivityIndicator size="small" color={tone.iconColor} />
+              ) : (
+                <Ionicons name={tone.icon} size={22} color={tone.iconColor} />
+              )}
+            </View>
+            <View style={styles.feedbackTextWrap}>
+              <Text style={styles.feedbackTitle}>
+                {isResolving
+                  ? 'Checking resident eligibility'
+                  : error
+                    ? 'Scanner needs another try'
+                    : resolvedResident?.alreadyClaimed
+                      ? 'Resident already claimed'
+                      : resolvedResident
+                        ? 'Resident verified'
+                        : 'Ready for the next scan'}
+              </Text>
+              <Text style={styles.feedbackSubtitle}>
+                {isResolving
+                  ? 'We are resolving the QR and validating the active distribution.'
+                  : error
+                    ? error
+                    : resolvedResident
+                      ? claimStatusText || 'Resident record resolved successfully.'
+                      : activeDistribution
+                        ? 'The scanner is linked to the current active distribution.'
+                        : 'No active distribution is selected, so scans will only validate the resident.'}
+              </Text>
             </View>
           </View>
 
-          {isResolving && (
-            <View style={styles.stateBlock}>
-              <ActivityIndicator color="#15803D" />
-              <Text style={styles.stateText}>Validating scanned QR...</Text>
-            </View>
-          )}
-
-          {!isResolving && error && (
-            <View style={styles.stateBlock}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.primaryButton} onPress={handleScanAgain}>
-                <Text style={styles.primaryButtonText}>Scan Again</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
           {!isResolving && resolvedResident && (
-            <View style={styles.resultCard}>
-              <Text style={styles.resultTitle}>Resident Found</Text>
-              <Text style={styles.resultLine}>
-                Name: {resolvedResident.maskedName || toMaskedName(resolvedResident.fullName)}
-              </Text>
-              {resolvedResident.alreadyClaimed && (
-                <Text style={styles.resultLine}>Claim: Already claimed for selected distribution</Text>
-              )}
-              {claimStatusText && (
-                <Text style={styles.resultMeta}>{claimStatusText}</Text>
-              )}
-              {resolveLatencyMs !== null && (
-                <Text style={styles.resultMeta}>Resolve time: {resolveLatencyMs} ms</Text>
-              )}
-              <TouchableOpacity style={styles.primaryButton} onPress={handleScanAgain}>
-                <Text style={styles.primaryButtonText}>Scan Next QR</Text>
-              </TouchableOpacity>
+            <View style={styles.personCard}>
+              <View style={styles.personAvatar}>
+                <Text style={styles.personAvatarText}>
+                  {(resolvedResident.maskedName || toMaskedName(resolvedResident.fullName)).slice(0, 1)}
+                </Text>
+              </View>
+              <View style={styles.personBody}>
+                <Text style={styles.personName}>
+                  {resolvedResident.maskedName || toMaskedName(resolvedResident.fullName)}
+                </Text>
+                <Text style={styles.personMeta}>
+                  {resolvedResident.fromCache ? 'Resolved from offline cache' : 'Resolved from live server'}
+                </Text>
+                {resolveLatencyMs !== null && (
+                  <Text style={styles.personMeta}>Response time: {resolveLatencyMs} ms</Text>
+                )}
+              </View>
             </View>
           )}
+
+          {!isResolving && (
+            <TouchableOpacity style={styles.primaryButton} onPress={handleScanAgain}>
+              <Text style={styles.primaryButtonText}>
+                {resolvedResident || error ? 'Scan Next Resident' : 'Reset Scanner'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.tipsCard}>
+          <View style={styles.tipRow}>
+            <Ionicons name="checkmark-circle-outline" size={18} color="#0F766E" />
+            <Text style={styles.tipText}>Use good lighting and hold the device steady for faster reads.</Text>
+          </View>
+          <View style={styles.tipRow}>
+            <Ionicons name="people-outline" size={18} color="#0F766E" />
+            <Text style={styles.tipText}>The selected distribution covers the host barangay plus the listed additional barangays.</Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -314,145 +544,395 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#F4F7F3',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#DCFCE7',
+    backgroundColor: '#F4F7F3',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  roundButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ECFDF3',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  iconSpacer: {
-    width: 36,
-    height: 36,
+  roundButtonGhost: {
+    width: 40,
+    height: 40,
   },
   body: {
     flex: 1,
   },
   bodyContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    gap: 14,
   },
-  panel: {
+  heroCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 24,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#DCFCE7',
-    padding: 14,
+    borderColor: '#E2E8F0',
   },
-  distributionBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#ECFDF3',
+  heroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    color: '#0F766E',
+    letterSpacing: 1.1,
+  },
+  heroTitle: {
+    marginTop: 6,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.6,
+    maxWidth: '82%',
+  },
+  heroSubtext: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#475569',
+  },
+  stateChip: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  stateChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  distributionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 8,
+    borderColor: '#E2E8F0',
+    gap: 14,
+  },
+  distributionTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  distributionHostBlock: {
+    flex: 1,
+  },
+  distributionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: '#64748B',
+    letterSpacing: 0.8,
+  },
+  distributionHost: {
+    marginTop: 5,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.4,
+  },
+  distributionModePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
   },
-  distributionBadgeText: {
-    color: '#166534',
+  distributionModeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  distributionMetaRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  metaItem: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 12,
+  },
+  metaLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  metaValue: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  coverageWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  coverageChip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  coverageChipText: {
     fontSize: 12,
     fontWeight: '700',
+    color: '#334155',
   },
-  distributionMissingText: {
-    color: '#92400E',
+  scannerCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 28,
+    padding: 16,
+    gap: 14,
+  },
+  scannerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  scannerTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#F8FAFC',
+  },
+  scannerHint: {
+    marginTop: 4,
     fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 10,
+    lineHeight: 17,
+    color: '#CBD5E1',
+    maxWidth: 220,
   },
-  cameraWrapper: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: '#111827',
+  scannerBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
-    borderColor: '#D1FAE5',
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  scannerBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F8FAFC',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  cameraShell: {
+    width: '100%',
+    aspectRatio: 0.92,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#020617',
+    position: 'relative',
   },
   camera: {
     flex: 1,
   },
-  overlayBox: {
+  cameraShadeTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 76,
+    backgroundColor: 'rgba(2,6,23,0.28)',
+  },
+  cameraShadeBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingBottom: 18,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    alignItems: 'center',
+    backgroundColor: 'rgba(2,6,23,0.36)',
+  },
+  overlayCaption: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  scanFrame: {
+    position: 'absolute',
+    left: '12%',
+    right: '12%',
+    top: '18%',
+    bottom: '22%',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    overflow: 'hidden',
+  },
+  scanLine: {
     position: 'absolute',
     left: 18,
     right: 18,
-    top: 18,
-    bottom: 18,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 10,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-  },
-  scanFrame: {
-    width: '82%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    position: 'relative',
+    top: '46%',
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: '#34D399',
+    opacity: 0.95,
   },
   corner: {
     position: 'absolute',
-    width: 32,
-    height: 32,
-    borderColor: '#22C55E',
+    width: 40,
+    height: 40,
+    borderColor: '#34D399',
   },
   cornerTopLeft: {
-    top: -2,
-    left: -2,
+    top: 0,
+    left: 0,
     borderTopWidth: 4,
     borderLeftWidth: 4,
-    borderTopLeftRadius: 10,
+    borderTopLeftRadius: 22,
   },
   cornerTopRight: {
-    top: -2,
-    right: -2,
+    top: 0,
+    right: 0,
     borderTopWidth: 4,
     borderRightWidth: 4,
-    borderTopRightRadius: 10,
+    borderTopRightRadius: 22,
   },
   cornerBottomLeft: {
-    bottom: -2,
-    left: -2,
+    bottom: 0,
+    left: 0,
     borderBottomWidth: 4,
     borderLeftWidth: 4,
-    borderBottomLeftRadius: 10,
+    borderBottomLeftRadius: 22,
   },
   cornerBottomRight: {
-    bottom: -2,
-    right: -2,
+    bottom: 0,
+    right: 0,
     borderBottomWidth: 4,
     borderRightWidth: 4,
-    borderBottomRightRadius: 10,
+    borderBottomRightRadius: 22,
   },
-  overlayText: {
-    color: '#FFFFFF',
+  feedbackCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
+    gap: 14,
+  },
+  feedbackHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  feedbackIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackTextWrap: {
+    flex: 1,
+  },
+  feedbackTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  feedbackSubtitle: {
+    marginTop: 5,
     fontSize: 13,
-    fontWeight: '600',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    position: 'absolute',
-    bottom: 10,
+    lineHeight: 19,
+    color: '#475569',
+  },
+  personCard: {
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
+    padding: 14,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  personAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  personAvatarText: {
+    color: '#F8FAFC',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  personBody: {
+    flex: 1,
+  },
+  personName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  personMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  tipsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    gap: 12,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#475569',
   },
   loadingBlock: {
     flex: 1,
@@ -461,81 +941,50 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: '#166534',
+    color: '#0F766E',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  permissionContainer: {
+  permissionWrap: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
   },
+  permissionIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+  },
   permissionTitle: {
-    marginTop: 12,
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#166534',
+    marginTop: 14,
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#0F172A',
   },
   permissionText: {
     marginTop: 8,
     fontSize: 14,
     textAlign: 'center',
-    color: '#4B5563',
     lineHeight: 20,
-  },
-  stateBlock: {
-    marginTop: 14,
-    alignItems: 'center',
-  },
-  stateText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#166534',
-    fontWeight: '500',
-  },
-  errorText: {
-    color: '#B91C1C',
-    fontSize: 13,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  resultCard: {
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
-    borderRadius: 12,
-    backgroundColor: '#F9FFFB',
-    padding: 12,
-  },
-  resultTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#166534',
-    marginBottom: 8,
-  },
-  resultLine: {
-    fontSize: 13,
-    color: '#1F2937',
-    marginTop: 2,
-  },
-  resultMeta: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#166534',
-    fontWeight: '600',
+    color: '#475569',
   },
   primaryButton: {
-    marginTop: 12,
-    backgroundColor: '#15803D',
-    borderRadius: 10,
-    paddingVertical: 12,
+    backgroundColor: '#0F766E',
+    borderRadius: 14,
+    paddingVertical: 13,
     alignItems: 'center',
-    alignSelf: 'stretch',
+    justifyContent: 'center',
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 14,
+    letterSpacing: 0.2,
   },
 });

@@ -248,7 +248,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("article", {
-        className: `rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm ${className}`.trim(),
+        className: `rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 ${className}`.trim(),
         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
             className: "flex items-start justify-between gap-3",
             children: [
@@ -256,7 +256,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                     className: "min-w-0",
                     children: [
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500",
+                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400",
                             children: label
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -264,7 +264,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-2 text-3xl font-bold leading-tight tracking-[-0.04em] text-slate-950",
+                            className: "mt-2 text-3xl font-bold leading-tight tracking-[-0.04em] text-slate-950 dark:text-slate-100",
                             children: value || value === 0 ? value : '--'
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -272,7 +272,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                             columnNumber: 11
                         }, this),
                         helper ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-1 text-sm text-slate-500",
+                            className: "mt-1 text-sm text-slate-500 dark:text-slate-400",
                             children: helper
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -286,7 +286,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600",
+                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
                     children: icon
                 }, void 0, false, {
                     fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",

@@ -38,9 +38,18 @@ export function runDistributionFlowUnitTests(): void {
   });
   assert.strictEqual(validCreate.success, true);
 
-  const tooFewAssigned = createDistributionBody.safeParse({
+  const minAssigned = createDistributionBody.safeParse({
     barangay: 'Bolo',
     assignedBarangays: ['Bongalon', 'Dulig'],
+    scheduled: validSchedule,
+    assignedStaffIds: [validStaffId],
+    notes: 'test',
+  });
+  assert.strictEqual(minAssigned.success, true);
+
+  const tooFewAssigned = createDistributionBody.safeParse({
+    barangay: 'Bolo',
+    assignedBarangays: ['Bongalon'],
     scheduled: validSchedule,
     assignedStaffIds: [validStaffId],
     notes: 'test',

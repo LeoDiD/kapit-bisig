@@ -253,9 +253,9 @@ export default function ResidentRegistrationPage() {
         subtitle="Pending registration requests from mobile app with approval actions"
       />
 
-      <div className="bg-white border border-gray-200 shadow-sm rounded-2xl flex flex-col overflow-hidden mb-12">
+      <div className="mb-12 flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {/* Integrated Toolbar */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50/40 flex flex-col lg:flex-row gap-4 justify-between items-center">
+        <div className="flex flex-col items-center justify-between gap-4 border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white p-4 dark:border-slate-700 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 lg:flex-row">
           
           <div className="flex items-center gap-3 w-full lg:w-auto">
             {/* Action Group when selected */}
@@ -282,8 +282,8 @@ export default function ResidentRegistrationPage() {
                 </button>
               </div>
             ) : (
-              <div className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200 flex items-center gap-2">
-                <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs font-medium text-gray-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <svg className="w-4 h-4 text-amber-500 dark:text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 Mobile numbers masked for data privacy
@@ -304,7 +304,7 @@ export default function ResidentRegistrationPage() {
             {/* Refresh */}
             <button
               onClick={fetchResidents}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-colors whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -322,7 +322,7 @@ export default function ResidentRegistrationPage() {
             </div>
           ) : (
             <table className="w-full text-left border-collapse table-fixed min-w-[1000px] lg:min-w-0">
-              <thead className="bg-white border-b border-gray-200 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              <thead className="bg-white border-b border-gray-200 text-[11px] font-bold text-gray-400 uppercase tracking-wider dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                 <tr>
                   <th className="px-6 py-4 w-[5%]">
                     <input

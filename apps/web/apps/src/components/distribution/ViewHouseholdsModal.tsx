@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { api, DistributionHouseholdsData } from '../../lib/api'
 import type { DistributionRow } from './DistributionsTable'
 
+const HOUSEHOLDS_PER_PAGE = 8
+
 export default function ViewHouseholdsModal({
   open,
   onClose,
@@ -18,6 +20,7 @@ export default function ViewHouseholdsModal({
   const [data, setData] = useState<DistributionHouseholdsData | null>(null)
   const [activeTab, setActiveTab] = useState<'claimed' | 'notYetClaimed'>('notYetClaimed')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const fetchData = useCallback(async (distributionId: string) => {
     setLoading(true)
@@ -41,10 +44,15 @@ export default function ViewHouseholdsModal({
     if (open && distribution) {
       setSearch('')
       setActiveTab('notYetClaimed')
+      setPage(1)
       setData(null)
       fetchData(distribution.id)
     }
   }, [open, distribution, fetchData])
+
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, search])
 
   if (!open || !distribution) return null
 
@@ -68,6 +76,20 @@ export default function ViewHouseholdsModal({
     )
   }) ?? []
 
+  const activeItemsCount = activeTab === 'claimed' ? filteredClaimed.length : filteredNotYetClaimed.length
+  const totalPages = Math.max(1, Math.ceil(activeItemsCount / HOUSEHOLDS_PER_PAGE))
+  const currentPage = Math.min(page, totalPages)
+  const rangeStart = (currentPage - 1) * HOUSEHOLDS_PER_PAGE
+  const rangeEnd = currentPage * HOUSEHOLDS_PER_PAGE
+  const paginatedClaimed = filteredClaimed.slice(
+    rangeStart,
+    rangeEnd,
+  )
+  const paginatedNotYetClaimed = filteredNotYetClaimed.slice(
+    (currentPage - 1) * HOUSEHOLDS_PER_PAGE,
+    currentPage * HOUSEHOLDS_PER_PAGE,
+  )
+
   return (
     <div className="fixed inset-0 z-[120] overflow-y-auto" role="dialog" aria-modal="true">
       <div className="min-h-full px-4 py-8 flex items-start justify-center">
@@ -82,12 +104,8 @@ export default function ViewHouseholdsModal({
                   <UsersIcon />
                 </div>
                 <div>
-                  <div className="text-base font-semibold text-gray-900">
-                    Households — {distribution.barangay}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Distribution Household Tracking
-                  </div>
+                  <div className="text-base font-semibold text-gray-900">Covered Households</div>
+                  <div className="text-xs text-gray-500">Host: {distribution.barangay}</div>
                 </div>
               </div>
 
@@ -175,11 +193,11 @@ export default function ViewHouseholdsModal({
 
                 {/* Lists */}
                 {activeTab === 'notYetClaimed' && (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2">
                     {filteredNotYetClaimed.length === 0 ? (
                       <EmptyList message={search ? 'No households match your search.' : 'All households have claimed.'} />
                     ) : (
-                      filteredNotYetClaimed.map((h) => (
+                      paginatedNotYetClaimed.map((h) => (
                         <HouseholdCard key={h.householdId} name={h.householdName} address={h.address} />
                       ))
                     )}
@@ -187,11 +205,11 @@ export default function ViewHouseholdsModal({
                 )}
 
                 {activeTab === 'claimed' && (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2">
                     {filteredClaimed.length === 0 ? (
                       <EmptyList message={search ? 'No households match your search.' : 'No households have claimed yet.'} />
                     ) : (
-                      filteredClaimed.map((h) => (
+                      paginatedClaimed.map((h) => (
                         <div
                           key={h.householdId}
                           className="p-3 bg-gray-50 rounded-xl border border-gray-100"
@@ -221,6 +239,17 @@ export default function ViewHouseholdsModal({
                       ))
                     )}
                   </div>
+                )}
+
+                {activeItemsCount > 0 && (
+                  <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    pageSize={HOUSEHOLDS_PER_PAGE}
+                    totalItems={activeItemsCount}
+                    onPrev={() => setPage((prev) => Math.max(1, prev - 1))}
+                    onNext={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  />
                 )}
               </div>
             )}
@@ -282,6 +311,55 @@ function EmptyList({ message }: { message: string }) {
   return (
     <div className="text-center py-6 text-sm text-gray-400">
       {message}
+    </div>
+  )
+}
+
+function PaginationControls({
+  currentPage,
+  totalPages,
+  pageSize,
+  totalItems,
+  onPrev,
+  onNext,
+}: {
+  currentPage: number
+  totalPages: number
+  pageSize: number
+  totalItems: number
+  onPrev: () => void
+  onNext: () => void
+}) {
+  const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const end = Math.min(currentPage * pageSize, totalItems)
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+      <div className="text-xs text-gray-500">
+        Showing {start}-{end} of {totalItems}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onPrev}
+          disabled={currentPage <= 1}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <span className="text-xs font-medium text-gray-600">
+          {currentPage} / {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={currentPage >= totalPages}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
     </div>
   )
 }

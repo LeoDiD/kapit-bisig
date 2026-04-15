@@ -11,7 +11,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("article", {
-        className: `rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm ${className}`.trim(),
+        className: `rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 ${className}`.trim(),
         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
             className: "flex items-start justify-between gap-3",
             children: [
@@ -19,7 +19,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                     className: "min-w-0",
                     children: [
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500",
+                            className: "text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400",
                             children: label
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -27,7 +27,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-2 text-3xl font-bold leading-tight tracking-[-0.04em] text-slate-950",
+                            className: "mt-2 text-3xl font-bold leading-tight tracking-[-0.04em] text-slate-950 dark:text-slate-100",
                             children: value || value === 0 ? value : '--'
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -35,7 +35,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                             columnNumber: 11
                         }, this),
                         helper ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-1 text-sm text-slate-500",
+                            className: "mt-1 text-sm text-slate-500 dark:text-slate-400",
                             children: helper
                         }, void 0, false, {
                             fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -49,7 +49,7 @@ function SummaryMetricCard({ label, value, helper, icon, className = '' }) {
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600",
+                    className: "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
                     children: icon
                 }, void 0, false, {
                     fileName: "<[project]/src/components/ui/SummaryMetricCard.tsx>",
@@ -1051,6 +1051,7 @@ var _s = __turbopack_refresh__.signature();
 const ALL_STATUSES = '__ALL_STATUSES__';
 const ALL_BARANGAYS = 'All Barangays';
 const PAGE_SIZE = 12;
+const PENDING_STATUS = 'Pending Verification';
 const INITIAL_PROOF_SUMMARY = {
     total: 0,
     pendingVerification: 0,
@@ -1122,55 +1123,55 @@ function RejectReasonModal({ open, loading, residentName, eventName, reason, onR
                 onClick: loading ? undefined : onClose
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 118,
+                lineNumber: 119,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl",
+                className: "relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
                         className: "text-xs font-bold uppercase tracking-[0.18em] text-rose-500",
                         children: "Reject Submission"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 120,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
-                        className: "mt-2 text-xl font-black text-gray-900",
-                        children: "Provide a rejection reason"
-                    }, void 0, false, {
-                        fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
                         lineNumber: 121,
                         columnNumber: 9
                     }, this),
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
+                        className: "mt-2 text-xl font-black text-gray-900 dark:text-slate-100",
+                        children: "Provide a rejection reason"
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
+                        lineNumber: 122,
+                        columnNumber: 9
+                    }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                        className: "mt-2 text-sm text-gray-600",
+                        className: "mt-2 text-sm text-gray-600 dark:text-slate-400",
                         children: [
                             "This rejection note will be stored for ",
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                className: "font-semibold text-gray-900",
+                                className: "font-semibold text-gray-900 dark:text-slate-100",
                                 children: residentName
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 123,
+                                lineNumber: 124,
                                 columnNumber: 50
                             }, this),
                             " under",
                             ' ',
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                className: "font-semibold text-gray-900",
+                                className: "font-semibold text-gray-900 dark:text-slate-100",
                                 children: eventName
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 124,
+                                lineNumber: 125,
                                 columnNumber: 11
                             }, this),
                             "."
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 122,
+                        lineNumber: 123,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("textarea", {
@@ -1178,10 +1179,10 @@ function RejectReasonModal({ open, loading, residentName, eventName, reason, onR
                         onChange: (event)=>onReasonChange(event.target.value),
                         rows: 5,
                         placeholder: "Explain why the submission does not qualify for this disaster event.",
-                        className: "mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                        className: "mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 127,
+                        lineNumber: 128,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1191,11 +1192,11 @@ function RejectReasonModal({ open, loading, residentName, eventName, reason, onR
                                 type: "button",
                                 onClick: onClose,
                                 disabled: loading,
-                                className: "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50",
+                                className: "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800",
                                 children: "Cancel"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 136,
+                                lineNumber: 137,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -1208,32 +1209,32 @@ function RejectReasonModal({ open, loading, residentName, eventName, reason, onR
                                         className: "h-4 w-4"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 150,
+                                        lineNumber: 151,
                                         columnNumber: 24
                                     }, this) : null,
                                     "Reject submission"
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 144,
+                                lineNumber: 145,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 135,
+                        lineNumber: 136,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 119,
+                lineNumber: 120,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 117,
+        lineNumber: 118,
         columnNumber: 5
     }, this), document.body);
 }
@@ -1250,7 +1251,7 @@ function TargetBeneficiariesPageClient() {
     const [proofLoading, setProofLoading] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](true);
     const [page, setPage] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](1);
     const [totalPages, setTotalPages] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](1);
-    const [selectedStatus, setSelectedStatus] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](ALL_STATUSES);
+    const [selectedStatus, setSelectedStatus] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](PENDING_STATUS);
     const [selectedBarangay, setSelectedBarangay] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](ALL_BARANGAYS);
     const [searchInput, setSearchInput] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"]('');
     const [appliedSearch, setAppliedSearch] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"]('');
@@ -1313,7 +1314,7 @@ function TargetBeneficiariesPageClient() {
         searchInput
     ]);
     const handleClearFilters = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"](()=>{
-        setSelectedStatus(ALL_STATUSES);
+        setSelectedStatus(PENDING_STATUS);
         setSelectedBarangay(ALL_BARANGAYS);
         setSearchInput('');
         setAppliedSearch('');
@@ -1344,13 +1345,30 @@ function TargetBeneficiariesPageClient() {
         }
         setReviewLoading(true);
         try {
+            const reviewedId = getProofId(reviewTarget);
             const response = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$api$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["api"].reviewBeneficiaryProofSubmission(getProofId(reviewTarget), {
                 decision: reviewDecision,
                 rejectionReason: reviewDecision === 'Rejected' ? reviewReason.trim() : undefined
             });
             __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["showToast"].success(response.message || `Submission ${reviewDecision.toLowerCase()}.`);
             closeReviewModals();
-            await fetchProofQueue();
+            // Keep the review queue focused on items that still need action.
+            setProofRows((prev)=>prev.filter((row)=>getProofId(row) !== reviewedId));
+            setProofSummary((prev)=>({
+                    total: Math.max(0, prev.total - 1),
+                    pendingVerification: Math.max(0, prev.pendingVerification - 1),
+                    approved: reviewDecision === 'Approved' ? prev.approved + 1 : prev.approved,
+                    rejected: reviewDecision === 'Rejected' ? prev.rejected + 1 : prev.rejected
+                }));
+            if (page > 1 && proofRows.length === 1) {
+                setPage((prev)=>Math.max(1, prev - 1));
+                return;
+            }
+            if (selectedStatus !== PENDING_STATUS) {
+                setSelectedStatus(PENDING_STATUS);
+                setPage(1);
+                return;
+            }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to update proof submission.';
             __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["showToast"].error(message);
@@ -1358,48 +1376,50 @@ function TargetBeneficiariesPageClient() {
         }
     }, [
         closeReviewModals,
-        fetchProofQueue,
+        page,
+        proofRows.length,
         reviewDecision,
         reviewReason,
-        reviewTarget
+        reviewTarget,
+        selectedStatus
     ]);
     if (loading) return null;
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         className: "space-y-6",
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("section", {
-                className: "rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_2px_14px_rgba(0,0,0,0.05)]",
+                className: "rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_12px_40px_rgba(0,0,0,0.22)]",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                         children: [
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                className: "text-xs font-bold uppercase tracking-[0.18em] text-gray-500",
+                                className: "text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400",
                                 children: "Target Beneficiary Control"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 289,
+                                lineNumber: 310,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h2", {
-                                className: "mt-2 text-2xl font-black text-gray-900",
+                                className: "mt-2 text-2xl font-black text-gray-900 dark:text-slate-100",
                                 children: "Event-scoped eligibility review"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 290,
+                                lineNumber: 311,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                className: "mt-2 max-w-3xl text-sm text-gray-600",
+                                className: "mt-2 max-w-3xl text-sm text-gray-600 dark:text-slate-400",
                                 children: "Review affected-resident proof submissions, approve target beneficiaries for the current disaster event, and keep the verification queue aligned with per-event claim eligibility."
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 291,
+                                lineNumber: 312,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 288,
+                        lineNumber: 309,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1413,12 +1433,12 @@ function TargetBeneficiariesPageClient() {
                                     className: "h-5 w-5"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 298,
+                                    lineNumber: 319,
                                     columnNumber: 146
                                 }, void 0)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 298,
+                                lineNumber: 319,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$SummaryMetricCard$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -1429,12 +1449,12 @@ function TargetBeneficiariesPageClient() {
                                     className: "h-5 w-5"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 299,
+                                    lineNumber: 320,
                                     columnNumber: 150
                                 }, void 0)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 299,
+                                lineNumber: 320,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$SummaryMetricCard$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -1445,12 +1465,12 @@ function TargetBeneficiariesPageClient() {
                                     className: "h-5 w-5"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 300,
+                                    lineNumber: 321,
                                     columnNumber: 139
                                 }, void 0)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 300,
+                                lineNumber: 321,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$SummaryMetricCard$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -1461,31 +1481,31 @@ function TargetBeneficiariesPageClient() {
                                     className: "h-5 w-5"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 301,
+                                    lineNumber: 322,
                                     columnNumber: 139
                                 }, void 0)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 301,
+                                lineNumber: 322,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 297,
+                        lineNumber: 318,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 287,
+                lineNumber: 308,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("section", {
-                className: "overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)]",
+                className: "overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_12px_40px_rgba(0,0,0,0.22)]",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-gray-100 bg-gray-50/70 px-5 py-4",
+                        className: "border-b border-gray-100 bg-gray-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/80",
                         children: [
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                 className: "flex flex-col gap-4",
@@ -1493,33 +1513,33 @@ function TargetBeneficiariesPageClient() {
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "text-xs font-bold uppercase tracking-[0.18em] text-gray-500",
+                                                className: "text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400",
                                                 children: "Verification Queue"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 309,
+                                                lineNumber: 330,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
-                                                className: "mt-1 text-lg font-black text-gray-900",
+                                                className: "mt-1 text-lg font-black text-gray-900 dark:text-slate-100",
                                                 children: "Proof submission review queue"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 310,
+                                                lineNumber: 331,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "mt-1 text-sm text-gray-600",
+                                                className: "mt-1 text-sm text-gray-600 dark:text-slate-400",
                                                 children: "Approve affected-resident proof submissions so eligible residents can be marked for their matching relief event."
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 311,
+                                                lineNumber: 332,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 308,
+                                        lineNumber: 329,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1535,7 +1555,7 @@ function TargetBeneficiariesPageClient() {
                                                                 className: "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                lineNumber: 319,
+                                                                lineNumber: 340,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
@@ -1548,32 +1568,32 @@ function TargetBeneficiariesPageClient() {
                                                                     }
                                                                 },
                                                                 placeholder: "Search resident or code",
-                                                                className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                                                                className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                lineNumber: 320,
+                                                                lineNumber: 341,
                                                                 columnNumber: 19
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 318,
+                                                        lineNumber: 339,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                         type: "button",
                                                         onClick: handleApplySearch,
-                                                        className: "rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800",
+                                                        className: "rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white",
                                                         children: "Search"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 333,
+                                                        lineNumber: 354,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 317,
+                                                lineNumber: 338,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("select", {
@@ -1582,22 +1602,22 @@ function TargetBeneficiariesPageClient() {
                                                     setSelectedStatus(event.target.value);
                                                     setPage(1);
                                                 },
-                                                className: "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400",
+                                                className: "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500",
                                                 children: [
-                                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
-                                                        value: ALL_STATUSES,
-                                                        children: "All Statuses"
-                                                    }, void 0, false, {
-                                                        fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 350,
-                                                        columnNumber: 17
-                                                    }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
                                                         value: "Pending Verification",
                                                         children: "Pending Verification"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 351,
+                                                        lineNumber: 371,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
+                                                        value: ALL_STATUSES,
+                                                        children: "All Statuses"
+                                                    }, void 0, false, {
+                                                        fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
+                                                        lineNumber: 372,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
@@ -1605,7 +1625,7 @@ function TargetBeneficiariesPageClient() {
                                                         children: "Approved"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 352,
+                                                        lineNumber: 373,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
@@ -1613,13 +1633,13 @@ function TargetBeneficiariesPageClient() {
                                                         children: "Rejected"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 353,
+                                                        lineNumber: 374,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 342,
+                                                lineNumber: 363,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("select", {
@@ -1628,14 +1648,14 @@ function TargetBeneficiariesPageClient() {
                                                     setSelectedBarangay(event.target.value);
                                                     setPage(1);
                                                 },
-                                                className: "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400",
+                                                className: "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500",
                                                 children: [
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
                                                         value: ALL_BARANGAYS,
                                                         children: ALL_BARANGAYS
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 364,
+                                                        lineNumber: 385,
                                                         columnNumber: 17
                                                     }, this),
                                                     scopedBarangays.map((barangay)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
@@ -1643,25 +1663,25 @@ function TargetBeneficiariesPageClient() {
                                                             children: barangay
                                                         }, barangay, false, {
                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                            lineNumber: 366,
+                                                            lineNumber: 387,
                                                             columnNumber: 19
                                                         }, this))
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 356,
+                                                lineNumber: 377,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 316,
+                                        lineNumber: 337,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 307,
+                                lineNumber: 328,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1670,45 +1690,45 @@ function TargetBeneficiariesPageClient() {
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                         type: "button",
                                         onClick: ()=>void fetchProofQueue(),
-                                        className: "inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50",
+                                        className: "inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800",
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](RefreshIcon, {
                                                 className: "h-3.5 w-3.5"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 380,
+                                                lineNumber: 401,
                                                 columnNumber: 15
                                             }, this),
                                             "Refresh queue"
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 375,
+                                        lineNumber: 396,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                         type: "button",
                                         onClick: handleClearFilters,
-                                        className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition-colors hover:bg-gray-50",
+                                        className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800",
                                         children: "Reset filters"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 383,
+                                        lineNumber: 404,
                                         columnNumber: 13
                                     }, this),
                                     appliedSearch ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                        className: "rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700",
+                                        className: "rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
                                         children: [
                                             "Search: ",
                                             appliedSearch
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 391,
+                                        lineNumber: 412,
                                         columnNumber: 15
                                     }, this) : null,
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                        className: "rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600",
+                                        className: "rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300",
                                         children: [
                                             proofSummary.total,
                                             " matched submission",
@@ -1716,19 +1736,19 @@ function TargetBeneficiariesPageClient() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 395,
+                                        lineNumber: 416,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 374,
+                                lineNumber: 395,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 306,
+                        lineNumber: 327,
                         columnNumber: 9
                     }, this),
                     error ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1738,12 +1758,12 @@ function TargetBeneficiariesPageClient() {
                             children: error
                         }, void 0, false, {
                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                            lineNumber: 403,
+                            lineNumber: 424,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 402,
+                        lineNumber: 423,
                         columnNumber: 11
                     }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
                         children: [
@@ -1752,13 +1772,13 @@ function TargetBeneficiariesPageClient() {
                                 children: proofLoading ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                     className: "px-6 py-16 text-center",
                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                        className: "inline-flex flex-col items-center gap-2 text-gray-500",
+                                        className: "inline-flex flex-col items-center gap-2 text-gray-500 dark:text-slate-400",
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SpinnerIcon, {
                                                 className: "h-8 w-8"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 411,
+                                                lineNumber: 432,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1766,18 +1786,18 @@ function TargetBeneficiariesPageClient() {
                                                 children: "Loading proof queue"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 412,
+                                                lineNumber: 433,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 410,
+                                        lineNumber: 431,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 409,
+                                    lineNumber: 430,
                                     columnNumber: 17
                                 }, this) : proofRows.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                     className: "px-6 py-16 text-center",
@@ -1785,30 +1805,30 @@ function TargetBeneficiariesPageClient() {
                                         className: "mx-auto max-w-xl",
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "text-base font-bold text-gray-800",
+                                                className: "text-base font-bold text-gray-800 dark:text-slate-100",
                                                 children: "No proof submissions matched this filter"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 418,
+                                                lineNumber: 439,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "mt-2 text-sm text-gray-600",
+                                                className: "mt-2 text-sm text-gray-600 dark:text-slate-400",
                                                 children: "Try clearing filters, changing the search, or waiting for residents to sync new disaster proof requests."
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 419,
+                                                lineNumber: 440,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 417,
+                                        lineNumber: 438,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 416,
+                                    lineNumber: 437,
                                     columnNumber: 17
                                 }, this) : proofRows.map((row)=>{
                                     const rowId = getProofId(row);
@@ -1816,7 +1836,7 @@ function TargetBeneficiariesPageClient() {
                                     const proofUrl = proofUrls[0] || '#';
                                     const reviewNote = row.status === 'Rejected' ? row.rejectionReason || 'No rejection reason recorded.' : row.status === 'Approved' ? `Approved by ${row.reviewedBy || 'reviewer'}` : 'Awaiting admin verification';
                                     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("article", {
-                                        className: "rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-colors hover:bg-gray-50/70",
+                                        className: "rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-colors hover:bg-gray-50/70 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-900/80",
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                             className: "flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between",
                                             children: [
@@ -1833,11 +1853,11 @@ function TargetBeneficiariesPageClient() {
                                                                             className: "flex flex-wrap items-center gap-1.5",
                                                                             children: [
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                                    className: "truncate text-sm font-black text-gray-900 sm:text-base",
+                                                                                    className: "truncate text-sm font-black text-gray-900 dark:text-slate-100 sm:text-base",
                                                                                     children: row.resident.fullName
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 445,
+                                                                                    lineNumber: 466,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1845,49 +1865,49 @@ function TargetBeneficiariesPageClient() {
                                                                                     children: row.status
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 446,
+                                                                                    lineNumber: 467,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                                    className: "inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700",
+                                                                                    className: "inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
                                                                                     children: row.damageType
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 449,
+                                                                                    lineNumber: 470,
                                                                                     columnNumber: 33
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 444,
+                                                                            lineNumber: 465,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                            className: "mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500",
+                                                                            className: "mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500 dark:text-slate-400",
                                                                             children: [
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                                                     className: "font-semibold uppercase tracking-[0.12em]",
                                                                                     children: row.resident.residentCode
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 454,
+                                                                                    lineNumber: 475,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                                    className: "inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700",
+                                                                                    className: "inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 dark:bg-slate-800 dark:text-slate-200",
                                                                                     children: [
                                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MapPinIcon, {
                                                                                             className: "h-3.5 w-3.5"
                                                                                         }, void 0, false, {
                                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                            lineNumber: 456,
+                                                                                            lineNumber: 477,
                                                                                             columnNumber: 35
                                                                                         }, this),
                                                                                         row.resident.barangay
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 455,
+                                                                                    lineNumber: 476,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1895,14 +1915,14 @@ function TargetBeneficiariesPageClient() {
                                                                                     children: row.event.name
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 459,
+                                                                                    lineNumber: 480,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                                                     children: row.event.disasterType
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 460,
+                                                                                    lineNumber: 481,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1912,7 +1932,7 @@ function TargetBeneficiariesPageClient() {
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 461,
+                                                                                    lineNumber: 482,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1922,19 +1942,19 @@ function TargetBeneficiariesPageClient() {
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 462,
+                                                                                    lineNumber: 483,
                                                                                     columnNumber: 33
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 453,
+                                                                            lineNumber: 474,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                    lineNumber: 443,
+                                                                    lineNumber: 464,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1946,7 +1966,7 @@ function TargetBeneficiariesPageClient() {
                                                                                     href: url,
                                                                                     target: "_blank",
                                                                                     rel: "noreferrer",
-                                                                                    className: "group relative block h-12 w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm",
+                                                                                    className: "group relative block h-12 w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm dark:border-slate-700 dark:bg-slate-800",
                                                                                     title: `Proof photo ${index + 1}`,
                                                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("img", {
                                                                                         src: url,
@@ -1954,125 +1974,125 @@ function TargetBeneficiariesPageClient() {
                                                                                         className: "h-full w-full object-cover transition-transform duration-150 group-hover:scale-105"
                                                                                     }, void 0, false, {
                                                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                        lineNumber: 477,
+                                                                                        lineNumber: 498,
                                                                                         columnNumber: 37
                                                                                     }, this)
                                                                                 }, `${rowId}-proof-${index + 1}`, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 469,
+                                                                                    lineNumber: 490,
                                                                                     columnNumber: 35
                                                                                 }, this)),
                                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("a", {
                                                                                 href: proofUrl,
                                                                                 target: "_blank",
                                                                                 rel: "noreferrer",
-                                                                                className: "inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50",
+                                                                                className: "inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800",
                                                                                 children: [
                                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ImageIcon, {
                                                                                         className: "h-3.5 w-3.5"
                                                                                     }, void 0, false, {
                                                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                        lineNumber: 490,
+                                                                                        lineNumber: 511,
                                                                                         columnNumber: 35
                                                                                     }, this),
                                                                                     proofUrls.length > 1 ? `${proofUrls.length} photos` : 'View proof'
                                                                                 ]
                                                                             }, void 0, true, {
                                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                lineNumber: 484,
+                                                                                lineNumber: 505,
                                                                                 columnNumber: 33
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                        lineNumber: 467,
+                                                                        lineNumber: 488,
                                                                         columnNumber: 31
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                    lineNumber: 466,
+                                                                    lineNumber: 487,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                            lineNumber: 442,
+                                                            lineNumber: 463,
                                                             columnNumber: 27
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                             className: "grid gap-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]",
                                                             children: [
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                    className: "rounded-xl bg-gray-50 px-3 py-2",
+                                                                    className: "rounded-xl bg-gray-50 px-3 py-2 dark:bg-slate-800/80",
                                                                     children: [
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                            className: "text-sm text-gray-700",
+                                                                            className: "text-sm text-gray-700 dark:text-slate-200",
                                                                             children: truncateText(row.description, 120)
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 499,
+                                                                            lineNumber: 520,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         row.supportingInfo ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                            className: "mt-1 text-[11px] text-gray-500",
+                                                                            className: "mt-1 text-[11px] text-gray-500 dark:text-slate-400",
                                                                             children: truncateText(row.supportingInfo, 90)
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 501,
+                                                                            lineNumber: 522,
                                                                             columnNumber: 33
                                                                         }, this) : null
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                    lineNumber: 498,
+                                                                    lineNumber: 519,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                    className: "rounded-xl bg-gray-50 px-3 py-2",
+                                                                    className: "rounded-xl bg-gray-50 px-3 py-2 dark:bg-slate-800/80",
                                                                     children: [
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                            className: "text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500",
+                                                                            className: "text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-slate-400",
                                                                             children: "Review"
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 506,
+                                                                            lineNumber: 527,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                            className: "mt-1 text-sm text-gray-600",
+                                                                            className: "mt-1 text-sm text-gray-600 dark:text-slate-300",
                                                                             children: truncateText(reviewNote, 90)
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 507,
+                                                                            lineNumber: 528,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         row.reviewedAt ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                            className: "mt-1 text-[11px] text-gray-500",
+                                                                            className: "mt-1 text-[11px] text-gray-500 dark:text-slate-400",
                                                                             children: [
                                                                                 "Reviewed ",
                                                                                 formatDateTime(row.reviewedAt)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 509,
+                                                                            lineNumber: 530,
                                                                             columnNumber: 33
                                                                         }, this) : null
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                    lineNumber: 505,
+                                                                    lineNumber: 526,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                            lineNumber: 497,
+                                                            lineNumber: 518,
                                                             columnNumber: 27
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                    lineNumber: 441,
+                                                    lineNumber: 462,
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2087,7 +2107,7 @@ function TargetBeneficiariesPageClient() {
                                                                 children: "Approve"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                lineNumber: 518,
+                                                                lineNumber: 539,
                                                                 columnNumber: 31
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -2097,49 +2117,49 @@ function TargetBeneficiariesPageClient() {
                                                                 children: "Reject"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                lineNumber: 525,
+                                                                lineNumber: 546,
                                                                 columnNumber: 31
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 517,
+                                                        lineNumber: 538,
                                                         columnNumber: 29
                                                     }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                        className: "rounded-xl border border-dashed border-gray-200 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400",
+                                                        className: "rounded-xl border border-dashed border-gray-200 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:border-slate-700 dark:text-slate-500",
                                                         children: "No action needed"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 534,
+                                                        lineNumber: 555,
                                                         columnNumber: 29
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                    lineNumber: 515,
+                                                    lineNumber: 536,
                                                     columnNumber: 25
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                            lineNumber: 440,
+                                            lineNumber: 461,
                                             columnNumber: 23
                                         }, this)
                                     }, rowId, false, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 436,
+                                        lineNumber: 457,
                                         columnNumber: 21
                                     }, this);
                                 })
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 407,
+                                lineNumber: 428,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                className: "flex flex-col gap-3 border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between",
+                                className: "flex flex-col gap-3 border-t border-gray-100 bg-gray-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/80 sm:flex-row sm:items-center sm:justify-between",
                                 children: [
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                        className: "text-xs font-bold uppercase tracking-[0.16em] text-gray-500",
+                                        className: "text-xs font-bold uppercase tracking-[0.16em] text-gray-500 dark:text-slate-400",
                                         children: [
                                             "Page ",
                                             page,
@@ -2148,7 +2168,7 @@ function TargetBeneficiariesPageClient() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 547,
+                                        lineNumber: 568,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2158,34 +2178,34 @@ function TargetBeneficiariesPageClient() {
                                                 type: "button",
                                                 onClick: ()=>setPage((prev)=>Math.max(1, prev - 1)),
                                                 disabled: page <= 1 || proofLoading,
-                                                className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50",
+                                                className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800",
                                                 children: "Prev"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 549,
+                                                lineNumber: 570,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                 type: "button",
                                                 onClick: ()=>setPage((prev)=>Math.min(totalPages, prev + 1)),
                                                 disabled: page >= totalPages || proofLoading,
-                                                className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50",
+                                                className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800",
                                                 children: "Next"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 557,
+                                                lineNumber: 578,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 548,
+                                        lineNumber: 569,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 546,
+                                lineNumber: 567,
                                 columnNumber: 13
                             }, this)
                         ]
@@ -2193,7 +2213,7 @@ function TargetBeneficiariesPageClient() {
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 305,
+                lineNumber: 326,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$ConfirmModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -2206,7 +2226,7 @@ function TargetBeneficiariesPageClient() {
                 onConfirm: submitReview
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 571,
+                lineNumber: 592,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](RejectReasonModal, {
@@ -2220,17 +2240,17 @@ function TargetBeneficiariesPageClient() {
                 onSubmit: submitReview
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 585,
+                lineNumber: 606,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 286,
+        lineNumber: 307,
         columnNumber: 5
     }, this);
 }
-_s(TargetBeneficiariesPageClient, "FDH7wwKFngigW7WfdVgMrOkpZqo=", false, function() {
+_s(TargetBeneficiariesPageClient, "3egn1xLyAfv3tHrfFsURUV98KOU=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$AuthContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuth"]
     ];
@@ -2251,7 +2271,7 @@ function SpinnerIcon({ className }) {
                 strokeWidth: "3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 602,
+                lineNumber: 623,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2261,13 +2281,13 @@ function SpinnerIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 603,
+                lineNumber: 624,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 601,
+        lineNumber: 622,
         columnNumber: 5
     }, this);
 }
@@ -2286,7 +2306,7 @@ function ClipboardIcon({ className }) {
                 d: "M9 4h6m-7 3h8a2 2 0 012 2v9a2 2 0 01-2 2H8a2 2 0 01-2-2V9a2 2 0 012-2z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 611,
+                lineNumber: 632,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2296,13 +2316,13 @@ function ClipboardIcon({ className }) {
                 d: "M10 4.5A1.5 1.5 0 0111.5 3h1A1.5 1.5 0 0114 4.5V7h-4V4.5z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 612,
+                lineNumber: 633,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 610,
+        lineNumber: 631,
         columnNumber: 5
     }, this);
 }
@@ -2320,12 +2340,12 @@ function ClockIcon({ className }) {
             d: "M12 7v5l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-            lineNumber: 620,
+            lineNumber: 641,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 619,
+        lineNumber: 640,
         columnNumber: 5
     }, this);
 }
@@ -2344,7 +2364,7 @@ function ShieldCheckIcon({ className }) {
                 d: "M12 3l7 3v6c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V6l7-3z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 628,
+                lineNumber: 649,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2354,13 +2374,13 @@ function ShieldCheckIcon({ className }) {
                 d: "M9 12l2 2 4-4"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 629,
+                lineNumber: 650,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 627,
+        lineNumber: 648,
         columnNumber: 5
     }, this);
 }
@@ -2378,12 +2398,12 @@ function AlertIcon({ className }) {
             d: "M12 9v4m0 4h.01M10.29 3.86l-7.5 13A1 1 0 003.66 18h16.68a1 1 0 00.87-1.5l-7.5-13a1 1 0 00-1.74 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-            lineNumber: 637,
+            lineNumber: 658,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 636,
+        lineNumber: 657,
         columnNumber: 5
     }, this);
 }
@@ -2401,12 +2421,12 @@ function RefreshIcon({ className }) {
             d: "M4 4v5h5M20 20v-5h-5M5.8 9A7 7 0 0118 6.3M18.2 15A7 7 0 016 17.7"
         }, void 0, false, {
             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-            lineNumber: 645,
+            lineNumber: 666,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 644,
+        lineNumber: 665,
         columnNumber: 5
     }, this);
 }
@@ -2424,12 +2444,12 @@ function SearchIcon({ className }) {
             d: "M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z"
         }, void 0, false, {
             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-            lineNumber: 653,
+            lineNumber: 674,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 652,
+        lineNumber: 673,
         columnNumber: 5
     }, this);
 }
@@ -2448,7 +2468,7 @@ function ImageIcon({ className }) {
                 d: "M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 661,
+                lineNumber: 682,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2458,13 +2478,13 @@ function ImageIcon({ className }) {
                 d: "M8 14l2.5-2.5L15 16l2-2 3 3M9 9h.01"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 662,
+                lineNumber: 683,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 660,
+        lineNumber: 681,
         columnNumber: 5
     }, this);
 }
@@ -2483,7 +2503,7 @@ function MapPinIcon({ className }) {
                 d: "M12 21s6-4.5 6-10a6 6 0 10-12 0c0 5.5 6 10 6 10z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 670,
+                lineNumber: 691,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2493,13 +2513,13 @@ function MapPinIcon({ className }) {
                 d: "M12 11a2 2 0 100-4 2 2 0 000 4z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 671,
+                lineNumber: 692,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 669,
+        lineNumber: 690,
         columnNumber: 5
     }, this);
 }

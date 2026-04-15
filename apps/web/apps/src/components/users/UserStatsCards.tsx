@@ -23,9 +23,9 @@ export default function UserStatsCards({
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {items.map((item) => (
-        <div key={item.label} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{item.label}</p>
-          <p className="mt-1 text-2xl font-black text-gray-900">{item.value > 0 ? item.value : '--'}</p>
+        <div key={item.label} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">{item.label}</p>
+          <p className="mt-1 text-2xl font-black text-gray-900 dark:text-slate-100">{item.value > 0 ? item.value : '--'}</p>
         </div>
       ))}
     </div>

@@ -17,7 +17,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { mobileAuthService } from '../services/auth/MobileAuthService';
-import { fetchResidentDistributions, getResidentToken } from '../services/api/ResidentQrService';
+import {
+  fetchResidentDistributions,
+  fetchResidentNotifications,
+  getResidentToken,
+  markResidentNotificationRead,
+  type ResidentNotificationItem,
+} from '../services/api/ResidentQrService';
 import PendingAccessBanner from './PendingAccessBanner';
 import { Typography } from './ui/Typography';
 import { Card } from './ui/Card';
@@ -61,7 +67,8 @@ interface HomeNotificationItem {
   title: string;
   message: string;
   date: string;
-  distributionId: string;
+  distributionId?: string;
+  isRead?: boolean;
 }
 
 interface DistributionResponseItem {
@@ -158,7 +165,7 @@ export default function HomeScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionItem | null>(null);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
-  const [readNotificationIds, setReadNotificationIds] = useState<Record<string, boolean>>({});
+  const [residentNotifications, setResidentNotifications] = useState<HomeNotificationItem[]>([]);
 
   const isVolunteer = accountType === 'volunteer';
   const isPendingResident = !isVolunteer && residentStatus === 'Pending';
@@ -204,22 +211,54 @@ export default function HomeScreen({
     setLoading(false);
   }, [isPendingResident, isVolunteer]);
 
+  const loadResidentNotifications = useCallback(async () => {
+    if (isVolunteer || isPendingResident) {
+      setResidentNotifications([]);
+      return;
+    }
+
+    const residentToken = await getResidentToken();
+    if (!residentToken) {
+      setResidentNotifications([]);
+      return;
+    }
+
+    const result = await fetchResidentNotifications(residentToken);
+    if (!result.success || !result.data) {
+      setResidentNotifications([]);
+      return;
+    }
+
+    setResidentNotifications(
+      result.data.notifications.map((item: ResidentNotificationItem) => ({
+        id: item._id || item.id || `${item.title}-${item.createdAt || Date.now()}`,
+        title: item.title,
+        message: item.message,
+        date: item.createdAt ? formatDistributionDate(new Date(item.createdAt)) : 'Just now',
+        distributionId: typeof item.meta?.distributionId === 'string' ? item.meta.distributionId : undefined,
+        isRead: Boolean(item.isRead),
+      })),
+    );
+  }, [isPendingResident, isVolunteer]);
+
   useEffect(() => {
     loadDistributions().catch(() => setLoading(false));
-  }, [loadDistributions]);
+    loadResidentNotifications().catch(() => undefined);
+  }, [loadDistributions, loadResidentNotifications]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await loadDistributions();
+      await loadResidentNotifications();
     } finally {
       setRefreshing(false);
     }
-  }, [loadDistributions]);
+  }, [loadDistributions, loadResidentNotifications]);
 
   // Get the featured distribution (first one) for the hero card
   const featuredDistribution = distributions[0];
-  const notifications: HomeNotificationItem[] = distributions.map((item) => ({
+  const fallbackNotifications: HomeNotificationItem[] = distributions.map((item) => ({
     id: item.id,
     distributionId: item.id,
     title: item.residentClaimed ? 'Claim Confirmed' : 'New Distribution Update',
@@ -228,15 +267,26 @@ export default function HomeScreen({
       : `${item.hostBarangay} has a scheduled relief distribution.`,
     date: item.date,
   }));
-  const unreadUpdates = notifications.filter((item) => !readNotificationIds[item.id]).length;
+  const notifications = residentNotifications.length > 0 ? residentNotifications : fallbackNotifications;
+  const unreadUpdates = notifications.filter((item) => !item.isRead).length;
 
   const handleOpenNotifications = () => {
     setShowNotificationsModal(true);
   };
 
-  const handleNotificationPress = (notification: HomeNotificationItem) => {
+  const handleNotificationPress = async (notification: HomeNotificationItem) => {
     const match = distributions.find((item) => item.id === notification.distributionId);
-    setReadNotificationIds((prev) => ({ ...prev, [notification.id]: true }));
+
+    if (!isVolunteer) {
+      const residentToken = await getResidentToken();
+      if (residentToken && notification.id && residentNotifications.some((item) => item.id === notification.id && !item.isRead)) {
+        await markResidentNotificationRead(residentToken, notification.id);
+        setResidentNotifications((prev) =>
+          prev.map((item) => (item.id === notification.id ? { ...item, isRead: true } : item)),
+        );
+      }
+    }
+
     setShowNotificationsModal(false);
     if (match) {
       setSelectedDistribution(match);
@@ -530,7 +580,7 @@ export default function HomeScreen({
             ) : (
               <ScrollView style={styles.notificationList}>
                 {notifications.map((item) => {
-                  const isRead = !!readNotificationIds[item.id];
+                  const isRead = !!item.isRead;
                   return (
                     <TouchableOpacity
                       key={item.id}

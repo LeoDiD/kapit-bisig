@@ -558,6 +558,7 @@ var _s = __turbopack_refresh__.signature();
 'use client';
 ;
 ;
+const HOUSEHOLDS_PER_PAGE = 8;
 function ViewHouseholdsModal({ open, onClose, distribution }) {
     _s();
     const [loading, setLoading] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](false);
@@ -565,6 +566,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
     const [data, setData] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](null);
     const [activeTab, setActiveTab] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"]('notYetClaimed');
     const [search, setSearch] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"]('');
+    const [page, setPage] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](1);
     const fetchData = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"](async (distributionId)=>{
         setLoading(true);
         setError(null);
@@ -586,6 +588,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
         if (open && distribution) {
             setSearch('');
             setActiveTab('notYetClaimed');
+            setPage(1);
             setData(null);
             fetchData(distribution.id);
         }
@@ -593,6 +596,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
         open,
         distribution,
         fetchData
+    ]);
+    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"](()=>{
+        setPage(1);
+    }, [
+        activeTab,
+        search
     ]);
     if (!open || !distribution) return null;
     const noRegistered = data && data.totals.registered === 0;
@@ -606,6 +615,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
         if (!q) return true;
         return h.householdName.toLowerCase().includes(q) || h.address.toLowerCase().includes(q);
     }) ?? [];
+    const activeItemsCount = activeTab === 'claimed' ? filteredClaimed.length : filteredNotYetClaimed.length;
+    const totalPages = Math.max(1, Math.ceil(activeItemsCount / HOUSEHOLDS_PER_PAGE));
+    const currentPage = Math.min(page, totalPages);
+    const rangeStart = (currentPage - 1) * HOUSEHOLDS_PER_PAGE;
+    const rangeEnd = currentPage * HOUSEHOLDS_PER_PAGE;
+    const paginatedClaimed = filteredClaimed.slice(rangeStart, rangeEnd);
+    const paginatedNotYetClaimed = filteredNotYetClaimed.slice((currentPage - 1) * HOUSEHOLDS_PER_PAGE, currentPage * HOUSEHOLDS_PER_PAGE);
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         className: "fixed inset-0 z-[120] overflow-y-auto",
         role: "dialog",
@@ -618,7 +634,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                     onClick: onClose
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                    lineNumber: 74,
+                    lineNumber: 96,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -636,45 +652,45 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                 className: "w-10 h-10 rounded-full bg-[#0F533A] flex items-center justify-center",
                                                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersIcon, {}, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 82,
+                                                    lineNumber: 104,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 81,
+                                                lineNumber: 103,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                 children: [
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "text-base font-semibold text-gray-900",
-                                                        children: [
-                                                            "Households — ",
-                                                            distribution.barangay
-                                                        ]
-                                                    }, void 0, true, {
+                                                        children: "Covered Households"
+                                                    }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 85,
+                                                        lineNumber: 107,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "text-xs text-gray-500",
-                                                        children: "Distribution Household Tracking"
-                                                    }, void 0, false, {
+                                                        children: [
+                                                            "Host: ",
+                                                            distribution.barangay
+                                                        ]
+                                                    }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 88,
+                                                        lineNumber: 108,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 84,
+                                                lineNumber: 106,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 80,
+                                        lineNumber: 102,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -684,23 +700,23 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                         "aria-label": "Close",
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](XIcon, {}, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 100,
+                                            lineNumber: 118,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 94,
+                                        lineNumber: 112,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                lineNumber: 79,
+                                lineNumber: 101,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 78,
+                            lineNumber: 100,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -725,7 +741,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         strokeWidth: "4"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 112,
+                                                        lineNumber: 130,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -734,25 +750,25 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 113,
+                                                        lineNumber: 131,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 111,
+                                                lineNumber: 129,
                                                 columnNumber: 19
                                             }, this),
                                             "Loading households…"
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 110,
+                                        lineNumber: 128,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 109,
+                                    lineNumber: 127,
                                     columnNumber: 15
                                 }, this),
                                 error && !loading && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -760,7 +776,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                     children: error
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 122,
+                                    lineNumber: 140,
                                     columnNumber: 15
                                 }, this),
                                 !loading && !error && noRegistered && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -770,12 +786,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                             className: "w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3",
                                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersEmptyIcon, {}, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 131,
+                                                lineNumber: 149,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 130,
+                                            lineNumber: 148,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -783,13 +799,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                             children: "No registered household."
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 133,
+                                            lineNumber: 151,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 129,
+                                    lineNumber: 147,
                                     columnNumber: 15
                                 }, this),
                                 !loading && !error && data && !noRegistered && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -804,7 +820,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     color: "text-gray-900"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 144,
+                                                    lineNumber: 162,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCard, {
@@ -813,7 +829,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     color: "text-green-600"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 145,
+                                                    lineNumber: 163,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCard, {
@@ -822,13 +838,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     color: "text-[#EAB308]"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 146,
+                                                    lineNumber: 164,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 143,
+                                            lineNumber: 161,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -838,12 +854,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     className: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-400",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SearchIcon, {}, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 152,
+                                                        lineNumber: 170,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 151,
+                                                    lineNumber: 169,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
@@ -853,13 +869,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     className: "w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 154,
+                                                    lineNumber: 172,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 150,
+                                            lineNumber: 168,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -871,7 +887,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     onClick: ()=>setActiveTab('notYetClaimed')
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 164,
+                                                    lineNumber: 182,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](TabButton, {
@@ -880,45 +896,45 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     onClick: ()=>setActiveTab('claimed')
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 169,
+                                                    lineNumber: 187,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 163,
+                                            lineNumber: 181,
                                             columnNumber: 17
                                         }, this),
                                         activeTab === 'notYetClaimed' && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                            className: "space-y-2 max-h-60 overflow-y-auto",
+                                            className: "space-y-2",
                                             children: filteredNotYetClaimed.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](EmptyList, {
                                                 message: search ? 'No households match your search.' : 'All households have claimed.'
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 180,
+                                                lineNumber: 198,
                                                 columnNumber: 23
-                                            }, this) : filteredNotYetClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](HouseholdCard, {
+                                            }, this) : paginatedNotYetClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](HouseholdCard, {
                                                     name: h.householdName,
                                                     address: h.address
                                                 }, h.householdId, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 183,
+                                                    lineNumber: 201,
                                                     columnNumber: 25
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 178,
+                                            lineNumber: 196,
                                             columnNumber: 19
                                         }, this),
                                         activeTab === 'claimed' && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                            className: "space-y-2 max-h-60 overflow-y-auto",
+                                            className: "space-y-2",
                                             children: filteredClaimed.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](EmptyList, {
                                                 message: search ? 'No households match your search.' : 'No households have claimed yet.'
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 192,
+                                                lineNumber: 210,
                                                 columnNumber: 23
-                                            }, this) : filteredClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                            }, this) : paginatedClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                     className: "p-3 bg-gray-50 rounded-xl border border-gray-100",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -931,7 +947,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                             children: h.householdName
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                            lineNumber: 201,
+                                                                            lineNumber: 219,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -939,13 +955,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                             children: h.address
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                            lineNumber: 202,
+                                                                            lineNumber: 220,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                    lineNumber: 200,
+                                                                    lineNumber: 218,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 h.proofMethod && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -953,13 +969,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                     children: h.proofMethod
                                                                 }, void 0, false, {
                                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                    lineNumber: 205,
+                                                                    lineNumber: 223,
                                                                     columnNumber: 31
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 199,
+                                                            lineNumber: 217,
                                                             columnNumber: 27
                                                         }, this),
                                                         h.claimedAt && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -976,7 +992,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 211,
+                                                            lineNumber: 229,
                                                             columnNumber: 29
                                                         }, this),
                                                         h.claimedBy?.name && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -987,30 +1003,42 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 216,
+                                                            lineNumber: 234,
                                                             columnNumber: 29
                                                         }, this)
                                                     ]
                                                 }, h.householdId, true, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 195,
+                                                    lineNumber: 213,
                                                     columnNumber: 25
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 190,
+                                            lineNumber: 208,
+                                            columnNumber: 19
+                                        }, this),
+                                        activeItemsCount > 0 && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](PaginationControls, {
+                                            currentPage: currentPage,
+                                            totalPages: totalPages,
+                                            pageSize: HOUSEHOLDS_PER_PAGE,
+                                            totalItems: activeItemsCount,
+                                            onPrev: ()=>setPage((prev)=>Math.max(1, prev - 1)),
+                                            onNext: ()=>setPage((prev)=>Math.min(totalPages, prev + 1))
+                                        }, void 0, false, {
+                                            fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                                            lineNumber: 245,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 141,
+                                    lineNumber: 159,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 106,
+                            lineNumber: 124,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1022,33 +1050,33 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                 children: "Close"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                lineNumber: 231,
+                                lineNumber: 260,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 230,
+                            lineNumber: 259,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                    lineNumber: 76,
+                    lineNumber: 98,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 73,
+            lineNumber: 95,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 72,
+        lineNumber: 94,
         columnNumber: 5
     }, this);
 }
-_s(ViewHouseholdsModal, "usTcCXfB+3ERlrYey+NBk3KCHSI=");
+_s(ViewHouseholdsModal, "QMTMjUSUrmZyklJilkOO5WB0Mz0=");
 _c = ViewHouseholdsModal;
 /* ----- Sub-components ----- */ function SummaryCard({ label, value, color }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1059,7 +1087,7 @@ _c = ViewHouseholdsModal;
                 children: value
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 250,
+                lineNumber: 279,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1067,13 +1095,13 @@ _c = ViewHouseholdsModal;
                 children: label
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 251,
+                lineNumber: 280,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 249,
+        lineNumber: 278,
         columnNumber: 5
     }, this);
 }
@@ -1086,7 +1114,7 @@ function TabButton({ active, label, onClick }) {
         children: label
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 258,
+        lineNumber: 287,
         columnNumber: 5
     }, this);
 }
@@ -1100,7 +1128,7 @@ function HouseholdCard({ name, address }) {
                 children: name
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 275,
+                lineNumber: 304,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1108,13 +1136,13 @@ function HouseholdCard({ name, address }) {
                 children: address
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 276,
+                lineNumber: 305,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 274,
+        lineNumber: 303,
         columnNumber: 5
     }, this);
 }
@@ -1125,11 +1153,83 @@ function EmptyList({ message }) {
         children: message
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 283,
+        lineNumber: 312,
         columnNumber: 5
     }, this);
 }
 _c4 = EmptyList;
+function PaginationControls({ currentPage, totalPages, pageSize, totalItems, onPrev, onNext }) {
+    const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalItems);
+    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+        className: "flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2",
+        children: [
+            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                className: "text-xs text-gray-500",
+                children: [
+                    "Showing ",
+                    start,
+                    "-",
+                    end,
+                    " of ",
+                    totalItems
+                ]
+            }, void 0, true, {
+                fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                lineNumber: 338,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                className: "flex items-center gap-2",
+                children: [
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                        type: "button",
+                        onClick: onPrev,
+                        disabled: currentPage <= 1,
+                        className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50",
+                        children: "Previous"
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                        lineNumber: 343,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                        className: "text-xs font-medium text-gray-600",
+                        children: [
+                            currentPage,
+                            " / ",
+                            totalPages
+                        ]
+                    }, void 0, true, {
+                        fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                        lineNumber: 351,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                        type: "button",
+                        onClick: onNext,
+                        disabled: currentPage >= totalPages,
+                        className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50",
+                        children: "Next"
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                        lineNumber: 354,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                lineNumber: 342,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+        lineNumber: 337,
+        columnNumber: 5
+    }, this);
+}
+_c5 = PaginationControls;
 /* ----- Icons ----- */ function XIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
         className: "w-5 h-5",
@@ -1143,16 +1243,16 @@ _c4 = EmptyList;
             d: "M6 18L18 6M6 6l12 12"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 294,
+            lineNumber: 372,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 293,
+        lineNumber: 371,
         columnNumber: 5
     }, this);
 }
-_c5 = XIcon;
+_c6 = XIcon;
 function UsersIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
         className: "w-5 h-5 text-white",
@@ -1166,16 +1266,16 @@ function UsersIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 302,
+            lineNumber: 380,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 301,
+        lineNumber: 379,
         columnNumber: 5
     }, this);
 }
-_c6 = UsersIcon;
+_c7 = UsersIcon;
 function UsersEmptyIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
         className: "w-6 h-6 text-gray-400",
@@ -1189,16 +1289,16 @@ function UsersEmptyIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 310,
+            lineNumber: 388,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 309,
+        lineNumber: 387,
         columnNumber: 5
     }, this);
 }
-_c7 = UsersEmptyIcon;
+_c8 = UsersEmptyIcon;
 function SearchIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
         className: "w-4 h-4",
@@ -1212,26 +1312,27 @@ function SearchIcon() {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 318,
+            lineNumber: 396,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 317,
+        lineNumber: 395,
         columnNumber: 5
     }, this);
 }
-_c8 = SearchIcon;
-var _c, _c1, _c2, _c3, _c4, _c5, _c6, _c7, _c8;
+_c9 = SearchIcon;
+var _c, _c1, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9;
 __turbopack_refresh__.register(_c, "ViewHouseholdsModal");
 __turbopack_refresh__.register(_c1, "SummaryCard");
 __turbopack_refresh__.register(_c2, "TabButton");
 __turbopack_refresh__.register(_c3, "HouseholdCard");
 __turbopack_refresh__.register(_c4, "EmptyList");
-__turbopack_refresh__.register(_c5, "XIcon");
-__turbopack_refresh__.register(_c6, "UsersIcon");
-__turbopack_refresh__.register(_c7, "UsersEmptyIcon");
-__turbopack_refresh__.register(_c8, "SearchIcon");
+__turbopack_refresh__.register(_c5, "PaginationControls");
+__turbopack_refresh__.register(_c6, "XIcon");
+__turbopack_refresh__.register(_c7, "UsersIcon");
+__turbopack_refresh__.register(_c8, "UsersEmptyIcon");
+__turbopack_refresh__.register(_c9, "SearchIcon");
 
 })()),
 "[project]/src/components/distribution/DistributionDetailsModal.tsx [app-client] (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_require_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_dynamic__, p: __turbopack_resolve_absolute_path__, U: __turbopack_relative_url__, R: __turbopack_resolve_module_id_path__, g: global, __dirname, k: __turbopack_refresh__ }) => (() => {
@@ -1296,7 +1397,7 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "text-xs text-gray-500",
-                                                        children: "Distribution Details"
+                                                        children: "Host Barangay"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
                                                         lineNumber: 36,
@@ -1446,7 +1547,7 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                    children: "Household Coverage"
+                                                    children: "Covered Households"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
                                                     lineNumber: 82,
@@ -1489,6 +1590,38 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                     lineNumber: 79,
                                     columnNumber: 13
                                 }, this),
+                                !!distribution.assignedBarangays?.length && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                    className: "p-3 bg-gray-50 rounded-xl border border-gray-100",
+                                    children: [
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                            className: "text-gray-500 text-xs mb-2",
+                                            children: "Covered Barangays"
+                                        }, void 0, false, {
+                                            fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
+                                            lineNumber: 92,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                            className: "flex flex-wrap gap-2",
+                                            children: distribution.assignedBarangays.map((item)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                    className: "inline-flex items-center rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700",
+                                                    children: item
+                                                }, item, false, {
+                                                    fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
+                                                    lineNumber: 95,
+                                                    columnNumber: 21
+                                                }, this))
+                                        }, void 0, false, {
+                                            fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
+                                            lineNumber: 93,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
+                                    lineNumber: 91,
+                                    columnNumber: 15
+                                }, this),
                                 distribution.notes && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                     className: "p-3 bg-gray-50 rounded-xl border border-gray-100",
                                     children: [
@@ -1497,7 +1630,7 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             children: "Notes"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 93,
+                                            lineNumber: 109,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1505,13 +1638,13 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             children: distribution.notes
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 94,
+                                            lineNumber: 110,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 92,
+                                    lineNumber: 108,
                                     columnNumber: 15
                                 }, this),
                                 distribution.claimedAt && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1522,20 +1655,20 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CalendarIcon, {}, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 102,
+                                                    lineNumber: 118,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                     children: "Claimed At"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 103,
+                                                    lineNumber: 119,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 101,
+                                            lineNumber: 117,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1547,13 +1680,13 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             })
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 105,
+                                            lineNumber: 121,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 100,
+                                    lineNumber: 116,
                                     columnNumber: 15
                                 }, this)
                             ]
@@ -1572,7 +1705,7 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                     children: "Close"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 114,
+                                    lineNumber: 130,
                                     columnNumber: 13
                                 }, this),
                                 distribution.status === 'Unclaimed' && onMarkClaimed && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -1585,20 +1718,20 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckCircleIcon, {}, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 130,
+                                            lineNumber: 146,
                                             columnNumber: 17
                                         }, this),
                                         "Mark as Claimed"
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 122,
+                                    lineNumber: 138,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                            lineNumber: 113,
+                            lineNumber: 129,
                             columnNumber: 11
                         }, this)
                     ]
@@ -1628,18 +1761,18 @@ _c = DistributionDetailsModal;
         children: [
             isUnclaimed ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ClockSmallIcon, {}, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                lineNumber: 155,
+                lineNumber: 171,
                 columnNumber: 22
             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckSmallIcon, {}, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                lineNumber: 155,
+                lineNumber: 171,
                 columnNumber: 43
             }, this),
             status
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 148,
+        lineNumber: 164,
         columnNumber: 5
     }, this);
 }
@@ -1657,12 +1790,12 @@ _c1 = StatusPill;
             d: "M6 18L18 6M6 6l12 12"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 166,
+            lineNumber: 182,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 165,
+        lineNumber: 181,
         columnNumber: 5
     }, this);
 }
@@ -1681,7 +1814,7 @@ function LocationIcon() {
                 d: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                lineNumber: 174,
+                lineNumber: 190,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -1691,13 +1824,13 @@ function LocationIcon() {
                 d: "M15 11a3 3 0 11-6 0 3 3 0 016 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                lineNumber: 175,
+                lineNumber: 191,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 173,
+        lineNumber: 189,
         columnNumber: 5
     }, this);
 }
@@ -1715,12 +1848,12 @@ function CalendarIcon() {
             d: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 183,
+            lineNumber: 199,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 182,
+        lineNumber: 198,
         columnNumber: 5
     }, this);
 }
@@ -1738,12 +1871,12 @@ function ClockIcon() {
             d: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 191,
+            lineNumber: 207,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 190,
+        lineNumber: 206,
         columnNumber: 5
     }, this);
 }
@@ -1761,12 +1894,12 @@ function ClockSmallIcon() {
             d: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 199,
+            lineNumber: 215,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 198,
+        lineNumber: 214,
         columnNumber: 5
     }, this);
 }
@@ -1784,12 +1917,12 @@ function CheckSmallIcon() {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 207,
+            lineNumber: 223,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 206,
+        lineNumber: 222,
         columnNumber: 5
     }, this);
 }
@@ -1807,12 +1940,12 @@ function UsersIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 215,
+            lineNumber: 231,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 214,
+        lineNumber: 230,
         columnNumber: 5
     }, this);
 }
@@ -1830,12 +1963,12 @@ function CheckCircleIcon() {
             d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 223,
+            lineNumber: 239,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 222,
+        lineNumber: 238,
         columnNumber: 5
     }, this);
 }
@@ -1901,13 +2034,10 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
     const barangayMenuRef = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"](null);
     const statusBtnRef = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"](null);
     const statusMenuRef = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"](null);
-    // 3-dots menu
     const [activeMenu, setActiveMenu] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](null);
     const [menuPos, setMenuPos] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](null);
     const menuRef = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"](null);
-    // Details modal
     const [selectedDistribution, setSelectedDistribution] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](null);
-    // View Households modal
     const [householdsDistribution, setHouseholdsDistribution] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"](null);
     const barangayOptions = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"](()=>{
         const unique = Array.from(new Set(rows.map((r)=>r.barangay))).sort();
@@ -1930,27 +2060,22 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
     }, []);
     __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"](()=>{
         const onDown = (e)=>{
-            const t = e.target;
-            // close dropdowns
-            const inBrgyBtn = barangayBtnRef.current?.contains(t);
-            const inBrgyMenu = barangayMenuRef.current?.contains(t);
+            const target = e.target;
+            const inBrgyBtn = barangayBtnRef.current?.contains(target);
+            const inBrgyMenu = barangayMenuRef.current?.contains(target);
             if (!inBrgyBtn && !inBrgyMenu) setBarangayOpen(false);
-            const inStatusBtn = statusBtnRef.current?.contains(t);
-            const inStatusMenu = statusMenuRef.current?.contains(t);
+            const inStatusBtn = statusBtnRef.current?.contains(target);
+            const inStatusMenu = statusMenuRef.current?.contains(target);
             if (!inStatusBtn && !inStatusMenu) setStatusOpen(false);
-            // close row menu - check if click is inside any row menu button or the portal menu
-            const inRowMenuBtn = t.closest('[data-row-menu]');
-            const inPortalMenu = menuRef.current?.contains(t);
-            if (!inRowMenuBtn && !inPortalMenu) {
-                closeRowMenu();
-            }
+            const inRowMenuBtn = target.closest('[data-row-menu]');
+            const inPortalMenu = menuRef.current?.contains(target);
+            if (!inRowMenuBtn && !inPortalMenu) closeRowMenu();
         };
         document.addEventListener('mousedown', onDown);
         return ()=>document.removeEventListener('mousedown', onDown);
     }, [
         closeRowMenu
     ]);
-    // Close menu on scroll or resize so it doesn't float in the wrong spot
     __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"](()=>{
         if (!activeMenu) return;
         const close = ()=>closeRowMenu();
@@ -2007,7 +2132,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                 onMarkClaimed: onMarkClaimed
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 158,
+                lineNumber: 143,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$distribution$2f$ViewHouseholdsModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -2016,180 +2141,270 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                 distribution: householdsDistribution
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 166,
+                lineNumber: 150,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden mb-12",
+                className: "mb-12 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "p-4 border-b border-gray-100 bg-gray-50/40 flex flex-col lg:flex-row gap-4 justify-between items-center",
-                        children: [
-                            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                className: "relative w-full lg:max-w-md",
-                                children: [
-                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                        className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400",
-                                        children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SearchIcon, {}, void 0, false, {
+                        className: "border-b border-slate-200 bg-white px-5 py-4 sm:px-6",
+                        children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                            className: "flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between",
+                            children: [
+                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                    children: [
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
+                                            className: "text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500",
+                                            children: "Distribution Directory"
+                                        }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 178,
-                                            columnNumber: 16
+                                            lineNumber: 160,
+                                            columnNumber: 15
+                                        }, this),
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
+                                            className: "mt-2 text-xl font-bold tracking-[-0.03em] text-slate-950",
+                                            children: "Scheduled and claimed distributions"
+                                        }, void 0, false, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 161,
+                                            columnNumber: 15
+                                        }, this),
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
+                                            className: "mt-1 text-sm text-slate-500",
+                                            children: [
+                                                filtered.length,
+                                                " visible distribution",
+                                                filtered.length === 1 ? '' : 's'
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 164,
+                                            columnNumber: 15
                                         }, this)
-                                    }, void 0, false, {
-                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 177,
-                                        columnNumber: 14
-                                    }, this),
-                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
-                                        value: query,
-                                        onChange: (e)=>setQuery(e.target.value),
-                                        placeholder: "Search distributions...",
-                                        className: "w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm text-gray-800 placeholder-gray-400 shadow-sm transition-all"
-                                    }, void 0, false, {
-                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 180,
-                                        columnNumber: 14
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                lineNumber: 176,
-                                columnNumber: 12
-                            }, this),
-                            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                className: "flex items-center gap-3 w-full lg:w-auto",
-                                children: [
-                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                        className: "relative min-w-[180px]",
-                                        children: [
-                                            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
-                                                ref: barangayBtnRef,
-                                                type: "button",
-                                                onClick: ()=>{
-                                                    setBarangayOpen((v)=>!v);
-                                                    setStatusOpen(false);
-                                                    setActiveMenu(null);
-                                                },
-                                                className: "w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors",
-                                                children: [
-                                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                        className: "truncate",
-                                                        children: barangayLabel
-                                                    }, void 0, false, {
-                                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 201,
-                                                        columnNumber: 18
-                                                    }, this),
-                                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
-                                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 202,
-                                                        columnNumber: 18
-                                                    }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 191,
-                                                columnNumber: 16
-                                            }, this),
-                                            barangayOpen ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](DropdownMenu, {
-                                                menuRef: barangayMenuRef,
-                                                items: barangayOptions,
-                                                selected: barangay,
-                                                onSelect: (v)=>{
-                                                    setBarangay(v);
-                                                    setBarangayOpen(false);
-                                                }
-                                            }, void 0, false, {
-                                                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 205,
-                                                columnNumber: 18
-                                            }, this) : null
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 190,
-                                        columnNumber: 14
-                                    }, this),
-                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                        className: "relative min-w-[150px]",
-                                        children: [
-                                            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
-                                                ref: statusBtnRef,
-                                                type: "button",
-                                                onClick: ()=>{
-                                                    setStatusOpen((v)=>!v);
-                                                    setBarangayOpen(false);
-                                                    setActiveMenu(null);
-                                                },
-                                                className: "w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-sm hover:bg-gray-50 text-gray-700 font-medium text-sm transition-colors",
-                                                children: [
-                                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                        className: "truncate",
-                                                        children: statusLabel
-                                                    }, void 0, false, {
-                                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 221,
-                                                        columnNumber: 18
-                                                    }, this),
-                                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
-                                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 222,
-                                                        columnNumber: 18
-                                                    }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 211,
-                                                columnNumber: 16
-                                            }, this),
-                                            statusOpen ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](DropdownMenu, {
-                                                menuRef: statusMenuRef,
-                                                items: statusOptions,
-                                                selected: status,
-                                                onSelect: (v)=>{
-                                                    setStatus(v);
-                                                    setStatusOpen(false);
-                                                }
-                                            }, void 0, false, {
-                                                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 225,
-                                                columnNumber: 18
-                                            }, this) : null
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 210,
-                                        columnNumber: 14
-                                    }, this),
-                                    canCreate && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
-                                        type: "button",
-                                        onClick: onOpenCreate,
-                                        className: "ml-1 inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-[#0F533A] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0b412d]",
-                                        children: "+ New Distribution"
-                                    }, void 0, false, {
-                                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 231,
-                                        columnNumber: 17
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                lineNumber: 188,
-                                columnNumber: 12
-                            }, this)
-                        ]
-                    }, void 0, true, {
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                    lineNumber: 159,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                    className: "flex flex-wrap items-center gap-2",
+                                    children: [
+                                        barangay !== 'All' ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                            className: "rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700",
+                                            children: [
+                                                "Barangay: ",
+                                                barangayLabel
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 171,
+                                            columnNumber: 17
+                                        }, this) : null,
+                                        status !== 'All' ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                            className: "rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700",
+                                            children: [
+                                                "Status: ",
+                                                statusLabel
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 176,
+                                            columnNumber: 17
+                                        }, this) : null
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                    lineNumber: 169,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                            lineNumber: 158,
+                            columnNumber: 11
+                        }, this)
+                    }, void 0, false, {
                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                        lineNumber: 175,
+                        lineNumber: 157,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                        className: "border-b border-slate-200 bg-white px-5 py-4 sm:px-6",
+                        children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                            className: "flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between",
+                            children: [
+                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                    className: "relative w-full lg:max-w-md",
+                                    children: [
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                            className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400",
+                                            children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SearchIcon, {}, void 0, false, {
+                                                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                lineNumber: 188,
+                                                columnNumber: 17
+                                            }, this)
+                                        }, void 0, false, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 187,
+                                            columnNumber: 15
+                                        }, this),
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
+                                            value: query,
+                                            onChange: (e)=>setQuery(e.target.value),
+                                            placeholder: "Search distributions...",
+                                            className: "w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 shadow-sm outline-none transition-colors focus:border-slate-400 focus:bg-white focus:ring-0"
+                                        }, void 0, false, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 190,
+                                            columnNumber: 15
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                    lineNumber: 186,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                    className: "flex w-full flex-wrap items-center gap-3 lg:w-auto",
+                                    children: [
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                            className: "relative min-w-[180px]",
+                                            children: [
+                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                                                    ref: barangayBtnRef,
+                                                    type: "button",
+                                                    onClick: ()=>{
+                                                        setBarangayOpen((v)=>!v);
+                                                        setStatusOpen(false);
+                                                        setActiveMenu(null);
+                                                    },
+                                                    className: "flex w-full items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white",
+                                                    children: [
+                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                            className: "truncate",
+                                                            children: barangayLabel
+                                                        }, void 0, false, {
+                                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                            lineNumber: 210,
+                                                            columnNumber: 19
+                                                        }, this),
+                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
+                                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                            lineNumber: 211,
+                                                            columnNumber: 19
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                    lineNumber: 200,
+                                                    columnNumber: 17
+                                                }, this),
+                                                barangayOpen ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](DropdownMenu, {
+                                                    menuRef: barangayMenuRef,
+                                                    items: barangayOptions,
+                                                    selected: barangay,
+                                                    onSelect: (value)=>{
+                                                        setBarangay(value);
+                                                        setBarangayOpen(false);
+                                                    }
+                                                }, void 0, false, {
+                                                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                    lineNumber: 214,
+                                                    columnNumber: 19
+                                                }, this) : null
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 199,
+                                            columnNumber: 15
+                                        }, this),
+                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                            className: "relative min-w-[150px]",
+                                            children: [
+                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                                                    ref: statusBtnRef,
+                                                    type: "button",
+                                                    onClick: ()=>{
+                                                        setStatusOpen((v)=>!v);
+                                                        setBarangayOpen(false);
+                                                        setActiveMenu(null);
+                                                    },
+                                                    className: "flex w-full items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white",
+                                                    children: [
+                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                            className: "truncate",
+                                                            children: statusLabel
+                                                        }, void 0, false, {
+                                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                            lineNumber: 237,
+                                                            columnNumber: 19
+                                                        }, this),
+                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
+                                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                            lineNumber: 238,
+                                                            columnNumber: 19
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                    lineNumber: 227,
+                                                    columnNumber: 17
+                                                }, this),
+                                                statusOpen ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](DropdownMenu, {
+                                                    menuRef: statusMenuRef,
+                                                    items: statusOptions,
+                                                    selected: status,
+                                                    onSelect: (value)=>{
+                                                        setStatus(value);
+                                                        setStatusOpen(false);
+                                                    }
+                                                }, void 0, false, {
+                                                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                                    lineNumber: 241,
+                                                    columnNumber: 19
+                                                }, this) : null
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 226,
+                                            columnNumber: 15
+                                        }, this),
+                                        canCreate ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                                            type: "button",
+                                            onClick: onOpenCreate,
+                                            className: "ml-1 inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-[#0F533A] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0b412d]",
+                                            children: "+ New Distribution"
+                                        }, void 0, false, {
+                                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                            lineNumber: 254,
+                                            columnNumber: 17
+                                        }, this) : null
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                    lineNumber: 198,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                            lineNumber: 185,
+                            columnNumber: 11
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                        lineNumber: 184,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                         className: "overflow-x-auto w-full",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("table", {
-                            className: "w-full text-left border-collapse min-w-[900px]",
+                            className: "w-full min-w-[900px] border-collapse text-left",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("thead", {
-                                    className: "bg-white border-b border-gray-200 text-[11px] font-bold text-gray-400 uppercase tracking-wider",
+                                    className: "border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500",
                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2197,15 +2412,15 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Barangay"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 247,
+                                                lineNumber: 270,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
                                                 className: "px-6 py-4",
-                                                children: "Households Serving"
+                                                children: "Registered Households"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 248,
+                                                lineNumber: 271,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2213,7 +2428,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Claims"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 249,
+                                                lineNumber: 272,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2221,7 +2436,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Scheduled For"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 250,
+                                                lineNumber: 273,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2229,7 +2444,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Current Status"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 251,
+                                                lineNumber: 274,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2237,39 +2452,39 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Claimed On"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 252,
+                                                lineNumber: 275,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
-                                                className: "px-6 py-4 text-right pr-6 relative",
+                                                className: "px-6 py-4 text-right pr-6",
                                                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                     className: "sr-only",
                                                     children: "Actions"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 254,
+                                                    lineNumber: 277,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 253,
+                                                lineNumber: 276,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 246,
+                                        lineNumber: 269,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 245,
+                                    lineNumber: 268,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
-                                    className: "divide-y divide-gray-100 bg-white",
-                                    children: filtered.length ? filtered.map((r)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
-                                            className: "hover:bg-blue-50/40 transition-colors group",
+                                    className: "divide-y divide-slate-100 bg-white",
+                                    children: filtered.length ? filtered.map((row)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
+                                            className: "group transition-colors hover:bg-slate-50",
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
@@ -2277,52 +2492,52 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                         className: "flex items-center gap-4",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                className: "w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-bold flex flex-shrink-0 items-center justify-center text-xs",
-                                                                children: r.barangay.charAt(0)
+                                                                className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700",
+                                                                children: row.barangay.charAt(0)
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 266,
+                                                                lineNumber: 288,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "font-bold text-gray-900",
-                                                                children: r.barangay
+                                                                className: "font-bold text-slate-900",
+                                                                children: row.barangay
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 269,
+                                                                lineNumber: 291,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 265,
+                                                        lineNumber: 287,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 264,
+                                                    lineNumber: 286,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                        className: "flex items-center gap-2 text-gray-700 font-medium text-sm",
+                                                        className: "flex items-center gap-2 text-sm font-medium text-slate-700",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersMiniIcon, {}, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 276,
+                                                                lineNumber: 297,
                                                                 columnNumber: 25
                                                             }, this),
-                                                            r.registeredHouseholds > 0 ? r.registeredHouseholds : '--'
+                                                            row.registeredHouseholds > 0 ? row.registeredHouseholds : '--'
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 275,
+                                                        lineNumber: 296,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 274,
+                                                    lineNumber: 295,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2330,162 +2545,162 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "flex items-center gap-2",
                                                         children: [
-                                                            r.claimedHouseholds > 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100",
+                                                            row.claimedHouseholds > 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                                className: "inline-flex items-center gap-1.5 rounded-md border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700",
                                                                 children: [
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckMiniIcon, {}, void 0, false, {
                                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                        lineNumber: 286,
+                                                                        lineNumber: 306,
                                                                         columnNumber: 29
                                                                     }, this),
-                                                                    r.claimedHouseholds
+                                                                    row.claimedHouseholds
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 285,
+                                                                lineNumber: 305,
                                                                 columnNumber: 27
                                                             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "text-sm font-medium text-gray-400",
+                                                                className: "text-sm font-medium text-slate-400",
                                                                 children: "0"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 290,
+                                                                lineNumber: 310,
                                                                 columnNumber: 27
                                                             }, this),
-                                                            r.registeredHouseholds > 0 && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "text-[11px] font-bold text-gray-400",
+                                                            row.registeredHouseholds > 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                                className: "text-[11px] font-bold text-slate-400",
                                                                 children: [
                                                                     "/ ",
-                                                                    r.registeredHouseholds
+                                                                    row.registeredHouseholds
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 293,
+                                                                lineNumber: 313,
                                                                 columnNumber: 27
-                                                            }, this)
+                                                            }, this) : null
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 283,
+                                                        lineNumber: 303,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 282,
+                                                    lineNumber: 302,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-sm font-medium text-gray-700",
-                                                    children: r.scheduled
+                                                    className: "px-6 py-4 text-sm font-medium text-slate-700",
+                                                    children: row.scheduled
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 299,
+                                                    lineNumber: 318,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](StatusPill, {
-                                                        status: r.status
+                                                        status: row.status
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 305,
+                                                        lineNumber: 321,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 304,
+                                                    lineNumber: 320,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-sm font-medium text-gray-600",
-                                                    children: r.claimedAt ? new Date(r.claimedAt).toLocaleDateString('en-US', {
+                                                    className: "px-6 py-4 text-sm font-medium text-slate-600",
+                                                    children: row.claimedAt ? new Date(row.claimedAt).toLocaleDateString('en-US', {
                                                         year: 'numeric',
                                                         month: 'short',
                                                         day: 'numeric'
-                                                    }) : '—'
+                                                    }) : '--'
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 309,
+                                                    lineNumber: 324,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-right pr-6 relative",
+                                                    className: "px-6 py-4 text-right pr-6",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "inline-block",
                                                         "data-row-menu": true,
                                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
-                                                            onClick: (e)=>toggleRowMenu(r.id, e),
-                                                            className: "inline-flex items-center gap-2 px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-bold text-gray-700 rounded-lg bg-white hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
+                                                            onClick: (e)=>toggleRowMenu(row.id, e),
+                                                            className: "inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900",
                                                             children: [
                                                                 "Manage ",
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
                                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                    lineNumber: 321,
-                                                                    columnNumber: 35
+                                                                    lineNumber: 340,
+                                                                    columnNumber: 34
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                            lineNumber: 317,
-                                                            columnNumber: 26
+                                                            lineNumber: 336,
+                                                            columnNumber: 25
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 316,
-                                                        columnNumber: 24
+                                                        lineNumber: 335,
+                                                        columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 314,
+                                                    lineNumber: 334,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
-                                        }, r.id, true, {
+                                        }, row.id, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 262,
+                                            lineNumber: 285,
                                             columnNumber: 19
                                         }, this)) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                             colSpan: 7,
                                             className: "px-6 py-12 text-center",
                                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "text-gray-500 font-medium",
+                                                className: "font-medium text-slate-500",
                                                 children: "No distributions found matching your filter criteria."
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 330,
+                                                lineNumber: 349,
                                                 columnNumber: 21
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 329,
+                                            lineNumber: 348,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 328,
+                                        lineNumber: 347,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 259,
+                                    lineNumber: 282,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                            lineNumber: 244,
+                            lineNumber: 267,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                        lineNumber: 243,
+                        lineNumber: 266,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 173,
+                lineNumber: 156,
                 columnNumber: 7
             }, this),
             activeMenu && menuPos ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2d$dom$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["createPortal"](/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2496,74 +2711,74 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                     bottom: menuPos.opensUp ? window.innerHeight - menuPos.top + 8 : undefined,
                     left: menuPos.left
                 },
-                className: "w-56 bg-white rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-200 z-[9999] overflow-hidden",
+                className: "z-[9999] w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]",
                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                     className: "py-2",
                     children: (()=>{
-                        const r = filtered.find((row)=>row.id === activeMenu);
-                        if (!r) return null;
+                        const row = filtered.find((item)=>item.id === activeMenu);
+                        if (!row) return null;
                         return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](EyeIcon, {}, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 358,
-                                        columnNumber: 39
+                                        lineNumber: 378,
+                                        columnNumber: 31
                                     }, void 0),
                                     label: "View Details",
                                     onClick: ()=>{
-                                        setSelectedDistribution(r);
+                                        setSelectedDistribution(row);
                                         closeRowMenu();
                                     }
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 358,
+                                    lineNumber: 377,
                                     columnNumber: 23
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](QrIcon, {}, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 362,
+                                        lineNumber: 385,
                                         columnNumber: 39
                                     }, void 0),
                                     label: "Show QR Code",
-                                    onClick: ()=>closeRowMenu()
+                                    onClick: closeRowMenu
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 362,
+                                    lineNumber: 385,
                                     columnNumber: 23
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](HouseholdsIcon, {}, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 363,
-                                        columnNumber: 39
+                                        lineNumber: 387,
+                                        columnNumber: 31
                                     }, void 0),
                                     label: "View Households",
                                     onClick: ()=>{
-                                        setHouseholdsDistribution(r);
+                                        setHouseholdsDistribution(row);
                                         closeRowMenu();
                                     }
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 363,
+                                    lineNumber: 386,
                                     columnNumber: 23
                                 }, this),
-                                r.status !== 'Claimed' ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
+                                row.status !== 'Claimed' ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckGreenIcon, {}, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 369,
+                                        lineNumber: 396,
                                         columnNumber: 33
                                     }, void 0),
                                     label: "Mark as claimed",
                                     tone: "success",
                                     onClick: ()=>{
-                                        onMarkClaimed(r.id);
+                                        onMarkClaimed(row.id);
                                         closeRowMenu();
                                     }
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 368,
+                                    lineNumber: 395,
                                     columnNumber: 25
                                 }, this) : null
                             ]
@@ -2571,12 +2786,12 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                     })()
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                    lineNumber: 352,
+                    lineNumber: 370,
                     columnNumber: 15
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 342,
+                lineNumber: 360,
                 columnNumber: 13
             }, this), document.body) : null
         ]
@@ -2584,103 +2799,111 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
 }
 _s(DistributionsTable, "YPfZU2skmJix1pZcVPWssmn9Hvs=");
 _c = DistributionsTable;
-/* ----- UI helpers ----- */ function DropdownMenu({ menuRef, items, selected, onSelect }) {
+function DropdownMenu({ menuRef, items, selected, onSelect }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         ref: menuRef,
-        className: "absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50",
-        children: items.map((opt)=>{
-            const isSelected = opt.value === selected;
+        className: "absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_12px_32px_rgba(15,23,42,0.14)]",
+        children: items.map((option)=>{
+            const isSelected = option.value === selected;
             return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                 type: "button",
-                onClick: ()=>onSelect(opt.value),
+                onClick: ()=>onSelect(option.value),
                 className: [
-                    'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
-                    isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70'
+                    'w-full rounded-xl px-4 py-2.5 text-left text-sm transition-colors',
+                    isSelected ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-700 hover:bg-slate-50'
                 ].join(' '),
-                children: [
-                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                        className: "w-5 flex items-center justify-center",
-                        children: isSelected ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {}, void 0, false, {
+                children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                    className: "flex items-center gap-2",
+                    children: [
+                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                            className: "flex w-5 items-center justify-center",
+                            children: isSelected ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {}, void 0, false, {
+                                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                                lineNumber: 446,
+                                columnNumber: 84
+                            }, this) : null
+                        }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                            lineNumber: 421,
-                            columnNumber: 29
-                        }, this) : null
-                    }, void 0, false, {
-                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                        lineNumber: 420,
-                        columnNumber: 13
-                    }, this),
-                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                        className: "truncate",
-                        children: opt.label
-                    }, void 0, false, {
-                        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                        lineNumber: 423,
-                        columnNumber: 13
-                    }, this)
-                ]
-            }, opt.value, true, {
+                            lineNumber: 446,
+                            columnNumber: 15
+                        }, this),
+                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                            className: "truncate",
+                            children: option.label
+                        }, void 0, false, {
+                            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                            lineNumber: 447,
+                            columnNumber: 15
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+                    lineNumber: 445,
+                    columnNumber: 13
+                }, this)
+            }, option.value, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 411,
+                lineNumber: 436,
                 columnNumber: 11
             }, this);
         })
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 404,
+        lineNumber: 429,
         columnNumber: 5
     }, this);
 }
 _c1 = DropdownMenu;
 function StatusPill({ status }) {
-    const cls = status === 'Claimed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : status === 'Partially Claimed' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+    const classes = status === 'Claimed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : status === 'Partially Claimed' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-amber-200 bg-amber-50 text-amber-700';
+    const dotClass = status === 'Claimed' ? 'bg-emerald-500' : status === 'Partially Claimed' ? 'bg-blue-500' : 'bg-amber-500';
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-        className: `inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${cls}`,
+        className: `inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${classes}`,
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                className: `w-1.5 h-1.5 rounded-full mr-2 ${status === 'Claimed' ? 'bg-emerald-500' : status === 'Partially Claimed' ? 'bg-blue-500' : 'bg-amber-500'}`
+                className: `mr-2 h-1.5 w-1.5 rounded-full ${dotClass}`
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 443,
+                lineNumber: 473,
                 columnNumber: 7
             }, this),
             status
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 440,
+        lineNumber: 472,
         columnNumber: 5
     }, this);
 }
 _c2 = StatusPill;
 function MenuItem({ icon, label, onClick, tone = 'default' }) {
-    const cls = tone === 'success' ? 'text-green-600 hover:bg-green-50' : 'text-gray-700 hover:bg-gray-50';
-    const iconCls = tone === 'success' ? 'text-green-600' : 'text-gray-500';
+    const classes = tone === 'success' ? 'text-green-600 hover:bg-green-50' : 'text-slate-700 hover:bg-slate-50';
+    const iconClass = tone === 'success' ? 'text-green-600' : 'text-slate-500';
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
         type: "button",
         onClick: onClick,
-        className: `w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition-colors ${cls}`,
+        className: `flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${classes}`,
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                className: iconCls,
+                className: iconClass,
                 children: icon
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 474,
+                lineNumber: 499,
                 columnNumber: 7
             }, this),
             label
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 469,
+        lineNumber: 494,
         columnNumber: 5
     }, this);
 }
 _c3 = MenuItem;
-/* ----- Icons ----- */ function SearchIcon() {
+function SearchIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-5 h-5",
+        className: "h-5 w-5",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -2691,19 +2914,19 @@ _c3 = MenuItem;
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 485,
+            lineNumber: 508,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 484,
+        lineNumber: 507,
         columnNumber: 5
     }, this);
 }
 _c4 = SearchIcon;
 function ChevronDownIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-4 h-4 text-gray-500",
+        className: "h-4 w-4 text-slate-500",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -2714,19 +2937,19 @@ function ChevronDownIcon() {
             d: "M19 9l-7 7-7-7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 492,
+            lineNumber: 516,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 491,
+        lineNumber: 515,
         columnNumber: 5
     }, this);
 }
 _c5 = ChevronDownIcon;
 function CheckIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-4 h-4",
+        className: "h-4 w-4",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -2737,42 +2960,19 @@ function CheckIcon() {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 499,
+            lineNumber: 524,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 498,
+        lineNumber: 523,
         columnNumber: 5
     }, this);
 }
 _c6 = CheckIcon;
-function DotsIcon() {
-    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-6 h-6",
-        fill: "none",
-        stroke: "currentColor",
-        viewBox: "0 0 24 24",
-        children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
-            strokeLinecap: "round",
-            strokeLinejoin: "round",
-            strokeWidth: 2,
-            d: "M5 12h.01M12 12h.01M19 12h.01"
-        }, void 0, false, {
-            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 506,
-            columnNumber: 7
-        }, this)
-    }, void 0, false, {
-        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 505,
-        columnNumber: 5
-    }, this);
-}
-_c7 = DotsIcon;
 function UsersMiniIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-4 h-4 text-gray-400",
+        className: "h-4 w-4 text-slate-400",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -2783,54 +2983,19 @@ function UsersMiniIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 513,
+            lineNumber: 532,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 512,
+        lineNumber: 531,
         columnNumber: 5
     }, this);
 }
-_c8 = UsersMiniIcon;
-function PinMiniIcon() {
-    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-4 h-4 text-gray-400",
-        fill: "none",
-        stroke: "currentColor",
-        viewBox: "0 0 24 24",
-        children: [
-            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
-                strokeLinecap: "round",
-                strokeLinejoin: "round",
-                strokeWidth: 2,
-                d: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-            }, void 0, false, {
-                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 520,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
-                strokeLinecap: "round",
-                strokeLinejoin: "round",
-                strokeWidth: 2,
-                d: "M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-            }, void 0, false, {
-                fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 521,
-                columnNumber: 7
-            }, this)
-        ]
-    }, void 0, true, {
-        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 519,
-        columnNumber: 5
-    }, this);
-}
-_c9 = PinMiniIcon;
+_c7 = UsersMiniIcon;
 function EyeIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-5 h-5",
+        className: "h-5 w-5",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -2842,7 +3007,7 @@ function EyeIcon() {
                 d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 528,
+                lineNumber: 540,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2852,20 +3017,20 @@ function EyeIcon() {
                 d: "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 529,
+                lineNumber: 541,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 527,
+        lineNumber: 539,
         columnNumber: 5
     }, this);
 }
-_c10 = EyeIcon;
+_c8 = EyeIcon;
 function QrIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-5 h-5",
+        className: "h-5 w-5",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -2877,7 +3042,7 @@ function QrIcon() {
                 d: "M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 536,
+                lineNumber: 549,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2887,20 +3052,20 @@ function QrIcon() {
                 d: "M14 14h1v1h-1v-1zM16 16h1v1h-1v-1zM18 14h-1v1h1v3h-3v-1h-1v-3h2"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 537,
+                lineNumber: 550,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 535,
+        lineNumber: 548,
         columnNumber: 5
     }, this);
 }
-_c11 = QrIcon;
+_c9 = QrIcon;
 function CheckGreenIcon() {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-5 h-5",
+        className: "h-5 w-5",
         fill: "none",
         stroke: "currentColor",
         viewBox: "0 0 24 24",
@@ -2909,52 +3074,6 @@ function CheckGreenIcon() {
             strokeLinejoin: "round",
             strokeWidth: 2,
             d: "M5 13l4 4L19 7"
-        }, void 0, false, {
-            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 544,
-            columnNumber: 7
-        }, this)
-    }, void 0, false, {
-        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 543,
-        columnNumber: 5
-    }, this);
-}
-_c12 = CheckGreenIcon;
-function CheckMiniIcon() {
-    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-3 h-3",
-        fill: "none",
-        stroke: "currentColor",
-        viewBox: "0 0 24 24",
-        children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
-            strokeLinecap: "round",
-            strokeLinejoin: "round",
-            strokeWidth: 3,
-            d: "M5 13l4 4L19 7"
-        }, void 0, false, {
-            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 551,
-            columnNumber: 7
-        }, this)
-    }, void 0, false, {
-        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 550,
-        columnNumber: 5
-    }, this);
-}
-_c13 = CheckMiniIcon;
-function HouseholdsIcon() {
-    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
-        className: "w-5 h-5",
-        fill: "none",
-        stroke: "currentColor",
-        viewBox: "0 0 24 24",
-        children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
-            strokeLinecap: "round",
-            strokeLinejoin: "round",
-            strokeWidth: 2,
-            d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
             lineNumber: 558,
@@ -2966,8 +3085,54 @@ function HouseholdsIcon() {
         columnNumber: 5
     }, this);
 }
-_c14 = HouseholdsIcon;
-var _c, _c1, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9, _c10, _c11, _c12, _c13, _c14;
+_c10 = CheckGreenIcon;
+function CheckMiniIcon() {
+    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
+        className: "h-3 w-3",
+        fill: "none",
+        stroke: "currentColor",
+        viewBox: "0 0 24 24",
+        children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            strokeWidth: 3,
+            d: "M5 13l4 4L19 7"
+        }, void 0, false, {
+            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+            lineNumber: 566,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+        lineNumber: 565,
+        columnNumber: 5
+    }, this);
+}
+_c11 = CheckMiniIcon;
+function HouseholdsIcon() {
+    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
+        className: "h-5 w-5",
+        fill: "none",
+        stroke: "currentColor",
+        viewBox: "0 0 24 24",
+        children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            strokeWidth: 2,
+            d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+        }, void 0, false, {
+            fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+            lineNumber: 574,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
+        lineNumber: 573,
+        columnNumber: 5
+    }, this);
+}
+_c12 = HouseholdsIcon;
+var _c, _c1, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9, _c10, _c11, _c12;
 __turbopack_refresh__.register(_c, "DistributionsTable");
 __turbopack_refresh__.register(_c1, "DropdownMenu");
 __turbopack_refresh__.register(_c2, "StatusPill");
@@ -2975,14 +3140,12 @@ __turbopack_refresh__.register(_c3, "MenuItem");
 __turbopack_refresh__.register(_c4, "SearchIcon");
 __turbopack_refresh__.register(_c5, "ChevronDownIcon");
 __turbopack_refresh__.register(_c6, "CheckIcon");
-__turbopack_refresh__.register(_c7, "DotsIcon");
-__turbopack_refresh__.register(_c8, "UsersMiniIcon");
-__turbopack_refresh__.register(_c9, "PinMiniIcon");
-__turbopack_refresh__.register(_c10, "EyeIcon");
-__turbopack_refresh__.register(_c11, "QrIcon");
-__turbopack_refresh__.register(_c12, "CheckGreenIcon");
-__turbopack_refresh__.register(_c13, "CheckMiniIcon");
-__turbopack_refresh__.register(_c14, "HouseholdsIcon");
+__turbopack_refresh__.register(_c7, "UsersMiniIcon");
+__turbopack_refresh__.register(_c8, "EyeIcon");
+__turbopack_refresh__.register(_c9, "QrIcon");
+__turbopack_refresh__.register(_c10, "CheckGreenIcon");
+__turbopack_refresh__.register(_c11, "CheckMiniIcon");
+__turbopack_refresh__.register(_c12, "HouseholdsIcon");
 
 })()),
 }]);

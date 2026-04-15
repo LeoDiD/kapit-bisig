@@ -178,7 +178,6 @@ async function consumeMatchedToken(matchedToken: any, residentId: string): Promi
 async function prepareClaimDraft(
   normalizedToken: string,
   distributionId: string,
-  expectedDistributionBarangay?: string,
 ): Promise<ClaimPreparationResult> {
   if (!isSupportedClaimTokenFormat(normalizedToken)) {
     return {
@@ -281,17 +280,6 @@ async function prepareClaimDraft(
     };
   }
 
-  if (
-    expectedDistributionBarangay &&
-    String(expectedDistributionBarangay).trim().toLowerCase() !== barangay.trim().toLowerCase()
-  ) {
-    return {
-      ok: false,
-      status: 409,
-      message: `Token barangay (${barangay}) does not match selected distribution (${expectedDistributionBarangay})`,
-    };
-  }
-
   const householdCode =
     tokenHouseholdCode ||
     String(residentAny.residentCode || '') ||
@@ -366,8 +354,6 @@ router.post(
       if (!distributionDoc) {
         return res.status(404).json({ success: false, message: 'Distribution not found' });
       }
-      const selectedDistributionBarangay = String((distributionDoc as any).barangay || '').trim();
-
       const normalizedToken = claimToken.trim().toUpperCase();
       logHeader('RECORD CLAIM START');
       console.log(`[1] Token received: ${maskToken(normalizedToken)}`);
@@ -480,17 +466,6 @@ router.post(
           message: 'Claim token and resident barangay do not match',
         });
       }
-      if (
-        selectedDistributionBarangay &&
-        selectedDistributionBarangay.toLowerCase() !== String(barangay).trim().toLowerCase()
-      ) {
-        logHeader('RECORD CLAIM END');
-        return res.status(409).json({
-          success: false,
-          message: `Token barangay (${barangay}) does not match selected distribution (${selectedDistributionBarangay})`,
-        });
-      }
-
       const distribution = await Distribution.findById(distributionId)
         .select('_id barangay assignedBarangays status')
         .lean();
@@ -506,7 +481,7 @@ router.post(
         logHeader('RECORD CLAIM END');
         return res.status(403).json({
           success: false,
-          message: 'Resident barangay is not assigned to this distribution',
+          message: 'Resident barangay is not covered by this distribution',
         });
       }
       if (distribution.status === 'Claimed') {
@@ -704,8 +679,6 @@ router.post(
         logHeader('RECORD CLAIM BATCH END');
         return res.status(404).json({ success: false, message: 'Distribution not found' });
       }
-      const selectedDistributionBarangay = String((distributionDoc as any).barangay || '').trim();
-
       const normalizedTokens = claimTokens
         .map((token) => token.trim().toUpperCase())
         .filter((token) => token.length > 0);
@@ -742,7 +715,6 @@ router.post(
         const prepared = await prepareClaimDraft(
           token,
           distributionId,
-          selectedDistributionBarangay,
         );
         if (!prepared.ok) {
           failures.push({

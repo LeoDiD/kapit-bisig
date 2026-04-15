@@ -28,16 +28,16 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
       case 'Barangay Official':
         return 'bg-yellow-500 text-white'
       case 'Volunteer':
-        return 'bg-gray-400 text-white'
+        return 'bg-slate-400 text-white dark:bg-slate-600'
       default:
-        return 'bg-gray-300 text-gray-700'
+        return 'bg-gray-300 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
     }
   }
 
   const getStatusBadgeStyles = (status: string) => {
     return status === 'Active'
-      ? 'bg-green-100 text-green-700'
-      : 'bg-orange-100 text-orange-700'
+      ? 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300'
+      : 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300'
   }
 
   const toggleMenu = (id: number) => {
@@ -55,31 +55,31 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden mb-6">
+    <div className="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.16)]">
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>
-            <tr className="border-b border-gray-100">
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Name</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Email</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Role</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Barangay</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Created</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500"></th>
+            <tr className="border-b border-gray-100 dark:border-slate-700">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Email</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Role</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Barangay</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Created</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400"></th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
               <tr
                 key={user.id}
-                className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                className="border-b border-gray-50 transition-colors hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800/60"
               >
                 <td className="px-4 py-3">
-                  <span className="font-medium text-gray-900">{user.name}</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{user.name}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-gray-600">{user.email}</span>
+                  <span className="text-gray-600 dark:text-slate-300">{user.email}</span>
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -91,7 +91,7 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-gray-600">{user.barangay}</span>
+                  <span className="text-gray-600 dark:text-slate-300">{user.barangay}</span>
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -103,14 +103,14 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-gray-600">{user.createdAt}</span>
+                  <span className="text-gray-600 dark:text-slate-300">{user.createdAt}</span>
                 </td>
                 <td className="px-4 py-3 relative">
                   <button
                     onClick={() => toggleMenu(user.id)}
-                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="rounded-lg p-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800"
                   >
-                    <MoreVerticalIcon className="w-4 h-4 text-gray-400" />
+                    <MoreVerticalIcon className="h-4 w-4 text-gray-400 dark:text-slate-500" />
                   </button>
 
                   {/* Dropdown Menu */}
@@ -121,17 +121,17 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
                         className="fixed inset-0 z-10"
                         onClick={() => setOpenMenuId(null)}
                       />
-                      <div className="absolute right-4 top-10 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20 min-w-[120px]">
+                      <div className="absolute right-4 top-10 z-20 min-w-[120px] rounded-xl border border-gray-100 bg-white py-2 shadow-lg dark:border-slate-700 dark:bg-slate-900">
                         <button
                           onClick={() => handleEdit(user.id)}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex w-full items-center gap-2 px-4 py-2 text-xs text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800"
                         >
                           <EditIcon className="w-4 h-4" />
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(user.id)}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                          className="flex w-full items-center gap-2 px-4 py-2 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
                         >
                           <DeleteIcon className="w-4 h-4" />
                           Delete
@@ -148,7 +148,7 @@ export default function UserTable({ users, onEdit, onDelete }: UserTableProps) {
 
       {users.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">No users found</p>
+          <p className="text-gray-500 dark:text-slate-400">No users found</p>
         </div>
       )}
     </div>

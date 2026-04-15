@@ -44,7 +44,7 @@ const STEP_DETAILS = {
   2: {
     eyebrow: 'Step 2 of 4',
     title: 'Select covered barangays',
-    description: 'Choose the barangays included in this distribution scope, excluding the host barangay.',
+    description: 'Choose the 2 to 4 additional barangays whose residents, together with the host barangay, are covered by this distribution.',
   },
   3: {
     eyebrow: 'Step 3 of 4',
@@ -54,7 +54,7 @@ const STEP_DETAILS = {
   4: {
     eyebrow: 'Step 4 of 4',
     title: 'Assign staff and volunteers',
-    description: 'Pick in-scope personnel who can manage scanning, verification, and release operations.',
+    description: 'Pick a team whose combined coverage matches the host and all beneficiary barangays for this distribution.',
   },
 } as const
 
@@ -85,7 +85,6 @@ export default function NewDistributionModal({
   const [barangay, setBarangay] = useState('')
   const [assignedBarangays, setAssignedBarangays] = useState<string[]>([])
   const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([])
-  const [barangayOpen, setBarangayOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
 
   const [scheduled, setScheduled] = useState('')
@@ -101,16 +100,12 @@ export default function NewDistributionModal({
   const cacheRef = useRef<Map<string, ScanEligibleData>>(new Map())
   const selectedStaffRef = useRef<Map<string, ScanEligibleUser>>(new Map())
 
-  const barangayBtnRef = useRef<HTMLButtonElement>(null)
-  const barangayMenuRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     if (!open) return
     setStep(1)
     setBarangay('')
     setAssignedBarangays([])
     setAssignedStaffIds([])
-    setBarangayOpen(false)
     setScheduled('')
     setNotes('')
     setErrors({})
@@ -122,18 +117,6 @@ export default function NewDistributionModal({
     cacheRef.current = new Map()
     selectedStaffRef.current = new Map()
   }, [open])
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node
-
-      const inBrgyBtn = barangayBtnRef.current?.contains(t)
-      const inBrgyMenu = barangayMenuRef.current?.contains(t)
-      if (!inBrgyBtn && !inBrgyMenu) setBarangayOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -154,8 +137,23 @@ export default function NewDistributionModal({
     return formatDateTimeLocal(endOfMonth)
   }, [open])
 
-  const hasScopeCoverage = (scopes: string[]) => {
-    return targetScope.every((target) => scopes.includes(target))
+  const normalizedTargetScope = useMemo(
+    () => Array.from(new Set(targetScope.filter(Boolean))),
+    [targetScope],
+  )
+
+  const getCoveredTargets = (scopes: string[]) => {
+    return normalizedTargetScope.filter((target) => scopes.includes(target))
+  }
+
+  const hasAnyScopeCoverage = (scopes: string[]) => {
+    return getCoveredTargets(scopes).length > 0
+  }
+
+  const getUncoveredTargets = (staffIds: string[]) => {
+    return normalizedTargetScope.filter((target) =>
+      !staffIds.some((id) => selectedStaffRef.current.get(id)?.scopesSummary.includes(target)),
+    )
   }
 
   const validateStep1 = (): StepFieldErrors => {
@@ -222,15 +220,32 @@ export default function NewDistributionModal({
       return out
     }
 
+    const outOfScope = assignedStaffIds.some((id) => {
+      const candidate = selectedStaffRef.current.get(id)
+      if (!candidate) return true
+      return !hasAnyScopeCoverage(candidate.scopesSummary)
+    })
+
+    if (outOfScope) {
+      out.assignedStaffIds = 'Some selected staff do not cover any barangay in this distribution.'
+      return out
+    }
+
+    const uncoveredTargets = getUncoveredTargets(assignedStaffIds)
+    if (uncoveredTargets.length > 0) {
+      out.assignedStaffIds = `Selected staff still need coverage for: ${uncoveredTargets.join(', ')}.`
+      return out
+    }
+
     if (isLguStaff) {
-      const outOfScope = assignedStaffIds.some((id) => {
+      const outOfRequesterScope = assignedStaffIds.some((id) => {
         const candidate = selectedStaffRef.current.get(id)
         if (!candidate) return true
-        return !hasScopeCoverage(candidate.scopesSummary)
+        return candidate.scopesSummary.some((scope) => !user?.assignedBarangays?.includes(scope))
       })
 
-      if (outOfScope) {
-        out.assignedStaffIds = 'Some selected staff are out of scope for this distribution.'
+      if (outOfRequesterScope) {
+        out.assignedStaffIds = 'Some selected staff are outside your barangay scope.'
       }
     }
 
@@ -364,11 +379,18 @@ export default function NewDistributionModal({
     const code = err.response?.code
     const message = err.response?.message || err.message || 'Failed to create distribution'
 
-    if (code === 'OUT_OF_SCOPE_STAFF' || code === 'INVALID_ASSIGNED_STAFF' || code === 'STAFF_NOT_FOUND') {
+    if (
+      code === 'OUT_OF_SCOPE_STAFF' ||
+      code === 'INVALID_ASSIGNED_STAFF' ||
+      code === 'STAFF_NOT_FOUND' ||
+      code === 'INSUFFICIENT_SCOPE_COVERAGE'
+    ) {
       nextErrors.assignedStaffIds = code === 'OUT_OF_SCOPE_STAFF'
-        ? 'Some selected staff are out of scope for this distribution.'
+        ? 'Some selected staff are not assigned to any barangay in this distribution.'
         : code === 'STAFF_NOT_FOUND'
           ? 'Some selected staff no longer exist.'
+          : code === 'INSUFFICIENT_SCOPE_COVERAGE'
+            ? 'Selected staff do not collectively cover every barangay in this distribution.'
           : 'Some selected staff are invalid for assignment.'
       setStep(4)
     }
@@ -486,56 +508,46 @@ export default function NewDistributionModal({
             <div className="min-h-[280px]">
             {step === 1 && (
               <div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">Relief Giving Location (Host Barangay)</label>
-
-                  <div className="relative">
-                    <button
-                      ref={barangayBtnRef}
-                      type="button"
-                      onClick={() => setBarangayOpen((v) => !v)}
-                      className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors hover:bg-gray-50 focus:border-gray-400"
-                    >
-                      <span className={barangay ? 'font-medium text-gray-900' : 'text-gray-400'}>
-                        {barangay || 'Choose host barangay'}
-                      </span>
-                      <ChevronDownIcon />
-                    </button>
-
-                    {barangayOpen ? (
-                      <div
-                        ref={barangayMenuRef}
-                        className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.14)]"
-                      >
-                          {barangayOptions.map((b) => {
-                            const selected = b === barangay
-                            return (
-                              <button
-                                key={b}
-                                type="button"
-                                onClick={() => {
-                                  setBarangay(b)
-                                  setAssignedBarangays((prev) => prev.filter((x) => x !== b))
-                                  setErrors({})
-                                  setBarangayOpen(false)
-                                }}
-                                className={[
-                                  'flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors',
-                                  selected ? 'bg-[#0F533A]/6 text-[#0F533A]' : 'text-gray-700 hover:bg-gray-50',
-                                ].join(' ')}
-                              >
-                                <span className="w-5 flex items-center justify-center">{selected ? <CheckIcon /> : null}</span>
-                                {b}
-                              </button>
-                            )
-                          })}
-                      </div>
-                    ) : null}
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-gray-700">Relief Giving Location (Host Barangay)</label>
+                    <p className="text-xs text-gray-500">Choose the main relief release point for this distribution.</p>
                   </div>
-
-                  <p className="mt-2 text-xs text-gray-500">This is the main relief release point for the distribution.</p>
-                  {errors.barangay && <p className="mt-2 text-sm text-red-600">{errors.barangay}</p>}
+                  <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-600">
+                    {barangay ? '1 selected' : 'Pick 1'}
+                  </span>
                 </div>
+
+                <div className="mt-3 grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                  {barangayOptions.map((b) => {
+                    const selected = b === barangay
+                    return (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => {
+                          setBarangay(b)
+                          setAssignedBarangays((prev) => prev.filter((x) => x !== b))
+                          setErrors({})
+                        }}
+                        className={[
+                          'flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-colors',
+                          selected ? 'border-[#0F533A] bg-[#0F533A]/5 text-[#0F533A]' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+                        ].join(' ')}
+                      >
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full border border-current/20">
+                          {selected ? <CheckIcon /> : null}
+                        </span>
+                        <span className="truncate">{b}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="mt-2 text-xs text-gray-500">
+                  Selected host: {barangay || 'None'}
+                </div>
+                {errors.barangay && <p className="mt-2 text-sm text-red-600">{errors.barangay}</p>}
               </div>
             )}
 
@@ -544,7 +556,7 @@ export default function NewDistributionModal({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-gray-700">Assigned Barangays ({MIN_ASSIGN}-{MAX_ASSIGN})</label>
-                    <p className="text-xs text-gray-500">Choose the barangays covered by this release schedule.</p>
+                    <p className="text-xs text-gray-500">Choose the additional barangays whose residents will claim at the selected host barangay. The host barangay is included automatically.</p>
                   </div>
                   <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-600">
                     {assignedBarangays.length} selected
@@ -631,6 +643,9 @@ export default function NewDistributionModal({
               <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-gray-700">Assign Staff / Volunteers</label>
+                  <p className="mb-2 text-xs text-gray-500">
+                    Each selected person should cover at least one barangay in this distribution, and the whole team must cover the host plus all selected barangays.
+                  </p>
                   <input
                     value={staffQuery}
                     onChange={(e) => setStaffQuery(e.target.value)}
@@ -650,6 +665,9 @@ export default function NewDistributionModal({
                   ) : (
                     staffData.items.map((staff) => {
                       const selected = assignedStaffIds.includes(staff.id)
+                      const coveredTargets = staff.coveredBarangays?.length
+                        ? staff.coveredBarangays
+                        : getCoveredTargets(staff.scopesSummary)
                       return (
                         <label key={staff.id} className={`px-4 py-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${selected ? 'bg-[#0F533A]/4' : 'hover:bg-gray-50'}`}>
                           <div className="flex items-center gap-3 min-w-0">
@@ -661,7 +679,9 @@ export default function NewDistributionModal({
                             />
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-gray-900 truncate">{staff.fullName}</div>
-                              <div className="text-[11px] text-gray-500 truncate">{staff.scopesSummary.join(', ') || 'No scope assigned'}</div>
+                              <div className="text-[11px] text-gray-500 truncate">
+                                Covers {coveredTargets.join(', ') || 'No target barangay'}
+                              </div>
                             </div>
                           </div>
 
@@ -669,8 +689,8 @@ export default function NewDistributionModal({
                             <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-medium">
                               {staff.role}
                             </span>
-                            <span className={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${staff.inScope ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
-                              {staff.inScope ? 'In-scope' : 'Out-of-scope'}
+                            <span className="px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-600">
+                              {coveredTargets.length} barangay{coveredTargets.length === 1 ? '' : 's'}
                             </span>
                           </div>
                         </label>
@@ -689,7 +709,9 @@ export default function NewDistributionModal({
                   </button>
                 )}
 
-                <div className="text-xs font-medium text-gray-600">Assigned: {assignedStaffIds.length}</div>
+                <div className="text-xs font-medium text-gray-600">
+                  Assigned: {assignedStaffIds.length} • Covered: {normalizedTargetScope.length - getUncoveredTargets(assignedStaffIds).length}/{normalizedTargetScope.length}
+                </div>
 
                 {assignedStaffIds.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -782,14 +804,6 @@ function SpinnerIcon() {
         fill="currentColor"
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
       />
-    </svg>
-  )
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
   )
 }

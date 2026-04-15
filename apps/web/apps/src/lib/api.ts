@@ -160,6 +160,7 @@ export interface ScanEligibleUser {
   fullName: string;
   role: 'VOLUNTEER' | 'LGU_STAFF' | 'SUPERADMIN';
   scopesSummary: string[];
+  coveredBarangays?: string[];
   inScope: boolean;
 }
 

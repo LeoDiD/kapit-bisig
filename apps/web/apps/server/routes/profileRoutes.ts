@@ -33,6 +33,14 @@ function hasCoverage(scopes: string[], targets: string[]): boolean {
   return targets.every((target) => scopes.includes(target));
 }
 
+function hasAnyCoverage(scopes: string[], targets: string[]): boolean {
+  return scopes.some((scope) => targets.includes(scope));
+}
+
+function normalizeScope(targets: string[]): string[] {
+  return Array.from(new Set(targets.filter(Boolean)));
+}
+
 /* ------------------------------------------------------------------ */
 /*  Zod schemas                                                       */
 /* ------------------------------------------------------------------ */
@@ -500,8 +508,8 @@ router.get(
         cursor: number;
       };
 
-      const requestedScope = [hostBarangayId, ...assignedBarangayIds];
-      const requesterScope = req.authUser?.assignedBarangays ?? [];
+      const requestedScope = normalizeScope([hostBarangayId, ...assignedBarangayIds]);
+      const requesterScope = normalizeScope(req.authUser?.assignedBarangays ?? []);
 
       if (req.authUser?.role === 'LGU_STAFF') {
         const outOfScope = requestedScope.find((barangay) => !requesterScope.includes(barangay));
@@ -535,22 +543,24 @@ router.get(
 
       const items = candidates
         .map((candidate) => {
-          const scopes = Array.isArray(candidate.assignedBarangays)
+          const scopes = normalizeScope(Array.isArray(candidate.assignedBarangays)
             ? candidate.assignedBarangays
-            : [];
-          const inScope = hasCoverage(scopes, requestedScope);
+            : []);
+          const coveredBarangays = requestedScope.filter((barangay) => scopes.includes(barangay));
+          const inScope = hasAnyCoverage(scopes, requestedScope);
           return {
             id: candidate._id.toString(),
             fullName: `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim(),
             role: candidate.role,
             scopesSummary: scopes,
+            coveredBarangays,
             inScope,
           };
         })
         .filter((candidate) =>
           req.authUser?.role === 'LGU_STAFF'
             ? candidate.inScope && hasCoverage(requesterScope, candidate.scopesSummary)
-            : true
+            : candidate.inScope
         );
 
       const paged = items.slice(cursor, cursor + limit);

@@ -39,6 +39,7 @@ import Resident from '../models/Resident';
 import ResidentPasswordResetOtp from '../models/ResidentPasswordResetOtp';
 import Distribution from '../models/Distribution';
 import Claim from '../models/Claim';
+import Notification from '../models/Notification';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
 import { computeEventHash, computeHouseholdHash } from '../utils/hashHelpers';
 import { upsertDistributionClaimFromClaim } from '../services/distributionFlowService';
@@ -1227,6 +1228,98 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
     return res.status(500).json({
       success: false,
       message: 'Unable to fetch distributions.',
+    });
+  }
+});
+
+/**
+ * Resident Notifications Endpoint
+ *
+ * GET /api/household/notifications
+ *
+ * Returns notifications addressed to the authenticated resident.
+ */
+router.get('/notifications', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'Resident') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only resident accounts can access notifications.',
+      });
+    }
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const limit = Math.min(parseInt(String(req.query.limit || '20'), 10) || 20, 100);
+    const notifications = await Notification.find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    return res.json({
+      success: true,
+      data: {
+        notifications,
+        unreadCount: notifications.filter((item) => !item.isRead).length,
+      },
+    });
+  } catch (error) {
+    console.error('[HouseholdRoutes] Resident notifications error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to load notifications.',
+    });
+  }
+});
+
+/**
+ * Resident Notification Read Endpoint
+ *
+ * PATCH /api/household/notifications/:id/read
+ */
+router.patch('/notifications/:id/read', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'Resident') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only resident accounts can update notifications.',
+      });
+    }
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const notification = await Notification.findOne({ _id: req.params.id, userId });
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found',
+      });
+    }
+
+    notification.isRead = true;
+    await notification.save();
+
+    return res.json({
+      success: true,
+      data: notification,
+    });
+  } catch (error) {
+    console.error('[HouseholdRoutes] Resident notification mark-read error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to update notification.',
     });
   }
 });

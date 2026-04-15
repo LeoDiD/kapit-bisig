@@ -78,6 +78,20 @@ export interface ResidentDistributionItem {
   residentClaimStatus?: string | null;
 }
 
+export interface ResidentNotificationItem {
+  _id?: string;
+  id?: string;
+  title: string;
+  message: string;
+  type?: string;
+  isRead?: boolean;
+  createdAt?: string;
+  meta?: {
+    distributionId?: string;
+    [key: string]: unknown;
+  };
+}
+
 export interface ResidentDisasterEvent {
   id?: string;
   _id?: string;
@@ -427,6 +441,68 @@ export async function fetchResidentDistributions(
     return {
       success: false,
       message: 'Network error while fetching distributions.',
+    };
+  }
+}
+
+export async function fetchResidentNotifications(
+  token: string
+): Promise<{ success: boolean; message?: string; data?: { notifications: ResidentNotificationItem[]; unreadCount: number } }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/notifications?limit=30`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const payload = await parseApiResponse<{ notifications: ResidentNotificationItem[]; unreadCount: number }>(response);
+    if (!response.ok || !payload.success || !payload.data) {
+      return {
+        success: false,
+        message: payload.message || 'Failed to fetch notifications.',
+      };
+    }
+
+    return {
+      success: true,
+      data: payload.data,
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while fetching notifications.',
+    };
+  }
+}
+
+export async function markResidentNotificationRead(
+  token: string,
+  notificationId: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const payload = await parseApiResponse<unknown>(response);
+    if (!response.ok || !payload.success) {
+      return {
+        success: false,
+        message: payload.message || 'Failed to update notification.',
+      };
+    }
+
+    return { success: true };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while updating notification.',
     };
   }
 }

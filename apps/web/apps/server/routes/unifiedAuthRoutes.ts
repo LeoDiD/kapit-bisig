@@ -234,10 +234,10 @@ router.post(
         const match = await bcrypt.compare(candidatePassword, superadminAccount.passwordHash);
         if (!match || typeof password !== 'string') {
           logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'SUPERADMIN' });
-          await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
+          logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
             username: superadminAccount.emailLower,
             reason: 'bad_password',
-          });
+          }).catch(() => {});
           res.status(401).json({ success: false, message: 'Invalid credentials.' });
           return;
         }
@@ -255,12 +255,12 @@ router.post(
           res.status(500).json({ success: false, message: 'Unable to send verification code.' });
           return;
         }
-        await logAudit(req, 'LOGIN_OTP_SENT', 'Auth', superadminAccount.emailLower, {
+        logAudit(req, 'LOGIN_OTP_SENT', 'Auth', superadminAccount.emailLower, {
           username: superadminAccount.emailLower,
           emailLower: superadminAccount.emailLower,
           role: 'SUPERADMIN',
           flow: 'SUPERADMIN_LOGIN_2FA',
-        });
+        }).catch(() => {});
         res.json({
           success: true,
           otpRequired: true,
@@ -287,10 +287,10 @@ router.post(
       if (isFirstLoginOtpFlow) {
         if (typeof otp !== 'string') {
           logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedEmail, reason: 'first_login_otp_required' });
-          await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
+          logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
             username: trimmedEmail,
             reason: 'invalid_credentials',
-          });
+          }).catch(() => {});
           res.status(401).json({ success: false, message: 'Invalid credentials.' });
           return;
         }
@@ -302,11 +302,11 @@ router.post(
         }).sort({ lastSentAt: -1, createdAt: -1 });
 
         if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
-          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
+          logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
             emailLower: staffUser.emailLower,
             reason: !record ? 'no_record' : record.attemptsLeft <= 0 ? 'no_attempts' : 'expired',
             flow: 'FIRST_LOGIN',
-          });
+          }).catch(() => {});
           res.status(401).json({ success: false, message: 'Invalid credentials.' });
           return;
         }
@@ -316,12 +316,12 @@ router.post(
           record.attemptsLeft = Math.max(0, record.attemptsLeft - 1);
           await record.save();
 
-          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
+          logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
             emailLower: staffUser.emailLower,
             reason: 'wrong_otp',
             attemptsLeft: record.attemptsLeft,
             flow: 'FIRST_LOGIN',
-          });
+          }).catch(() => {});
 
           res.status(401).json({ success: false, message: 'Invalid credentials.' });
           return;
@@ -353,10 +353,10 @@ router.post(
           otpVerified: true,
           flow: 'FIRST_LOGIN',
         });
-        await logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', staffUser._id.toString(), {
+        logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', staffUser._id.toString(), {
           username: staffUser.emailLower,
           flow: 'FIRST_LOGIN',
-        });
+        }).catch(() => {});
 
         res.json({
           success: true,
@@ -389,10 +389,10 @@ router.post(
         !pwMatch
       ) {
         logSecurity('LOGIN_FAIL', { ip: req.ip, account: 'LGU_STAFF', username: trimmedEmail });
-        await logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
+        logAudit(req, 'LOGIN_FAILURE', 'Auth', '', {
           username: trimmedEmail,
           reason: 'invalid_credentials',
-        });
+        }).catch(() => {});
         res.status(401).json({ success: false, message: 'Invalid credentials.' });
         return;
       }
@@ -410,11 +410,11 @@ router.post(
         ip: req.ip,
         flow: 'PASSWORD_ONLY',
       });
-      await logAudit(req, 'LOGIN_SUCCESS', 'Auth', staffUser._id.toString(), {
+      logAudit(req, 'LOGIN_SUCCESS', 'Auth', staffUser._id.toString(), {
         username: staffUser.emailLower,
         emailLower: staffUser.emailLower,
         flow: 'PASSWORD_ONLY',
-      });
+      }).catch(() => {});
 
       res.json({
         success: true,
@@ -433,7 +433,13 @@ router.post(
       });
     } catch (err) {
       console.error('[AUTH_LOGIN_ERROR]', err);
-      res.status(500).json({ success: false, message: 'Internal server error.' });
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error.',
+        ...(process.env.NODE_ENV !== 'production'
+          ? { debug: err instanceof Error ? err.message : String(err) }
+          : {}),
+      });
     }
   },
 );

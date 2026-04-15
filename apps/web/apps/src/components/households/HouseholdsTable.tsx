@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import HouseholdProfileModal from './HouseholdProfileModal'
 import type { HouseholdRow } from '@/app/households/page'
 
+const ROWS_PER_PAGE = 5
+
 interface HouseholdsTableProps {
   rows: HouseholdRow[]
   loading: boolean
@@ -38,6 +40,7 @@ export default function HouseholdsTable({
   // Modal
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdRow | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [page, setPage] = useState(1)
 
   // Dropdowns
   const [barangayOpen, setBarangayOpen] = useState(false)
@@ -56,6 +59,10 @@ export default function HouseholdsTable({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, barangay, status])
 
   const handleViewProfile = (household: HouseholdRow) => {
     setSelectedHousehold(household)
@@ -82,14 +89,23 @@ export default function HouseholdsTable({
     }
   }, [rows])
 
+  const totalPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE))
+  const currentPage = Math.min(page, totalPages)
+  const paginatedRows = useMemo(
+    () => rows.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE),
+    [rows, currentPage],
+  )
+  const rangeStart = rows.length === 0 ? 0 : (currentPage - 1) * ROWS_PER_PAGE + 1
+  const rangeEnd = Math.min(currentPage * ROWS_PER_PAGE, rows.length)
+
   return (
     <>
-      <div className="mb-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
-        <div className="border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 sm:px-6">
+      <div className="mb-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700 dark:bg-slate-900">
+        <div className="border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 dark:border-slate-700 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500">Household Records</p>
-              <p className="mt-1 text-sm text-gray-700">
+              <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400">Household Records</p>
+              <p className="mt-1 text-sm text-gray-700 dark:text-slate-300">
                 {loading ? 'Loading household data...' : `${rows.length} visible result(s)`}
               </p>
             </div>
@@ -104,10 +120,10 @@ export default function HouseholdsTable({
           </div>
         </div>
 
-        <div className="border-b border-gray-100 bg-gray-50/60 p-4 sm:p-5">
+        <div className="border-b border-gray-100 bg-gray-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/70 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500">
                 <SearchIcon />
               </span>
               <input
@@ -115,7 +131,7 @@ export default function HouseholdsTable({
                 placeholder="Search by head, code, barangay, or address..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
 
@@ -127,7 +143,7 @@ export default function HouseholdsTable({
                     setBarangayOpen(!barangayOpen)
                     setStatusOpen(false)
                   }}
-                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
                 >
                   <span className="truncate">{barangay}</span>
                   <ChevronDownIcon />
@@ -152,7 +168,7 @@ export default function HouseholdsTable({
                     setStatusOpen(!statusOpen)
                     setBarangayOpen(false)
                   }}
-                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
                 >
                   <span className="truncate">{status}</span>
                   <ChevronDownIcon />
@@ -178,7 +194,7 @@ export default function HouseholdsTable({
                     onBarangayChange('All Barangays')
                     onStatusChange('All Status')
                   }}
-                  className="inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                  className="inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
                 >
                   Clear ({activeFilterCount})
                 </button>
@@ -204,15 +220,15 @@ export default function HouseholdsTable({
               </button>
             </div>
           ) : !hasAnyRows || rows.length === 0 ? (
-            <div className="p-20 flex flex-col items-center justify-center text-gray-500">
+            <div className="p-20 flex flex-col items-center justify-center text-gray-500 dark:text-slate-400">
               <UsersMenuIcon className="mb-4 h-12 w-12 opacity-50" />
-              <p className="font-bold text-gray-900">No households found</p>
+              <p className="font-bold text-gray-900 dark:text-slate-100">No households found</p>
               <p className="mt-1 text-sm">Try adjusting your active filters or clear them.</p>
             </div>
           ) : (
             <table className="w-full min-w-[950px] border-collapse text-left">
               <thead>
-                <tr className="border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500">
+                <tr className="border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                   <th className="px-6 py-4 font-bold">Household & Address</th>
                   <th className="px-6 py-4 font-bold">Barangay</th>
                   <th className="px-6 py-4 font-bold">Status</th>
@@ -223,17 +239,17 @@ export default function HouseholdsTable({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {rows.map((item) => (
-                  <tr key={item.id} className="group transition-colors hover:bg-gray-50/80">
+              <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
+                {paginatedRows.map((item) => (
+                  <tr key={item.id} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/55">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 font-bold text-blue-700">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                           {item.familyHeadName.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-gray-900">{item.familyHeadName}</p>
-                          <p className="mt-0.5 max-w-[260px] truncate line-clamp-1 text-xs text-gray-500">
+                          <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{item.familyHeadName}</p>
+                          <p className="mt-0.5 max-w-[260px] truncate line-clamp-1 text-xs text-gray-500 dark:text-slate-400">
                             {item.householdCode ? `#${item.householdCode} | ` : ''}
                             {item.address}
                           </p>
@@ -241,7 +257,7 @@ export default function HouseholdsTable({
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="rounded-md bg-gray-100 px-2.5 py-1 text-sm font-medium text-gray-700">{item.barangay}</span>
+                      <span className="rounded-md bg-gray-100 px-2.5 py-1 text-sm font-medium text-gray-700 dark:bg-slate-800 dark:text-slate-200">{item.barangay}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span
@@ -254,17 +270,17 @@ export default function HouseholdsTable({
                         {item.claimStatus}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-600">{formatDate(item.lastClaimedAt)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-600 dark:text-slate-300">{formatDate(item.lastClaimedAt)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-300">
                       <div className="flex items-center gap-1.5 font-medium">
-                        <UsersMenuIcon className="h-4 w-4 text-gray-400" />
+                        <UsersMenuIcon className="h-4 w-4 text-gray-400 dark:text-slate-500" />
                         {item.familyMembersCount}
                       </div>
                     </td>
                     <td className="px-6 py-4 pr-6 text-right">
                       <button
                         onClick={() => handleViewProfile(item)}
-                        className="inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 md:opacity-0 md:group-hover:opacity-100"
+                        className="inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500/60 dark:hover:bg-slate-700/80 dark:hover:text-blue-300 md:opacity-0 md:group-hover:opacity-100"
                       >
                         View Details
                       </button>
@@ -275,6 +291,38 @@ export default function HouseholdsTable({
             </table>
           )}
         </div>
+
+        {!loading && !error && rows.length > 0 && (
+          <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <p className="text-xs font-medium text-gray-500 dark:text-slate-400">
+              Showing {rangeStart}-{rangeEnd} of {rows.length}
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage <= 1}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Previous
+              </button>
+
+              <span className="min-w-[88px] text-center text-xs font-semibold text-gray-600 dark:text-slate-300">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage >= totalPages}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <HouseholdProfileModal
@@ -300,7 +348,7 @@ function DropdownMenu({
   return (
     <div
       ref={menuRef}
-      className="absolute right-0 top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg md:w-[120%]"
+      className="absolute right-0 top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900 md:w-[120%]"
     >
       {items.map((opt) => {
         const isSelected = opt.value === selected
@@ -309,7 +357,7 @@ function DropdownMenu({
             key={opt.value}
             onClick={() => onSelect(opt.value)}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-              isSelected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'
+              isSelected ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-700 hover:bg-gray-50 font-medium dark:text-slate-200 dark:hover:bg-slate-800/80'
             }`}
           >
             <span className="truncate">{opt.label}</span>
@@ -330,7 +378,7 @@ function SearchIcon() {
 }
 function ChevronDownIcon() {
   return (
-    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4 text-gray-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
     </svg>
   )

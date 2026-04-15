@@ -99,7 +99,7 @@ function Dropdown({
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700"
+        className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
       >
         <span className="text-sm">{selectedLabel}</span>
         <ChevronDownIcon />
@@ -107,7 +107,7 @@ function Dropdown({
       {open && (
         <div
           ref={menuRef}
-          className="absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50"
+          className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
         >
           {items.map((opt) => {
             const isSelected = opt.value === value
@@ -118,7 +118,7 @@ function Dropdown({
                 onClick={() => { onChange(opt.value); setOpen(false) }}
                 className={[
                   'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
-                  isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70',
+                  isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700',
                 ].join(' ')}
               >
                 <span className="w-5 flex items-center justify-center">
@@ -135,18 +135,18 @@ function Dropdown({
 }
 
 function StatCard({
-  icon, title, value, accentBg,
+  icon, title, value,
 }: {
-  icon: React.ReactNode; title: string; value: string; accentBg: string
+  icon: React.ReactNode; title: string; value: string
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-4 flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accentBg}`}>
+    <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
         {icon}
       </div>
       <div className="leading-tight">
-        <div className="text-lg font-bold text-gray-900">{value}</div>
-        <div className="text-xs text-gray-500">{title}</div>
+        <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{value}</div>
+        <div className="text-xs text-gray-500 dark:text-slate-400">{title}</div>
       </div>
     </div>
   )
@@ -171,10 +171,10 @@ function ClaimRateBar({ rate }: { rate: number }) {
     rate >= 80 ? 'bg-green-500' : rate >= 50 ? 'bg-[#EAB308]' : rate > 0 ? 'bg-orange-400' : 'bg-gray-300'
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${rate}%` }} />
       </div>
-      <span className="text-xs font-medium text-gray-600 w-9 text-right">{rate}%</span>
+      <span className="w-9 text-right text-xs font-medium text-gray-600 dark:text-slate-300">{rate}%</span>
     </div>
   )
 }
@@ -192,7 +192,7 @@ function Donut({
   return (
     <div className="flex items-center justify-between gap-4">
       <svg width="128" height="128" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="#E5E7EB" strokeWidth="12" />
+        <circle cx="60" cy="60" r={radius} fill="none" stroke="currentColor" strokeWidth="12" className="text-gray-200 dark:text-slate-700" />
         {segments.map((seg, idx) => {
           const dash = (seg.value / total) * circumference
           const gap = circumference - dash
@@ -208,13 +208,13 @@ function Donut({
             />
           )
         })}
-        <circle cx="60" cy="60" r="28" fill="white" />
+        <circle cx="60" cy="60" r="28" fill="currentColor" className="text-white dark:text-slate-900" />
       </svg>
       <div className="flex flex-col gap-3">
         {segments.map((s) => (
           <div key={s.label} className="flex items-center gap-2 text-xs">
             <span className="w-3 h-3 rounded-full" style={{ background: s.stroke }} />
-            <span className="text-gray-600">{s.label}</span>
+            <span className="text-gray-600 dark:text-slate-300">{s.label}</span>
           </div>
         ))}
       </div>
@@ -231,7 +231,7 @@ function MiniBarChart({
   const max = Math.max(...seriesA, ...seriesB, 1)
   return (
     <div className="w-full">
-      <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
+      <div className="mb-3 flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-[#0F533A]" /> {legendA}
         </span>
@@ -261,7 +261,7 @@ function MiniBarChart({
           )
         })}
       </div>
-      <div className="flex justify-between text-[11px] text-gray-500 mt-2">
+      <div className="mt-2 flex justify-between text-[11px] text-gray-500 dark:text-slate-400">
         {labels.map((m) => (
           <span key={m} className="w-full text-center">{m}</span>
         ))}
@@ -277,7 +277,7 @@ function SummaryCell({
 }) {
   return (
     <div className="flex items-center justify-between lg:block">
-      <div className="text-xs text-gray-500">{label}</div>
+      <div className="text-xs text-gray-500 dark:text-slate-400">{label}</div>
       <div className={`text-sm font-semibold ${valueClass}`}>{value}</div>
     </div>
   )
@@ -291,9 +291,9 @@ function MenuItem({
   return (
     <button
       type="button" onClick={onClick}
-      className="w-full text-left px-4 py-3 text-sm flex items-center gap-3 text-gray-700 hover:bg-gray-50 transition-colors"
+      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800"
     >
-      <span className="text-gray-500">{icon}</span>{label}
+      <span className="text-gray-500 dark:text-slate-400">{icon}</span>{label}
     </button>
   )
 }
@@ -301,14 +301,14 @@ function MenuItem({
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center py-12">
-      <div className="w-8 h-8 border-3 border-gray-200 border-t-[#0F533A] rounded-full animate-spin" />
+      <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-200 border-t-[#0F533A] dark:border-slate-700 dark:border-t-[#ECC323]" />
     </div>
   )
 }
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+    <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-slate-500">
       <DocIcon className="w-12 h-12 mb-3" />
       <p className="text-sm">{message}</p>
     </div>
@@ -333,12 +333,12 @@ function DetailModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4 overflow-hidden"
+        className="mx-4 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-slate-900 dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Distribution Details</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+        <div className="flex items-center justify-between border-b border-gray-100 p-5 dark:border-slate-800">
+          <h3 className="font-semibold text-gray-900 dark:text-slate-100">Distribution Details</h3>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -347,16 +347,16 @@ function DetailModal({
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-xs text-gray-500">Date</div>
-              <div className="text-sm font-medium text-gray-900">{formatDate(row.scheduled || row.createdAt)}</div>
+              <div className="text-xs text-gray-500 dark:text-slate-400">Date</div>
+              <div className="text-sm font-medium text-gray-900 dark:text-slate-100">{formatDate(row.scheduled || row.createdAt)}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">Host Barangay</div>
-              <div className="text-sm font-medium text-gray-900">{row.barangay}</div>
+              <div className="text-xs text-gray-500 dark:text-slate-400">Host Barangay</div>
+              <div className="text-sm font-medium text-gray-900 dark:text-slate-100">{row.barangay}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500">Assigned Barangays</div>
-              <div className="text-sm font-medium text-gray-900">
+              <div className="text-xs text-gray-500 dark:text-slate-400">Assigned Barangays</div>
+              <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
                 {row.assignedBarangays?.length ? row.assignedBarangays.join(', ') : '—'}
               </div>
             </div>
@@ -366,24 +366,24 @@ function DetailModal({
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-xl p-4">
-            <div className="text-xs text-gray-500 mb-3">Household Statistics</div>
+          <div className="rounded-xl bg-gray-50 p-4 dark:bg-slate-800/80">
+            <div className="mb-3 text-xs text-gray-500 dark:text-slate-400">Household Statistics</div>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <div className="text-lg font-bold text-gray-900">{row.registeredHouseholds}</div>
-                <div className="text-xs text-gray-500">Registered</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{row.registeredHouseholds}</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400">Registered</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-green-700">{row.claimedHouseholds}</div>
-                <div className="text-xs text-gray-500">Claimed</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400">Claimed</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-amber-600">{row.unclaimedHouseholds}</div>
-                <div className="text-xs text-gray-500">Unclaimed</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400">Unclaimed</div>
               </div>
             </div>
             <div className="mt-3">
-              <div className="text-xs text-gray-500 mb-1">Claim Rate</div>
+              <div className="mb-1 text-xs text-gray-500 dark:text-slate-400">Claim Rate</div>
               <ClaimRateBar rate={row.claimRate} />
             </div>
           </div>
@@ -529,15 +529,15 @@ export default function ReportsPageClient() {
   return (
     <div className="space-y-6">
       {/* ── Filters Card ──────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-5">
-        <div className="flex items-center gap-2 text-gray-800 font-semibold mb-4">
-          <FilterIcon className="w-5 h-5 text-gray-700" />
+      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
+        <div className="mb-4 flex items-center gap-2 font-semibold text-gray-800 dark:text-slate-100">
+          <FilterIcon className="h-5 w-5 text-gray-700 dark:text-slate-300" />
           <span>Report Filters</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <div>
-            <div className="text-xs text-gray-500 mb-2">Report Type</div>
+            <div className="mb-2 text-xs text-gray-500 dark:text-slate-400">Report Type</div>
             <Dropdown
               value={reportType}
               buttonLabel="Distribution Summary"
@@ -548,27 +548,27 @@ export default function ReportsPageClient() {
           </div>
 
           <div>
-            <div className="text-xs text-gray-500 mb-2">Start Date</div>
+            <div className="mb-2 text-xs text-gray-500 dark:text-slate-400">Start Date</div>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
             />
           </div>
 
           <div>
-            <div className="text-xs text-gray-500 mb-2">End Date</div>
+            <div className="mb-2 text-xs text-gray-500 dark:text-slate-400">End Date</div>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500"
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
             />
           </div>
 
           <div>
-            <div className="text-xs text-gray-500 mb-2">Barangay</div>
+            <div className="mb-2 text-xs text-gray-500 dark:text-slate-400">Barangay</div>
             <Dropdown
               value={barangay}
               buttonLabel="All Barangays"
@@ -598,9 +598,9 @@ export default function ReportsPageClient() {
             type="button"
             onClick={handleExportCSV}
             disabled={!distributions.length}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-40 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors hover:bg-gray-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800"
           >
-            <DownloadIcon className="w-4 h-4 text-gray-500" />
+            <DownloadIcon className="h-4 w-4 text-gray-500 dark:text-slate-400" />
             Export CSV
           </button>
 
@@ -608,9 +608,9 @@ export default function ReportsPageClient() {
             <button
               type="button"
               onClick={() => { setStartDate(''); setEndDate(''); setBarangay('All'); setReportType('distribution') }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800"
             >
-              <ClearIcon className="w-4 h-4 text-gray-500" />
+              <ClearIcon className="h-4 w-4 text-gray-500 dark:text-slate-400" />
               Clear Filters
             </button>
           )}
@@ -619,11 +619,11 @@ export default function ReportsPageClient() {
 
       {/* ── Error banner ──────────────────────────────────── */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
           <AlertIcon className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
           <div>
-            <div className="font-medium text-red-800">Error generating report</div>
-            <div className="text-sm text-red-600 mt-1">{error}</div>
+            <div className="font-medium text-red-800 dark:text-red-300">Error generating report</div>
+            <div className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</div>
           </div>
         </div>
       )}
@@ -632,26 +632,22 @@ export default function ReportsPageClient() {
       {generated && overview && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           <StatCard
-            icon={<CubeIcon className="w-5 h-5 text-green-700" />}
-            accentBg="bg-green-100"
+            icon={<CubeIcon className="w-5 h-5" />}
             title="Total Distributions"
             value={`${overview.totalDistributions}`}
           />
           <StatCard
-            icon={<UsersIcon className="w-5 h-5 text-green-700" />}
-            accentBg="bg-green-100"
+            icon={<UsersIcon className="w-5 h-5" />}
             title="Households Served"
             value={`${overview.totalClaimedHouseholds}`}
           />
           <StatCard
-            icon={<TrendIcon className="w-5 h-5 text-green-700" />}
-            accentBg="bg-green-100"
+            icon={<TrendIcon className="w-5 h-5" />}
             title="Claim Rate"
             value={`${overview.claimRate}%`}
           />
           <StatCard
-            icon={<UnclaimedIcon className="w-5 h-5 text-amber-600" />}
-            accentBg="bg-amber-100"
+            icon={<UnclaimedIcon className="w-5 h-5" />}
             title="Unclaimed Households"
             value={`${overview.totalUnclaimedHouseholds}`}
           />
@@ -663,13 +659,13 @@ export default function ReportsPageClient() {
 
       {/* ── Distribution Summary Table ────────────────────── */}
       {generated && !loading && reportType === 'distribution' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="p-5 border-b border-gray-100">
-            <div className="flex items-center gap-2 font-semibold text-gray-900">
-              <DocIcon className="w-5 h-5 text-gray-700" />
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
+          <div className="border-b border-gray-100 p-5 dark:border-slate-800">
+            <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-slate-100">
+              <DocIcon className="h-5 w-5 text-gray-700 dark:text-slate-300" />
               <span>Distribution Report — {dateRangeLabel}</span>
             </div>
-            <div className="text-sm text-gray-500 mt-1">
+            <div className="mt-1 text-sm text-gray-500 dark:text-slate-400">
               Summary of relief distributions by barangay for the selected period
             </div>
           </div>
@@ -680,7 +676,7 @@ export default function ReportsPageClient() {
             <>
               <div className="overflow-x-auto w-full">
                 <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
-                  <thead className="bg-gray-50 text-gray-500 text-sm">
+                  <thead className="bg-gray-50 text-sm text-gray-500 dark:bg-slate-800/80 dark:text-slate-400">
                     <tr>
                       <th className="px-4 py-4 font-medium w-[12%]">Date</th>
                       <th className="px-4 py-4 font-medium w-[14%]">Barangay</th>
@@ -692,12 +688,12 @@ export default function ReportsPageClient() {
                       <th className="px-4 py-4 font-medium w-[5%]"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 text-sm">
+                  <tbody className="divide-y divide-gray-100 text-sm dark:divide-slate-800">
                     {distributions.map((r) => (
-                      <tr key={r.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 text-gray-600">{formatDate(r.scheduled || r.createdAt)}</td>
-                        <td className="px-4 py-4 text-gray-700 font-medium">{r.barangay}</td>
-                        <td className="px-4 py-4 text-gray-700">{r.registeredHouseholds}</td>
+                      <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/70">
+                        <td className="px-4 py-4 text-gray-600 dark:text-slate-300">{formatDate(r.scheduled || r.createdAt)}</td>
+                        <td className="px-4 py-4 font-medium text-gray-700 dark:text-slate-100">{r.barangay}</td>
+                        <td className="px-4 py-4 text-gray-700 dark:text-slate-200">{r.registeredHouseholds}</td>
                         <td className="px-4 py-4 text-green-700 font-medium">{r.claimedHouseholds}</td>
                         <td className="px-4 py-4 text-amber-600 font-medium">{r.unclaimedHouseholds}</td>
                         <td className="px-4 py-4">
@@ -710,14 +706,14 @@ export default function ReportsPageClient() {
                           <div className="relative inline-block" ref={activeMenu === r.id ? rowMenuWrapRef : undefined}>
                             <button
                               onClick={(e) => onToggleMenu(r.id, e)}
-                              className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                              className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                             >
                               <DotsIcon />
                             </button>
                             {activeMenu === r.id && (
                               <div
                                 className={[
-                                  'absolute right-0 w-52 bg-white rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-200 z-50 overflow-hidden',
+                                  'absolute right-0 z-50 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_20px_45px_rgba(0,0,0,0.35)]',
                                   menuOpensUp ? 'bottom-full mb-2' : 'top-full mt-2',
                                 ].join(' ')}
                               >
@@ -744,9 +740,9 @@ export default function ReportsPageClient() {
               </div>
 
               {/* Summary strip */}
-              <div className="p-5 bg-white border-t border-gray-100">
-                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4">
-                  <div className="font-semibold text-gray-800 mb-2">Report Summary</div>
+              <div className="border-t border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800/80">
+                  <div className="mb-2 font-semibold text-gray-800 dark:text-slate-100">Report Summary</div>
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
                     <SummaryCell label="Total Distributions" value={`${overview?.totalDistributions ?? 0}`} />
                     <SummaryCell label="Registered Households" value={`${overview?.totalRegisteredHouseholds ?? 0}`} />
@@ -763,13 +759,13 @@ export default function ReportsPageClient() {
 
       {/* ── Barangay Summary Table ────────────────────────── */}
       {generated && !loading && reportType === 'barangay' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="p-5 border-b border-gray-100">
-            <div className="flex items-center gap-2 font-semibold text-gray-900">
-              <DocIcon className="w-5 h-5 text-gray-700" />
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
+          <div className="border-b border-gray-100 p-5 dark:border-slate-800">
+            <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-slate-100">
+              <DocIcon className="h-5 w-5 text-gray-700 dark:text-slate-300" />
               <span>Barangay Summary — {dateRangeLabel}</span>
             </div>
-            <div className="text-sm text-gray-500 mt-1">
+            <div className="mt-1 text-sm text-gray-500 dark:text-slate-400">
               Aggregated relief distribution statistics grouped by barangay
             </div>
           </div>
@@ -779,7 +775,7 @@ export default function ReportsPageClient() {
           ) : (
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left border-collapse table-fixed min-w-[700px] lg:min-w-0">
-                <thead className="bg-gray-50 text-gray-500 text-sm">
+                <thead className="bg-gray-50 text-sm text-gray-500 dark:bg-slate-800/80 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-4 font-medium w-[20%]">Barangay</th>
                     <th className="px-4 py-4 font-medium w-[15%]">Distributions</th>
@@ -789,14 +785,14 @@ export default function ReportsPageClient() {
                     <th className="px-4 py-4 font-medium w-[20%]">Claim Rate</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-sm">
+                <tbody className="divide-y divide-gray-100 text-sm dark:divide-slate-800">
                   {barangaySummaryRows.map((r) => {
                     const rate = r.registered > 0 ? Math.round((r.claimed / r.registered) * 100) : 0
                     return (
-                      <tr key={r.barangay} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 text-gray-700 font-medium">{r.barangay}</td>
-                        <td className="px-4 py-4 text-gray-700">{r.distributions}</td>
-                        <td className="px-4 py-4 text-gray-700">{r.registered}</td>
+                      <tr key={r.barangay} className="hover:bg-gray-50 dark:hover:bg-slate-800/70">
+                        <td className="px-4 py-4 font-medium text-gray-700 dark:text-slate-100">{r.barangay}</td>
+                        <td className="px-4 py-4 text-gray-700 dark:text-slate-200">{r.distributions}</td>
+                        <td className="px-4 py-4 text-gray-700 dark:text-slate-200">{r.registered}</td>
                         <td className="px-4 py-4 text-green-700 font-medium">{r.claimed}</td>
                         <td className="px-4 py-4 text-amber-600 font-medium">{r.unclaimed}</td>
                         <td className="px-4 py-4"><ClaimRateBar rate={rate} /></td>
@@ -814,9 +810,9 @@ export default function ReportsPageClient() {
       {generated && !loading && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Monthly Trend */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-4">
-            <div className="font-semibold text-gray-900">Distribution Trends</div>
-            <div className="text-sm text-gray-500 mb-4">Monthly distributions vs. claims (last 6 months)</div>
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
+            <div className="font-semibold text-gray-900 dark:text-slate-100">Distribution Trends</div>
+            <div className="mb-4 text-sm text-gray-500 dark:text-slate-400">Monthly distributions vs. claims (last 6 months)</div>
             {monthlyTrends.length > 0 ? (
               <MiniBarChart
                 labels={monthlyTrends.map((t) => t.month.split(' ')[0])}
@@ -826,14 +822,14 @@ export default function ReportsPageClient() {
                 legendB="Claims"
               />
             ) : (
-              <div className="text-sm text-gray-400 py-8 text-center">No trend data available</div>
+              <div className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">No trend data available</div>
             )}
           </div>
 
           {/* Barangay Donut */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-4">
-            <div className="font-semibold text-gray-900">Distribution by Barangay</div>
-            <div className="text-sm text-gray-500 mb-4">Number of distributions per barangay</div>
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
+            <div className="font-semibold text-gray-900 dark:text-slate-100">Distribution by Barangay</div>
+            <div className="mb-4 text-sm text-gray-500 dark:text-slate-400">Number of distributions per barangay</div>
             {barangayBreakdown.length > 0 ? (
               <Donut
                 segments={barangayBreakdown.map((b, i) => ({
@@ -843,7 +839,7 @@ export default function ReportsPageClient() {
                 }))}
               />
             ) : (
-              <div className="text-sm text-gray-400 py-8 text-center">No barangay data available</div>
+              <div className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">No barangay data available</div>
             )}
           </div>
         </div>
@@ -851,17 +847,17 @@ export default function ReportsPageClient() {
 
       {/* ── Verification Methods Card ─────────────────────── */}
       {generated && !loading && verification && (verification.qr > 0 || verification.face > 0) && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-5">
-          <div className="font-semibold text-gray-900 mb-1">Verification Methods</div>
-          <div className="text-sm text-gray-500 mb-4">How households verified their claims</div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
+          <div className="mb-1 font-semibold text-gray-900 dark:text-slate-100">Verification Methods</div>
+          <div className="mb-4 text-sm text-gray-500 dark:text-slate-400">How households verified their claims</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex items-center gap-3 bg-blue-50 rounded-xl p-4">
               <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
                 <QRIcon className="w-5 h-5 text-blue-700" />
               </div>
               <div>
-                <div className="text-lg font-bold text-gray-900">{verification.qr}</div>
-                <div className="text-xs text-gray-500">QR Code Scans</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{verification.qr}</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400">QR Code Scans</div>
               </div>
             </div>
             <div className="flex items-center gap-3 bg-purple-50 rounded-xl p-4">
@@ -869,18 +865,18 @@ export default function ReportsPageClient() {
                 <FaceIcon className="w-5 h-5 text-purple-700" />
               </div>
               <div>
-                <div className="text-lg font-bold text-gray-900">{verification.face}</div>
-                <div className="text-xs text-gray-500">Face Recognition</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{verification.face}</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400">Face Recognition</div>
               </div>
             </div>
             {verification.unknown > 0 && (
-              <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-4">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-                  <QuestionIcon className="w-5 h-5 text-gray-600" />
+              <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-slate-800/80">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-slate-700">
+                  <QuestionIcon className="w-5 h-5 text-gray-600 dark:text-slate-300" />
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-gray-900">{verification.unknown}</div>
-                  <div className="text-xs text-gray-500">Other / Manual</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{verification.unknown}</div>
+                  <div className="text-xs text-gray-500 dark:text-slate-400">Other / Manual</div>
                 </div>
               </div>
             )}
@@ -890,7 +886,7 @@ export default function ReportsPageClient() {
 
       {/* ── Not generated state ───────────────────────────── */}
       {!generated && !loading && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] p-12">
+        <div className="rounded-2xl border border-gray-100 bg-white p-12 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
           <EmptyState message="Click Generate Report to view distribution data." />
         </div>
       )}

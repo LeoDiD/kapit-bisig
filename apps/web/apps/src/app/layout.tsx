@@ -23,9 +23,13 @@ const themeInitScript = `
   try {
     var t = localStorage.getItem('kb-theme') || 'light';
     var s = localStorage.getItem('kb-text-size') || 'medium';
-    var resolved = t;
-    if (t === 'system') {
-      resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    var pathname = window.location.pathname || '/';
+    var resolved = 'light';
+    if (pathname !== '/login') {
+      resolved = t;
+      if (t === 'system') {
+        resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
     }
     if (resolved === 'dark') document.documentElement.classList.add('dark');
     document.documentElement.setAttribute('data-theme', resolved);

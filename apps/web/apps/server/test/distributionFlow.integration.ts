@@ -84,6 +84,24 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       isActive: true,
     });
 
+    const splitStaffA = await StaffUser.create({
+      email: 'staff-split-a@example.com',
+      firstName: 'Split',
+      lastName: 'A',
+      role: 'LGU_STAFF',
+      assignedBarangays: ['Bolo', 'Bongalon'],
+      isActive: true,
+    });
+
+    const splitStaffB = await StaffUser.create({
+      email: 'staff-split-b@example.com',
+      firstName: 'Split',
+      lastName: 'B',
+      role: 'LGU_STAFF',
+      assignedBarangays: ['Dulig', 'San Jose'],
+      isActive: true,
+    });
+
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
@@ -114,6 +132,29 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     assert.strictEqual(createResponse.status, 201);
     const distributionId = createResponse.body?.data?.id as string;
     assert.ok(distributionId);
+
+    const splitCoverageCreate = await request(app)
+      .post('/api/distributions')
+      .send({
+        barangay: 'Bolo',
+        assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
+        scheduled: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        assignedStaffIds: [String(splitStaffA._id), String(splitStaffB._id)],
+        notes: 'split coverage test',
+      });
+    assert.strictEqual(splitCoverageCreate.status, 201);
+
+    const insufficientCoverageCreate = await request(app)
+      .post('/api/distributions')
+      .send({
+        barangay: 'Bolo',
+        assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
+        scheduled: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+        assignedStaffIds: [String(splitStaffA._id)],
+        notes: 'insufficient coverage test',
+      });
+    assert.strictEqual(insufficientCoverageCreate.status, 400);
+    assert.strictEqual(insufficientCoverageCreate.body?.code, 'INSUFFICIENT_SCOPE_COVERAGE');
 
     async function createTokenForResident(plainToken: string, resident: any): Promise<void> {
       await HouseholdToken.create({
