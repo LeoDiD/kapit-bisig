@@ -19,7 +19,8 @@ export type ProofSubmissionSource = 'ONLINE' | 'OFFLINE_SYNC';
 
 export interface IProofSubmission extends Document {
   residentId: mongoose.Types.ObjectId;
-  disasterEventId: mongoose.Types.ObjectId;
+  disasterEventId?: mongoose.Types.ObjectId | null;
+  distributionId?: mongoose.Types.ObjectId | null;
   damageType: DamageType;
   description: string;
   supportingInfo: string;
@@ -49,7 +50,13 @@ const ProofSubmissionSchema = new Schema<IProofSubmission>(
     disasterEventId: {
       type: Schema.Types.ObjectId,
       ref: 'DisasterEvent',
-      required: true,
+      default: null,
+      index: true,
+    },
+    distributionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Distribution',
+      default: null,
       index: true,
     },
     damageType: {
@@ -140,10 +147,28 @@ ProofSubmissionSchema.pre('validate', function(next) {
     this.photoProofUrls = [firstUrl, ...currentUrls.filter((url) => url !== firstUrl)].slice(0, 5);
   }
 
+  if (!this.disasterEventId && !this.distributionId) {
+    this.invalidate('distributionId', 'Proof submissions must be linked to a distribution or disaster event.');
+  }
+
   next();
 });
 
-ProofSubmissionSchema.index({ residentId: 1, disasterEventId: 1 }, { unique: true });
+ProofSubmissionSchema.index(
+  { residentId: 1, distributionId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { distributionId: { $exists: true, $type: 'objectId' } },
+  },
+);
+ProofSubmissionSchema.index(
+  { residentId: 1, disasterEventId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { disasterEventId: { $exists: true, $type: 'objectId' } },
+  },
+);
+ProofSubmissionSchema.index({ distributionId: 1, status: 1, createdAt: -1 });
 ProofSubmissionSchema.index({ disasterEventId: 1, status: 1, createdAt: -1 });
 
 ProofSubmissionSchema.set('toJSON', {

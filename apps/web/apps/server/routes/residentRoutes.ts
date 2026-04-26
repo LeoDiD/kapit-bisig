@@ -27,6 +27,7 @@ import {
 import { validateBase64Image } from '../validation/imageValidation';
 import { normalizeIdNumber, validateIdType } from '../utils/idVerification';
 import { persistVerificationImage } from '../utils/imageStorage';
+import { createNotification } from '../utils/createNotification';
 
 const router = Router();
 const REGISTER_PAYLOAD_MAX_BYTES = 8 * 1024 * 1024; // 8MB
@@ -374,7 +375,7 @@ router.get('/', requireAuth, requireStaffOrSuperadmin, validateRequest({ query: 
 
 /**
  * PATCH /api/residents/:id/status
- * Approve or reject a pending resident registration.
+ * Approve, return, or reject a pending resident registration.
  */
 router.patch(
   '/:id/status',
@@ -384,7 +385,7 @@ router.patch(
   async (req: AuthRequest, res: Response) => {
     try {
       const { status, rejectionReason } = req.body as {
-        status: 'Approved' | 'Rejected';
+        status: 'Approved' | 'Needs Revision' | 'Rejected';
         rejectionReason?: string;
       };
 
@@ -407,17 +408,34 @@ router.patch(
       }
 
       resident.status = status;
-      resident.rejectionReason = status === 'Rejected' ? rejectionReason?.trim() : undefined;
+      resident.rejectionReason = status === 'Approved' ? undefined : rejectionReason?.trim();
       resident.verifiedAt = new Date();
       resident.verifiedBy = req.authUser?.userId || req.authUser?.sub || 'system';
       await resident.save();
+
+      if (status === 'Needs Revision') {
+        await createNotification({
+          userId: resident._id.toString(),
+          title: 'Registration Needs Revision',
+          message: resident.rejectionReason
+            ? `Your registration was returned for revision. ${resident.rejectionReason}`
+            : 'Your registration was returned for revision. Please review the admin note and upload corrected documents.',
+          type: 'status_update',
+          meta: {
+            screen: 'registration-revision',
+            residentId: resident._id.toString(),
+          },
+        });
+      }
 
       return res.json({
         success: true,
         message:
           status === 'Approved'
             ? 'Registration approved successfully'
-            : 'Registration rejected successfully',
+            : status === 'Needs Revision'
+              ? 'Registration returned for revision successfully'
+              : 'Registration rejected successfully',
         data: {
           id: resident._id,
           status: resident.status,
@@ -522,6 +540,16 @@ router.get('/:id', requireAuth, requireStaffOrSuperadmin, validateRequest({ para
         success: false,
         message: 'Resident not found',
       });
+    }
+
+    if (req.authUser?.role === 'LGU_STAFF') {
+      const assigned = req.authUser.assignedBarangays ?? [];
+      if (!assigned.includes(resident.barangay)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to this resident',
+        });
+      }
     }
     
     res.json({
@@ -650,10 +678,11 @@ router.post('/:id/generate-code', requireAuth, requireStaffOrSuperadmin, validat
  */
 router.get('/stats/summary', requireAuth, requireStaffOrSuperadmin, async (_req: AuthRequest, res: Response) => {
   try {
-    const [total, pending, approved, rejected] = await Promise.all([
+    const [total, pending, approved, needsRevision, rejected] = await Promise.all([
       Resident.countDocuments(),
       Resident.countDocuments({ status: 'Pending' }),
       Resident.countDocuments({ status: 'Approved' }),
+      Resident.countDocuments({ status: 'Needs Revision' }),
       Resident.countDocuments({ status: 'Rejected' }),
     ]);
     
@@ -675,6 +704,7 @@ router.get('/stats/summary', requireAuth, requireStaffOrSuperadmin, async (_req:
         total,
         pending,
         approved,
+        needsRevision,
         rejected,
         aiStats: {
           highMatch,

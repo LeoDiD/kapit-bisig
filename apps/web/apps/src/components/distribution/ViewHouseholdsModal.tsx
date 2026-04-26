@@ -57,6 +57,8 @@ export default function ViewHouseholdsModal({
   if (!open || !distribution) return null
 
   const noRegistered = data && data.totals.registered === 0
+  const populationLabel = data?.requiresBeneficiaryApproval ? 'Eligible' : 'Registered'
+  const emptyPopulationLabel = data?.requiresBeneficiaryApproval ? 'approved beneficiary' : 'registered household'
 
   const filteredClaimed = data?.claimed.filter((h) => {
     const q = search.trim().toLowerCase()
@@ -149,7 +151,7 @@ export default function ViewHouseholdsModal({
                   <UsersEmptyIcon />
                 </div>
                 <p className="text-sm text-gray-500 font-medium">
-                  No registered household.
+                  No {emptyPopulationLabel}.
                 </p>
               </div>
             )}
@@ -159,7 +161,7 @@ export default function ViewHouseholdsModal({
               <div className="space-y-4">
                 {/* Summary */}
                 <div className="grid grid-cols-3 gap-3">
-                  <SummaryCard label="Registered" value={data.totals.registered} color="text-gray-900" />
+                  <SummaryCard label={populationLabel} value={data.totals.registered} color="text-gray-900" />
                   <SummaryCard label="Claimed" value={data.totals.claimed} color="text-green-600" />
                   <SummaryCard label="Not Yet Claimed" value={data.totals.notYetClaimed} color="text-[#EAB308]" />
                 </div>

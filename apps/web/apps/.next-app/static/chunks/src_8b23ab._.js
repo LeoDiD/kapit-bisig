@@ -689,6 +689,15 @@ const api = {
         return handleResponse(response);
     },
     /**
+   * Get one resident registration detail for admin review.
+   */ async getResident (id) {
+        const response = await fetch(`${API_URL}/residents/${id}`, {
+            headers: createHeaders(),
+            credentials: 'include'
+        });
+        return handleResponse(response);
+    },
+    /**
    * Approve or reject a resident registration.
    */ async updateResidentStatus (id, payload) {
         const response = await fetch(`${API_URL}/residents/${id}/status`, {

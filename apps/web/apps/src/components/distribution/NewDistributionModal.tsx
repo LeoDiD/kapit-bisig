@@ -44,7 +44,7 @@ const STEP_DETAILS = {
   2: {
     eyebrow: 'Step 2 of 4',
     title: 'Select covered barangays',
-    description: 'Choose the 2 to 4 additional barangays whose residents, together with the host barangay, are covered by this distribution.',
+    description: 'Choose the 2 to 4 additional barangays whose residents, together with the host barangay, are covered by this distribution. Residents will still need an approved beneficiary application before claiming.',
   },
   3: {
     eyebrow: 'Step 3 of 4',

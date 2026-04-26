@@ -734,6 +734,15 @@ const api = {
         return handleResponse(response);
     },
     /**
+   * Get one resident registration detail for admin review.
+   */ async getResident (id) {
+        const response = await fetch(`${API_URL}/residents/${id}`, {
+            headers: createHeaders(),
+            credentials: 'include'
+        });
+        return handleResponse(response);
+    },
+    /**
    * Approve or reject a resident registration.
    */ async updateResidentStatus (id, payload) {
         const response = await fetch(`${API_URL}/residents/${id}/status`, {
@@ -1071,6 +1080,9 @@ function statusBadgeClass(status) {
             return 'bg-slate-100 text-slate-700 border-slate-200';
     }
 }
+function getProofStatusLabel(status) {
+    return status === 'Rejected' ? 'Needs Revision' : status;
+}
 function resolveProofAssetUrl(value) {
     const raw = String(value || '').trim();
     if (!raw) return '#';
@@ -1092,7 +1104,7 @@ function truncateText(value, maxLength) {
     if (text.length <= maxLength) return text;
     return `${text.slice(0, maxLength).trimEnd()}...`;
 }
-function RejectReasonModal({ open, loading, residentName, eventName, reason, onReasonChange, onClose, onSubmit }) {
+function RevisionRequestModal({ open, loading, residentName, eventName, reason, onReasonChange, onClose, onSubmit }) {
     if (!open || typeof document === 'undefined') return null;
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$dom$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["createPortal"](/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         className: "fixed inset-0 z-[210] flex items-center justify-center p-4",
@@ -1102,66 +1114,66 @@ function RejectReasonModal({ open, loading, residentName, eventName, reason, onR
                 onClick: loading ? undefined : onClose
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 119,
+                lineNumber: 123,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                 className: "relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                        className: "text-xs font-bold uppercase tracking-[0.18em] text-rose-500",
-                        children: "Reject Submission"
+                        className: "text-xs font-bold uppercase tracking-[0.18em] text-amber-600",
+                        children: "Return Submission"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 121,
+                        lineNumber: 125,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
                         className: "mt-2 text-xl font-black text-gray-900 dark:text-slate-100",
-                        children: "Provide a rejection reason"
+                        children: "Request more proof or missing requirements"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 122,
+                        lineNumber: 126,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
                         className: "mt-2 text-sm text-gray-600 dark:text-slate-400",
                         children: [
-                            "This rejection note will be stored for ",
+                            "This note will be sent back to ",
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                 className: "font-semibold text-gray-900 dark:text-slate-100",
                                 children: residentName
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 124,
-                                columnNumber: 50
+                                lineNumber: 128,
+                                columnNumber: 42
                             }, this),
-                            " under",
+                            " for",
                             ' ',
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                 className: "font-semibold text-gray-900 dark:text-slate-100",
                                 children: eventName
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 125,
+                                lineNumber: 129,
                                 columnNumber: 11
                             }, this),
                             "."
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 123,
+                        lineNumber: 127,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("textarea", {
                         value: reason,
                         onChange: (event)=>onReasonChange(event.target.value),
                         rows: 5,
-                        placeholder: "Explain why the submission does not qualify for this disaster event.",
+                        placeholder: "Explain what the resident still needs to upload or clarify, such as a barangay indigency certificate or clearer damage photos.",
                         className: "mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 128,
+                        lineNumber: 132,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1175,45 +1187,45 @@ function RejectReasonModal({ open, loading, residentName, eventName, reason, onR
                                 children: "Cancel"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 137,
+                                lineNumber: 141,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                 type: "button",
                                 onClick: onSubmit,
                                 disabled: loading,
-                                className: "inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-rose-700 disabled:opacity-50",
+                                className: "inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-amber-700 disabled:opacity-50",
                                 children: [
                                     loading ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SpinnerIcon, {
                                         className: "h-4 w-4"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 151,
+                                        lineNumber: 155,
                                         columnNumber: 24
                                     }, this) : null,
-                                    "Reject submission"
+                                    "Return for revision"
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 145,
+                                lineNumber: 149,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 136,
+                        lineNumber: 140,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 120,
+                lineNumber: 124,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 118,
+        lineNumber: 122,
         columnNumber: 5
     }, this), document.body);
 }
@@ -1317,7 +1329,7 @@ function TargetBeneficiariesPageClient() {
     const submitReview = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"](async ()=>{
         if (!reviewTarget) return;
         if (reviewDecision === 'Rejected' && !reviewReason.trim()) {
-            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showToast"].error('Rejection reason is required.');
+            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showToast"].error('A revision note is required.');
             return;
         }
         setReviewLoading(true);
@@ -1327,7 +1339,7 @@ function TargetBeneficiariesPageClient() {
                 decision: reviewDecision,
                 rejectionReason: reviewDecision === 'Rejected' ? reviewReason.trim() : undefined
             });
-            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showToast"].success(response.message || `Submission ${reviewDecision.toLowerCase()}.`);
+            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showToast"].success(response.message || `Submission ${reviewDecision === 'Approved' ? 'approved' : 'returned for revision'}.`);
             closeReviewModals();
             // Keep the review queue focused on items that still need action.
             setProofRows((prev)=>prev.filter((row)=>getProofId(row) !== reviewedId));
@@ -1374,7 +1386,7 @@ function TargetBeneficiariesPageClient() {
                                 children: "Target Beneficiary Control"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 310,
+                                lineNumber: 316,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("h2", {
@@ -1382,21 +1394,21 @@ function TargetBeneficiariesPageClient() {
                                 children: "Event-scoped eligibility review"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 311,
+                                lineNumber: 317,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
                                 className: "mt-2 max-w-3xl text-sm text-gray-600 dark:text-slate-400",
-                                children: "Review affected-resident proof submissions, approve target beneficiaries for the current disaster event, and keep the verification queue aligned with per-event claim eligibility."
+                                children: "Review affected-resident proof submissions, approve complete requests, and return incomplete requests so residents can upload clearer proof or missing barangay documents."
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 312,
+                                lineNumber: 318,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 309,
+                        lineNumber: 315,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1410,12 +1422,12 @@ function TargetBeneficiariesPageClient() {
                                     className: "h-5 w-5"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 319,
+                                    lineNumber: 324,
                                     columnNumber: 146
                                 }, void 0)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 319,
+                                lineNumber: 324,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$SummaryMetricCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -1426,12 +1438,12 @@ function TargetBeneficiariesPageClient() {
                                     className: "h-5 w-5"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 320,
+                                    lineNumber: 325,
                                     columnNumber: 150
                                 }, void 0)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 320,
+                                lineNumber: 325,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$SummaryMetricCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -1442,40 +1454,40 @@ function TargetBeneficiariesPageClient() {
                                     className: "h-5 w-5"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 321,
+                                    lineNumber: 326,
                                     columnNumber: 139
                                 }, void 0)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 321,
+                                lineNumber: 326,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$SummaryMetricCard$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                                label: "Rejected Proofs",
+                                label: "Returned Proofs",
                                 value: String(proofSummary.rejected),
-                                helper: "Across the current queue filter",
+                                helper: "Sent back for additional proof",
                                 icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](AlertIcon, {
                                     className: "h-5 w-5"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 322,
-                                    columnNumber: 139
+                                    lineNumber: 327,
+                                    columnNumber: 138
                                 }, void 0)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 322,
+                                lineNumber: 327,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 318,
+                        lineNumber: 323,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 308,
+                lineNumber: 314,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("section", {
@@ -1494,7 +1506,7 @@ function TargetBeneficiariesPageClient() {
                                                 children: "Verification Queue"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 330,
+                                                lineNumber: 335,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
@@ -1502,21 +1514,21 @@ function TargetBeneficiariesPageClient() {
                                                 children: "Proof submission review queue"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 331,
+                                                lineNumber: 336,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
                                                 className: "mt-1 text-sm text-gray-600 dark:text-slate-400",
-                                                children: "Approve affected-resident proof submissions so eligible residents can be marked for their matching relief event."
+                                                children: "Approve complete submissions or return incomplete ones with guidance for resubmission."
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 332,
+                                                lineNumber: 337,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 329,
+                                        lineNumber: 334,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1532,7 +1544,7 @@ function TargetBeneficiariesPageClient() {
                                                                 className: "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                lineNumber: 340,
+                                                                lineNumber: 345,
                                                                 columnNumber: 19
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
@@ -1548,13 +1560,13 @@ function TargetBeneficiariesPageClient() {
                                                                 className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                lineNumber: 341,
+                                                                lineNumber: 346,
                                                                 columnNumber: 19
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 339,
+                                                        lineNumber: 344,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -1564,13 +1576,13 @@ function TargetBeneficiariesPageClient() {
                                                         children: "Search"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 354,
+                                                        lineNumber: 359,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 338,
+                                                lineNumber: 343,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("select", {
@@ -1586,7 +1598,7 @@ function TargetBeneficiariesPageClient() {
                                                         children: "Pending Verification"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 371,
+                                                        lineNumber: 376,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
@@ -1594,7 +1606,7 @@ function TargetBeneficiariesPageClient() {
                                                         children: "All Statuses"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 372,
+                                                        lineNumber: 377,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
@@ -1602,21 +1614,21 @@ function TargetBeneficiariesPageClient() {
                                                         children: "Approved"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 373,
+                                                        lineNumber: 378,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
                                                         value: "Rejected",
-                                                        children: "Rejected"
+                                                        children: "Needs Revision"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 374,
+                                                        lineNumber: 379,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 363,
+                                                lineNumber: 368,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("select", {
@@ -1632,7 +1644,7 @@ function TargetBeneficiariesPageClient() {
                                                         children: ALL_BARANGAYS
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 385,
+                                                        lineNumber: 390,
                                                         columnNumber: 17
                                                     }, this),
                                                     scopedBarangays.map((barangay)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
@@ -1640,25 +1652,25 @@ function TargetBeneficiariesPageClient() {
                                                             children: barangay
                                                         }, barangay, false, {
                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                            lineNumber: 387,
+                                                            lineNumber: 392,
                                                             columnNumber: 19
                                                         }, this))
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 377,
+                                                lineNumber: 382,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 337,
+                                        lineNumber: 342,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 328,
+                                lineNumber: 333,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1673,14 +1685,14 @@ function TargetBeneficiariesPageClient() {
                                                 className: "h-3.5 w-3.5"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 401,
+                                                lineNumber: 406,
                                                 columnNumber: 15
                                             }, this),
                                             "Refresh queue"
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 396,
+                                        lineNumber: 401,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -1690,7 +1702,7 @@ function TargetBeneficiariesPageClient() {
                                         children: "Reset filters"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 404,
+                                        lineNumber: 409,
                                         columnNumber: 13
                                     }, this),
                                     appliedSearch ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1701,7 +1713,7 @@ function TargetBeneficiariesPageClient() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 412,
+                                        lineNumber: 417,
                                         columnNumber: 15
                                     }, this) : null,
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1713,19 +1725,19 @@ function TargetBeneficiariesPageClient() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 416,
+                                        lineNumber: 421,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 395,
+                                lineNumber: 400,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 327,
+                        lineNumber: 332,
                         columnNumber: 9
                     }, this),
                     error ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1735,12 +1747,12 @@ function TargetBeneficiariesPageClient() {
                             children: error
                         }, void 0, false, {
                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                            lineNumber: 424,
+                            lineNumber: 429,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                        lineNumber: 423,
+                        lineNumber: 428,
                         columnNumber: 11
                     }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
                         children: [
@@ -1755,7 +1767,7 @@ function TargetBeneficiariesPageClient() {
                                                 className: "h-8 w-8"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 432,
+                                                lineNumber: 437,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1763,18 +1775,18 @@ function TargetBeneficiariesPageClient() {
                                                 children: "Loading proof queue"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 433,
+                                                lineNumber: 438,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 431,
+                                        lineNumber: 436,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 430,
+                                    lineNumber: 435,
                                     columnNumber: 17
                                 }, this) : proofRows.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                     className: "px-6 py-16 text-center",
@@ -1786,7 +1798,7 @@ function TargetBeneficiariesPageClient() {
                                                 children: "No proof submissions matched this filter"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 439,
+                                                lineNumber: 444,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -1794,24 +1806,24 @@ function TargetBeneficiariesPageClient() {
                                                 children: "Try clearing filters, changing the search, or waiting for residents to sync new disaster proof requests."
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 440,
+                                                lineNumber: 445,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 438,
+                                        lineNumber: 443,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                    lineNumber: 437,
+                                    lineNumber: 442,
                                     columnNumber: 17
                                 }, this) : proofRows.map((row)=>{
                                     const rowId = getProofId(row);
                                     const proofUrls = getProofUrls(row);
                                     const proofUrl = proofUrls[0] || '#';
-                                    const reviewNote = row.status === 'Rejected' ? row.rejectionReason || 'No rejection reason recorded.' : row.status === 'Approved' ? `Approved by ${row.reviewedBy || 'reviewer'}` : 'Awaiting admin verification';
+                                    const reviewNote = row.status === 'Rejected' ? row.rejectionReason || 'Returned for revision without a note.' : row.status === 'Approved' ? `Approved by ${row.reviewedBy || 'reviewer'}` : 'Awaiting admin verification';
                                     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("article", {
                                         className: "rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-colors hover:bg-gray-50/70 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-900/80",
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1834,15 +1846,15 @@ function TargetBeneficiariesPageClient() {
                                                                                     children: row.resident.fullName
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 466,
+                                                                                    lineNumber: 471,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                                                     className: `inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusBadgeClass(row.status)}`,
-                                                                                    children: row.status
+                                                                                    children: getProofStatusLabel(row.status)
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 467,
+                                                                                    lineNumber: 472,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1850,13 +1862,13 @@ function TargetBeneficiariesPageClient() {
                                                                                     children: row.damageType
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 470,
+                                                                                    lineNumber: 475,
                                                                                     columnNumber: 33
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 465,
+                                                                            lineNumber: 470,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1867,7 +1879,7 @@ function TargetBeneficiariesPageClient() {
                                                                                     children: row.resident.residentCode
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 475,
+                                                                                    lineNumber: 480,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1877,14 +1889,14 @@ function TargetBeneficiariesPageClient() {
                                                                                             className: "h-3.5 w-3.5"
                                                                                         }, void 0, false, {
                                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                            lineNumber: 477,
+                                                                                            lineNumber: 482,
                                                                                             columnNumber: 35
                                                                                         }, this),
                                                                                         row.resident.barangay
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 476,
+                                                                                    lineNumber: 481,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1892,14 +1904,14 @@ function TargetBeneficiariesPageClient() {
                                                                                     children: row.event.name
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 480,
+                                                                                    lineNumber: 485,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                                                     children: row.event.disasterType
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 481,
+                                                                                    lineNumber: 486,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1909,7 +1921,7 @@ function TargetBeneficiariesPageClient() {
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 482,
+                                                                                    lineNumber: 487,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1919,19 +1931,19 @@ function TargetBeneficiariesPageClient() {
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 483,
+                                                                                    lineNumber: 488,
                                                                                     columnNumber: 33
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 474,
+                                                                            lineNumber: 479,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                    lineNumber: 464,
+                                                                    lineNumber: 469,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1951,12 +1963,12 @@ function TargetBeneficiariesPageClient() {
                                                                                         className: "h-full w-full object-cover transition-transform duration-150 group-hover:scale-105"
                                                                                     }, void 0, false, {
                                                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                        lineNumber: 498,
+                                                                                        lineNumber: 503,
                                                                                         columnNumber: 37
                                                                                     }, this)
                                                                                 }, `${rowId}-proof-${index + 1}`, false, {
                                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                    lineNumber: 490,
+                                                                                    lineNumber: 495,
                                                                                     columnNumber: 35
                                                                                 }, this)),
                                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("a", {
@@ -1969,31 +1981,31 @@ function TargetBeneficiariesPageClient() {
                                                                                         className: "h-3.5 w-3.5"
                                                                                     }, void 0, false, {
                                                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                        lineNumber: 511,
+                                                                                        lineNumber: 516,
                                                                                         columnNumber: 35
                                                                                     }, this),
                                                                                     proofUrls.length > 1 ? `${proofUrls.length} photos` : 'View proof'
                                                                                 ]
                                                                             }, void 0, true, {
                                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                                lineNumber: 505,
+                                                                                lineNumber: 510,
                                                                                 columnNumber: 33
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                        lineNumber: 488,
+                                                                        lineNumber: 493,
                                                                         columnNumber: 31
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                    lineNumber: 487,
+                                                                    lineNumber: 492,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                            lineNumber: 463,
+                                                            lineNumber: 468,
                                                             columnNumber: 27
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2007,7 +2019,7 @@ function TargetBeneficiariesPageClient() {
                                                                             children: truncateText(row.description, 120)
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 520,
+                                                                            lineNumber: 525,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         row.supportingInfo ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -2015,13 +2027,13 @@ function TargetBeneficiariesPageClient() {
                                                                             children: truncateText(row.supportingInfo, 90)
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 522,
+                                                                            lineNumber: 527,
                                                                             columnNumber: 33
                                                                         }, this) : null
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                    lineNumber: 519,
+                                                                    lineNumber: 524,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2032,7 +2044,7 @@ function TargetBeneficiariesPageClient() {
                                                                             children: "Review"
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 527,
+                                                                            lineNumber: 532,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -2040,7 +2052,7 @@ function TargetBeneficiariesPageClient() {
                                                                             children: truncateText(reviewNote, 90)
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 528,
+                                                                            lineNumber: 533,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         row.reviewedAt ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -2051,25 +2063,25 @@ function TargetBeneficiariesPageClient() {
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                            lineNumber: 530,
+                                                                            lineNumber: 535,
                                                                             columnNumber: 33
                                                                         }, this) : null
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                    lineNumber: 526,
+                                                                    lineNumber: 531,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                            lineNumber: 518,
+                                                            lineNumber: 523,
                                                             columnNumber: 27
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                    lineNumber: 462,
+                                                    lineNumber: 467,
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2084,52 +2096,52 @@ function TargetBeneficiariesPageClient() {
                                                                 children: "Approve"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                lineNumber: 539,
+                                                                lineNumber: 544,
                                                                 columnNumber: 31
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                                 type: "button",
                                                                 onClick: ()=>openRejectModal(row),
                                                                 className: "rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100",
-                                                                children: "Reject"
+                                                                children: "Return"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                                lineNumber: 546,
+                                                                lineNumber: 551,
                                                                 columnNumber: 31
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 538,
+                                                        lineNumber: 543,
                                                         columnNumber: 29
                                                     }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "rounded-xl border border-dashed border-gray-200 px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:border-slate-700 dark:text-slate-500",
                                                         children: "No action needed"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                        lineNumber: 555,
+                                                        lineNumber: 560,
                                                         columnNumber: 29
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                    lineNumber: 536,
+                                                    lineNumber: 541,
                                                     columnNumber: 25
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                            lineNumber: 461,
+                                            lineNumber: 466,
                                             columnNumber: 23
                                         }, this)
                                     }, rowId, false, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 457,
+                                        lineNumber: 462,
                                         columnNumber: 21
                                     }, this);
                                 })
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 428,
+                                lineNumber: 433,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2145,7 +2157,7 @@ function TargetBeneficiariesPageClient() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 568,
+                                        lineNumber: 573,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2159,7 +2171,7 @@ function TargetBeneficiariesPageClient() {
                                                 children: "Prev"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 570,
+                                                lineNumber: 575,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -2170,19 +2182,19 @@ function TargetBeneficiariesPageClient() {
                                                 children: "Next"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                                lineNumber: 578,
+                                                lineNumber: 583,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                        lineNumber: 569,
+                                        lineNumber: 574,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                                lineNumber: 567,
+                                lineNumber: 572,
                                 columnNumber: 13
                             }, this)
                         ]
@@ -2190,7 +2202,7 @@ function TargetBeneficiariesPageClient() {
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 326,
+                lineNumber: 331,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$ConfirmModal$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -2203,10 +2215,10 @@ function TargetBeneficiariesPageClient() {
                 onConfirm: submitReview
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 592,
+                lineNumber: 597,
                 columnNumber: 7
             }, this),
-            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](RejectReasonModal, {
+            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](RevisionRequestModal, {
                 open: !!reviewTarget && reviewDecision === 'Rejected',
                 loading: reviewLoading,
                 residentName: reviewTarget?.resident.fullName || '',
@@ -2217,13 +2229,13 @@ function TargetBeneficiariesPageClient() {
                 onSubmit: submitReview
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 606,
+                lineNumber: 611,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 307,
+        lineNumber: 313,
         columnNumber: 5
     }, this);
 }
@@ -2242,7 +2254,7 @@ function SpinnerIcon({ className }) {
                 strokeWidth: "3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 623,
+                lineNumber: 628,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2252,13 +2264,13 @@ function SpinnerIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 624,
+                lineNumber: 629,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 622,
+        lineNumber: 627,
         columnNumber: 5
     }, this);
 }
@@ -2276,7 +2288,7 @@ function ClipboardIcon({ className }) {
                 d: "M9 4h6m-7 3h8a2 2 0 012 2v9a2 2 0 01-2 2H8a2 2 0 01-2-2V9a2 2 0 012-2z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 632,
+                lineNumber: 637,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2286,13 +2298,13 @@ function ClipboardIcon({ className }) {
                 d: "M10 4.5A1.5 1.5 0 0111.5 3h1A1.5 1.5 0 0114 4.5V7h-4V4.5z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 633,
+                lineNumber: 638,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 631,
+        lineNumber: 636,
         columnNumber: 5
     }, this);
 }
@@ -2309,12 +2321,12 @@ function ClockIcon({ className }) {
             d: "M12 7v5l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-            lineNumber: 641,
+            lineNumber: 646,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 640,
+        lineNumber: 645,
         columnNumber: 5
     }, this);
 }
@@ -2332,7 +2344,7 @@ function ShieldCheckIcon({ className }) {
                 d: "M12 3l7 3v6c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V6l7-3z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 649,
+                lineNumber: 654,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2342,13 +2354,13 @@ function ShieldCheckIcon({ className }) {
                 d: "M9 12l2 2 4-4"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 650,
+                lineNumber: 655,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 648,
+        lineNumber: 653,
         columnNumber: 5
     }, this);
 }
@@ -2365,12 +2377,12 @@ function AlertIcon({ className }) {
             d: "M12 9v4m0 4h.01M10.29 3.86l-7.5 13A1 1 0 003.66 18h16.68a1 1 0 00.87-1.5l-7.5-13a1 1 0 00-1.74 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-            lineNumber: 658,
+            lineNumber: 663,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 657,
+        lineNumber: 662,
         columnNumber: 5
     }, this);
 }
@@ -2387,12 +2399,12 @@ function RefreshIcon({ className }) {
             d: "M4 4v5h5M20 20v-5h-5M5.8 9A7 7 0 0118 6.3M18.2 15A7 7 0 016 17.7"
         }, void 0, false, {
             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-            lineNumber: 666,
+            lineNumber: 671,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 665,
+        lineNumber: 670,
         columnNumber: 5
     }, this);
 }
@@ -2409,12 +2421,12 @@ function SearchIcon({ className }) {
             d: "M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z"
         }, void 0, false, {
             fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-            lineNumber: 674,
+            lineNumber: 679,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 673,
+        lineNumber: 678,
         columnNumber: 5
     }, this);
 }
@@ -2432,7 +2444,7 @@ function ImageIcon({ className }) {
                 d: "M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 682,
+                lineNumber: 687,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2442,13 +2454,13 @@ function ImageIcon({ className }) {
                 d: "M8 14l2.5-2.5L15 16l2-2 3 3M9 9h.01"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 683,
+                lineNumber: 688,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 681,
+        lineNumber: 686,
         columnNumber: 5
     }, this);
 }
@@ -2466,7 +2478,7 @@ function MapPinIcon({ className }) {
                 d: "M12 21s6-4.5 6-10a6 6 0 10-12 0c0 5.5 6 10 6 10z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 691,
+                lineNumber: 696,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2476,13 +2488,13 @@ function MapPinIcon({ className }) {
                 d: "M12 11a2 2 0 100-4 2 2 0 000 4z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-                lineNumber: 692,
+                lineNumber: 697,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
-        lineNumber: 690,
+        lineNumber: 695,
         columnNumber: 5
     }, this);
 }

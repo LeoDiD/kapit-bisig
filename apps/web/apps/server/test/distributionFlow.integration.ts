@@ -74,6 +74,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const { default: Distribution } = await import('../models/Distribution');
     const { default: Claim } = await import('../models/Claim');
     const { default: DistributionClaim } = await import('../models/DistributionClaim');
+    const { default: BeneficiaryEligibility } = await import('../models/BeneficiaryEligibility');
 
     const staff = await StaffUser.create({
       email: 'staff-int@example.com',
@@ -132,6 +133,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     assert.strictEqual(createResponse.status, 201);
     const distributionId = createResponse.body?.data?.id as string;
     assert.ok(distributionId);
+    assert.strictEqual(createResponse.body?.data?.requiresBeneficiaryApproval, true);
 
     const splitCoverageCreate = await request(app)
       .post('/api/distributions')
@@ -181,6 +183,31 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     await createTokenForResident('ABCD-EFGH-IJKL', resA);
     await createTokenForResident('MNOP-QRST-UVWX', resB);
     await createTokenForResident('WXYZ-1234-ABCD', outOfAreaResident);
+    await createTokenForResident('ZZZZ-1111-AAAA', resA);
+    await createTokenForResident('BBBB-2222-CCCC', resA);
+
+    await BeneficiaryEligibility.create([
+      {
+        residentId: resA._id,
+        distributionId: new mongoose.Types.ObjectId(distributionId),
+        status: 'Eligible',
+        registrationStatus: 'Approved',
+        proofStatus: 'Approved',
+      },
+      {
+        residentId: resB._id,
+        distributionId: new mongoose.Types.ObjectId(distributionId),
+        status: 'Eligible',
+        registrationStatus: 'Approved',
+        proofStatus: 'Approved',
+      },
+    ]);
+
+    const householdsResponse = await request(app)
+      .get(`/api/distributions/${distributionId}/households`);
+    assert.strictEqual(householdsResponse.status, 200);
+    assert.strictEqual(householdsResponse.body?.data?.totals?.registered, 2);
+    assert.strictEqual(householdsResponse.body?.data?.totals?.notYetClaimed, 2);
 
     const outOfAreaClaim = await request(app)
       .post('/api/claims/record-claim')
@@ -190,7 +217,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         distributionSite: 'Bolo Covered Court',
       });
     assert.strictEqual(outOfAreaClaim.status, 403);
-    assert.match(String(outOfAreaClaim.body?.message || ''), /not assigned/i);
+    assert.match(String(outOfAreaClaim.body?.message || ''), /not covered|approved target beneficiary/i);
 
     const claim1 = await request(app)
       .post('/api/claims/record-claim')
@@ -210,6 +237,49 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         distributionSite: 'Bolo Covered Court',
       });
     assert.strictEqual(claim2.status, 201);
+
+    const secondDistributionResponse = await request(app)
+      .post('/api/distributions')
+      .send({
+        barangay: 'Bolo',
+        assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
+        scheduled: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        assignedStaffIds: [String(staff._id)],
+        notes: 'second distribution test',
+      });
+    assert.strictEqual(secondDistributionResponse.status, 201);
+    const secondDistributionId = secondDistributionResponse.body?.data?.id as string;
+    assert.ok(secondDistributionId);
+
+    const blockedWithoutNewApproval = await request(app)
+      .post('/api/claims/record-claim')
+      .send({
+        claimToken: 'ZZZZ-1111-AAAA',
+        distributionId: secondDistributionId,
+        distributionSite: 'Bolo Covered Court',
+      });
+    assert.strictEqual(blockedWithoutNewApproval.status, 403);
+    assert.match(
+      String(blockedWithoutNewApproval.body?.message || ''),
+      /approved target beneficiary/i,
+    );
+
+    await BeneficiaryEligibility.create({
+      residentId: resA._id,
+      distributionId: new mongoose.Types.ObjectId(secondDistributionId),
+      status: 'Eligible',
+      registrationStatus: 'Approved',
+      proofStatus: 'Approved',
+    });
+
+    const claimAfterNewApproval = await request(app)
+      .post('/api/claims/record-claim')
+      .send({
+        claimToken: 'BBBB-2222-CCCC',
+        distributionId: secondDistributionId,
+        distributionSite: 'Bolo Covered Court',
+      });
+    assert.strictEqual(claimAfterNewApproval.status, 201);
 
     await waitFor(
       'distribution claim sync',

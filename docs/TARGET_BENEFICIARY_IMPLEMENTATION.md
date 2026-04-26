@@ -1,373 +1,275 @@
-
 # Target Beneficiary Implementation
 
-This document defines the implementation logic for Kapit Bisig's Target Beneficiary feature.
+This document describes the current target-beneficiary implementation for Kapit Bisig.
 
-## 1. System Flow
+## 1. Primary Rule
 
-### A. Resident proof submission
-1. Resident logs in using an already-approved resident account.
-2. Resident selects the current disaster event.
-3. Resident submits a disaster assistance request with:
-   - `residentId`
-   - `disasterEventId`
-   - `damageType`
-   - `description`
-   - `supportingInfo`
-   - `dateSubmitted`
-   - `photoProof`
-4. If online:
-   - the request is uploaded immediately
-   - the server stores it as `Pending Verification`
-   - eligibility is created or updated as `Not Eligible` for that event until review is complete
-5. If offline:
-   - the mobile app stores the request locally as `Pending Sync`
-   - once connectivity returns, the app sends the item to `/api/beneficiaries/sync/proof-submissions`
-   - the server stores it as `Pending Verification`
+Target-beneficiary approval is now **distribution-scoped**.
 
-### B. Admin verification
-1. Admin/LGU staff opens the proof submission review queue.
-2. Admin filters by event, barangay, resident, status, or search term.
-3. Admin reviews the uploaded proof and chooses `Approved` or `Rejected`.
-4. If approved:
-   - `ProofSubmissions.status = Approved`
-   - `BeneficiaryEligibility.status = Eligible`
-5. If rejected:
-   - `ProofSubmissions.status = Rejected`
-   - rejection reason is stored
-   - `BeneficiaryEligibility.status = Not Eligible`
+That means:
 
-### C. Distribution-day scan and claim
-1. Volunteer/scanner downloads the approved beneficiary list for the active event before field operations.
-2. Volunteer scans the resident's permanent QR code.
-3. The system resolves the QR to the resident record.
-4. The system checks:
-   - resident registration is `Approved`
-   - resident has `Eligible` event-scoped eligibility
-   - resident has not already claimed for the same event
-5. Result returned:
-   - `Valid - eligible to claim`
-   - `Already claimed`
-   - `Not eligible for this event`
-   - `Invalid QR`
-6. If valid, volunteer confirms release and a claim record is stored.
+1. A resident must be an approved resident account.
+2. A resident must submit proof for a **specific distribution**.
+3. Admin must approve that proof for that **same distribution**.
+4. The resident can only claim in that approved distribution.
+5. If a **new distribution** is created, the same resident must submit again for that new distribution.
 
-## 2. Backend Logic
+This is the enforced rule in the claim path.
 
-### Core rule
-A resident is a target beneficiary only when both are true:
-- `Residents.status = Approved`
-- `BeneficiaryEligibility.status = Eligible` for the specific `DisasterEvent`
+## 2. Flow
 
-### Event-scoped eligibility
-- Eligibility is not global.
-- The same resident can be:
-  - `Eligible` for event A
-  - `Not Eligible` for event B
+### A. Distribution creation
 
-### Claim rule
-- One resident can only have one successful claim per disaster event.
-- This is enforced by:
-  - server-side validation before insert
-  - unique claim constraints using the resident/event pair
+When a new distribution is created:
 
-### Offline sync rule
-- Offline proof submissions and claims are stored on-device first.
-- When synced, the server logs each item in `OfflineSyncQueue`.
-- Sync results are idempotent by `actorId + queueType + clientGeneratedId`.
+- `Distribution.requiresBeneficiaryApproval = true`
+- the distribution starts with `0` approved beneficiaries
+- residents in covered barangays are notified that approval is required before claiming
 
-## 3. Database Schema
+### B. Resident application
 
-### `Residents`
-Existing collection. Relevant fields:
-- `residentCode`
-- `status`
-- `qrStatus`
-- `barangay`
+Resident opens the list of open beneficiary distributions:
 
-### `DisasterEvents`
-- `name`
-- `disasterType`
-- `description`
-- `barangays[]`
-- `eventDate`
-- `submissionDeadline`
-- `status` (`Draft|Active|Closed`)
-- `createdBy`
-- `updatedBy`
+- `GET /api/beneficiaries/distributions/open`
 
-### `ProofSubmissions`
-- `residentId`
-- `disasterEventId`
-- `damageType`
-- `description`
-- `supportingInfo`
-- `dateSubmitted`
-- `photoProofUrl`
-- `status` (`Pending Sync|Pending Verification|Approved|Rejected`)
-- `syncSource` (`ONLINE|OFFLINE_SYNC`)
-- `submissionVersion`
-- `clientGeneratedId`
-- `submittedViaDeviceId`
-- `rejectionReason`
-- `reviewedBy`
-- `reviewedAt`
+Resident submits proof for one specific distribution:
 
-### `BeneficiaryEligibility`
-- `residentId`
-- `disasterEventId`
-- `proofSubmissionId`
-- `status` (`Eligible|Not Eligible`)
-- `registrationStatus`
-- `proofStatus`
-- `rejectionReason`
-- `reviewedBy`
-- `reviewedAt`
-- `lastQualifiedAt`
-
-### `Claims`
-Existing collection extended for event-based claims:
-- `claimCategory` (`DISTRIBUTION|DISASTER_EVENT`)
-- `claimStatus` (`Not Claimed|Claimed`)
-- `disasterEventId`
-- `residentId`
-- `scannedBy`
-- `scannedAt`
-- `source` (`ONLINE|OFFLINE_SYNC`)
-- `syncMetadata`
-
-### `OfflineSyncQueue`
-- `queueType` (`PROOF_SUBMISSION|CLAIM`)
-- `syncStatus` (`Pending|Processing|Synced|Failed`)
-- `actorId`
-- `actorRole`
-- `residentId`
-- `disasterEventId`
-- `proofSubmissionId`
-- `claimMongoId`
-- `claimId`
-- `clientGeneratedId`
-- `deviceId`
-- `payload`
-- `errorMessage`
-- `syncedAt`
-
-## 4. API Endpoints
-
-### Disaster events
-- `GET /api/beneficiaries/events`
-- `GET /api/beneficiaries/events/active`
-- `POST /api/beneficiaries/events`
-
-### Resident proof submission
 - `POST /api/beneficiaries/proof-submissions`
 
-Request body:
-```json
-{
-  "disasterEventId": "6612d0f0aa1b2c3d4e5f6789",
-  "damageType": "House Damage",
-  "description": "Roof was destroyed and water entered the living room.",
-  "supportingInfo": "Flood level reached chest height.",
-  "dateSubmitted": "2026-04-07T09:30:00+08:00",
-  "photoProof": "data:image/jpeg;base64,..."
-}
-```
+Required scope field:
 
-### Admin verification
+- `distributionId`
+
+Legacy compatibility:
+
+- `disasterEventId` is still supported for older event-based flows
+- new target-beneficiary work should use `distributionId`
+
+### C. Admin review
+
+Admin reviews proof submissions from:
+
+- `GET /api/beneficiaries/admin/proof-submissions`
+
+Admin approves or rejects:
+
+- `PATCH /api/beneficiaries/admin/proof-submissions/:id/review`
+
+If approved:
+
+- `ProofSubmission.status = Approved`
+- `BeneficiaryEligibility.status = Eligible`
+- eligibility is stored for `(residentId, distributionId)`
+
+If rejected:
+
+- `ProofSubmission.status = Rejected`
+- `BeneficiaryEligibility.status = Not Eligible`
+
+### D. Claim
+
+The main enforced claim route is:
+
+- `POST /api/claims/record-claim`
+- `POST /api/claims/record-claim-batch`
+
+For targeted distributions, claim now requires all of the following:
+
+1. valid claim token
+2. approved resident record
+3. resident barangay covered by the distribution
+4. distribution not already completed
+5. token not bound to a different distribution
+6. resident has approved `BeneficiaryEligibility` for that exact distribution
+7. resident has not already claimed for that distribution
+
+If the resident has approval for Distribution A only:
+
+- they can claim Distribution A
+- they cannot claim Distribution B until a new approved application exists for Distribution B
+
+## 3. Data Model
+
+### `Distribution`
+
+Added:
+
+- `requiresBeneficiaryApproval: boolean`
+
+New distributions are created with:
+
+- `requiresBeneficiaryApproval = true`
+
+### `ProofSubmission`
+
+Supports both scopes:
+
+- `distributionId`
+- `disasterEventId`
+
+Current target-beneficiary use:
+
+- one proof submission per `residentId + distributionId`
+
+### `BeneficiaryEligibility`
+
+Supports both scopes:
+
+- `distributionId`
+- `disasterEventId`
+
+Current target-beneficiary use:
+
+- one eligibility snapshot per `residentId + distributionId`
+
+### `OfflineSyncQueue`
+
+Added:
+
+- `distributionId`
+
+### `Claim`
+
+Security hardening:
+
+- distribution claims use a unique logical scope
+- disaster-event claims use a separate unique logical scope
+
+This avoids cross-scope collisions between:
+
+- `DISTRIBUTION`
+- `DISASTER_EVENT`
+
+## 4. Endpoints
+
+### Resident
+
+- `GET /api/beneficiaries/distributions/open`
+- `POST /api/beneficiaries/proof-submissions`
+- `POST /api/beneficiaries/sync/proof-submissions`
+
+Resident-authenticated proof uploads now enforce:
+
+- `3` to `5` proof photos per submission
+- JPEG, PNG, or WebP image payloads only
+- maximum `2 MB` per image
+- maximum `10 MB` combined payload across all proof photos
+- images are persisted under `/uploads/resident-verification/`
+- `ProofSubmission.photoProofUrl` and `photoProofUrls` store URL references, not raw base64 payloads
+
+### Admin
+
 - `GET /api/beneficiaries/admin/proof-submissions`
 - `PATCH /api/beneficiaries/admin/proof-submissions/:id/review`
 
-Review body:
-```json
-{
-  "decision": "Approved"
-}
-```
+### Claims
 
-Or:
-```json
-{
-  "decision": "Rejected",
-  "rejectionReason": "Submitted photo is unclear and does not show event damage."
-}
-```
+- `POST /api/claims/record-claim`
+- `POST /api/claims/record-claim-batch`
 
-### QR validation and claim
-- `POST /api/beneficiaries/scan/validate`
-- `POST /api/beneficiaries/scan/claim`
+## 5. Security Improvements Implemented
 
-### Offline support
-- `GET /api/beneficiaries/events/:id/offline-pack`
-- `POST /api/beneficiaries/sync/proof-submissions`
-- `POST /api/beneficiaries/sync/claims`
+### A. Real claim-path enforcement
 
-## 5. Validation Rules
+Before:
 
-### Resident proof submission
-- Resident must be authenticated as `Resident`
-- Resident registration must already be `Approved`
-- Event must exist and be `Active`
-- If `submissionDeadline` exists, it must not be passed
-- `damageType` must be one of:
-  - `Flood`
-  - `House Damage`
-  - `Storm Surge`
-  - `Landslide`
-  - `Livelihood Loss`
-  - `Other`
-- `description` minimum length: 10
-- `photoProof` is required
-- One proof submission record is maintained per resident per event
-- Re-submission updates the same record and increments `submissionVersion`
+- target-beneficiary approval existed in a separate event path
+- the normal distribution claim route could still allow claims by covered approved residents
 
-### Admin review
-- Only `SUPERADMIN` or `LGU_STAFF` can review submissions
-- `LGU_STAFF` can only review submissions from their scoped barangays
-- Rejection requires `rejectionReason`
+Now:
 
-### QR validation
-- QR must contain a valid permanent resident token
-- Resident record must exist
-- Resident registration must be `Approved`
-- Resident QR must not be revoked
-- Event eligibility must be `Eligible`
-- Existing disaster-event claim must not already exist
+- the actual distribution claim route checks approved beneficiary eligibility for targeted distributions
 
-## 6. Offline Sync Behavior
+### B. Single and batch claim parity
 
-### Resident mobile app
-- First-time login requires internet because the server must issue and validate the token.
-- After a successful login, the app can cache the session locally so the home screen still opens offline.
-- Proof submissions created offline are saved locally with `Pending Sync`.
-- When online again, the app pushes them to `/api/beneficiaries/sync/proof-submissions`.
+Before:
 
-### Volunteer scanner app
-- Before field deployment, the app downloads `/api/beneficiaries/events/:id/offline-pack`.
-- Cached pack includes:
-  - `residentId`
-  - `qrToken`
-  - `fullName`
-  - `barangay`
-  - `eligibilityStatus`
-  - `claimStatus`
-- If offline during scanning:
-  - the app validates against the downloaded list
-  - claim attempts are stored locally
-  - once online, they sync through `/api/beneficiaries/sync/claims`
+- batch and single claim handling did not share every validation step
 
-### Server reconciliation
-- Each synced item writes to `OfflineSyncQueue`
-- `clientGeneratedId` prevents duplicate server processing
-- Successful sync updates queue status to `Synced`
-- Failed sync stores `errorMessage`
+Now:
 
-## 7. QR Scan Verification Logic
+- both paths use the same guarded preparation logic
+- the same resident/distribution/approval checks apply to both
 
-### Input
-- `qrData`
-- optional `disasterEventId`
+### C. Distribution-bound approval
 
-### Algorithm
-1. Resolve active event, or use provided event ID.
-2. Decode resident QR payload.
-3. Find resident by permanent `residentCode`.
-4. If QR is malformed or resident is not found: `Invalid QR`
-5. If resident registration is not approved or QR is revoked: `Not eligible for this event`
-6. Check `BeneficiaryEligibility` for `(residentId, disasterEventId)`
-7. If no eligible record exists: `Not eligible for this event`
-8. Check `Claims` for an existing `DISASTER_EVENT` claim for the same resident/event
-9. If found: `Already claimed`
-10. Otherwise: `Valid - eligible to claim`
+Approval is now checked against:
 
-## 8. Sample Pseudocode
+- `residentId + distributionId`
 
-### Beneficiary approval
-```text
-function reviewProofSubmission(submissionId, decision, reviewerId, rejectionReason):
-  submission = findProofSubmission(submissionId)
-  resident = findResident(submission.residentId)
+This prevents carry-over approval from older distributions.
 
-  if submission not found:
-    return error("Proof submission not found")
+### D. Safer counts and status sync
 
-  submission.status = decision
-  submission.reviewedBy = reviewerId
-  submission.reviewedAt = now()
+Before:
 
-  if decision == "Rejected":
-    submission.rejectionReason = rejectionReason
-    eligibilityStatus = "Not Eligible"
-  else if resident.status == "Approved":
-    eligibilityStatus = "Eligible"
-  else:
-    eligibilityStatus = "Not Eligible"
+- distribution totals were based on all approved residents in covered barangays
 
-  save(submission)
+Now:
 
-  upsert BeneficiaryEligibility where residentId + disasterEventId:
-    proofSubmissionId = submission.id
-    registrationStatus = resident.status
-    proofStatus = submission.status
-    status = eligibilityStatus
-    rejectionReason = submission.rejectionReason
-    reviewedBy = reviewerId
-    reviewedAt = now()
+- targeted distributions count only approved eligible residents
+- distribution household views also show only claimable approved beneficiaries
 
-  return submission, eligibilityStatus
-```
+### E. Resident authentication upload requirements
 
-### Claim validation
-```text
-function validateClaim(qrData, disasterEventId):
-  residentCode = decodePermanentQr(qrData)
-  if residentCode is invalid:
-    return "Invalid QR"
+Related resident registration and authentication-adjacent verification flows already use the same verification-image storage path:
 
-  resident = findResidentByCode(residentCode)
-  if resident not found:
-    return "Invalid QR"
+- `/api/residents/register`
+- `/api/household/register`
+- `/api/household/auth/me/revision-submit`
 
-  if resident.status != "Approved" or resident.qrStatus == "REVOKED":
-    return "Not eligible for this event"
+Current requirements across those resident-authenticated flows:
 
-  eligibility = findBeneficiaryEligibility(resident.id, disasterEventId)
-  if not eligibility or eligibility.status != "Eligible":
-    return "Not eligible for this event"
+- front ID, back ID, and face images are validated server-side before storage
+- each image is limited to `2 MB`
+- `/api/residents/register` also rejects total payloads above `8 MB`
+- verification files are written to `/uploads/resident-verification/`
+- resident records store file references in `frontIdImage`, `backIdImage`, and `faceImage`
 
-  existingClaim = findClaim(
-    claimCategory = "DISASTER_EVENT",
-    residentId = resident.id,
-    disasterEventId = disasterEventId,
-    claimStatus = "Claimed"
-  )
+## 6. Bottlenecks Found and Fixed
 
-  if existingClaim exists:
-    return "Already claimed"
+### Fixed bottlenecks
 
-  return "Valid - eligible to claim"
-```
+1. **Claim enforcement gap**
+   - target-beneficiary approval did not affect the real `/api/claims` flow
 
-## 9. Files Added or Updated
+2. **Batch-claim validation drift**
+   - batch claims did not fully mirror single-claim protections
 
-Backend implementation:
-- `apps/web/apps/server/models/DisasterEvent.ts`
-- `apps/web/apps/server/models/ProofSubmission.ts`
-- `apps/web/apps/server/models/BeneficiaryEligibility.ts`
-- `apps/web/apps/server/models/OfflineSyncQueue.ts`
-- `apps/web/apps/server/services/beneficiaryService.ts`
-- `apps/web/apps/server/routes/beneficiaryRoutes.ts`
-- `apps/web/apps/server/validation/beneficiary.schema.ts`
+3. **Incorrect household totals**
+   - distributions counted all approved residents, not approved beneficiaries
 
-Existing backend integrations:
-- `apps/web/apps/server/index.ts`
-- `apps/web/apps/server/models/Claim.ts`
-- `apps/web/apps/server/models/AuditLog.ts`
-- `apps/web/apps/server/routes/claimRoutes.ts`
-- `apps/web/apps/server/routes/householdRoutes.ts`
-- `apps/web/apps/server/routes/householdListRoutes.ts`
-- `apps/web/apps/server/routes/authRoutes.ts`
+4. **Incorrect not-yet-claimed lists**
+   - household modal showed everyone in covered barangays instead of only approved beneficiaries for targeted distributions
 
-Tests:
-- `apps/web/apps/server/test/beneficiaryFlow.unit.ts`
-- `apps/web/apps/server/test/runBeneficiaryFlowTests.ts`
+### Remaining watch items
+
+1. **Legacy event-based beneficiary routes still exist**
+   - kept for backward compatibility
+   - new work should use distribution scope
+
+2. **Index migration in existing production databases**
+   - schema/index changes may require a controlled migration if old indexes already exist
+
+3. **Resident-facing beneficiary UI**
+   - backend support is now present
+   - mobile/web screens should consume `GET /api/beneficiaries/distributions/open`
+
+## 7. Current Business Rule Summary
+
+If Resident X:
+
+- applies for Distribution 1
+- admin approves Distribution 1
+
+then:
+
+- Resident X can claim Distribution 1
+
+If Distribution 2 is later created:
+
+- Resident X cannot claim Distribution 2 automatically
+- Resident X must submit again for Distribution 2
+- Admin must approve again for Distribution 2
+
+This is the logic currently implemented.

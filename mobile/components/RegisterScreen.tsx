@@ -63,6 +63,26 @@ interface RegisterScreenProps {
   onCancel: () => void;
 }
 
+type Step3ValidationState = 'neutral' | 'success' | 'warning' | 'error';
+
+interface Step3IdScreeningResult {
+  decision: 'PASS' | 'REVIEW' | 'BLOCK';
+  screeningConfidence: number;
+  requiresManualReview: boolean;
+  enteredIdType: string;
+  detectedIdType: string | null;
+  typeMatch: boolean | null;
+  typeConfidence: number;
+  extractedIdNumberMasked: string | null;
+  idNumberMatch: boolean | null;
+  ocrConfidence: number;
+  qualityScore: number;
+  reasons: string[];
+  warnings: string[];
+  reviewFlags: string[];
+  limitations: string[];
+}
+
 export default function RegisterScreen({ onBack, onComplete, onCancel }: RegisterScreenProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5; // Added Step 5: Verification Result
@@ -388,7 +408,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [step3ValidationMessage, setStep3ValidationMessage] = useState<string | null>(null);
   const [step3ValidationWarnings, setStep3ValidationWarnings] = useState<string[]>([]);
   const [isStep3Validating, setIsStep3Validating] = useState(false);
-  const [step3ValidationStatus, setStep3ValidationStatus] = useState<'neutral' | 'success' | 'error'>('neutral');
+  const [step3ValidationStatus, setStep3ValidationStatus] = useState<Step3ValidationState>('neutral');
+  const [step3ScreeningResult, setStep3ScreeningResult] = useState<Step3IdScreeningResult | null>(null);
   const [step4Errors, setStep4Errors] = useState({
     faceScan: false,
   });
@@ -756,27 +777,199 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     return !Object.values(errors).some(Boolean);
   };
 
-  // ID number validation is intentionally permissive to avoid blocking registration.
-  const getIdFormatInfo = (_type: string) => {
-    return {
-      minLength: 1,
-      maxLength: 30,
-      pattern: /^.+$/,
-      hint: 'No strict format check',
-      keyboardType: 'default' as const,
-    };
-  };
-
-  const sanitizeIdInput = (_type: string, rawValue: string): string => {
-    const value = rawValue.toUpperCase();
-    return value.replace(/[^A-Z0-9\-\s]/g, '');
-  };
-
-  const validateStep3 = async () => {
+  const resetStep3ScreeningState = () => {
+    setStep3ScreeningResult(null);
     setStep3ValidationMessage(null);
     setStep3ValidationWarnings([]);
     setStep3ValidationStatus('neutral');
+  };
 
+  const normalizeStep3IdNumber = (type: string, value: string): string => {
+    const upper = value.trim().toUpperCase();
+    switch (type) {
+      case 'PhilSys ID':
+      case 'SSS ID':
+      case 'PhilHealth ID':
+        return upper.replace(/\D/g, '');
+      case "Driver's License":
+      case 'Passport':
+      case "Voter's ID":
+        return upper.replace(/[^A-Z0-9]/g, '');
+      default:
+        return upper.replace(/\s+/g, ' ');
+    }
+  };
+
+  const getIdFormatInfo = (type: string) => {
+    switch (type) {
+      case 'PhilSys ID':
+        return {
+          minLength: 12,
+          maxLength: 14,
+          hint: '12 digits, e.g. 1234-5678-9012',
+          keyboardType: 'number-pad' as const,
+        };
+      case "Driver's License":
+        return {
+          minLength: 11,
+          maxLength: 13,
+          hint: '1 letter + 10 digits, e.g. N01-23-456789',
+          keyboardType: 'default' as const,
+        };
+      case 'Passport':
+        return {
+          minLength: 8,
+          maxLength: 8,
+          hint: '1 letter + 7 digits, e.g. P1234567',
+          keyboardType: 'default' as const,
+        };
+      case 'SSS ID':
+        return {
+          minLength: 10,
+          maxLength: 12,
+          hint: '10 digits, e.g. 12-3456789-0',
+          keyboardType: 'number-pad' as const,
+        };
+      case 'PhilHealth ID':
+        return {
+          minLength: 12,
+          maxLength: 14,
+          hint: '12 digits, e.g. 1234-5678-9012',
+          keyboardType: 'number-pad' as const,
+        };
+      case "Voter's ID":
+        return {
+          minLength: 6,
+          maxLength: 25,
+          hint: '6-25 letters or numbers',
+          keyboardType: 'default' as const,
+        };
+      default:
+        return {
+          minLength: 1,
+          maxLength: 30,
+          hint: 'Enter the ID number exactly as shown',
+          keyboardType: 'default' as const,
+        };
+    }
+  };
+
+  const isStep3IdNumberFormatValid = (type: string, value: string): boolean => {
+    const normalized = normalizeStep3IdNumber(type, value);
+    switch (type) {
+      case 'PhilSys ID':
+      case 'PhilHealth ID':
+        return /^\d{12}$/.test(normalized);
+      case "Driver's License":
+        return /^[A-Z]\d{10}$/.test(normalized);
+      case 'Passport':
+        return /^[A-Z]\d{7}$/.test(normalized);
+      case 'SSS ID':
+        return /^\d{10}$/.test(normalized);
+      case "Voter's ID":
+        return /^[A-Z0-9]{6,25}$/.test(normalized);
+      default:
+        return normalized.length > 0;
+    }
+  };
+
+  const sanitizeIdInput = (type: string, rawValue: string): string => {
+    const value = rawValue.toUpperCase();
+    switch (type) {
+      case 'PhilSys ID':
+      case 'SSS ID':
+      case 'PhilHealth ID':
+        return value.replace(/[^0-9\-\s]/g, '');
+      default:
+        return value.replace(/[^A-Z0-9\-\s]/g, '');
+    }
+  };
+
+  const analyzeStep3IdUpload = async (): Promise<Step3IdScreeningResult> => {
+    if (!frontIdImage || !backIdImage) {
+      throw new Error('Please upload both front and back ID images.');
+    }
+
+    const [frontIdImagePayload, backIdImagePayload] = await Promise.all([
+      imageUriToDataUrl(frontIdImage),
+      imageUriToDataUrl(backIdImage),
+    ]);
+
+    const requestIdScreening = async (baseUrl: string): Promise<Step3IdScreeningResult> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      let response;
+
+      try {
+        response = await fetch(`${baseUrl}/verification/id-check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idType,
+            idNumber,
+            frontIdImage: frontIdImagePayload,
+            backIdImage: backIdImagePayload,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success || !data?.screening) {
+        throw new Error(data?.message || 'Unable to analyze the uploaded ID right now.');
+      }
+
+      return data.screening as Step3IdScreeningResult;
+    };
+
+    try {
+      return await requestIdScreening(API_URL);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isNetworkError =
+        message.includes('Network request failed') ||
+        message.includes('fetch failed') ||
+        message.includes('Failed to fetch') ||
+        message.toLowerCase().includes('aborted');
+
+      if (isNetworkError) {
+        const fallbackApiUrl = resolveDevApiFallbackUrl(API_URL);
+        if (fallbackApiUrl) {
+          return requestIdScreening(fallbackApiUrl);
+        }
+      }
+
+      throw error;
+    }
+  };
+
+  const applyStep3ScreeningFeedback = (screening: Step3IdScreeningResult) => {
+    setStep3ScreeningResult(screening);
+    setStep3ValidationWarnings(screening.warnings || []);
+
+    if (screening.decision === 'PASS') {
+      setStep3ValidationStatus('success');
+      setStep3ValidationMessage('ID passed automated screening.');
+      return;
+    }
+
+    if (screening.decision === 'REVIEW') {
+      setStep3ValidationStatus('warning');
+      setStep3ValidationMessage(
+        screening.reasons[0] || 'ID needs manual review, but you can continue with registration.',
+      );
+      return;
+    }
+
+    setStep3ValidationStatus('error');
+    setStep3ValidationMessage(
+      screening.reasons[0] || 'ID failed automated screening. Please retake the photos.',
+    );
+  };
+
+  const validateStep3 = async () => {
     const errors = {
       idType: !idType.trim(),
       idNumber: !idNumber.trim(),
@@ -787,23 +980,69 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
     if (errors.idType) {
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    } else if (errors.idNumber) {
+      return false;
+    }
+    if (errors.idNumber) {
       scrollViewRef.current?.scrollTo({ y: 100, animated: true });
-    } else if (errors.frontIdImage) {
+      return false;
+    }
+    if (errors.frontIdImage) {
       scrollViewRef.current?.scrollTo({ y: 200, animated: true });
-    } else if (errors.backIdImage) {
+      return false;
+    }
+    if (errors.backIdImage) {
       scrollViewRef.current?.scrollTo({ y: 400, animated: true });
-    }
-
-    if (Object.values(errors).some(Boolean)) {
       return false;
     }
 
-    if (!frontIdImage || !backIdImage) {
+    if (!isStep3IdNumberFormatValid(idType, idNumber)) {
+      setStep3ScreeningResult(null);
+      setStep3ValidationWarnings([]);
+      setStep3ValidationStatus('error');
+      setStep3ValidationMessage(`Enter a valid ${idType} number.`);
+      setStep3Errors((prev) => ({ ...prev, idNumber: true }));
+      scrollViewRef.current?.scrollTo({ y: 100, animated: true });
       return false;
     }
 
-    return true;
+    if (step3ScreeningResult) {
+      applyStep3ScreeningFeedback(step3ScreeningResult);
+      return step3ScreeningResult.decision !== 'BLOCK';
+    }
+
+    setIsStep3Validating(true);
+    setStep3ValidationWarnings([]);
+    setStep3ValidationMessage(null);
+    setStep3ValidationStatus('neutral');
+
+    try {
+      const screening = await analyzeStep3IdUpload();
+      applyStep3ScreeningFeedback(screening);
+
+      if (screening.decision === 'BLOCK') {
+        scrollViewRef.current?.scrollTo({ y: 100, animated: true });
+        return false;
+      }
+
+      if (screening.decision === 'REVIEW') {
+        Alert.alert(
+          'Manual Review Needed',
+          'We could not fully confirm the ID automatically. You can continue, but staff may review this ID manually.',
+          [{ text: 'OK' }]
+        );
+      }
+
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to analyze the uploaded ID right now.';
+      setStep3ScreeningResult(null);
+      setStep3ValidationWarnings([]);
+      setStep3ValidationStatus('error');
+      setStep3ValidationMessage(message);
+      return false;
+    } finally {
+      setIsStep3Validating(false);
+    }
   };
 
   const routeSubmissionErrorToStep = (
@@ -835,6 +1074,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       errorCode === 'DUPLICATE_ID' ||
       normalized.includes('id number is already registered')
     ) {
+      setStep3ScreeningResult(null);
+      setStep3ValidationWarnings([]);
+      setStep3ValidationStatus('error');
       setStep3Errors(prev => ({ ...prev, idNumber: true }));
       setStep3ValidationMessage('This ID number is already registered.');
       goToStep(3, 100);
@@ -894,6 +1136,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       }
 
       if (byField.has('idType') || byField.has('idNumber') || byField.has('frontIdImage') || byField.has('backIdImage')) {
+        setStep3ScreeningResult(null);
+        setStep3ValidationWarnings([]);
+        setStep3ValidationStatus('error');
         setStep3Errors(prev => ({
           ...prev,
           idType: byField.has('idType'),
@@ -970,6 +1215,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     }
 
     if (Object.values(step3).some(Boolean)) {
+      setStep3ScreeningResult(null);
+      setStep3ValidationWarnings([]);
+      setStep3ValidationStatus('error');
       setStep3Errors(prev => ({ ...prev, ...step3 }));
       goToStep(3, step3.idNumber ? 100 : step3.frontIdImage ? 200 : step3.backIdImage ? 400 : 0);
       return true;
@@ -1023,9 +1271,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     });
 
     if (!result.canceled && result.assets[0]) {
-      setStep3ValidationMessage(null);
-      setStep3ValidationWarnings([]);
-      setStep3ValidationStatus('neutral');
+      resetStep3ScreeningState();
       if (currentImageSide === 'front') {
         setFrontIdImage(result.assets[0].uri);
         if (showErrors) setStep3Errors(prev => ({ ...prev, frontIdImage: false }));
@@ -1054,9 +1300,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     });
 
     if (!result.canceled && result.assets[0]) {
-      setStep3ValidationMessage(null);
-      setStep3ValidationWarnings([]);
-      setStep3ValidationStatus('neutral');
+      resetStep3ScreeningState();
       if (currentImageSide === 'front') {
         setFrontIdImage(result.assets[0].uri);
         if (showErrors) setStep3Errors(prev => ({ ...prev, frontIdImage: false }));
@@ -2371,9 +2615,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                     setIdType(option);
                     setIdNumber(''); // Clear ID number when type changes
                     setShowIdTypeDropdown(false);
-                    setStep3ValidationMessage(null);
-                    setStep3ValidationWarnings([]);
-                    setStep3ValidationStatus('neutral');
+                    resetStep3ScreeningState();
                     if (showErrors) setStep3Errors(prev => ({ ...prev, idType: false, idNumber: false }));
                   }}
                 >
@@ -2404,9 +2646,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               onChangeText={(text) => {
                 const filteredText = idType ? sanitizeIdInput(idType, text) : text;
                 setIdNumber(filteredText);
-                setStep3ValidationMessage(null);
-                setStep3ValidationWarnings([]);
-                setStep3ValidationStatus('neutral');
+                resetStep3ScreeningState();
                 if (filteredText.trim() && showErrors) {
                   setStep3Errors(prev => ({ ...prev, idNumber: false }));
                 }

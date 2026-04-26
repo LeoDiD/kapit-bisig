@@ -65,6 +65,10 @@ function statusBadgeClass(status: string): string {
   }
 }
 
+function getProofStatusLabel(status: BeneficiaryProofSubmissionRecord['status']): string {
+  return status === 'Rejected' ? 'Needs Revision' : status
+}
+
 function resolveProofAssetUrl(value: string): string {
   const raw = String(value || '').trim()
   if (!raw) return '#'
@@ -93,7 +97,7 @@ function truncateText(value: string | null | undefined, maxLength: number): stri
   return `${text.slice(0, maxLength).trimEnd()}...`
 }
 
-function RejectReasonModal({
+function RevisionRequestModal({
   open,
   loading,
   residentName,
@@ -118,10 +122,10 @@ function RejectReasonModal({
     <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
       <div className="relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-500">Reject Submission</p>
-        <h3 className="mt-2 text-xl font-black text-gray-900 dark:text-slate-100">Provide a rejection reason</h3>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-600">Return Submission</p>
+        <h3 className="mt-2 text-xl font-black text-gray-900 dark:text-slate-100">Request more proof or missing requirements</h3>
         <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
-          This rejection note will be stored for <span className="font-semibold text-gray-900 dark:text-slate-100">{residentName}</span> under{' '}
+          This note will be sent back to <span className="font-semibold text-gray-900 dark:text-slate-100">{residentName}</span> for{' '}
           <span className="font-semibold text-gray-900 dark:text-slate-100">{eventName}</span>.
         </p>
 
@@ -129,7 +133,7 @@ function RejectReasonModal({
           value={reason}
           onChange={(event) => onReasonChange(event.target.value)}
           rows={5}
-          placeholder="Explain why the submission does not qualify for this disaster event."
+          placeholder="Explain what the resident still needs to upload or clarify, such as a barangay indigency certificate or clearer damage photos."
           className="mt-5 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
         />
 
@@ -146,10 +150,10 @@ function RejectReasonModal({
             type="button"
             onClick={onSubmit}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-rose-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
           >
             {loading ? <SpinnerIcon className="h-4 w-4" /> : null}
-            Reject submission
+            Return for revision
           </button>
         </div>
       </div>
@@ -261,7 +265,7 @@ export default function TargetBeneficiariesPageClient() {
   const submitReview = useCallback(async () => {
     if (!reviewTarget) return
     if (reviewDecision === 'Rejected' && !reviewReason.trim()) {
-      showToast.error('Rejection reason is required.')
+      showToast.error('A revision note is required.')
       return
     }
 
@@ -272,7 +276,9 @@ export default function TargetBeneficiariesPageClient() {
         decision: reviewDecision,
         rejectionReason: reviewDecision === 'Rejected' ? reviewReason.trim() : undefined,
       })
-      showToast.success(response.message || `Submission ${reviewDecision.toLowerCase()}.`)
+      showToast.success(
+        response.message || `Submission ${reviewDecision === 'Approved' ? 'approved' : 'returned for revision'}.`,
+      )
       closeReviewModals()
 
       // Keep the review queue focused on items that still need action.
@@ -310,8 +316,7 @@ export default function TargetBeneficiariesPageClient() {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400">Target Beneficiary Control</p>
           <h2 className="mt-2 text-2xl font-black text-gray-900 dark:text-slate-100">Event-scoped eligibility review</h2>
           <p className="mt-2 max-w-3xl text-sm text-gray-600 dark:text-slate-400">
-            Review affected-resident proof submissions, approve target beneficiaries for the current disaster event,
-            and keep the verification queue aligned with per-event claim eligibility.
+            Review affected-resident proof submissions, approve complete requests, and return incomplete requests so residents can upload clearer proof or missing barangay documents for each distribution.
           </p>
         </div>
 
@@ -319,7 +324,7 @@ export default function TargetBeneficiariesPageClient() {
           <SummaryMetricCard label="Matched Submissions" value={String(proofSummary.total)} helper="Across the current proof queue filter" icon={<ClipboardIcon className="h-5 w-5" />} />
           <SummaryMetricCard label="Pending Reviews" value={String(proofSummary.pendingVerification)} helper="Across the current queue filter" icon={<ClockIcon className="h-5 w-5" />} />
           <SummaryMetricCard label="Approved Proofs" value={String(proofSummary.approved)} helper="Across the current queue filter" icon={<ShieldCheckIcon className="h-5 w-5" />} />
-          <SummaryMetricCard label="Rejected Proofs" value={String(proofSummary.rejected)} helper="Across the current queue filter" icon={<AlertIcon className="h-5 w-5" />} />
+          <SummaryMetricCard label="Returned Proofs" value={String(proofSummary.rejected)} helper="Sent back for additional proof" icon={<AlertIcon className="h-5 w-5" />} />
         </div>
       </section>
 
@@ -330,7 +335,7 @@ export default function TargetBeneficiariesPageClient() {
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400">Verification Queue</p>
               <h3 className="mt-1 text-lg font-black text-gray-900 dark:text-slate-100">Proof submission review queue</h3>
               <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-                Approve affected-resident proof submissions so eligible residents can be marked for their matching relief event.
+                Approve complete submissions or return incomplete ones with guidance for resubmission.
               </p>
             </div>
 
@@ -371,7 +376,7 @@ export default function TargetBeneficiariesPageClient() {
                 <option value="Pending Verification">Pending Verification</option>
                 <option value={ALL_STATUSES}>All Statuses</option>
                 <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
+                <option value="Rejected">Needs Revision</option>
               </select>
 
               <select
@@ -448,7 +453,7 @@ export default function TargetBeneficiariesPageClient() {
                   const proofUrls = getProofUrls(row)
                   const proofUrl = proofUrls[0] || '#'
                   const reviewNote = row.status === 'Rejected'
-                    ? row.rejectionReason || 'No rejection reason recorded.'
+                    ? row.rejectionReason || 'Returned for revision without a note.'
                     : row.status === 'Approved'
                       ? `Approved by ${row.reviewedBy || 'reviewer'}`
                       : 'Awaiting admin verification'
@@ -465,7 +470,7 @@ export default function TargetBeneficiariesPageClient() {
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <p className="truncate text-sm font-black text-gray-900 dark:text-slate-100 sm:text-base">{row.resident.fullName}</p>
                                 <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusBadgeClass(row.status)}`}>
-                                  {row.status}
+                                  {getProofStatusLabel(row.status)}
                                 </span>
                                 <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                   {row.damageType}
@@ -548,7 +553,7 @@ export default function TargetBeneficiariesPageClient() {
                                 onClick={() => openRejectModal(row)}
                                 className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100"
                               >
-                                Reject
+                                Return
                               </button>
                             </div>
                           ) : (
@@ -594,7 +599,7 @@ export default function TargetBeneficiariesPageClient() {
         title="Approve Proof Submission"
         body={
           reviewTarget
-            ? `Approve the proof submission from ${reviewTarget.resident.fullName} for ${reviewTarget.event.name}? This will make the resident eligible for that event once the registration record is approved.`
+            ? `Approve the proof submission from ${reviewTarget.resident.fullName} for ${reviewTarget.event.name}? This will make the resident eligible for that distribution once the registration record is approved.`
             : ''
         }
         confirmLabel={reviewLoading ? 'Approving...' : 'Approve Submission'}
@@ -603,7 +608,7 @@ export default function TargetBeneficiariesPageClient() {
         onConfirm={submitReview}
       />
 
-      <RejectReasonModal
+      <RevisionRequestModal
         open={!!reviewTarget && reviewDecision === 'Rejected'}
         loading={reviewLoading}
         residentName={reviewTarget?.resident.fullName || ''}

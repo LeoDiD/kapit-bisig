@@ -487,6 +487,15 @@ const api = {
         return handleResponse(response);
     },
     /**
+   * Get one resident registration detail for admin review.
+   */ async getResident (id) {
+        const response = await fetch(`${API_URL}/residents/${id}`, {
+            headers: createHeaders(),
+            credentials: 'include'
+        });
+        return handleResponse(response);
+    },
+    /**
    * Approve or reject a resident registration.
    */ async updateResidentStatus (id, payload) {
         const response = await fetch(`${API_URL}/residents/${id}/status`, {
@@ -941,12 +950,12 @@ function Dropdown({ value, items, onChange, buttonLabel, widthClass = 'min-w-[20
         columnNumber: 5
     }, this);
 }
-function StatCard({ icon, title, value, accentBg }) {
+function StatCard({ icon, title, value }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         className: "flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]",
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: `w-10 h-10 rounded-xl flex items-center justify-center ${accentBg}`,
+                className: "flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
                 children: icon
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
@@ -2085,13 +2094,12 @@ function ReportsPageClient() {
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](StatCard, {
                         icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](CubeIcon, {
-                            className: "w-5 h-5 text-green-700"
+                            className: "w-5 h-5"
                         }, void 0, false, {
                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
                             lineNumber: 635,
                             columnNumber: 19
                         }, void 0),
-                        accentBg: "bg-green-100",
                         title: "Total Distributions",
                         value: `${overview.totalDistributions}`
                     }, void 0, false, {
@@ -2101,50 +2109,47 @@ function ReportsPageClient() {
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](StatCard, {
                         icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](UsersIcon, {
-                            className: "w-5 h-5 text-green-700"
+                            className: "w-5 h-5"
                         }, void 0, false, {
                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                            lineNumber: 641,
+                            lineNumber: 640,
                             columnNumber: 19
                         }, void 0),
-                        accentBg: "bg-green-100",
                         title: "Households Served",
                         value: `${overview.totalClaimedHouseholds}`
                     }, void 0, false, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 640,
+                        lineNumber: 639,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](StatCard, {
                         icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](TrendIcon, {
-                            className: "w-5 h-5 text-green-700"
+                            className: "w-5 h-5"
                         }, void 0, false, {
                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                            lineNumber: 647,
+                            lineNumber: 645,
                             columnNumber: 19
                         }, void 0),
-                        accentBg: "bg-green-100",
                         title: "Claim Rate",
                         value: `${overview.claimRate}%`
                     }, void 0, false, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 646,
+                        lineNumber: 644,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](StatCard, {
                         icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](UnclaimedIcon, {
-                            className: "w-5 h-5 text-amber-600"
+                            className: "w-5 h-5"
                         }, void 0, false, {
                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                            lineNumber: 653,
+                            lineNumber: 650,
                             columnNumber: 19
                         }, void 0),
-                        accentBg: "bg-amber-100",
                         title: "Unclaimed Households",
                         value: `${overview.totalUnclaimedHouseholds}`
                     }, void 0, false, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 652,
+                        lineNumber: 649,
                         columnNumber: 11
                     }, this)
                 ]
@@ -2155,7 +2160,7 @@ function ReportsPageClient() {
             }, this),
             loading && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](LoadingSpinner, {}, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 662,
+                lineNumber: 658,
                 columnNumber: 19
             }, this),
             generated && !loading && reportType === 'distribution' && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2171,7 +2176,7 @@ function ReportsPageClient() {
                                         className: "h-5 w-5 text-gray-700 dark:text-slate-300"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 669,
+                                        lineNumber: 665,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -2181,13 +2186,13 @@ function ReportsPageClient() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 670,
+                                        lineNumber: 666,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 668,
+                                lineNumber: 664,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2195,20 +2200,20 @@ function ReportsPageClient() {
                                 children: "Summary of relief distributions by barangay for the selected period"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 672,
+                                lineNumber: 668,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 667,
+                        lineNumber: 663,
                         columnNumber: 11
                     }, this),
                     distributions.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](EmptyState, {
                         message: "No distributions found for the selected filters."
                     }, void 0, false, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 678,
+                        lineNumber: 674,
                         columnNumber: 13
                     }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
                         children: [
@@ -2226,7 +2231,7 @@ function ReportsPageClient() {
                                                         children: "Date"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 685,
+                                                        lineNumber: 681,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2234,7 +2239,7 @@ function ReportsPageClient() {
                                                         children: "Barangay"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 686,
+                                                        lineNumber: 682,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2242,7 +2247,7 @@ function ReportsPageClient() {
                                                         children: "Registered"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 687,
+                                                        lineNumber: 683,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2250,7 +2255,7 @@ function ReportsPageClient() {
                                                         children: "Claimed"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 688,
+                                                        lineNumber: 684,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2258,7 +2263,7 @@ function ReportsPageClient() {
                                                         children: "Unclaimed"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 689,
+                                                        lineNumber: 685,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2266,7 +2271,7 @@ function ReportsPageClient() {
                                                         children: "Claim Rate"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 690,
+                                                        lineNumber: 686,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2274,25 +2279,25 @@ function ReportsPageClient() {
                                                         children: "Status"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 691,
+                                                        lineNumber: 687,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
                                                         className: "px-4 py-4 font-medium w-[5%]"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 692,
+                                                        lineNumber: 688,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 684,
+                                                lineNumber: 680,
                                                 columnNumber: 21
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                            lineNumber: 683,
+                                            lineNumber: 679,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
@@ -2305,7 +2310,7 @@ function ReportsPageClient() {
                                                             children: formatDate(r.scheduled || r.createdAt)
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                            lineNumber: 698,
+                                                            lineNumber: 694,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2313,7 +2318,7 @@ function ReportsPageClient() {
                                                             children: r.barangay
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                            lineNumber: 699,
+                                                            lineNumber: 695,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2321,7 +2326,7 @@ function ReportsPageClient() {
                                                             children: r.registeredHouseholds
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                            lineNumber: 700,
+                                                            lineNumber: 696,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2329,7 +2334,7 @@ function ReportsPageClient() {
                                                             children: r.claimedHouseholds
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                            lineNumber: 701,
+                                                            lineNumber: 697,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2337,7 +2342,7 @@ function ReportsPageClient() {
                                                             children: r.unclaimedHouseholds
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                            lineNumber: 702,
+                                                            lineNumber: 698,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2346,12 +2351,12 @@ function ReportsPageClient() {
                                                                 rate: r.claimRate
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                lineNumber: 704,
+                                                                lineNumber: 700,
                                                                 columnNumber: 27
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                            lineNumber: 703,
+                                                            lineNumber: 699,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2360,12 +2365,12 @@ function ReportsPageClient() {
                                                                 status: r.status
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                lineNumber: 707,
+                                                                lineNumber: 703,
                                                                 columnNumber: 27
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                            lineNumber: 706,
+                                                            lineNumber: 702,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2379,12 +2384,12 @@ function ReportsPageClient() {
                                                                         className: "rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300",
                                                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](DotsIcon, {}, void 0, false, {
                                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                            lineNumber: 715,
+                                                                            lineNumber: 711,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                        lineNumber: 711,
+                                                                        lineNumber: 707,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     activeMenu === r.id && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2398,7 +2403,7 @@ function ReportsPageClient() {
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                                                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](EyeIcon, {}, void 0, false, {
                                                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                                        lineNumber: 726,
+                                                                                        lineNumber: 722,
                                                                                         columnNumber: 43
                                                                                     }, void 0),
                                                                                     label: "View Details",
@@ -2408,7 +2413,7 @@ function ReportsPageClient() {
                                                                                     }
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                                    lineNumber: 725,
+                                                                                    lineNumber: 721,
                                                                                     columnNumber: 35
                                                                                 }, this),
                                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
@@ -2416,58 +2421,58 @@ function ReportsPageClient() {
                                                                                         className: "w-5 h-5"
                                                                                     }, void 0, false, {
                                                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                                        lineNumber: 731,
+                                                                                        lineNumber: 727,
                                                                                         columnNumber: 43
                                                                                     }, void 0),
                                                                                     label: "Export Row CSV",
                                                                                     onClick: ()=>handleExportRowCSV(r)
                                                                                 }, void 0, false, {
                                                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                                    lineNumber: 730,
+                                                                                    lineNumber: 726,
                                                                                     columnNumber: 35
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                            lineNumber: 724,
+                                                                            lineNumber: 720,
                                                                             columnNumber: 33
                                                                         }, this)
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                        lineNumber: 718,
+                                                                        lineNumber: 714,
                                                                         columnNumber: 31
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                                lineNumber: 710,
+                                                                lineNumber: 706,
                                                                 columnNumber: 27
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                            lineNumber: 709,
+                                                            lineNumber: 705,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, r.id, true, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 697,
+                                                    lineNumber: 693,
                                                     columnNumber: 23
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                            lineNumber: 695,
+                                            lineNumber: 691,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                    lineNumber: 682,
+                                    lineNumber: 678,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 681,
+                                lineNumber: 677,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2480,7 +2485,7 @@ function ReportsPageClient() {
                                             children: "Report Summary"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                            lineNumber: 749,
+                                            lineNumber: 745,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2491,7 +2496,7 @@ function ReportsPageClient() {
                                                     value: `${overview?.totalDistributions ?? 0}`
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 751,
+                                                    lineNumber: 747,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCell, {
@@ -2499,7 +2504,7 @@ function ReportsPageClient() {
                                                     value: `${overview?.totalRegisteredHouseholds ?? 0}`
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 752,
+                                                    lineNumber: 748,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCell, {
@@ -2508,7 +2513,7 @@ function ReportsPageClient() {
                                                     valueClass: "text-green-700"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 753,
+                                                    lineNumber: 749,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCell, {
@@ -2517,7 +2522,7 @@ function ReportsPageClient() {
                                                     valueClass: "text-[#D97706]"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 754,
+                                                    lineNumber: 750,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCell, {
@@ -2525,24 +2530,24 @@ function ReportsPageClient() {
                                                     value: `${overview?.claimRate ?? 0}%`
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 755,
+                                                    lineNumber: 751,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                            lineNumber: 750,
+                                            lineNumber: 746,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                    lineNumber: 748,
+                                    lineNumber: 744,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 747,
+                                lineNumber: 743,
                                 columnNumber: 15
                             }, this)
                         ]
@@ -2550,7 +2555,7 @@ function ReportsPageClient() {
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 666,
+                lineNumber: 662,
                 columnNumber: 9
             }, this),
             generated && !loading && reportType === 'barangay' && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2566,7 +2571,7 @@ function ReportsPageClient() {
                                         className: "h-5 w-5 text-gray-700 dark:text-slate-300"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 769,
+                                        lineNumber: 765,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -2576,13 +2581,13 @@ function ReportsPageClient() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 770,
+                                        lineNumber: 766,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 768,
+                                lineNumber: 764,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2590,20 +2595,20 @@ function ReportsPageClient() {
                                 children: "Aggregated relief distribution statistics grouped by barangay"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 772,
+                                lineNumber: 768,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 767,
+                        lineNumber: 763,
                         columnNumber: 11
                     }, this),
                     barangaySummaryRows.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](EmptyState, {
                         message: "No data found for the selected filters."
                     }, void 0, false, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 778,
+                        lineNumber: 774,
                         columnNumber: 13
                     }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                         className: "overflow-x-auto w-full",
@@ -2619,7 +2624,7 @@ function ReportsPageClient() {
                                                 children: "Barangay"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 784,
+                                                lineNumber: 780,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2627,7 +2632,7 @@ function ReportsPageClient() {
                                                 children: "Distributions"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 785,
+                                                lineNumber: 781,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2635,7 +2640,7 @@ function ReportsPageClient() {
                                                 children: "Registered"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 786,
+                                                lineNumber: 782,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2643,7 +2648,7 @@ function ReportsPageClient() {
                                                 children: "Claimed"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 787,
+                                                lineNumber: 783,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2651,7 +2656,7 @@ function ReportsPageClient() {
                                                 children: "Unclaimed"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 788,
+                                                lineNumber: 784,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2659,18 +2664,18 @@ function ReportsPageClient() {
                                                 children: "Claim Rate"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 789,
+                                                lineNumber: 785,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 783,
+                                        lineNumber: 779,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                    lineNumber: 782,
+                                    lineNumber: 778,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
@@ -2685,7 +2690,7 @@ function ReportsPageClient() {
                                                     children: r.barangay
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 797,
+                                                    lineNumber: 793,
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2693,7 +2698,7 @@ function ReportsPageClient() {
                                                     children: r.distributions
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 798,
+                                                    lineNumber: 794,
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2701,7 +2706,7 @@ function ReportsPageClient() {
                                                     children: r.registered
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 799,
+                                                    lineNumber: 795,
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2709,7 +2714,7 @@ function ReportsPageClient() {
                                                     children: r.claimed
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 800,
+                                                    lineNumber: 796,
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2717,7 +2722,7 @@ function ReportsPageClient() {
                                                     children: r.unclaimed
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 801,
+                                                    lineNumber: 797,
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -2726,41 +2731,41 @@ function ReportsPageClient() {
                                                         rate: rate
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                        lineNumber: 802,
+                                                        lineNumber: 798,
                                                         columnNumber: 51
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                    lineNumber: 802,
+                                                    lineNumber: 798,
                                                     columnNumber: 25
                                                 }, this)
                                             ]
                                         }, r.barangay, true, {
                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                            lineNumber: 796,
+                                            lineNumber: 792,
                                             columnNumber: 23
                                         }, this);
                                     })
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                    lineNumber: 792,
+                                    lineNumber: 788,
                                     columnNumber: 17
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                            lineNumber: 781,
+                            lineNumber: 777,
                             columnNumber: 15
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 780,
+                        lineNumber: 776,
                         columnNumber: 13
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 766,
+                lineNumber: 762,
                 columnNumber: 9
             }, this),
             generated && !loading && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2774,7 +2779,7 @@ function ReportsPageClient() {
                                 children: "Distribution Trends"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 818,
+                                lineNumber: 814,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2782,7 +2787,7 @@ function ReportsPageClient() {
                                 children: "Monthly distributions vs. claims (last 6 months)"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 819,
+                                lineNumber: 815,
                                 columnNumber: 13
                             }, this),
                             monthlyTrends.length > 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](MiniBarChart, {
@@ -2793,20 +2798,20 @@ function ReportsPageClient() {
                                 legendB: "Claims"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 821,
+                                lineNumber: 817,
                                 columnNumber: 15
                             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                 className: "py-8 text-center text-sm text-gray-400 dark:text-slate-500",
                                 children: "No trend data available"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 829,
+                                lineNumber: 825,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 817,
+                        lineNumber: 813,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2817,7 +2822,7 @@ function ReportsPageClient() {
                                 children: "Distribution by Barangay"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 835,
+                                lineNumber: 831,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2825,7 +2830,7 @@ function ReportsPageClient() {
                                 children: "Number of distributions per barangay"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 836,
+                                lineNumber: 832,
                                 columnNumber: 13
                             }, this),
                             barangayBreakdown.length > 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](Donut, {
@@ -2836,26 +2841,26 @@ function ReportsPageClient() {
                                     }))
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 838,
+                                lineNumber: 834,
                                 columnNumber: 15
                             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                 className: "py-8 text-center text-sm text-gray-400 dark:text-slate-500",
                                 children: "No barangay data available"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 846,
+                                lineNumber: 842,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 834,
+                        lineNumber: 830,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 815,
+                lineNumber: 811,
                 columnNumber: 9
             }, this),
             generated && !loading && verification && (verification.qr > 0 || verification.face > 0) && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2866,7 +2871,7 @@ function ReportsPageClient() {
                         children: "Verification Methods"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 855,
+                        lineNumber: 851,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2874,7 +2879,7 @@ function ReportsPageClient() {
                         children: "How households verified their claims"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 856,
+                        lineNumber: 852,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2889,12 +2894,12 @@ function ReportsPageClient() {
                                             className: "w-5 h-5 text-blue-700"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                            lineNumber: 860,
+                                            lineNumber: 856,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 859,
+                                        lineNumber: 855,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2904,7 +2909,7 @@ function ReportsPageClient() {
                                                 children: verification.qr
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 863,
+                                                lineNumber: 859,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2912,19 +2917,19 @@ function ReportsPageClient() {
                                                 children: "QR Code Scans"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 864,
+                                                lineNumber: 860,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 862,
+                                        lineNumber: 858,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 858,
+                                lineNumber: 854,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2936,12 +2941,12 @@ function ReportsPageClient() {
                                             className: "w-5 h-5 text-purple-700"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                            lineNumber: 869,
+                                            lineNumber: 865,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 868,
+                                        lineNumber: 864,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2951,7 +2956,7 @@ function ReportsPageClient() {
                                                 children: verification.face
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 872,
+                                                lineNumber: 868,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2959,19 +2964,19 @@ function ReportsPageClient() {
                                                 children: "Face Recognition"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 873,
+                                                lineNumber: 869,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 871,
+                                        lineNumber: 867,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 867,
+                                lineNumber: 863,
                                 columnNumber: 13
                             }, this),
                             verification.unknown > 0 && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2983,12 +2988,12 @@ function ReportsPageClient() {
                                             className: "w-5 h-5 text-gray-600 dark:text-slate-300"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                            lineNumber: 879,
+                                            lineNumber: 875,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 878,
+                                        lineNumber: 874,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2998,7 +3003,7 @@ function ReportsPageClient() {
                                                 children: verification.unknown
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 882,
+                                                lineNumber: 878,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3006,31 +3011,31 @@ function ReportsPageClient() {
                                                 children: "Other / Manual"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                                lineNumber: 883,
+                                                lineNumber: 879,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                        lineNumber: 881,
+                                        lineNumber: 877,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                                lineNumber: 877,
+                                lineNumber: 873,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                        lineNumber: 857,
+                        lineNumber: 853,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 854,
+                lineNumber: 850,
                 columnNumber: 9
             }, this),
             !generated && !loading && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3039,12 +3044,12 @@ function ReportsPageClient() {
                     message: "Click Generate Report to view distribution data."
                 }, void 0, false, {
                     fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                    lineNumber: 894,
+                    lineNumber: 890,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 893,
+                lineNumber: 889,
                 columnNumber: 9
             }, this),
             detailRow && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](DetailModal, {
@@ -3052,7 +3057,7 @@ function ReportsPageClient() {
                 onClose: ()=>setDetailRow(null)
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 899,
+                lineNumber: 895,
                 columnNumber: 21
             }, this)
         ]
@@ -3077,12 +3082,12 @@ function ReportsPageClient() {
             d: "M19 9l-7 7-7-7"
         }, void 0, false, {
             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-            lineNumber: 911,
+            lineNumber: 907,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 910,
+        lineNumber: 906,
         columnNumber: 5
     }, this);
 }
@@ -3099,12 +3104,12 @@ function CheckIcon() {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-            lineNumber: 918,
+            lineNumber: 914,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 917,
+        lineNumber: 913,
         columnNumber: 5
     }, this);
 }
@@ -3121,12 +3126,12 @@ function FilterIcon({ className }) {
             d: "M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 018 17v-3.586L3.293 6.707A1 1 0 013 6V4z"
         }, void 0, false, {
             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-            lineNumber: 925,
+            lineNumber: 921,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 924,
+        lineNumber: 920,
         columnNumber: 5
     }, this);
 }
@@ -3143,12 +3148,12 @@ function BoltIcon({ className }) {
             d: "M13 10V3L4 14h7v7l9-11h-7z"
         }, void 0, false, {
             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-            lineNumber: 932,
+            lineNumber: 928,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 931,
+        lineNumber: 927,
         columnNumber: 5
     }, this);
 }
@@ -3166,7 +3171,7 @@ function DownloadIcon({ className }) {
                 d: "M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 939,
+                lineNumber: 935,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3176,7 +3181,7 @@ function DownloadIcon({ className }) {
                 d: "M7 10l5 5 5-5"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 940,
+                lineNumber: 936,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3186,13 +3191,13 @@ function DownloadIcon({ className }) {
                 d: "M12 15V3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 941,
+                lineNumber: 937,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 938,
+        lineNumber: 934,
         columnNumber: 5
     }, this);
 }
@@ -3209,12 +3214,12 @@ function ClearIcon({ className }) {
             d: "M6 18L18 6M6 6l12 12"
         }, void 0, false, {
             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-            lineNumber: 948,
+            lineNumber: 944,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 947,
+        lineNumber: 943,
         columnNumber: 5
     }, this);
 }
@@ -3232,7 +3237,7 @@ function DocIcon({ className }) {
                 d: "M7 7h10M7 11h10M7 15h6"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 955,
+                lineNumber: 951,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3242,13 +3247,13 @@ function DocIcon({ className }) {
                 d: "M6 3h8l4 4v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 956,
+                lineNumber: 952,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 954,
+        lineNumber: 950,
         columnNumber: 5
     }, this);
 }
@@ -3266,7 +3271,7 @@ function CubeIcon({ className }) {
                 d: "M21 8l-9-5-9 5 9 5 9-5z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 963,
+                lineNumber: 959,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3276,7 +3281,7 @@ function CubeIcon({ className }) {
                 d: "M3 8v8l9 5 9-5V8"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 964,
+                lineNumber: 960,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3286,13 +3291,13 @@ function CubeIcon({ className }) {
                 d: "M12 13v8"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 965,
+                lineNumber: 961,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 962,
+        lineNumber: 958,
         columnNumber: 5
     }, this);
 }
@@ -3309,12 +3314,12 @@ function UsersIcon({ className }) {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-            lineNumber: 972,
+            lineNumber: 968,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 971,
+        lineNumber: 967,
         columnNumber: 5
     }, this);
 }
@@ -3332,7 +3337,7 @@ function TrendIcon({ className }) {
                 d: "M3 17l6-6 4 4 8-8"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 979,
+                lineNumber: 975,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3342,13 +3347,13 @@ function TrendIcon({ className }) {
                 d: "M14 7h7v7"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 980,
+                lineNumber: 976,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 978,
+        lineNumber: 974,
         columnNumber: 5
     }, this);
 }
@@ -3366,7 +3371,7 @@ function AlertIcon({ className }) {
                 d: "M12 9v4m0 4h.01"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 987,
+                lineNumber: 983,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3376,13 +3381,13 @@ function AlertIcon({ className }) {
                 d: "M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 988,
+                lineNumber: 984,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 986,
+        lineNumber: 982,
         columnNumber: 5
     }, this);
 }
@@ -3399,12 +3404,12 @@ function UnclaimedIcon({ className }) {
             d: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
         }, void 0, false, {
             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-            lineNumber: 995,
+            lineNumber: 991,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 994,
+        lineNumber: 990,
         columnNumber: 5
     }, this);
 }
@@ -3421,12 +3426,12 @@ function DotsIcon() {
             d: "M5 12h.01M12 12h.01M19 12h.01"
         }, void 0, false, {
             fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-            lineNumber: 1002,
+            lineNumber: 998,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 1001,
+        lineNumber: 997,
         columnNumber: 5
     }, this);
 }
@@ -3444,7 +3449,7 @@ function EyeIcon() {
                 d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1009,
+                lineNumber: 1005,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3454,13 +3459,13 @@ function EyeIcon() {
                 d: "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1010,
+                lineNumber: 1006,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 1008,
+        lineNumber: 1004,
         columnNumber: 5
     }, this);
 }
@@ -3478,7 +3483,7 @@ function QRIcon({ className }) {
                 d: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1017,
+                lineNumber: 1013,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3488,13 +3493,13 @@ function QRIcon({ className }) {
                 d: "M14 14h3v3h-3zM14 20h7M20 14v3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1018,
+                lineNumber: 1014,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 1016,
+        lineNumber: 1012,
         columnNumber: 5
     }, this);
 }
@@ -3512,7 +3517,7 @@ function FaceIcon({ className }) {
                 strokeWidth: 2
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1025,
+                lineNumber: 1021,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3522,7 +3527,7 @@ function FaceIcon({ className }) {
                 d: "M8 14s1.5 2 4 2 4-2 4-2"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1026,
+                lineNumber: 1022,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("line", {
@@ -3534,7 +3539,7 @@ function FaceIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1027,
+                lineNumber: 1023,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("line", {
@@ -3546,13 +3551,13 @@ function FaceIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1028,
+                lineNumber: 1024,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 1024,
+        lineNumber: 1020,
         columnNumber: 5
     }, this);
 }
@@ -3570,7 +3575,7 @@ function QuestionIcon({ className }) {
                 strokeWidth: 2
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1035,
+                lineNumber: 1031,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3580,7 +3585,7 @@ function QuestionIcon({ className }) {
                 d: "M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1036,
+                lineNumber: 1032,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("line", {
@@ -3592,13 +3597,13 @@ function QuestionIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-                lineNumber: 1037,
+                lineNumber: 1033,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/reports/ReportsPageClient.tsx>",
-        lineNumber: 1034,
+        lineNumber: 1030,
         columnNumber: 5
     }, this);
 }

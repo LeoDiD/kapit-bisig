@@ -49,3 +49,12 @@ export const registerHouseholdBody = z.object({
 export const checkMobileBody = z.object({
   mobileNumber: z.string().max(20).optional(),
 }).strict();
+
+/* PATCH /api/household/auth/me/revision-submit */
+export const residentRevisionSubmitBody = z.object({
+  idType: z.string().min(1, 'ID type is required').max(50),
+  idNumber: z.string().min(1, 'ID number is required').max(100),
+  frontIdImage: z.string().min(1, 'Front ID image is required'),
+  backIdImage: z.string().min(1, 'Back ID image is required'),
+  faceImage: z.string().min(1, 'Face image is required'),
+}).strict();

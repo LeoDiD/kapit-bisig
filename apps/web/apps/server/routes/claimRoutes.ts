@@ -17,6 +17,8 @@ import { AuthRequest } from '../middleware/unifiedAuth';
 import { computeHouseholdHash, computeEventHash } from '../utils/hashHelpers';
 import {
   isResidentEligibleForDistribution,
+  isResidentApprovedBeneficiaryForDistribution,
+  requiresBeneficiaryApproval,
   upsertDistributionClaimFromClaim,
 } from '../services/distributionFlowService';
 import { validateRequest } from '../validation/validateRequest';
@@ -280,6 +282,56 @@ async function prepareClaimDraft(
     };
   }
 
+  const distribution = await Distribution.findById(distributionId)
+    .select('_id barangay assignedBarangays status requiresBeneficiaryApproval')
+    .lean();
+  if (!distribution) {
+    return {
+      ok: false,
+      status: 404,
+      message: 'Distribution not found',
+    };
+  }
+
+  if (!isResidentEligibleForDistribution(residentBarangay, distribution as any)) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'Resident barangay is not covered by this distribution',
+    };
+  }
+
+  if (distribution.status === 'Claimed') {
+    return {
+      ok: false,
+      status: 409,
+      message: 'Distribution is already completed',
+    };
+  }
+
+  const tokenBoundDistributionId = String(matchedToken?.householdInfo?.distributionId || '').trim();
+  if (tokenBoundDistributionId && tokenBoundDistributionId !== distributionId) {
+    return {
+      ok: false,
+      status: 409,
+      message: 'Claim token is bound to a different distribution',
+    };
+  }
+
+  if (requiresBeneficiaryApproval(distribution as any)) {
+    const isApprovedTargetBeneficiary = await isResidentApprovedBeneficiaryForDistribution(
+      distributionId,
+      residentId,
+    );
+    if (!isApprovedTargetBeneficiary) {
+      return {
+        ok: false,
+        status: 403,
+        message: 'Resident is not an approved target beneficiary for this distribution',
+      };
+    }
+  }
+
   const householdCode =
     tokenHouseholdCode ||
     String(residentAny.residentCode || '') ||
@@ -347,13 +399,6 @@ router.post(
         return res.status(400).json({ success: false, message: 'distributionSite is required' });
       }
 
-      const distributionDoc = await Distribution.findById(distributionId)
-        .setOptions({ sanitizeFilter: false })
-        .select('_id barangay')
-        .lean();
-      if (!distributionDoc) {
-        return res.status(404).json({ success: false, message: 'Distribution not found' });
-      }
       const normalizedToken = claimToken.trim().toUpperCase();
       logHeader('RECORD CLAIM START');
       console.log(`[1] Token received: ${maskToken(normalizedToken)}`);
@@ -374,174 +419,35 @@ router.post(
           message: 'Invalid claim token format',
         });
       }
-
-      const tokenPrefix = tokenPrefixFromValue(normalizedToken);
-
-      const candidates = await HouseholdToken.find({
-        // [RISK-5 MITIGATION] Accept active claim tokens, then enforce approved household mapping below.
-        status: mongoose.trusted({ $in: ['USED', 'UNUSED'] }),
-        tokenPrefix,
-        expiresAt: mongoose.trusted({ $gt: new Date() }),
-      }).setOptions({ sanitizeFilter: false });
-
-      const matchedCandidates: any[] = [];
-      const bcrypt = await import('bcrypt');
-      for (const token of candidates) {
-        const isMatch = await bcrypt.compare(normalizedToken, token.tokenHash);
-        if (isMatch) {
-          matchedCandidates.push(token);
+      const prepared = await prepareClaimDraft(normalizedToken, distributionId);
+      if (!prepared.ok) {
+        if (prepared.status === 404) {
+          console.error(`[ERROR] Invalid or expired token: ${maskToken(normalizedToken)}`);
+        } else if (prepared.status === 409) {
+          console.error(`[ERROR] Duplicate or blocked claim: ${prepared.message}`);
         }
-      }
-      const matchedToken = selectBestMatchedToken(matchedCandidates);
-
-      if (!matchedToken) {
-        console.error(`[ERROR] Invalid or expired token: ${maskToken(normalizedToken)}`);
         logHeader('RECORD CLAIM END');
-        return res.status(404).json({ success: false, message: 'Invalid or expired claim token' });
-      }
-
-      const householdInfo = matchedToken.householdInfo || {};
-      const tokenBarangay = String(householdInfo.barangay || '').trim();
-      const tokenHouseholdCode = String(matchedToken.householdCode || '').trim();
-      const residentRefId = matchedToken?.usedBy?.residentId
-        ? String(matchedToken.usedBy.residentId)
-        : '';
-      if (!residentRefId && !tokenHouseholdCode) {
-        logHeader('RECORD CLAIM END');
-        return res.status(403).json({
+        return res.status(prepared.status).json({
           success: false,
-          message: 'Claim token is not linked to a verified household record',
+          message: prepared.message,
+          claim: prepared.claim,
         });
       }
 
-      const residentQuery: Record<string, any> = {
-        status: 'Approved',
-      };
-
-      if (residentRefId) {
-        // [RISK-5 MITIGATION] Preferred path: token already linked to approved resident at registration.
-        residentQuery._id = residentRefId;
-      } else if (tokenHouseholdCode) {
-        // [RISK-5 MITIGATION] Backward-compatible path for seeded CLM tokens with household mapping.
-        residentQuery.householdCode = tokenHouseholdCode;
-        // Legacy-safe fallback: allow lookup by householdCode even if token barangay metadata is missing.
-        if (tokenBarangay) {
-          residentQuery.barangay = tokenBarangay;
-        }
-      } else {
-        logHeader('RECORD CLAIM END');
-        return res.status(403).json({
-          success: false,
-          message: 'Claim token is not linked to a verified household record',
-        });
-      }
-
-      const resident = await Resident.findOne(residentQuery)
-        .setOptions({ sanitizeFilter: false })
-        .select('_id barangay residentCode fullName')
-        .lean();
-
-      if (!resident) {
-        logHeader('RECORD CLAIM END');
-        return res.status(403).json({
-          success: false,
-          message: 'No approved household record found for this claim token',
-        });
-      }
-
-      const residentId = String((resident as any)._id);
-      const residentBarangay = String((resident as any).barangay || '').trim();
-      const barangay = tokenBarangay || residentBarangay;
-      if (!barangay) {
-        logHeader('RECORD CLAIM END');
-        return res.status(403).json({
-          success: false,
-          message: 'Claim token is not linked to a verified household record',
-        });
-      }
-      if (tokenBarangay && residentBarangay && residentBarangay !== tokenBarangay) {
-        logHeader('RECORD CLAIM END');
-        return res.status(403).json({
-          success: false,
-          message: 'Claim token and resident barangay do not match',
-        });
-      }
-      const distribution = await Distribution.findById(distributionId)
-        .select('_id barangay assignedBarangays status')
-        .lean();
-      if (!distribution) {
-        logHeader('RECORD CLAIM END');
-        return res.status(404).json({
-          success: false,
-          message: 'Distribution not found',
-        });
-      }
-
-      if (!isResidentEligibleForDistribution((resident as any).barangay, distribution as any)) {
-        logHeader('RECORD CLAIM END');
-        return res.status(403).json({
-          success: false,
-          message: 'Resident barangay is not covered by this distribution',
-        });
-      }
-      if (distribution.status === 'Claimed') {
-        logHeader('RECORD CLAIM END');
-        return res.status(409).json({
-          success: false,
-          message: 'Distribution is already completed',
-        });
-      }
-
-      const tokenBoundDistributionId = String(matchedToken?.householdInfo?.distributionId || '').trim();
-      if (tokenBoundDistributionId && tokenBoundDistributionId !== distributionId) {
-        logHeader('RECORD CLAIM END');
-        return res.status(409).json({
-          success: false,
-          message: 'Claim token is bound to a different distribution',
-        });
-      }
-
-      const householdCode =
-        tokenHouseholdCode ||
-        String((resident as any).residentCode || '') ||
-        `HH-${barangay.slice(0, 2).toUpperCase()}-${residentId.slice(-4).toUpperCase()}`;
-      // [RISK-5 MITIGATION] Household identity for hashing must be stable per resident, not per token doc.
-      const householdId = residentId;
+      const {
+        matchedToken,
+        residentId,
+        householdId,
+        householdCode,
+        barangay,
+        householdHash,
+        eventHash,
+      } = prepared.data;
 
       console.log(`[2] Household found: ${householdCode} | ${barangay}`);
-
-      const existingClaim = await Claim.findOne({ householdId, distributionId, claimCategory: 'DISTRIBUTION' });
-      if (existingClaim) {
-        console.error(
-          `[ERROR] Duplicate claim blocked (DB): householdCode=${householdCode} barangay=${barangay}`,
-        );
-        logHeader('RECORD CLAIM END');
-        return res.status(409).json({
-          success: false,
-          message: 'This household has already claimed for this distribution',
-          claim: existingClaim,
-        });
-      }
-
-      const householdHash = computeHouseholdHash(householdId);
-      const eventHash = computeEventHash(distributionId);
       console.log(
         `[3] Hashes computed: householdHash=${shortHex(householdHash)} eventHash=${shortHex(eventHash)}`,
       );
-
-      const existingHouseholdHashClaim = await Claim.findOne({
-        claimCategory: 'DISTRIBUTION',
-        distributionId,
-        'blockchain.householdHash': householdHash,
-      });
-      if (existingHouseholdHashClaim) {
-        // [RISK-5 MITIGATION] Off-chain guard mirrors one-claim-per-household-per-distribution policy.
-        logHeader('RECORD CLAIM END');
-        return res.status(409).json({
-          success: false,
-          message: 'This household has already claimed for this distribution',
-        });
-      }
 
       const claimId = generateClaimId();
       const staffUserId = req.authUser?.userId || req.authUser?.sub || 'unknown';

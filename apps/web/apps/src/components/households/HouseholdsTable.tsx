@@ -104,9 +104,12 @@ export default function HouseholdsTable({
         <div className="border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 dark:border-slate-700 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400">Household Records</p>
+              <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400">Relief Registry</p>
               <p className="mt-1 text-sm text-gray-700 dark:text-slate-300">
-                {loading ? 'Loading household data...' : `${rows.length} visible result(s)`}
+                {loading ? 'Loading registry data...' : `${rows.length} visible record(s)`}
+              </p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                Each row is a resident-based relief record used for claim tracking.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -128,7 +131,7 @@ export default function HouseholdsTable({
               </span>
               <input
                 type="text"
-                placeholder="Search by head, code, barangay, or address..."
+                placeholder="Search by resident, code, barangay, or address..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
@@ -207,7 +210,7 @@ export default function HouseholdsTable({
           {loading ? (
             <div className="p-16 flex flex-col items-center justify-center">
               <SpinnerIcon className="h-8 w-8 text-gray-700" />
-              <p className="mt-3 text-sm font-medium text-gray-600">Fetching households...</p>
+              <p className="mt-3 text-sm font-medium text-gray-600">Fetching relief registry...</p>
             </div>
           ) : error ? (
             <div className="p-16 text-center">
@@ -222,16 +225,16 @@ export default function HouseholdsTable({
           ) : !hasAnyRows || rows.length === 0 ? (
             <div className="p-20 flex flex-col items-center justify-center text-gray-500 dark:text-slate-400">
               <UsersMenuIcon className="mb-4 h-12 w-12 opacity-50" />
-              <p className="font-bold text-gray-900 dark:text-slate-100">No households found</p>
+              <p className="font-bold text-gray-900 dark:text-slate-100">No relief records found</p>
               <p className="mt-1 text-sm">Try adjusting your active filters or clear them.</p>
             </div>
           ) : (
             <table className="w-full min-w-[950px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                  <th className="px-6 py-4 font-bold">Household & Address</th>
+                  <th className="px-6 py-4 font-bold">Resident Record</th>
                   <th className="px-6 py-4 font-bold">Barangay</th>
-                  <th className="px-6 py-4 font-bold">Status</th>
+                  <th className="px-6 py-4 font-bold">Claim Status</th>
                   <th className="px-6 py-4 font-bold">Last Claimed</th>
                   <th className="px-6 py-4 font-bold">Members</th>
                   <th className="px-6 py-4 pr-10 pt-4 text-right font-bold">
@@ -250,7 +253,7 @@ export default function HouseholdsTable({
                         <div>
                           <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{item.familyHeadName}</p>
                           <p className="mt-0.5 max-w-[260px] truncate line-clamp-1 text-xs text-gray-500 dark:text-slate-400">
-                            {item.householdCode ? `#${item.householdCode} | ` : ''}
+                            {item.householdCode ? `Registry ${item.householdCode} | ` : ''}
                             {item.address}
                           </p>
                         </div>
@@ -282,7 +285,7 @@ export default function HouseholdsTable({
                         onClick={() => handleViewProfile(item)}
                         className="inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500/60 dark:hover:bg-slate-700/80 dark:hover:text-blue-300 md:opacity-0 md:group-hover:opacity-100"
                       >
-                        View Details
+                        View Record
                       </button>
                     </td>
                   </tr>

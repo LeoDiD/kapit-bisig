@@ -9,6 +9,7 @@ export function runBeneficiaryFlowUnitTests(): void {
   assert.strictEqual(deriveEligibilityStatus('Approved', 'Approved'), 'Eligible');
   assert.strictEqual(deriveEligibilityStatus('Approved', 'Pending Verification'), 'Not Eligible');
   assert.strictEqual(deriveEligibilityStatus('Pending', 'Approved'), 'Not Eligible');
+  assert.strictEqual(deriveEligibilityStatus('Needs Revision', 'Approved'), 'Not Eligible');
   assert.strictEqual(deriveEligibilityStatus('Rejected', 'Rejected'), 'Not Eligible');
 
   const residentCode = 'BO-2026-000123';

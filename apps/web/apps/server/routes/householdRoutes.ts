@@ -57,6 +57,7 @@ import {
   recordDuplicateBlockBody,
   registerHouseholdBody,
   checkMobileBody,
+  residentRevisionSubmitBody,
 } from '../validation/household.schema';
 import { validateBase64Image } from '../validation/imageValidation';
 import { normalizeIdNumber } from '../utils/idVerification';
@@ -74,6 +75,10 @@ import {
 import { revokeJWTByValue } from '../services/tokenRevocationService';
 import { sendResetOtpEmail } from '../utils/mailer';
 import { validatePasswordStrength } from '../utils/passwordValidator';
+import { buildScreeningValidationIssues, buildVerificationPayload } from '../services/householdRegistrationService';
+import { screenSubmittedId } from '../services/idScreeningService';
+import { persistVerificationImage } from '../utils/imageStorage';
+import { broadcastScopedNotification } from '../utils/createNotification';
 
 const router = Router();
 const CLAIMED_STATUSES = ['PENDING_CHAIN', 'CHAIN_SUBMITTED', 'CONFIRMED', 'CHAIN_FAILED'] as const;
@@ -698,7 +703,7 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
  * POST /api/household/auth/login
  *
  * Authenticates a registered household resident using mobile number + password.
- * Pending residents are allowed to sign in for limited access (home/profile only).
+ * Pending and Needs Revision residents are allowed to sign in for limited access (home/profile only).
  * Rejected residents are blocked from sign-in.
  */
 router.post('/auth/login', loginRateLimiter, validateRequest({ body: householdLoginSchema }), async (req: Request, res: Response) => {
@@ -830,7 +835,7 @@ router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Re
     }
 
     const resident = await Resident.findById(userId).select(
-      'residentCode avatarUrl firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status createdAt'
+      'residentCode avatarUrl firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status rejectionReason createdAt'
     );
 
     if (!resident) {
@@ -862,6 +867,7 @@ router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Re
         streetAddress: resident.streetAddress,
         householdSize: resident.householdSize,
         status: resident.status,
+        rejectionReason: resident.rejectionReason || '',
       },
     });
   } catch (error) {
@@ -989,7 +995,7 @@ router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: Au
     }
 
     const resident = await Resident.findById(userId).select(
-      'residentCode avatarUrl firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status'
+      'residentCode avatarUrl firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status rejectionReason'
     );
 
     if (!resident) {
@@ -1023,6 +1029,7 @@ router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: Au
         streetAddress: resident.streetAddress,
         householdSize: resident.householdSize,
         status: resident.status,
+        rejectionReason: resident.rejectionReason || '',
       },
     });
   } catch (error) {
@@ -1040,6 +1047,204 @@ router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: Au
     });
   }
 });
+
+/**
+ * Resident Revision Resubmission Endpoint
+ *
+ * PATCH /api/household/auth/me/revision-submit
+ *
+ * Allows a resident whose registration needs revision to upload corrected
+ * ID files and selfie, then return the account to Pending review.
+ */
+router.patch(
+  '/auth/me/revision-submit',
+  mobileLookupRateLimiter,
+  authMiddleware,
+  validateRequest({ body: residentRevisionSubmitBody }),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.user?.role !== 'Resident') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only resident accounts can submit registration revisions.',
+        });
+      }
+
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      const resident = await Resident.findById(userId).select(
+        'residentCode firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status rejectionReason idType idNumber frontIdImage backIdImage faceImage verification verifiedAt verifiedBy',
+      );
+
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found',
+        });
+      }
+
+      if (resident.status !== 'Needs Revision') {
+        return res.status(409).json({
+          success: false,
+          message: 'This registration is not currently marked for revision.',
+        });
+      }
+
+      const { idType, idNumber, frontIdImage, backIdImage, faceImage } = req.body as {
+        idType: string;
+        idNumber: string;
+        frontIdImage: string;
+        backIdImage: string;
+        faceImage: string;
+      };
+
+      const normalizedIdNumber = normalizeIdNumber(idType, idNumber || '');
+
+      const [frontValidation, backValidation, faceValidation] = await Promise.all([
+        validateBase64Image(frontIdImage, {
+          fieldName: 'Front ID image',
+          maxBytes: 2 * 1024 * 1024,
+          minWidth: 200,
+          minHeight: 200,
+          maxWidth: 4096,
+          maxHeight: 4096,
+        }),
+        validateBase64Image(backIdImage, {
+          fieldName: 'Back ID image',
+          maxBytes: 2 * 1024 * 1024,
+          minWidth: 200,
+          minHeight: 200,
+          maxWidth: 4096,
+          maxHeight: 4096,
+        }),
+        validateBase64Image(faceImage, {
+          fieldName: 'Face image',
+          maxBytes: 2 * 1024 * 1024,
+          minWidth: 160,
+          minHeight: 160,
+          maxWidth: 4096,
+          maxHeight: 4096,
+        }),
+      ]);
+
+      const failedValidation = [frontValidation, backValidation, faceValidation].find((item) => !item.ok);
+      if (failedValidation && !failedValidation.ok) {
+        const field = failedValidation.message.toLowerCase().includes('front')
+          ? 'frontIdImage'
+          : failedValidation.message.toLowerCase().includes('back')
+            ? 'backIdImage'
+            : 'faceImage';
+        return res.status(400).json({
+          success: false,
+          message: failedValidation.message,
+          validationErrors: [{
+            field,
+            code: 'INVALID_IMAGE',
+            message: failedValidation.message,
+          }],
+        });
+      }
+
+      let idScreening;
+      try {
+        idScreening = await screenSubmittedId({
+          idType,
+          idNumber: normalizedIdNumber,
+          frontIdImage,
+          backIdImage,
+        });
+      } catch (screeningError) {
+        const message = screeningError instanceof Error
+          ? screeningError.message
+          : 'Unable to screen the corrected ID.';
+        return res.status(400).json({
+          success: false,
+          message,
+          validationErrors: [{
+            field: 'frontIdImage',
+            code: 'ID_SCREENING_FAILED',
+            message,
+          }],
+        });
+      }
+
+      if (idScreening.decision === 'BLOCK') {
+        return res.status(400).json({
+          success: false,
+          message: idScreening.reasons[0] || 'The corrected ID failed automated screening.',
+          validationErrors: buildScreeningValidationIssues(idScreening),
+        });
+      }
+
+      resident.idType = idType;
+      resident.idNumber = normalizedIdNumber;
+      resident.frontIdImage = persistVerificationImage(frontIdImage, 'revision-front-id');
+      resident.backIdImage = persistVerificationImage(backIdImage, 'revision-back-id');
+      resident.faceImage = persistVerificationImage(faceImage, 'revision-face');
+      resident.verification = buildVerificationPayload({
+        overallConfidence: Number(resident.verification?.overallConfidence || 0),
+        idConfidence: Number(resident.verification?.idConfidence || 0),
+        faceMatchConfidence: Number(resident.verification?.faceMatchConfidence || 0),
+        livenessConfidence: Number(resident.verification?.livenessConfidence || 0),
+        dataMatchScore: Number(resident.verification?.dataMatchScore || 0),
+        riskScore: Number(resident.verification?.riskScore || 0),
+        isVerified: Boolean(resident.verification?.isVerified),
+        aiVerificationStatus: resident.verification?.aiVerificationStatus || 'Low Match',
+        warnings: resident.verification?.warnings || [],
+        riskFactors: resident.verification?.riskFactors || [],
+      }, idScreening);
+      resident.status = 'Pending';
+      resident.rejectionReason = undefined;
+      resident.verifiedAt = undefined;
+      resident.verifiedBy = undefined;
+
+      await resident.save();
+
+      await broadcastScopedNotification({
+        title: 'Resident Resubmitted Registration',
+        message: `${resident.fullName || `${resident.firstName} ${resident.lastName}`.trim()} submitted corrected registration documents for review.`,
+        type: 'status_update',
+        targetBarangays: [resident.barangay],
+        meta: {
+          residentId: resident._id.toString(),
+          residentCode: resident.residentCode,
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: 'Corrected documents submitted successfully. Your registration is back in the review queue.',
+        data: {
+          id: resident._id.toString(),
+          residentCode: resident.residentCode,
+          firstName: resident.firstName,
+          lastName: resident.lastName,
+          fullName: resident.fullName,
+          mobileNumber: resident.mobileNumber,
+          email: resident.email || '',
+          barangay: resident.barangay,
+          city: resident.city || '',
+          streetAddress: resident.streetAddress,
+          householdSize: resident.householdSize,
+          status: resident.status,
+          rejectionReason: resident.rejectionReason || '',
+        },
+      });
+    } catch (error) {
+      console.error('[HouseholdRoutes] Resident revision submit error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to submit corrected registration files.',
+      });
+    }
+  },
+);
 
 /**
  * Resident Avatar Upload Endpoint

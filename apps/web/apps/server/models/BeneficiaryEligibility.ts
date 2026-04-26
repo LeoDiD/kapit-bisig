@@ -2,11 +2,12 @@ import mongoose, { Document, Schema } from 'mongoose';
 import { ProofSubmissionStatus } from './ProofSubmission';
 
 export type EligibilityStatus = 'Eligible' | 'Not Eligible';
-export type RegistrationSnapshotStatus = 'Pending' | 'Approved' | 'Rejected';
+export type RegistrationSnapshotStatus = 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
 
 export interface IBeneficiaryEligibility extends Document {
   residentId: mongoose.Types.ObjectId;
-  disasterEventId: mongoose.Types.ObjectId;
+  disasterEventId?: mongoose.Types.ObjectId | null;
+  distributionId?: mongoose.Types.ObjectId | null;
   proofSubmissionId?: mongoose.Types.ObjectId | null;
   status: EligibilityStatus;
   registrationStatus: RegistrationSnapshotStatus;
@@ -30,7 +31,13 @@ const BeneficiaryEligibilitySchema = new Schema<IBeneficiaryEligibility>(
     disasterEventId: {
       type: Schema.Types.ObjectId,
       ref: 'DisasterEvent',
-      required: true,
+      default: null,
+      index: true,
+    },
+    distributionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Distribution',
+      default: null,
       index: true,
     },
     proofSubmissionId: {
@@ -46,7 +53,7 @@ const BeneficiaryEligibilitySchema = new Schema<IBeneficiaryEligibility>(
     },
     registrationStatus: {
       type: String,
-      enum: ['Pending', 'Approved', 'Rejected'],
+      enum: ['Pending', 'Approved', 'Needs Revision', 'Rejected'],
       required: true,
     },
     proofStatus: {
@@ -77,7 +84,21 @@ const BeneficiaryEligibilitySchema = new Schema<IBeneficiaryEligibility>(
   },
 );
 
-BeneficiaryEligibilitySchema.index({ residentId: 1, disasterEventId: 1 }, { unique: true });
+BeneficiaryEligibilitySchema.index(
+  { residentId: 1, distributionId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { distributionId: { $exists: true, $type: 'objectId' } },
+  },
+);
+BeneficiaryEligibilitySchema.index(
+  { residentId: 1, disasterEventId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { disasterEventId: { $exists: true, $type: 'objectId' } },
+  },
+);
+BeneficiaryEligibilitySchema.index({ distributionId: 1, status: 1 });
 BeneficiaryEligibilitySchema.index({ disasterEventId: 1, status: 1 });
 
 BeneficiaryEligibilitySchema.set('toJSON', {

@@ -30,8 +30,13 @@ import {
 import {
   normalizeIdNumber,
   validateIdType,
+  validateIdNumberFormat,
 } from '../utils/idVerification';
 import { persistVerificationImage } from '../utils/imageStorage';
+import {
+  IdScreeningResult,
+  screenSubmittedId,
+} from './idScreeningService';
 
 export interface RegistrationData {
   // Personal Info (Step 1)
@@ -109,6 +114,101 @@ interface ValidationIssue {
   field: string;
   code: string;
   message: string;
+}
+
+function getAIVerificationStatus(confidence: number): 'High Match' | 'Medium Match' | 'Low Match' {
+  if (confidence >= 80) return 'High Match';
+  if (confidence >= 50) return 'Medium Match';
+  return 'Low Match';
+}
+
+export function buildScreeningValidationIssues(screening: IdScreeningResult): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const reasonMessage = screening.reasons[0] || 'ID screening failed.';
+
+  if (screening.reviewFlags.includes('TYPE_MISMATCH')) {
+    issues.push({
+      field: 'idType',
+      code: 'ID_TYPE_MISMATCH',
+      message: reasonMessage,
+    });
+  }
+
+  if (screening.reviewFlags.includes('ID_NUMBER_MISMATCH')) {
+    issues.push({
+      field: 'idNumber',
+      code: 'ID_NUMBER_MISMATCH',
+      message: reasonMessage,
+    });
+  }
+
+  if (issues.length === 0) {
+    issues.push({
+      field: 'frontIdImage',
+      code: 'ID_SCREENING_BLOCKED',
+      message: reasonMessage,
+    });
+    issues.push({
+      field: 'backIdImage',
+      code: 'ID_SCREENING_BLOCKED',
+      message: reasonMessage,
+    });
+  }
+
+  return issues;
+}
+
+export function buildVerificationPayload(
+  baseVerification: RegistrationData['verification'] | undefined,
+  screening: IdScreeningResult,
+): NonNullable<IResident['verification']> {
+  const baseOverallConfidence = Number(baseVerification?.overallConfidence || 0);
+  const idConfidence = Math.round(screening.screeningConfidence * 100);
+  const overallConfidence = Math.round((baseOverallConfidence * 0.45) + (idConfidence * 0.55));
+  const warnings = Array.from(new Set([
+    ...(baseVerification?.warnings || []),
+    ...screening.warnings,
+  ]));
+  const riskFactors = Array.from(new Set([
+    ...(baseVerification?.riskFactors || []),
+    ...(screening.decision === 'PASS'
+      ? []
+      : screening.reasons.concat(screening.reviewFlags)),
+  ]));
+  const screeningRiskPenalty =
+    screening.decision === 'PASS' ? 0 : screening.decision === 'REVIEW' ? 25 : 50;
+
+  return {
+    overallConfidence,
+    idConfidence,
+    faceMatchConfidence: Math.round(Number(baseVerification?.faceMatchConfidence || 0)),
+    livenessConfidence: Math.round(Number(baseVerification?.livenessConfidence || 0)),
+    dataMatchScore:
+      screening.idNumberMatch === true
+        ? 100
+        : screening.idNumberMatch === false
+          ? 0
+          : Math.round(screening.screeningConfidence * 100),
+    riskScore: Math.min(100, Math.round(Number(baseVerification?.riskScore || 0) + screeningRiskPenalty)),
+    isVerified: screening.decision === 'PASS' && Boolean(baseVerification?.isVerified),
+    aiVerificationStatus: getAIVerificationStatus(overallConfidence),
+    warnings,
+    riskFactors,
+    idCheckDecision: screening.decision,
+    idCheckRequiresManualReview: screening.requiresManualReview,
+    idCheckReasons: screening.reasons,
+    idCheckWarnings: screening.warnings,
+    reviewFlags: screening.reviewFlags,
+    screeningConfidence: idConfidence,
+    detectedIdType: screening.detectedIdType || '',
+    typeMatch: screening.typeMatch ?? undefined,
+    typeConfidence: Math.round(screening.typeConfidence * 100),
+    idNumberMatch: screening.idNumberMatch ?? undefined,
+    ocrConfidence: Math.round(screening.ocrConfidence * 100),
+    qualityScore: Math.round(screening.qualityScore * 100),
+    extractedIdNumberMasked: screening.extractedIdNumberMasked || '',
+    rawTextPreview: screening.rawTextPreview || '',
+  };
 }
 
 /**
@@ -336,24 +436,98 @@ export class HouseholdRegistrationService {
             : [{ field: 'mobileNumber', code: 'DUPLICATE_MOBILE', message: 'Mobile number is already registered' }],
         };
       }
+
+      let idScreening: IdScreeningResult;
+      try {
+        idScreening = await screenSubmittedId({
+          idType: data.idType,
+          idNumber: data.idNumber,
+          frontIdImage: data.frontIdImage,
+          backIdImage: data.backIdImage,
+        });
+      } catch (screeningError) {
+        const message = screeningError instanceof Error
+          ? screeningError.message
+          : 'Unable to analyze the uploaded ID.';
+        const normalizedMessage = message.toLowerCase();
+        const field = normalizedMessage.includes('front')
+          ? 'frontIdImage'
+          : normalizedMessage.includes('back')
+            ? 'backIdImage'
+            : normalizedMessage.includes('type')
+              ? 'idType'
+              : normalizedMessage.includes('number')
+                ? 'idNumber'
+                : 'frontIdImage';
+
+        if (
+          normalizedMessage.includes('front') ||
+          normalizedMessage.includes('back') ||
+          normalizedMessage.includes('type') ||
+          normalizedMessage.includes('number')
+        ) {
+          await householdTokenService.releaseLock(
+            tokenId,
+            lockerId,
+            ipAddress,
+            userAgent,
+            requestId,
+            'ID screening validation failed'
+          );
+
+          return {
+            success: false,
+            message,
+            errorCode: 'VALIDATION_FAILED',
+            validationErrors: [{
+              field,
+              code: 'ID_SCREENING_FAILED',
+              message,
+            }],
+          };
+        }
+
+        throw screeningError;
+      }
+
+      if (idScreening.decision === 'BLOCK') {
+        await householdTokenService.releaseLock(
+          tokenId,
+          lockerId,
+          ipAddress,
+          userAgent,
+          requestId,
+          'ID screening blocked registration'
+        );
+
+        await RegistrationAuditLog.log({
+          eventType: 'REGISTRATION_FAILED',
+          severity: 'WARNING',
+          tokenPrefix: data.householdToken.replace(/-/g, '').slice(0, 4),
+          tokenId,
+          ipAddress,
+          userAgent,
+          requestId,
+          message: idScreening.reasons[0] || 'Registration failed - ID screening blocked submission',
+          success: false,
+          errorCode: 'ID_SCREENING_BLOCKED',
+          processingTimeMs: Date.now() - startTime,
+        });
+
+        return {
+          success: false,
+          message: idScreening.reasons[0] || 'The uploaded ID failed automated screening.',
+          errorCode: 'VALIDATION_FAILED',
+          validationErrors: buildScreeningValidationIssues(idScreening),
+        };
+      }
       
       const frontIdImageRef = persistVerificationImage(data.frontIdImage, 'front-id');
       const backIdImageRef = persistVerificationImage(data.backIdImage, 'back-id');
       const faceImageRef = persistVerificationImage(data.faceImage, 'face');
 
       // Step 4: Create resident record
-      const verificationPayload = data.verification || {
-        overallConfidence: 0,
-        idConfidence: 0,
-        faceMatchConfidence: 0,
-        livenessConfidence: 0,
-        dataMatchScore: 0,
-        riskScore: 0,
-        isVerified: false,
-        aiVerificationStatus: 'Low Match',
-        warnings: [],
-        riskFactors: [],
-      };
+      const verificationPayload = buildVerificationPayload(data.verification, idScreening);
       const isAutoApproved = false;
 
       const resident = new Resident({
@@ -627,6 +801,14 @@ export class HouseholdRegistrationService {
         field: 'idType',
         code: 'ID_TYPE_UNSUPPORTED',
         message: 'Unsupported ID type selected',
+      });
+    }
+
+    if (data.idType && data.idNumber && !validateIdNumberFormat(data.idType, normalizedIdNumber)) {
+      issues.push({
+        field: 'idNumber',
+        code: 'ID_NUMBER_INVALID_FORMAT',
+        message: 'Enter a valid ID number for the selected ID type',
       });
     }
 

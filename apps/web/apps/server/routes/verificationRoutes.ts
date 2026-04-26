@@ -1,7 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { createWorker, PSM } from 'tesseract.js';
 import { validateBase64Image } from '../validation/imageValidation';
+import {
+  normalizeIdNumber,
+  validateIdNumberFormat,
+  validateIdType,
+} from '../utils/idVerification';
+import { screenSubmittedId } from '../services/idScreeningService';
+import { performOCRFromBase64Image } from '../services/ocrService';
 
 const router = Router();
 
@@ -10,24 +16,12 @@ const ocrBodySchema = z.object({
   language: z.string().optional(),
 });
 
-type OcrWorker = Awaited<ReturnType<typeof createWorker>>;
-let workerPromise: Promise<OcrWorker> | null = null;
-
-async function getWorker(language: string): Promise<OcrWorker> {
-  if (workerPromise) {
-    return workerPromise;
-  }
-
-  workerPromise = (async () => {
-    const worker = await createWorker(language);
-    await worker.setParameters({
-      tessedit_pageseg_mode: PSM.AUTO,
-    });
-    return worker;
-  })();
-
-  return workerPromise;
-}
+const idCheckBodySchema = z.object({
+  idType: z.string().min(1, 'ID type is required'),
+  idNumber: z.string().min(1, 'ID number is required'),
+  frontIdImage: z.string().min(1, 'Front ID image is required'),
+  backIdImage: z.string().min(1, 'Back ID image is required'),
+});
 
 function toDataUrl(input: string): string {
   const trimmed = input.trim();
@@ -74,29 +68,14 @@ router.post('/ocr', async (req: Request, res: Response) => {
   }
 
   try {
-    const base64Payload = image.slice(image.indexOf('base64,') + 'base64,'.length);
-    const buffer = Buffer.from(base64Payload, 'base64');
-    const worker = await getWorker(language === 'eng+fil' ? 'eng' : language);
-    const result = await worker.recognize(buffer);
-    const data = result.data;
-
-    const blocks = (data.words || []).map((word) => ({
-      text: word.text || '',
-      confidence: Number(word.confidence || 0) / 100,
-      boundingBox: {
-        x: word.bbox.x0,
-        y: word.bbox.y0,
-        width: Math.max(0, word.bbox.x1 - word.bbox.x0),
-        height: Math.max(0, word.bbox.y1 - word.bbox.y0),
-      },
-    }));
+    const result = await performOCRFromBase64Image(image, language);
 
     return res.json({
       success: true,
-      text: String(data.text || '').trim(),
-      confidence: Number(data.confidence || 0) / 100,
-      blocks,
-      languageUsed: language === 'eng+fil' ? 'eng' : language,
+      text: result.text,
+      confidence: result.confidence,
+      blocks: result.blocks,
+      languageUsed: result.languageUsed,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -111,11 +90,78 @@ router.post('/ocr', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/id-check', async (req: Request, res: Response) => {
+  const parsed = idCheckBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: parsed.error.issues[0]?.message || 'Invalid ID screening payload',
+      errorCode: 'ID_SCREENING_INVALID_PAYLOAD',
+    });
+  }
+
+  const { idType, idNumber, frontIdImage, backIdImage } = parsed.data;
+  const normalizedIdNumber = normalizeIdNumber(idType, idNumber);
+
+  if (!validateIdType(idType)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Unsupported ID type selected.',
+      errorCode: 'ID_TYPE_UNSUPPORTED',
+      field: 'idType',
+    });
+  }
+
+  if (!validateIdNumberFormat(idType, normalizedIdNumber)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Enter a valid ID number for the selected ID type.',
+      errorCode: 'ID_NUMBER_INVALID_FORMAT',
+      field: 'idNumber',
+    });
+  }
+
+  try {
+    const screening = await screenSubmittedId({
+      idType,
+      idNumber: normalizedIdNumber,
+      frontIdImage,
+      backIdImage,
+    });
+
+    return res.json({
+      success: true,
+      screening,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'ID screening failed';
+    const normalized = message.toLowerCase();
+    const field = normalized.includes('front')
+      ? 'frontIdImage'
+      : normalized.includes('back')
+        ? 'backIdImage'
+        : normalized.includes('type')
+          ? 'idType'
+          : normalized.includes('number')
+            ? 'idNumber'
+            : undefined;
+
+    return res.status(400).json({
+      success: false,
+      message,
+      errorCode: 'ID_SCREENING_FAILED',
+      field,
+    });
+  }
+});
+
 router.get('/health', (_req: Request, res: Response) => {
   res.json({
     success: true,
     service: 'verification',
     ocr: 'ready',
+    idCheck: 'ready',
     timestamp: new Date().toISOString(),
   });
 });

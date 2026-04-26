@@ -2,7 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-const UPLOAD_DIR = path.resolve(__dirname, '../../public/uploads/resident-verification');
+export const VERIFICATION_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+export const VERIFICATION_IMAGE_PUBLIC_BASE_PATH = '/uploads/resident-verification';
+
+const UPLOAD_DIR = path.resolve(__dirname, '../../public', VERIFICATION_IMAGE_PUBLIC_BASE_PATH.replace(/^\/uploads\//, 'uploads/'));
 
 function ensureUploadDir(): void {
   if (!fs.existsSync(UPLOAD_DIR)) {
@@ -44,7 +47,10 @@ export function persistVerificationImage(value: string, prefix: string): string 
   const fileName = `${prefix}-${Date.now()}-${crypto.randomUUID()}${ext}`;
   const absPath = path.join(UPLOAD_DIR, fileName);
   const buffer = Buffer.from(parsed.base64, 'base64');
+  if (buffer.length > VERIFICATION_IMAGE_MAX_BYTES) {
+    throw new Error(`Verification image exceeds the maximum size of ${Math.floor(VERIFICATION_IMAGE_MAX_BYTES / (1024 * 1024))}MB.`);
+  }
   fs.writeFileSync(absPath, buffer);
 
-  return `/uploads/resident-verification/${fileName}`;
+  return `${VERIFICATION_IMAGE_PUBLIC_BASE_PATH}/${fileName}`;
 }

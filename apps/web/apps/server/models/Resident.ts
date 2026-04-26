@@ -102,10 +102,24 @@ export interface IResident extends Document {
     aiVerificationStatus: 'High Match' | 'Medium Match' | 'Low Match';
     warnings: string[];
     riskFactors: string[];
+    idCheckDecision?: 'PASS' | 'REVIEW' | 'BLOCK';
+    idCheckRequiresManualReview?: boolean;
+    idCheckReasons?: string[];
+    idCheckWarnings?: string[];
+    reviewFlags?: string[];
+    screeningConfidence?: number;
+    detectedIdType?: string;
+    typeMatch?: boolean;
+    typeConfidence?: number;
+    idNumberMatch?: boolean;
+    ocrConfidence?: number;
+    qualityScore?: number;
+    extractedIdNumberMasked?: string;
+    rawTextPreview?: string;
   };
   
   // Application Status
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
   rejectionReason?: string;
   verifiedBy?: string;
   verifiedAt?: Date;
@@ -322,12 +336,65 @@ const ResidentSchema: Schema = new Schema(
       riskFactors: [{
         type: String,
       }],
+      idCheckDecision: {
+        type: String,
+        enum: ['PASS', 'REVIEW', 'BLOCK'],
+      },
+      idCheckRequiresManualReview: {
+        type: Boolean,
+        default: false,
+      },
+      idCheckReasons: [{
+        type: String,
+      }],
+      idCheckWarnings: [{
+        type: String,
+      }],
+      reviewFlags: [{
+        type: String,
+      }],
+      screeningConfidence: {
+        type: Number,
+        default: 0,
+      },
+      detectedIdType: {
+        type: String,
+        default: '',
+      },
+      typeMatch: {
+        type: Boolean,
+        default: undefined,
+      },
+      typeConfidence: {
+        type: Number,
+        default: 0,
+      },
+      idNumberMatch: {
+        type: Boolean,
+        default: undefined,
+      },
+      ocrConfidence: {
+        type: Number,
+        default: 0,
+      },
+      qualityScore: {
+        type: Number,
+        default: 0,
+      },
+      extractedIdNumberMasked: {
+        type: String,
+        default: '',
+      },
+      rawTextPreview: {
+        type: String,
+        default: '',
+      },
     },
     
     // Application Status
     status: {
       type: String,
-      enum: ['Pending', 'Approved', 'Rejected'],
+      enum: ['Pending', 'Approved', 'Needs Revision', 'Rejected'],
       default: 'Pending',
     },
     rejectionReason: {

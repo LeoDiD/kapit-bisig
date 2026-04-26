@@ -1,14 +1,21 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import DisasterEvent, { IDisasterEvent } from '../models/DisasterEvent';
+import Distribution, { IDistribution } from '../models/Distribution';
 import Resident from '../models/Resident';
 import ProofSubmission, { IProofSubmission, ProofSubmissionSource, ProofSubmissionStatus } from '../models/ProofSubmission';
 import BeneficiaryEligibility, { EligibilityStatus, IBeneficiaryEligibility } from '../models/BeneficiaryEligibility';
 import Claim, { IClaim } from '../models/Claim';
 import OfflineSyncQueue, { IOfflineSyncQueue, OfflineActorRole, OfflineSyncQueueType, OfflineSyncStatus } from '../models/OfflineSyncQueue';
-import { persistVerificationImage } from '../utils/imageStorage';
+import { persistVerificationImage, VERIFICATION_IMAGE_MAX_BYTES } from '../utils/imageStorage';
+import { validateBase64Image } from '../validation/imageValidation';
+import {
+  getTargetBarangays,
+  isResidentEligibleForDistribution,
+  requiresBeneficiaryApproval,
+} from './distributionFlowService';
 
-type ResidentApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
+type ResidentApprovalStatus = 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
 
 type ResidentScanRecord = {
   _id: mongoose.Types.ObjectId;
@@ -39,7 +46,8 @@ export interface BeneficiaryActor {
 
 export interface ProofSubmissionInput {
   residentId: string;
-  disasterEventId: string;
+  distributionId?: string;
+  disasterEventId?: string;
   damageType: IProofSubmission['damageType'];
   description: string;
   supportingInfo?: string;
@@ -55,6 +63,16 @@ export interface ProofReviewInput {
   decision: 'Approved' | 'Rejected';
   rejectionReason?: string;
   reviewerId: string;
+}
+
+export interface BeneficiaryScopeSummary {
+  id: string;
+  type: 'DISTRIBUTION' | 'DISASTER_EVENT';
+  name: string;
+  status: string;
+  barangays: string[];
+  scheduled?: string;
+  disasterType?: string;
 }
 
 export interface QrValidationResult {
@@ -85,6 +103,18 @@ export interface DisasterEventClaimInput {
   deviceId?: string;
   actor: BeneficiaryActor;
 }
+
+type ResolvedBeneficiaryScope = {
+  scope: BeneficiaryScopeSummary;
+  event: IDisasterEvent | null;
+  distribution: IDistribution | null;
+};
+
+const BENEFICIARY_PROOF_MIN_WIDTH = 160;
+const BENEFICIARY_PROOF_MIN_HEIGHT = 160;
+const BENEFICIARY_PROOF_MAX_WIDTH = 4096;
+const BENEFICIARY_PROOF_MAX_HEIGHT = 4096;
+const BENEFICIARY_PROOF_TOTAL_MAX_BYTES = VERIFICATION_IMAGE_MAX_BYTES * 5;
 
 export class BeneficiaryServiceError extends Error {
   statusCode: number;
@@ -155,6 +185,43 @@ export function parseResidentCodeFromQrData(qrData: string): string | null {
   }
 }
 
+function getBase64PayloadBytes(value: string): number {
+  const raw = String(value || '').trim();
+  const marker = 'base64,';
+  const markerIndex = raw.indexOf(marker);
+  const payload = markerIndex >= 0 ? raw.slice(markerIndex + marker.length) : raw;
+  return Buffer.from(payload, 'base64').length;
+}
+
+async function validateProofPhotoSet(photoProofs: string[]): Promise<void> {
+  const validations = await Promise.all(
+    photoProofs.map((photoProof, index) =>
+      validateBase64Image(photoProof, {
+        fieldName: `Proof photo ${index + 1}`,
+        maxBytes: VERIFICATION_IMAGE_MAX_BYTES,
+        minWidth: BENEFICIARY_PROOF_MIN_WIDTH,
+        minHeight: BENEFICIARY_PROOF_MIN_HEIGHT,
+        maxWidth: BENEFICIARY_PROOF_MAX_WIDTH,
+        maxHeight: BENEFICIARY_PROOF_MAX_HEIGHT,
+      }),
+    ),
+  );
+
+  const failedValidation = validations.find((validation) => !validation.ok);
+  if (failedValidation && !failedValidation.ok) {
+    throw new BeneficiaryServiceError(400, 'INVALID_PROOF_IMAGE', failedValidation.message);
+  }
+
+  const totalBytes = photoProofs.reduce((sum, photoProof) => sum + getBase64PayloadBytes(photoProof), 0);
+  if (totalBytes > BENEFICIARY_PROOF_TOTAL_MAX_BYTES) {
+    throw new BeneficiaryServiceError(
+      400,
+      'PROOF_IMAGE_TOTAL_TOO_LARGE',
+      `Combined proof image size exceeds the maximum upload size of ${Math.floor(BENEFICIARY_PROOF_TOTAL_MAX_BYTES / (1024 * 1024))}MB.`,
+    );
+  }
+}
+
 async function resolveDisasterEvent(disasterEventId?: string): Promise<IDisasterEvent> {
   if (disasterEventId) {
     if (!mongoose.Types.ObjectId.isValid(disasterEventId)) {
@@ -176,6 +243,78 @@ async function resolveDisasterEvent(disasterEventId?: string): Promise<IDisaster
   return event;
 }
 
+function buildEventScopeSummary(event: IDisasterEvent): BeneficiaryScopeSummary {
+  return {
+    id: event._id.toString(),
+    type: 'DISASTER_EVENT',
+    name: event.name,
+    status: event.status,
+    barangays: event.barangays,
+    disasterType: event.disasterType,
+  };
+}
+
+function buildDistributionScopeSummary(distribution: IDistribution): BeneficiaryScopeSummary {
+  const scheduledAt = new Date(distribution.scheduled);
+  const scheduleLabel = Number.isNaN(scheduledAt.getTime())
+    ? distribution.scheduled
+    : scheduledAt.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+  const barangays = getTargetBarangays(distribution.barangay, distribution.assignedBarangays);
+
+  return {
+    id: distribution._id.toString(),
+    type: 'DISTRIBUTION',
+    name: `${distribution.barangay} Distribution - ${scheduleLabel}`,
+    status: distribution.status === 'Claimed' ? 'Closed' : 'Active',
+    barangays,
+    scheduled: distribution.scheduled,
+    disasterType: 'Distribution',
+  };
+}
+
+async function resolveBeneficiaryScope(input: {
+  distributionId?: string;
+  disasterEventId?: string;
+}): Promise<ResolvedBeneficiaryScope> {
+  if (input.distributionId && input.disasterEventId) {
+    throw new BeneficiaryServiceError(
+      400,
+      'AMBIGUOUS_SCOPE',
+      'Provide either distributionId or disasterEventId, not both.',
+    );
+  }
+
+  if (input.distributionId) {
+    if (!mongoose.Types.ObjectId.isValid(input.distributionId)) {
+      throw new BeneficiaryServiceError(400, 'INVALID_DISTRIBUTION_ID', 'Invalid distribution id.');
+    }
+
+    const distribution = await Distribution.findById(input.distributionId);
+    if (!distribution) {
+      throw new BeneficiaryServiceError(404, 'DISTRIBUTION_NOT_FOUND', 'Distribution not found.');
+    }
+
+    return {
+      scope: buildDistributionScopeSummary(distribution),
+      event: null,
+      distribution,
+    };
+  }
+
+  const event = await resolveDisasterEvent(input.disasterEventId);
+  return {
+    scope: buildEventScopeSummary(event),
+    event,
+    distribution: null,
+  };
+}
+
 function assertEventAcceptingSubmissions(event: IDisasterEvent): void {
   if (event.status !== 'Active') {
     throw new BeneficiaryServiceError(409, 'EVENT_NOT_ACTIVE', 'Disaster event is not accepting submissions.');
@@ -183,6 +322,33 @@ function assertEventAcceptingSubmissions(event: IDisasterEvent): void {
 
   if (event.submissionDeadline && event.submissionDeadline.getTime() < Date.now()) {
     throw new BeneficiaryServiceError(409, 'SUBMISSION_WINDOW_CLOSED', 'Submission deadline has already passed.');
+  }
+}
+
+function assertDistributionAcceptingSubmissions(distribution: IDistribution): void {
+  if (!requiresBeneficiaryApproval(distribution)) {
+    throw new BeneficiaryServiceError(
+      409,
+      'BENEFICIARY_APPROVAL_NOT_REQUIRED',
+      'This distribution does not require a target-beneficiary application.',
+    );
+  }
+
+  if (distribution.status === 'Claimed') {
+    throw new BeneficiaryServiceError(
+      409,
+      'DISTRIBUTION_CLOSED',
+      'This distribution is already closed for beneficiary applications.',
+    );
+  }
+
+  const scheduledAt = new Date(distribution.scheduled);
+  if (!Number.isNaN(scheduledAt.getTime()) && scheduledAt.getTime() <= Date.now()) {
+    throw new BeneficiaryServiceError(
+      409,
+      'SUBMISSION_WINDOW_CLOSED',
+      'This distribution is already in progress or closed for new beneficiary applications.',
+    );
   }
 }
 
@@ -252,7 +418,8 @@ async function getResidentFromClaimInput(input: { residentId?: string; qrData?: 
 
 async function upsertEligibilitySnapshot(params: {
   residentId: mongoose.Types.ObjectId;
-  disasterEventId: mongoose.Types.ObjectId;
+  disasterEventId?: mongoose.Types.ObjectId | null;
+  distributionId?: mongoose.Types.ObjectId | null;
   proofSubmissionId: mongoose.Types.ObjectId;
   registrationStatus: ResidentApprovalStatus;
   proofStatus: ProofSubmissionStatus;
@@ -260,16 +427,28 @@ async function upsertEligibilitySnapshot(params: {
   reviewedBy?: string;
   reviewedAt?: Date | null;
 }): Promise<IBeneficiaryEligibility> {
+  const scopeQuery = params.distributionId
+    ? { distributionId: params.distributionId }
+    : params.disasterEventId
+      ? { disasterEventId: params.disasterEventId }
+      : null;
+
+  if (!scopeQuery) {
+    throw new BeneficiaryServiceError(500, 'SCOPE_REQUIRED', 'Eligibility updates require a scope id.');
+  }
+
   const status = deriveEligibilityStatus(params.registrationStatus, params.proofStatus);
   const reviewedAt = params.reviewedAt ?? null;
 
   const eligibility = await BeneficiaryEligibility.findOneAndUpdate(
     {
       residentId: params.residentId,
-      disasterEventId: params.disasterEventId,
+      ...scopeQuery,
     },
     {
       $set: {
+        disasterEventId: params.disasterEventId || null,
+        distributionId: params.distributionId || null,
         proofSubmissionId: params.proofSubmissionId,
         status,
         registrationStatus: params.registrationStatus,
@@ -291,17 +470,20 @@ async function upsertEligibilitySnapshot(params: {
 }
 
 export async function submitResidentProof(params: ProofSubmissionInput): Promise<{
-  event: IDisasterEvent;
+  scope: BeneficiaryScopeSummary;
+  event: IDisasterEvent | null;
+  distribution: IDistribution | null;
   resident: ResidentScanRecord;
   submission: IProofSubmission;
   eligibility: IBeneficiaryEligibility;
 }> {
-  const [event, resident] = await Promise.all([
-    resolveDisasterEvent(params.disasterEventId),
+  const [resolvedScope, resident] = await Promise.all([
+    resolveBeneficiaryScope({
+      distributionId: params.distributionId,
+      disasterEventId: params.disasterEventId,
+    }),
     getResidentForSubmission(params.residentId),
   ]);
-
-  assertEventAcceptingSubmissions(event);
 
   if (resident.status !== 'Approved') {
     throw new BeneficiaryServiceError(
@@ -311,16 +493,36 @@ export async function submitResidentProof(params: ProofSubmissionInput): Promise
     );
   }
 
+  if (resolvedScope.distribution) {
+    assertDistributionAcceptingSubmissions(resolvedScope.distribution);
+    if (!isResidentEligibleForDistribution(resident.barangay, resolvedScope.distribution)) {
+      throw new BeneficiaryServiceError(
+        403,
+        'RESIDENT_OUT_OF_SCOPE',
+        'Resident barangay is not covered by this distribution.',
+      );
+    }
+  } else if (resolvedScope.event) {
+    assertEventAcceptingSubmissions(resolvedScope.event);
+  }
+
   const normalizedClientGeneratedId = String(params.clientGeneratedId || '').trim();
-  const existing = await ProofSubmission.findOne({
+  const existingFilter: Record<string, unknown> = {
     residentId: resident._id,
-    disasterEventId: event._id,
-  });
+  };
+  if (resolvedScope.distribution) {
+    existingFilter.distributionId = resolvedScope.distribution._id;
+  } else if (resolvedScope.event) {
+    existingFilter.disasterEventId = resolvedScope.event._id;
+  }
+
+  const existing = await ProofSubmission.findOne(existingFilter);
 
   if (existing && normalizedClientGeneratedId && existing.clientGeneratedId === normalizedClientGeneratedId) {
     const eligibility = await upsertEligibilitySnapshot({
       residentId: resident._id,
-      disasterEventId: event._id,
+      disasterEventId: existing.disasterEventId ?? null,
+      distributionId: existing.distributionId ?? null,
       proofSubmissionId: existing._id,
       registrationStatus: resident.status,
       proofStatus: existing.status,
@@ -329,7 +531,14 @@ export async function submitResidentProof(params: ProofSubmissionInput): Promise
       reviewedAt: existing.reviewedAt ?? null,
     });
 
-    return { event, resident, submission: existing, eligibility };
+    return {
+      scope: resolvedScope.scope,
+      event: resolvedScope.event,
+      distribution: resolvedScope.distribution,
+      resident,
+      submission: existing,
+      eligibility,
+    };
   }
 
   if (existing && existing.status === 'Approved') {
@@ -340,6 +549,8 @@ export async function submitResidentProof(params: ProofSubmissionInput): Promise
     );
   }
 
+  await validateProofPhotoSet(params.photoProofs);
+
   const photoProofUrls = params.photoProofs.map((photoProof, index) =>
     persistVerificationImage(photoProof, `disaster-proof-${index + 1}`),
   );
@@ -347,9 +558,10 @@ export async function submitResidentProof(params: ProofSubmissionInput): Promise
 
   const submission = existing || new ProofSubmission({
     residentId: resident._id,
-    disasterEventId: event._id,
   });
 
+  submission.distributionId = resolvedScope.distribution?._id || null;
+  submission.disasterEventId = resolvedScope.event?._id || null;
   submission.damageType = params.damageType;
   submission.description = params.description.trim();
   submission.supportingInfo = String(params.supportingInfo || '').trim();
@@ -368,17 +580,27 @@ export async function submitResidentProof(params: ProofSubmissionInput): Promise
 
   const eligibility = await upsertEligibilitySnapshot({
     residentId: resident._id,
-    disasterEventId: event._id,
+    disasterEventId: resolvedScope.event?._id || null,
+    distributionId: resolvedScope.distribution?._id || null,
     proofSubmissionId: submission._id,
     registrationStatus: resident.status,
     proofStatus: submission.status,
   });
 
-  return { event, resident, submission, eligibility };
+  return {
+    scope: resolvedScope.scope,
+    event: resolvedScope.event,
+    distribution: resolvedScope.distribution,
+    resident,
+    submission,
+    eligibility,
+  };
 }
 
 export async function reviewResidentProof(params: ProofReviewInput): Promise<{
-  event: IDisasterEvent;
+  scope: BeneficiaryScopeSummary;
+  event: IDisasterEvent | null;
+  distribution: IDistribution | null;
   resident: ResidentScanRecord;
   submission: IProofSubmission;
   eligibility: IBeneficiaryEligibility;
@@ -392,19 +614,24 @@ export async function reviewResidentProof(params: ProofReviewInput): Promise<{
     throw new BeneficiaryServiceError(404, 'PROOF_NOT_FOUND', 'Proof submission not found.');
   }
 
-  const [event, resident] = await Promise.all([
-    DisasterEvent.findById(submission.disasterEventId),
+  const [event, distribution, resident] = await Promise.all([
+    submission.disasterEventId ? DisasterEvent.findById(submission.disasterEventId) : Promise.resolve(null),
+    submission.distributionId ? Distribution.findById(submission.distributionId) : Promise.resolve(null),
     Resident.findById(submission.residentId)
       .select('_id residentCode firstName lastName fullName barangay city status qrStatus')
       .lean<ResidentScanRecord | null>(),
   ]);
 
-  if (!event) {
-    throw new BeneficiaryServiceError(404, 'EVENT_NOT_FOUND', 'Disaster event not found.');
+  if (!event && !distribution) {
+    throw new BeneficiaryServiceError(404, 'SCOPE_NOT_FOUND', 'Linked distribution or disaster event not found.');
   }
   if (!resident) {
     throw new BeneficiaryServiceError(404, 'RESIDENT_NOT_FOUND', 'Resident not found.');
   }
+
+  const scope = distribution
+    ? buildDistributionScopeSummary(distribution)
+    : buildEventScopeSummary(event as IDisasterEvent);
 
   submission.status = params.decision;
   submission.rejectionReason = params.decision === 'Rejected'
@@ -416,7 +643,8 @@ export async function reviewResidentProof(params: ProofReviewInput): Promise<{
 
   const eligibility = await upsertEligibilitySnapshot({
     residentId: resident._id,
-    disasterEventId: event._id,
+    disasterEventId: event?._id || null,
+    distributionId: distribution?._id || null,
     proofSubmissionId: submission._id,
     registrationStatus: resident.status,
     proofStatus: submission.status,
@@ -425,7 +653,14 @@ export async function reviewResidentProof(params: ProofReviewInput): Promise<{
     reviewedAt: submission.reviewedAt,
   });
 
-  return { event, resident, submission, eligibility };
+  return {
+    scope,
+    event,
+    distribution,
+    resident,
+    submission,
+    eligibility,
+  };
 }
 
 async function findDisasterEventClaim(residentId: string, disasterEventId: string): Promise<IClaim | null> {
@@ -717,6 +952,7 @@ export async function upsertOfflineSyncLog(params: {
   deviceId?: string;
   residentId?: string;
   disasterEventId?: string;
+  distributionId?: string;
   payload: Record<string, unknown>;
   syncStatus: OfflineSyncStatus;
   errorMessage?: string;
@@ -729,6 +965,9 @@ export async function upsertOfflineSyncLog(params: {
     : null;
   const disasterEventObjectId = params.disasterEventId && mongoose.Types.ObjectId.isValid(params.disasterEventId)
     ? new mongoose.Types.ObjectId(params.disasterEventId)
+    : null;
+  const distributionObjectId = params.distributionId && mongoose.Types.ObjectId.isValid(params.distributionId)
+    ? new mongoose.Types.ObjectId(params.distributionId)
     : null;
   const proofSubmissionObjectId = params.proofSubmissionId && mongoose.Types.ObjectId.isValid(params.proofSubmissionId)
     ? new mongoose.Types.ObjectId(params.proofSubmissionId)
@@ -749,6 +988,7 @@ export async function upsertOfflineSyncLog(params: {
         actorRole: params.actorRole,
         residentId: residentObjectId,
         disasterEventId: disasterEventObjectId,
+        distributionId: distributionObjectId,
         proofSubmissionId: proofSubmissionObjectId,
         claimMongoId: claimMongoObjectId,
         claimId: params.claimId || '',

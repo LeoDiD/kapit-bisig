@@ -82,3 +82,9 @@ npm run start
 | `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/kapit-bisig` |
 | `PORT` | Express server port | `3001` |
 | `NEXT_PUBLIC_API_URL` | API base URL for frontend | `http://localhost:3001/api` |
+| `API_PROXY_TARGET` | Dev proxy target for `/api/*` requests | `http://127.0.0.1:3001/api` |
+| `API_PROXY_ALLOW_REMOTE` | Allow public remote proxy targets in development | `false` |
+
+Notes:
+- In development, `API_PROXY_TARGET` may point to `localhost`, `127.0.0.1`, or a private LAN host like `192.168.x.x`.
+- Public remote targets still require `API_PROXY_ALLOW_REMOTE=true`; otherwise the proxy falls back to local `127.0.0.1:3001/api`.

@@ -79,15 +79,18 @@ export const residentIdParams = z.object({
 /* PATCH /api/residents/:id/status */
 export const residentStatusUpdateBody = z
   .object({
-    status: z.enum(['Approved', 'Rejected']),
+    status: z.enum(['Approved', 'Needs Revision', 'Rejected']),
     rejectionReason: z.string().trim().max(500).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.status === 'Rejected' && (!value.rejectionReason || value.rejectionReason.trim().length === 0)) {
+    if (
+      (value.status === 'Rejected' || value.status === 'Needs Revision')
+      && (!value.rejectionReason || value.rejectionReason.trim().length === 0)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['rejectionReason'],
-        message: 'Rejection reason is required when rejecting a registration.',
+        message: 'A review note is required when returning or rejecting a registration.',
       });
     }
   })

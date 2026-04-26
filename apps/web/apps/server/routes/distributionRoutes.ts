@@ -24,7 +24,12 @@ import {
 } from '../validation/distribution.schema';
 import { logAudit } from '../utils/audit';
 import { broadcastResidentNotification, broadcastScopedNotification } from '../utils/createNotification';
-import { getTargetBarangays } from '../services/distributionFlowService';
+import {
+  countRegisteredHouseholdsForDistribution,
+  getEligibleResidentIdsByDistribution,
+  getTargetBarangays,
+  requiresBeneficiaryApproval,
+} from '../services/distributionFlowService';
 
 const router = Router();
 
@@ -233,29 +238,30 @@ router.post(
       }
 
       const targetBarangays = getTargetBarangays(barangay, assignedBarangays);
-      const householdsNum = await Resident.countDocuments({
-        barangay: mongoose.trusted({ $in: targetBarangays }),
-        status: 'Approved',
-      });
 
       const distribution = new Distribution({
         barangay,
         assignedBarangays,
         assignedStaffIds: uniqueStaffIds,
         scheduled,
-        households: householdsNum,
+        households: 0,
         notes: notes || '',
+        requiresBeneficiaryApproval: true,
         status: 'Unclaimed',
         claimedAt: null,
       });
 
       await distribution.save();
 
+      distribution.households = await countRegisteredHouseholdsForDistribution(distribution);
+      await distribution.save();
+
       await logAudit(req, 'DISTRIBUTION_CREATED', 'Distribution', distribution._id.toString(), {
         barangay,
         assignedBarangays,
         scheduled,
-        householdsDerived: householdsNum,
+        householdsDerived: distribution.households,
+        requiresBeneficiaryApproval: true,
         assignedStaffCount: uniqueStaffIds.length,
       });
 
@@ -271,7 +277,7 @@ router.post(
       // Notify approved residents in the covered barangays.
       await broadcastResidentNotification({
         title: 'New Relief Distribution',
-        message: `A relief distribution covering ${targetBarangays.join(', ')} has been scheduled on ${scheduled}.`,
+        message: `A relief distribution covering ${targetBarangays.join(', ')} has been scheduled on ${scheduled}. Approved beneficiary application is required before claiming.`,
         type: 'dispatch',
         meta: {
           distributionId: distribution._id.toString(),
@@ -279,6 +285,7 @@ router.post(
           assignedBarangays,
           targetBarangays,
           scheduled,
+          requiresBeneficiaryApproval: true,
         },
         targetBarangays,
       });
@@ -332,7 +339,7 @@ router.get(
         });
       }
 
-      // Aggregate registered (approved) household counts per barangay
+      // Aggregate registered (approved) household counts per barangay for open distributions.
       const barangays = [...new Set(
         distributions.flatMap((d) =>
           Array.isArray(d.assignedBarangays) && d.assignedBarangays.length > 0
@@ -360,10 +367,17 @@ router.get(
         claimedCountMap[c._id.toString()] = c.count;
       }
 
+      const targetedDistributionIds = distributions
+        .filter((d) => requiresBeneficiaryApproval(d))
+        .map((d) => d._id.toString());
+      const eligibleResidentIdsByDistribution = await getEligibleResidentIdsByDistribution(targetedDistributionIds);
+
       const data = distributions.map((d) => {
         const claimed = claimedCountMap[d._id.toString()] ?? 0;
         const targetBarangays = getTargetBarangays(d.barangay, d.assignedBarangays ?? []);
-        const registered = targetBarangays.reduce((sum, b) => sum + (countMap[b] ?? 0), 0);
+        const registered = requiresBeneficiaryApproval(d)
+          ? (eligibleResidentIdsByDistribution.get(d._id.toString())?.length ?? 0)
+          : targetBarangays.reduce((sum, b) => sum + (countMap[b] ?? 0), 0);
 
         // Derive status from actual claims vs registered households
         let derivedStatus = d.status;
@@ -376,10 +390,12 @@ router.get(
         return {
           ...d,
           id: d._id.toString(),
+          households: registered,
           registeredHouseholds: registered,
           claimedHouseholds: claimed,
           status: derivedStatus,
           claimedAt: claimed > 0 ? (d.claimedAt || new Date().toISOString()) : d.claimedAt,
+          requiresBeneficiaryApproval: requiresBeneficiaryApproval(d),
         };
       });
 
@@ -494,13 +510,28 @@ router.get(
         distribution.assignedBarangays ?? [],
       );
 
-      // 3) Get all approved residents (registered households) in target barangays
-      const registeredHouseholds = await Resident.find({
-        barangay: mongoose.trusted({ $in: targetBarangays }),
-        status: 'Approved',
-      })
-        .select('_id fullName firstName lastName streetAddress barangay')
-        .lean();
+      const eligibleResidentIds = requiresBeneficiaryApproval(distribution)
+        ? await getEligibleResidentIdsByDistribution([distribution._id.toString()])
+        : new Map<string, string[]>();
+
+      // 3) Get all claimable residents for this distribution.
+      const registeredHouseholds = requiresBeneficiaryApproval(distribution)
+        ? await Resident.find({
+          _id: mongoose.trusted({
+            $in: (eligibleResidentIds.get(distribution._id.toString()) ?? [])
+              .map((residentId) => new mongoose.Types.ObjectId(residentId)),
+          }),
+          status: 'Approved',
+          qrStatus: 'ACTIVE',
+        })
+          .select('_id fullName firstName lastName streetAddress barangay')
+          .lean()
+        : await Resident.find({
+          barangay: mongoose.trusted({ $in: targetBarangays }),
+          status: 'Approved',
+        })
+          .select('_id fullName firstName lastName streetAddress barangay')
+          .lean();
 
       // 4) If zero registered households, return early
       if (registeredHouseholds.length === 0) {
@@ -510,6 +541,7 @@ router.get(
             distributionId: id,
             barangay: distribution.barangay,
             assignedBarangays: targetBarangays,
+            requiresBeneficiaryApproval: requiresBeneficiaryApproval(distribution),
             totals: { registered: 0, claimed: 0, notYetClaimed: 0 },
             claimed: [],
             notYetClaimed: [],
@@ -568,6 +600,7 @@ router.get(
           distributionId: id,
           barangay: distribution.barangay,
           assignedBarangays: targetBarangays,
+          requiresBeneficiaryApproval: requiresBeneficiaryApproval(distribution),
           totals: {
             registered: registeredHouseholds.length,
             claimed: claimedList.length,

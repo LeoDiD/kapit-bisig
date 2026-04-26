@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import DisasterEvent from '../models/DisasterEvent';
+import Distribution from '../models/Distribution';
 import ProofSubmission from '../models/ProofSubmission';
 import Resident from '../models/Resident';
 import { requireAuth, AuthRequest } from '../middleware/unifiedAuth';
@@ -31,12 +32,14 @@ import {
 } from '../services/beneficiaryService';
 import { logAudit } from '../utils/audit';
 import { escapeRegex } from '../validation/mongoSanitize';
+import { getTargetBarangays, requiresBeneficiaryApproval } from '../services/distributionFlowService';
 
 const router = Router();
 
 type OfflineProofSubmissionItem = {
   clientGeneratedId: string;
-  disasterEventId: string;
+  distributionId?: string;
+  disasterEventId?: string;
   damageType: 'Flood' | 'House Damage' | 'Storm Surge' | 'Landslide' | 'Livelihood Loss' | 'Other';
   description: string;
   supportingInfo?: string;
@@ -130,6 +133,87 @@ router.get('/events/active', async (_req: Request, res: Response) => {
   }
 });
 
+router.get(
+  '/distributions/open',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!isResidentRole(req.user?.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only residents can view open beneficiary distributions.',
+        });
+      }
+
+      const residentId = req.user?.userId || '';
+      const resident = await Resident.findById(residentId)
+        .select('_id barangay status')
+        .lean<{ _id: mongoose.Types.ObjectId; barangay: string; status: string } | null>();
+
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found.',
+        });
+      }
+
+      const candidateDistributions = await Distribution.find({
+        requiresBeneficiaryApproval: true,
+        status: mongoose.trusted({ $ne: 'Claimed' }),
+      })
+        .sort({ scheduled: 1, createdAt: -1 })
+        .lean();
+
+      const coveredDistributions = candidateDistributions.filter((distribution) => {
+        const targetBarangays = getTargetBarangays(distribution.barangay, distribution.assignedBarangays ?? []);
+        return targetBarangays.includes(resident.barangay);
+      });
+
+      const distributionIds = coveredDistributions.map((distribution) => distribution._id);
+      const submissions = distributionIds.length > 0
+        ? await ProofSubmission.find({
+          residentId: resident._id,
+          distributionId: mongoose.trusted({ $in: distributionIds }),
+        })
+          .select('distributionId status updatedAt submissionVersion')
+          .lean()
+        : [];
+
+      const submissionMap = new Map(
+        submissions.map((submission) => [String((submission as { distributionId?: mongoose.Types.ObjectId }).distributionId || ''), submission]),
+      );
+
+      return res.json({
+        success: true,
+        data: coveredDistributions.map((distribution) => {
+          const distributionId = distribution._id.toString();
+          const targetBarangays = getTargetBarangays(distribution.barangay, distribution.assignedBarangays ?? []);
+          const submission = submissionMap.get(distributionId) as {
+            status?: string;
+            updatedAt?: Date;
+            submissionVersion?: number;
+          } | undefined;
+
+          return {
+            id: distributionId,
+            barangay: distribution.barangay,
+            assignedBarangays: distribution.assignedBarangays ?? [],
+            targetBarangays,
+            scheduled: distribution.scheduled,
+            notes: distribution.notes || '',
+            applicationRequired: requiresBeneficiaryApproval(distribution),
+            applicationStatus: submission?.status || 'Not Submitted',
+            submissionVersion: submission?.submissionVersion || 0,
+            lastSubmissionAt: submission?.updatedAt || null,
+          };
+        }),
+      });
+    } catch (error) {
+      return handleServiceError(res, error);
+    }
+  },
+);
+
 router.post(
   '/events',
   requireAuth,
@@ -197,6 +281,7 @@ router.post(
       const residentId = req.user?.userId || '';
       const result = await submitResidentProof({
         residentId,
+        distributionId: req.body.distributionId,
         disasterEventId: req.body.disasterEventId,
         damageType: req.body.damageType,
         description: req.body.description,
@@ -210,7 +295,9 @@ router.post(
 
       await logAudit(req as unknown as Request, 'PROOF_SUBMISSION_CREATED', 'ProofSubmission', result.submission._id.toString(), {
         residentId,
-        disasterEventId: result.event._id.toString(),
+        disasterEventId: result.event?._id?.toString?.() || '',
+        distributionId: result.distribution?._id?.toString?.() || '',
+        scopeType: result.scope.type,
         status: result.submission.status,
       });
 
@@ -220,10 +307,11 @@ router.post(
         data: {
           proofSubmission: result.submission,
           eligibility: result.eligibility,
-          disasterEvent: {
-            id: result.event._id.toString(),
-            name: result.event.name,
-            status: result.event.status,
+          scope: {
+            id: result.scope.id,
+            type: result.scope.type,
+            name: result.scope.name,
+            status: result.scope.status,
           },
         },
       });
@@ -246,9 +334,10 @@ router.get(
         });
       }
 
-      const { page, limit, disasterEventId, residentId, status, barangay, search } = req.query as unknown as {
+      const { page, limit, distributionId, disasterEventId, residentId, status, barangay, search } = req.query as unknown as {
         page: number;
         limit: number;
+        distributionId?: string;
         disasterEventId?: string;
         residentId?: string;
         status?: string;
@@ -272,6 +361,7 @@ router.get(
       }
 
       const proofMatch: Record<string, unknown> = {};
+      if (distributionId) proofMatch.distributionId = new mongoose.Types.ObjectId(distributionId);
       if (disasterEventId) proofMatch.disasterEventId = new mongoose.Types.ObjectId(disasterEventId);
       if (residentId) proofMatch.residentId = new mongoose.Types.ObjectId(residentId);
       if (status) proofMatch.status = status;
@@ -292,10 +382,56 @@ router.get(
             from: 'disasterevents',
             localField: 'disasterEventId',
             foreignField: '_id',
-            as: 'event',
+            as: 'eventRef',
           },
         },
-        { $unwind: '$event' },
+        {
+          $lookup: {
+            from: 'distributions',
+            localField: 'distributionId',
+            foreignField: '_id',
+            as: 'distributionRef',
+          },
+        },
+        {
+          $addFields: {
+            distribution: { $arrayElemAt: ['$distributionRef', 0] },
+            eventSource: { $arrayElemAt: ['$eventRef', 0] },
+          },
+        },
+        {
+          $addFields: {
+            event: {
+              $cond: [
+                { $ifNull: ['$distribution._id', false] },
+                {
+                  _id: '$distribution._id',
+                  name: {
+                    $concat: [
+                      '$distribution.barangay',
+                      ' Distribution - ',
+                      '$distribution.scheduled',
+                    ],
+                  },
+                  disasterType: 'Distribution',
+                  status: {
+                    $cond: [
+                      { $eq: ['$distribution.status', 'Claimed'] },
+                      'Closed',
+                      'Active',
+                    ],
+                  },
+                },
+                {
+                  _id: '$eventSource._id',
+                  name: '$eventSource.name',
+                  disasterType: '$eventSource.disasterType',
+                  status: '$eventSource.status',
+                },
+              ],
+            },
+          },
+        },
       ];
 
       if (Object.keys(residentMatch).length > 0) {
@@ -346,6 +482,14 @@ router.get(
               name: '$event.name',
               disasterType: '$event.disasterType',
               status: '$event.status',
+            },
+            distribution: {
+              _id: '$distribution._id',
+              barangay: '$distribution.barangay',
+              assignedBarangays: '$distribution.assignedBarangays',
+              scheduled: '$distribution.scheduled',
+              status: '$distribution.status',
+              requiresBeneficiaryApproval: '$distribution.requiresBeneficiaryApproval',
             },
           },
         },
@@ -431,12 +575,15 @@ router.patch(
       await logAudit(req, 'PROOF_SUBMISSION_REVIEWED', 'ProofSubmission', result.submission._id.toString(), {
         decision: req.body.decision,
         residentId: result.resident._id.toString(),
-        disasterEventId: result.event._id.toString(),
+        disasterEventId: result.event?._id?.toString?.() || '',
+        distributionId: result.distribution?._id?.toString?.() || '',
+        scopeType: result.scope.type,
       });
 
       await logAudit(req, 'BENEFICIARY_ELIGIBILITY_UPDATED', 'BeneficiaryEligibility', result.eligibility._id.toString(), {
         residentId: result.resident._id.toString(),
-        disasterEventId: result.event._id.toString(),
+        disasterEventId: result.event?._id?.toString?.() || '',
+        distributionId: result.distribution?._id?.toString?.() || '',
         status: result.eligibility.status,
       });
 
@@ -592,6 +739,7 @@ router.post(
           deviceId,
           residentId: actorId,
           disasterEventId: item.disasterEventId,
+          distributionId: item.distributionId,
           payload: item,
           syncStatus: 'Processing',
         });
@@ -599,6 +747,7 @@ router.post(
         try {
           const result = await submitResidentProof({
             residentId: actorId,
+            distributionId: item.distributionId,
             disasterEventId: item.disasterEventId,
             damageType: item.damageType as never,
             description: item.description,
@@ -618,6 +767,7 @@ router.post(
             deviceId,
             residentId: actorId,
             disasterEventId: item.disasterEventId,
+            distributionId: item.distributionId,
             proofSubmissionId: result.submission._id.toString(),
             payload: item,
             syncStatus: 'Synced',
@@ -626,6 +776,7 @@ router.post(
           await logAudit(req as unknown as Request, 'OFFLINE_SYNC_RECEIVED', 'OfflineSyncQueue', item.clientGeneratedId, {
             queueType: 'PROOF_SUBMISSION',
             disasterEventId: item.disasterEventId,
+            distributionId: item.distributionId,
             proofSubmissionId: result.submission._id.toString(),
           });
 
@@ -645,6 +796,7 @@ router.post(
             deviceId,
             residentId: actorId,
             disasterEventId: item.disasterEventId,
+            distributionId: item.distributionId,
             payload: item,
             syncStatus: 'Failed',
             errorMessage: message,

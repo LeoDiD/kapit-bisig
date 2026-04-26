@@ -16,6 +16,7 @@ export type DistributionRow = {
   registeredHouseholds: number
   claimedHouseholds: number
   notes?: string
+  requiresBeneficiaryApproval?: boolean
   status: DistributionStatus
   claimedAt: string | null
   createdAt: string

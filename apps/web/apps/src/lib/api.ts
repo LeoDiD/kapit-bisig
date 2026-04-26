@@ -110,7 +110,8 @@ export interface DistributionData {
   scheduled: string;
   households: number;
   notes?: string;
-  status: 'Unclaimed' | 'Claimed';
+  requiresBeneficiaryApproval?: boolean;
+  status: 'Unclaimed' | 'Partially Claimed' | 'Claimed';
   claimedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -146,6 +147,7 @@ export interface DistributionHouseholdsData {
   distributionId: string;
   barangay: string;
   assignedBarangays?: string[];
+  requiresBeneficiaryApproval?: boolean;
   totals: {
     registered: number;
     claimed: number;
@@ -216,17 +218,48 @@ export interface ResidentRecord {
   id?: string;
   _id?: string;
   fullName: string;
+  residentCode?: string;
   firstName?: string;
   lastName?: string;
   mobileNumber: string;
+  dateOfBirth?: string;
+  gender?: 'Male' | 'Female' | string;
   barangay: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  city?: string;
+  streetAddress?: string;
+  householdSize?: number;
+  vulnerableMembers?: string[];
+  vulnerableCounts?: Record<string, number>;
+  idType?: string;
+  idNumber?: string;
+  frontIdImage?: string;
+  backIdImage?: string;
+  faceImage?: string;
+  status: 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
   rejectionReason?: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
   createdAt?: string;
   verification?: {
     overallConfidence?: number;
     aiVerificationStatus?: 'High Match' | 'Medium Match' | 'Low Match';
     isVerified?: boolean;
+    warnings?: string[];
+    riskFactors?: string[];
+    idCheckDecision?: 'PASS' | 'REVIEW' | 'BLOCK';
+    idCheckRequiresManualReview?: boolean;
+    idCheckReasons?: string[];
+    idCheckWarnings?: string[];
+    reviewFlags?: string[];
+    screeningConfidence?: number;
+    detectedIdType?: string;
+    typeMatch?: boolean;
+    typeConfidence?: number;
+    idNumberMatch?: boolean;
+    ocrConfidence?: number;
+    qualityScore?: number;
+    extractedIdNumberMasked?: string;
+    rawTextPreview?: string;
   };
 }
 
@@ -265,7 +298,7 @@ export interface BeneficiaryProofSubmissionRecord {
     residentCode: string;
     fullName: string;
     barangay: string;
-    status: 'Pending' | 'Approved' | 'Rejected';
+    status: 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
   };
   event: {
     _id: string;
@@ -581,7 +614,7 @@ export const api = {
   async getResidents(params?: {
     search?: string;
     barangay?: string;
-    status?: 'All' | 'Pending' | 'Approved' | 'Rejected';
+    status?: 'All' | 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<ResidentRecord[]>> {
@@ -606,11 +639,22 @@ export const api = {
   },
 
   /**
+   * Get one resident registration detail for admin review.
+   */
+  async getResident(id: string): Promise<ApiResponse<ResidentRecord>> {
+    const response = await fetch(`${API_URL}/residents/${id}`, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<ResidentRecord>>(response);
+  },
+
+  /**
    * Approve or reject a resident registration.
    */
   async updateResidentStatus(
     id: string,
-    payload: { status: 'Approved' | 'Rejected'; rejectionReason?: string }
+    payload: { status: 'Approved' | 'Needs Revision' | 'Rejected'; rejectionReason?: string }
   ): Promise<ApiResponse<ResidentRecord>> {
     const response = await fetch(`${API_URL}/residents/${id}/status`, {
       method: 'PATCH',
@@ -717,7 +761,7 @@ export const api = {
       id?: string;
       _id?: string;
       status: 'Eligible' | 'Not Eligible';
-      registrationStatus: 'Pending' | 'Approved' | 'Rejected';
+      registrationStatus: 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
       proofStatus: 'Pending Sync' | 'Pending Verification' | 'Approved' | 'Rejected';
       rejectionReason?: string;
       reviewedAt?: string | null;
@@ -735,7 +779,7 @@ export const api = {
         id?: string;
         _id?: string;
         status: 'Eligible' | 'Not Eligible';
-        registrationStatus: 'Pending' | 'Approved' | 'Rejected';
+        registrationStatus: 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
         proofStatus: 'Pending Sync' | 'Pending Verification' | 'Approved' | 'Rejected';
         rejectionReason?: string;
         reviewedAt?: string | null;

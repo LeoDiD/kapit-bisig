@@ -39,6 +39,7 @@ export interface IDistribution extends Document {
   scheduled: string;
   households: number;
   notes?: string;
+  requiresBeneficiaryApproval: boolean;
   status: DistributionStatus;
   claimedAt: Date | null;
   createdAt: Date;
@@ -81,6 +82,11 @@ const distributionSchema = new Schema<IDistribution>(
       type: String,
       default: '',
     },
+    requiresBeneficiaryApproval: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
     status: {
       type: String,
       enum: ['Unclaimed', 'Partially Claimed', 'Claimed'],
@@ -112,6 +118,7 @@ distributionSchema.set('toJSON', {
 distributionSchema.index({ barangay: 1, createdAt: -1 });
 distributionSchema.index({ status: 1, createdAt: -1 });
 distributionSchema.index({ assignedStaffIds: 1, createdAt: -1 });
+distributionSchema.index({ requiresBeneficiaryApproval: 1, status: 1, createdAt: -1 });
 
 const Distribution = mongoose.model<IDistribution>('Distribution', distributionSchema);
 

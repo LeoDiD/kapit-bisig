@@ -31,7 +31,7 @@ const mainNavItems = [
   { name: 'Resident Registration', href: '/resident-registration', icon: UserPlus, superadminOnly: true },
   { name: 'Verified Residents', href: '/verified-residents', icon: UserCheck, superadminOnly: true },
   { name: 'Code Generation', href: '/code-generation', icon: ShieldCheck, superadminOnly: true },
-  { name: 'Households', href: '/households', icon: House, superadminOnly: false },
+  { name: 'Relief Registry', href: '/households', icon: House, superadminOnly: false },
   { name: 'Distribution', href: '/distribution', icon: ArrowLeftRight, superadminOnly: false },
   { name: 'Target Beneficiaries', href: '/target-beneficiaries', icon: FileText, superadminOnly: false },
   { name: 'Reports', href: '/reports', icon: ChartNoAxesCombined, superadminOnly: false },

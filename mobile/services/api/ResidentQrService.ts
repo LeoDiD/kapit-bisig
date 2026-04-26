@@ -55,6 +55,7 @@ export interface ResidentProfile {
   streetAddress: string;
   householdSize: number;
   status: string;
+  rejectionReason?: string;
 }
 
 export interface ResidentProfileUpdatePayload {
@@ -88,8 +89,17 @@ export interface ResidentNotificationItem {
   createdAt?: string;
   meta?: {
     distributionId?: string;
+    screen?: string;
     [key: string]: unknown;
   };
+}
+
+export interface ResidentRegistrationRevisionPayload {
+  idType: string;
+  idNumber: string;
+  frontIdImage: string;
+  backIdImage: string;
+  faceImage: string;
 }
 
 export interface ResidentDisasterEvent {
@@ -104,8 +114,24 @@ export interface ResidentDisasterEvent {
   status: 'Draft' | 'Active' | 'Closed';
 }
 
-export interface ResidentProofSubmissionPayload {
-  disasterEventId: string;
+export interface ResidentBeneficiaryDistribution {
+  id: string;
+  barangay: string;
+  assignedBarangays?: string[];
+  targetBarangays: string[];
+  scheduled?: string;
+  notes?: string;
+  applicationRequired: boolean;
+  applicationStatus: 'Not Submitted' | 'Pending Verification' | 'Approved' | 'Rejected';
+  submissionVersion: number;
+  lastSubmissionAt?: string | null;
+}
+
+type ResidentProofSubmissionScope =
+  | { distributionId: string; disasterEventId?: never }
+  | { disasterEventId: string; distributionId?: never };
+
+export type ResidentProofSubmissionPayload = ResidentProofSubmissionScope & {
   damageType: 'Flood' | 'House Damage' | 'Storm Surge' | 'Landslide' | 'Livelihood Loss' | 'Other';
   description: string;
   supportingInfo?: string;
@@ -113,13 +139,13 @@ export interface ResidentProofSubmissionPayload {
   photoProofs: string[];
   clientGeneratedId: string;
   deviceId?: string;
-}
+};
 
-export interface ResidentQueuedProofSubmission extends ResidentProofSubmissionPayload {
+export type ResidentQueuedProofSubmission = ResidentProofSubmissionPayload & {
   queuedAt: string;
   syncStatus: 'Pending Sync' | 'Failed';
   lastError?: string;
-}
+};
 
 interface ApiResponse<T> {
   success: boolean;
@@ -445,6 +471,56 @@ export async function fetchResidentDistributions(
   }
 }
 
+export async function submitResidentRegistrationRevision(
+  token: string,
+  payload: ResidentRegistrationRevisionPayload,
+): Promise<{ success: boolean; message?: string; data?: ResidentProfile }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/auth/me/revision-submit`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const parsed = await parseApiResponse<ResidentProfile>(response);
+    if (!response.ok || !parsed.success || !parsed.data) {
+      return {
+        success: false,
+        message: parsed.message || 'Failed to submit corrected registration files.',
+      };
+    }
+
+    const session = await getResidentSession();
+    if (session) {
+      await saveResidentSession({
+        ...session,
+        fullName: parsed.data.fullName,
+        mobileNumber: parsed.data.mobileNumber,
+        barangay: parsed.data.barangay,
+        residentCode: parsed.data.residentCode,
+        status: parsed.data.status,
+      });
+    }
+
+    return {
+      success: true,
+      message: parsed.message,
+      data: {
+        ...parsed.data,
+        avatarUrl: toAbsoluteAssetUrl(parsed.data.avatarUrl),
+      },
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while submitting corrected registration files.',
+    };
+  }
+}
+
 export async function fetchResidentNotifications(
   token: string
 ): Promise<{ success: boolean; message?: string; data?: { notifications: ResidentNotificationItem[]; unreadCount: number } }> {
@@ -535,6 +611,38 @@ export async function fetchActiveBeneficiaryEvent(
     return {
       success: false,
       message: 'Network error while loading the active disaster event.',
+    };
+  }
+}
+
+export async function fetchOpenBeneficiaryDistributions(
+  token: string
+): Promise<{ success: boolean; message?: string; data?: ResidentBeneficiaryDistribution[] }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/beneficiaries/distributions/open`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const payload = await parseApiResponse<ResidentBeneficiaryDistribution[]>(response);
+    if (!response.ok || !payload.success || !payload.data) {
+      return {
+        success: false,
+        message: payload.message || 'Failed to load open beneficiary distributions.',
+      };
+    }
+
+    return {
+      success: true,
+      data: payload.data,
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while loading open beneficiary distributions.',
     };
   }
 }

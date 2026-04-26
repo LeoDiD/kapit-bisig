@@ -7,7 +7,7 @@ export default function TargetBeneficiariesPage() {
     <DashboardLayout>
       <Header
         title="Target Beneficiaries"
-        subtitle="Review event-specific proof submissions and approve eligible residents"
+        subtitle="Review proof submissions, approve complete requests, and return incomplete ones for revision"
       />
       <TargetBeneficiariesPageClient />
     </DashboardLayout>

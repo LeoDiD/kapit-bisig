@@ -43,7 +43,8 @@ export const disasterEventIdParams = z.object({
 }).strict();
 
 export const residentProofSubmissionBody = z.object({
-  disasterEventId: objectId,
+  distributionId: objectId.optional(),
+  disasterEventId: objectId.optional(),
   damageType: damageTypeEnum,
   description: z.string().trim().min(10).max(2000),
   supportingInfo: z.string().trim().max(2000).optional().default(''),
@@ -51,9 +52,25 @@ export const residentProofSubmissionBody = z.object({
   photoProofs: proofPhotoArray,
   clientGeneratedId: z.string().trim().max(128).optional().default(''),
   deviceId: z.string().trim().max(128).optional().default(''),
+}).superRefine((value, ctx) => {
+  if (!value.distributionId && !value.disasterEventId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['distributionId'],
+      message: 'Either distributionId or disasterEventId is required.',
+    });
+  }
+  if (value.distributionId && value.disasterEventId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['distributionId'],
+      message: 'Provide either distributionId or disasterEventId, not both.',
+    });
+  }
 }).strict();
 
 export const proofSubmissionListQuery = paginationQuery.extend({
+  distributionId: objectId.optional(),
   disasterEventId: objectId.optional(),
   residentId: objectId.optional(),
   status: z.enum(['Pending Verification', 'Approved', 'Rejected']).optional(),
@@ -104,12 +121,28 @@ export const offlineProofSyncBody = z.object({
   deviceId: z.string().trim().min(1).max(128),
   submissions: z.array(z.object({
     clientGeneratedId: z.string().trim().min(1).max(128),
-    disasterEventId: objectId,
+    distributionId: objectId.optional(),
+    disasterEventId: objectId.optional(),
     damageType: damageTypeEnum,
     description: z.string().trim().min(10).max(2000),
     supportingInfo: z.string().trim().max(2000).optional().default(''),
     dateSubmitted: isoDateTime,
     photoProofs: proofPhotoArray,
+  }).superRefine((value, ctx) => {
+    if (!value.distributionId && !value.disasterEventId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['distributionId'],
+        message: 'Either distributionId or disasterEventId is required.',
+      });
+    }
+    if (value.distributionId && value.disasterEventId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['distributionId'],
+        message: 'Provide either distributionId or disasterEventId, not both.',
+      });
+    }
   }).strict()).min(1).max(20),
 }).strict();
 

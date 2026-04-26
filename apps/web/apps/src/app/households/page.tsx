@@ -103,8 +103,8 @@ export default function HouseholdsPage() {
     <DashboardLayout>
       <div className="max-w-[1600px] mx-auto w-full">
         <Header
-          title="Households"
-          subtitle="Manage and oversee registered household records"
+          title="Relief Registry"
+          subtitle="Track resident-based relief records, claim progress, and assistance history"
         />
 
         <div className="mt-6">

@@ -24,9 +24,9 @@ export default function HouseholdStats({
       <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Household Overview</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Relief Registry Overview</p>
             <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950">
-              Household summary
+              Resident relief summary
             </h2>
           </div>
           <p className="text-sm text-slate-500">Claim rate {claimRate}%</p>
@@ -35,9 +35,9 @@ export default function HouseholdStats({
 
       <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
         <SummaryMetricCard
-          label="Households"
+          label="Registry Rows"
           value={total}
-          helper="Registered records"
+          helper="Resident-based records"
           icon={<UsersIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard

@@ -36,6 +36,11 @@ export default function DistributionDetailsModal({
                   <div className="text-xs text-gray-500">
                     Host Barangay
                   </div>
+                  {distribution.requiresBeneficiaryApproval ? (
+                    <div className="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                      Target beneficiary approval required
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -79,11 +84,13 @@ export default function DistributionDetailsModal({
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex items-center gap-2 text-gray-500 text-xs mb-3">
                 <UsersIcon />
-                <span>Covered Households</span>
+                <span>{distribution.requiresBeneficiaryApproval ? 'Eligible Beneficiaries' : 'Covered Households'}</span>
               </div>
               <div className="text-xl font-bold text-gray-900">
                 <span className="text-[#0F533A]">{distribution.households}</span>
-                <span className="text-gray-400 text-sm font-normal ml-1">households</span>
+                <span className="text-gray-400 text-sm font-normal ml-1">
+                  {distribution.requiresBeneficiaryApproval ? 'approved residents' : 'households'}
+                </span>
               </div>
             </div>
 

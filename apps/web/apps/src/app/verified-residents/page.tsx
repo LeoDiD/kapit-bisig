@@ -7,7 +7,8 @@ import api, { getScopedBarangays, ResidentRecord } from '@/lib/api'
 import { useAuth } from '@/lib/AuthContext'
 import FilterDropdown from '@/components/ui/FilterDropdown'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
-import { AiMatchBadge, ResidentStatusBadge } from '@/components/residents/ResidentTableBadges'
+import { isHighMatchResident } from '@/components/residents/ResidentTableBadges'
+import ResidentReviewModal from '@/components/residents/ResidentReviewModal'
 
 function maskResidentName(record: ResidentRecord): string {
   const raw =
@@ -21,8 +22,21 @@ function maskResidentName(record: ResidentRecord): string {
   return `${firstInitial}xxxx ${lastInitial}xxxx`
 }
 
-function maskMobileNumber(_mobile: string | undefined): string {
-  return '09XXXXXXXXX'
+function getVerifiedTimestamp(record: ResidentRecord): string | undefined {
+  return record.verifiedAt || record.createdAt
+}
+
+function formatVerifiedTimestamp(value?: string): string {
+  if (!value) return 'Verification date unavailable'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export default function VerifiedResidentsPage() {
@@ -33,6 +47,10 @@ export default function VerifiedResidentsPage() {
   const [rows, setRows] = useState<ResidentRecord[]>([])
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [reviewResidentId, setReviewResidentId] = useState<string | null>(null)
+  const [reviewResident, setReviewResident] = useState<ResidentRecord | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
 
   const [barangay, setBarangay] = useState('All Barangays')
   const [currentPage, setCurrentPage] = useState(1)
@@ -80,20 +98,47 @@ export default function VerifiedResidentsPage() {
     fetchResidents()
   }, [user, fetchResidents])
 
+  const closeReview = useCallback(() => {
+    setReviewResidentId(null)
+    setReviewResident(null)
+    setReviewLoading(false)
+    setReviewError(null)
+  }, [])
+
+  const openReview = useCallback(async (residentId: string) => {
+    setReviewResidentId(residentId)
+    setReviewResident(null)
+    setReviewError(null)
+    setReviewLoading(true)
+
+    try {
+      const response = await api.getResident(residentId)
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to load verified resident details.')
+      }
+      setReviewResident(response.data)
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : 'Failed to load verified resident details.')
+    } finally {
+      setReviewLoading(false)
+    }
+  }, [])
+
   const uniqueBarangayCount = useMemo(
     () => new Set(rows.map((r) => (r.barangay || '').trim()).filter(Boolean)).size,
     [rows],
   )
   const withHighMatch = useMemo(
-    () => rows.filter((r) => r.verification?.aiVerificationStatus === 'High Match').length,
+    () => rows.filter((r) => isHighMatchResident(r)).length,
     [rows],
   )
   const verifiedLast7Days = useMemo(() => {
     const now = Date.now()
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000
     return rows.filter((r) => {
-      if (!r.createdAt) return false
-      const t = new Date(r.createdAt).getTime()
+      const timestamp = getVerifiedTimestamp(r)
+      if (!timestamp) return false
+      const t = new Date(timestamp).getTime()
       return Number.isFinite(t) && now - t <= sevenDaysMs
     }).length
   }, [rows])
@@ -116,7 +161,7 @@ export default function VerifiedResidentsPage() {
     <DashboardLayout>
       <Header
         title="Verified Residents"
-        subtitle="All approved resident registrations"
+        subtitle="Residents approved from the registration review flow"
       />
 
       <section className="mb-6 rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -136,7 +181,7 @@ export default function VerifiedResidentsPage() {
           <SummaryMetricCard
             label="Verified"
             value={rows.length}
-            helper="Approved registrations"
+            helper="Verified registrations"
             icon={<CheckCircleIcon className="h-5 w-5" />}
           />
           <SummaryMetricCard
@@ -154,7 +199,7 @@ export default function VerifiedResidentsPage() {
           <SummaryMetricCard
             label="Recent"
             value={verifiedLast7Days}
-            helper="Approved in 7 days"
+            helper="Verified in 7 days"
             icon={<RefreshIcon className="h-5 w-5" />}
           />
         </div>
@@ -167,6 +212,9 @@ export default function VerifiedResidentsPage() {
               <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400">Verified Directory</p>
               <p className="mt-1 text-sm text-gray-700 dark:text-slate-300">
                 {fetching ? 'Loading verified residents...' : `${rows.length} verified resident(s)`}
+              </p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                Use the record button to open the full approved resident information.
               </p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/25 dark:text-amber-300">
@@ -201,21 +249,18 @@ export default function VerifiedResidentsPage() {
               <p className="text-sm font-semibold text-red-600">{error}</p>
             </div>
           ) : (
-            <table className="w-full min-w-[980px] border-collapse text-left">
+            <table className="w-full min-w-[560px] border-collapse text-left">
               <thead className="bg-white border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Mobile</th>
                   <th className="px-6 py-4">Barangay</th>
-                  <th className="px-6 py-4">AI Match</th>
-                  <th className="px-6 py-4">Submitted</th>
-                  <th className="px-6 py-4 text-right pr-6">Status</th>
+                  <th className="px-6 py-4 text-right pr-6">Record</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white text-sm">
                 {fetching ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
+                    <td colSpan={3} className="px-6 py-16 text-center">
                       <div className="inline-flex flex-col items-center">
                         <SpinnerIcon className="h-8 w-8 text-gray-700" />
                         <span className="mt-2 text-xs font-medium text-gray-500">Fetching verified residents...</span>
@@ -224,26 +269,39 @@ export default function VerifiedResidentsPage() {
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td className="px-6 py-16 text-center text-gray-500 font-medium" colSpan={6}>
+                    <td className="px-6 py-16 text-center text-gray-500 font-medium" colSpan={3}>
                       No verified residents found filtering by {barangay}.
                     </td>
                   </tr>
                 ) : (
                   pagedRows.map((r) => {
                     const id = r._id || r.id || ''
+                    const verifiedTimestamp = getVerifiedTimestamp(r)
                     return (
                       <tr key={id} className="hover:bg-gray-50/70 transition-colors group">
-                        <td className="px-6 py-4 font-bold text-gray-900 whitespace-normal break-words">{maskResidentName(r)}</td>
-                        <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal break-words">{maskMobileNumber(r.mobileNumber)}</td>
+                        <td className="px-6 py-4 whitespace-normal break-words">
+                          <div className="flex items-center gap-3">
+                            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600">
+                              <RowCheckIcon className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-gray-900">{maskResidentName(r)}</p>
+                              <p className="mt-1 text-xs font-medium text-slate-500">
+                                Verified {formatVerifiedTimestamp(verifiedTimestamp)}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-gray-600 font-medium">{r.barangay}</td>
-                        <td className="px-6 py-4">
-                          <AiMatchBadge record={r} />
-                        </td>
-                        <td className="px-6 py-4 text-gray-500 text-xs font-bold tracking-wide whitespace-normal">
-                          {r.createdAt ? new Date(r.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
-                        </td>
                         <td className="px-6 py-4 text-right pr-6">
-                          <ResidentStatusBadge status={r.status} />
+                          <button
+                            type="button"
+                            onClick={() => id && openReview(id)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                            View Record
+                          </button>
                         </td>
                       </tr>
                     )
@@ -294,6 +352,18 @@ export default function VerifiedResidentsPage() {
           </div>
         )}
       </section>
+
+      <ResidentReviewModal
+        isOpen={Boolean(reviewResidentId)}
+        resident={reviewResident}
+        loading={reviewLoading}
+        error={reviewError}
+        onClose={closeReview}
+        readOnly
+        approvedLabel="Verified"
+        titleEyebrow="Verified Resident"
+        description="Review the approved registration details, uploaded proof, and screening notes from the registration process."
+      />
     </DashboardLayout>
   )
 }
@@ -343,6 +413,23 @@ function SparklesIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  )
+}
+
+function RowCheckIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.8} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
+function EyeIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.065 7-9.542 7S3.732 16.057 2.458 12z" />
+      <circle cx="12" cy="12" r="3" strokeWidth={2.2} />
     </svg>
   )
 }

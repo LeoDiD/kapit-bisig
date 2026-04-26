@@ -30,10 +30,11 @@ import { Card } from './ui/Card';
 import { triggerTestNotification } from '../services/notifications/TestNotificationService';
 
 interface ProfileScreenProps {
-  onNavigate?: (screen: 'home' | 'qr' | 'profile') => void;
+  onNavigate?: (screen: 'home' | 'qr' | 'profile' | 'registration-revision') => void;
   onLogout?: () => void;
   accountType?: 'resident' | 'volunteer';
   residentStatus?: string;
+  residentNote?: string;
   residentProfile?: ResidentProfile | null;
   volunteerUser?: VolunteerUser | null;
   onResidentProfileUpdated?: (profile: ResidentProfile) => void;
@@ -78,6 +79,7 @@ export default function ProfileScreen({
   onLogout,
   accountType = 'resident',
   residentStatus,
+  residentNote,
   residentProfile,
   volunteerUser,
   onResidentProfileUpdated,
@@ -85,7 +87,8 @@ export default function ProfileScreen({
 }: ProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const isVolunteer = accountType === 'volunteer';
-  const isPendingResident = !isVolunteer && residentStatus === 'Pending';
+  const needsRevisionResident = !isVolunteer && residentStatus === 'Needs Revision';
+  const isPendingResident = !isVolunteer && (residentStatus === 'Pending' || needsRevisionResident);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -347,7 +350,7 @@ export default function ProfileScreen({
               color={isVerified ? '#16A34A' : '#F59E0B'} 
             />
             <Typography variant="caption" weight="medium" color={isVerified ? '#16A34A' : '#F59E0B'} style={{ marginLeft: 4 }}>
-              {isVolunteer ? 'Active Staff' : isVerified ? 'Verified Household' : 'Pending Verification'}
+              {isVolunteer ? 'Active Staff' : isVerified ? 'Verified Household' : needsRevisionResident ? 'Needs Revision' : 'Pending Verification'}
             </Typography>
           </View>
 
@@ -363,8 +366,40 @@ export default function ProfileScreen({
         ) : (
           <>
             {isPendingResident && (
-              <PendingAccessBanner message="Your account is pending admin review. QR and announcements will unlock after approval." />
+              <PendingAccessBanner
+                message={
+                  needsRevisionResident
+                    ? 'Your registration needs revision. Review the admin note below. QR and announcements will unlock after approval.'
+                    : 'Your account is pending admin review. QR and announcements will unlock after approval.'
+                }
+              />
             )}
+            {needsRevisionResident && residentNote?.trim() ? (
+              <View style={[styles.infoCard, { borderColor: '#FCD34D', backgroundColor: '#FFFBEB' }]}>
+                <Typography variant="caption" weight="semiBold" color="#B45309">
+                  ADMIN NOTE
+                </Typography>
+                <Typography variant="body" style={{ marginTop: 8, color: '#92400E' }}>
+                  {residentNote.trim()}
+                </Typography>
+              </View>
+            ) : null}
+            {needsRevisionResident ? (
+              <View style={styles.infoCard}>
+                <TouchableOpacity style={styles.actionTile} onPress={() => onNavigate?.('registration-revision')}>
+                  <View style={styles.actionTileIcon}>
+                    <Ionicons name="cloud-upload-outline" size={20} color="#111827" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Typography variant="body" weight="semiBold">Upload corrected files</Typography>
+                    <Typography variant="caption" color="#6B7280">
+                      Send updated ID images and selfie for admin review.
+                    </Typography>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+            ) : null}
             <View style={styles.infoCard}>
               <InfoRow label="Full Name" value={displayName} />
               <InfoRow label="Home Address" value={fullAddress} showDivider={false} />
@@ -388,11 +423,7 @@ export default function ProfileScreen({
             icon="notifications-outline"
             label="Notifications"
             onPress={() => {
-              if (isPendingResident) {
-                Alert.alert('Pending Approval', 'Notifications are available after admin approval.');
-                return;
-              }
-              Alert.alert('Notifications', 'No new notifications.');
+              onNavigate?.('home');
             }}
           />
           <View style={styles.settingsDivider} />
@@ -693,6 +724,19 @@ const styles = StyleSheet.create({
   infoDivider: {
     height: 1,
     backgroundColor: '#F3F4F6',
+  },
+  actionTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  actionTileIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E5E7EB',
   },
 
   // Settings Card

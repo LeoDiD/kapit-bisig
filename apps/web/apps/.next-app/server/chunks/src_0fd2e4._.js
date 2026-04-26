@@ -272,6 +272,15 @@ const api = {
         return handleResponse(response);
     },
     /**
+   * Get one resident registration detail for admin review.
+   */ async getResident (id) {
+        const response = await fetch(`${API_URL}/residents/${id}`, {
+            headers: createHeaders(),
+            credentials: 'include'
+        });
+        return handleResponse(response);
+    },
+    /**
    * Approve or reject a resident registration.
    */ async updateResidentStatus (id, payload) {
         const response = await fetch(`${API_URL}/residents/${id}/status`, {
@@ -555,12 +564,14 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$api$2e$ts__$5b
 ;
 ;
 ;
+const HOUSEHOLDS_PER_PAGE = 8;
 function ViewHouseholdsModal({ open, onClose, distribution }) {
     const [loading, setLoading] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"](false);
     const [error, setError] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"](null);
     const [data, setData] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"](null);
     const [activeTab, setActiveTab] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"]('notYetClaimed');
     const [search, setSearch] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"]('');
+    const [page, setPage] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"](1);
     const fetchData = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"](async (distributionId)=>{
         setLoading(true);
         setError(null);
@@ -582,6 +593,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
         if (open && distribution) {
             setSearch('');
             setActiveTab('notYetClaimed');
+            setPage(1);
             setData(null);
             fetchData(distribution.id);
         }
@@ -589,6 +601,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
         open,
         distribution,
         fetchData
+    ]);
+    __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"](()=>{
+        setPage(1);
+    }, [
+        activeTab,
+        search
     ]);
     if (!open || !distribution) return null;
     const noRegistered = data && data.totals.registered === 0;
@@ -602,6 +620,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
         if (!q) return true;
         return h.householdName.toLowerCase().includes(q) || h.address.toLowerCase().includes(q);
     }) ?? [];
+    const activeItemsCount = activeTab === 'claimed' ? filteredClaimed.length : filteredNotYetClaimed.length;
+    const totalPages = Math.max(1, Math.ceil(activeItemsCount / HOUSEHOLDS_PER_PAGE));
+    const currentPage = Math.min(page, totalPages);
+    const rangeStart = (currentPage - 1) * HOUSEHOLDS_PER_PAGE;
+    const rangeEnd = currentPage * HOUSEHOLDS_PER_PAGE;
+    const paginatedClaimed = filteredClaimed.slice(rangeStart, rangeEnd);
+    const paginatedNotYetClaimed = filteredNotYetClaimed.slice((currentPage - 1) * HOUSEHOLDS_PER_PAGE, currentPage * HOUSEHOLDS_PER_PAGE);
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         className: "fixed inset-0 z-[120] overflow-y-auto",
         role: "dialog",
@@ -614,7 +639,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                     onClick: onClose
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                    lineNumber: 74,
+                    lineNumber: 96,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -632,12 +657,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                 className: "w-10 h-10 rounded-full bg-[#0F533A] flex items-center justify-center",
                                                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](UsersIcon, {}, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 82,
+                                                    lineNumber: 104,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 81,
+                                                lineNumber: 103,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -647,7 +672,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         children: "Covered Households"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 85,
+                                                        lineNumber: 107,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -658,19 +683,19 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 86,
+                                                        lineNumber: 108,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 84,
+                                                lineNumber: 106,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 80,
+                                        lineNumber: 102,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -680,23 +705,23 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                         "aria-label": "Close",
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](XIcon, {}, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 96,
+                                            lineNumber: 118,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 90,
+                                        lineNumber: 112,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                lineNumber: 79,
+                                lineNumber: 101,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 78,
+                            lineNumber: 100,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -721,7 +746,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         strokeWidth: "4"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 108,
+                                                        lineNumber: 130,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -730,25 +755,25 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 109,
+                                                        lineNumber: 131,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 107,
+                                                lineNumber: 129,
                                                 columnNumber: 19
                                             }, this),
                                             "Loading households…"
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 106,
+                                        lineNumber: 128,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 105,
+                                    lineNumber: 127,
                                     columnNumber: 15
                                 }, this),
                                 error && !loading && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -756,7 +781,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                     children: error
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 118,
+                                    lineNumber: 140,
                                     columnNumber: 15
                                 }, this),
                                 !loading && !error && noRegistered && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -766,12 +791,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                             className: "w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3",
                                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](UsersEmptyIcon, {}, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 127,
+                                                lineNumber: 149,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 126,
+                                            lineNumber: 148,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -779,13 +804,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                             children: "No registered household."
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 129,
+                                            lineNumber: 151,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 125,
+                                    lineNumber: 147,
                                     columnNumber: 15
                                 }, this),
                                 !loading && !error && data && !noRegistered && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -800,7 +825,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     color: "text-gray-900"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 140,
+                                                    lineNumber: 162,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCard, {
@@ -809,7 +834,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     color: "text-green-600"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 141,
+                                                    lineNumber: 163,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCard, {
@@ -818,13 +843,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     color: "text-[#EAB308]"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 142,
+                                                    lineNumber: 164,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 139,
+                                            lineNumber: 161,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -834,12 +859,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     className: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-400",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](SearchIcon, {}, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 148,
+                                                        lineNumber: 170,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 147,
+                                                    lineNumber: 169,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
@@ -849,13 +874,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     className: "w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 150,
+                                                    lineNumber: 172,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 146,
+                                            lineNumber: 168,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -867,7 +892,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     onClick: ()=>setActiveTab('notYetClaimed')
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 160,
+                                                    lineNumber: 182,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](TabButton, {
@@ -876,45 +901,45 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     onClick: ()=>setActiveTab('claimed')
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 165,
+                                                    lineNumber: 187,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 159,
+                                            lineNumber: 181,
                                             columnNumber: 17
                                         }, this),
                                         activeTab === 'notYetClaimed' && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                            className: "space-y-2 max-h-60 overflow-y-auto",
+                                            className: "space-y-2",
                                             children: filteredNotYetClaimed.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](EmptyList, {
                                                 message: search ? 'No households match your search.' : 'All households have claimed.'
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 176,
+                                                lineNumber: 198,
                                                 columnNumber: 23
-                                            }, this) : filteredNotYetClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](HouseholdCard, {
+                                            }, this) : paginatedNotYetClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](HouseholdCard, {
                                                     name: h.householdName,
                                                     address: h.address
                                                 }, h.householdId, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 179,
+                                                    lineNumber: 201,
                                                     columnNumber: 25
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 174,
+                                            lineNumber: 196,
                                             columnNumber: 19
                                         }, this),
                                         activeTab === 'claimed' && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                            className: "space-y-2 max-h-60 overflow-y-auto",
+                                            className: "space-y-2",
                                             children: filteredClaimed.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](EmptyList, {
                                                 message: search ? 'No households match your search.' : 'No households have claimed yet.'
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 188,
+                                                lineNumber: 210,
                                                 columnNumber: 23
-                                            }, this) : filteredClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                            }, this) : paginatedClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                     className: "p-3 bg-gray-50 rounded-xl border border-gray-100",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -927,7 +952,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                             children: h.householdName
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                            lineNumber: 197,
+                                                                            lineNumber: 219,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -935,13 +960,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                             children: h.address
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                            lineNumber: 198,
+                                                                            lineNumber: 220,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                    lineNumber: 196,
+                                                                    lineNumber: 218,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 h.proofMethod && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -949,13 +974,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                     children: h.proofMethod
                                                                 }, void 0, false, {
                                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                    lineNumber: 201,
+                                                                    lineNumber: 223,
                                                                     columnNumber: 31
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 195,
+                                                            lineNumber: 217,
                                                             columnNumber: 27
                                                         }, this),
                                                         h.claimedAt && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -972,7 +997,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 207,
+                                                            lineNumber: 229,
                                                             columnNumber: 29
                                                         }, this),
                                                         h.claimedBy?.name && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -983,30 +1008,42 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 212,
+                                                            lineNumber: 234,
                                                             columnNumber: 29
                                                         }, this)
                                                     ]
                                                 }, h.householdId, true, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 191,
+                                                    lineNumber: 213,
                                                     columnNumber: 25
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 186,
+                                            lineNumber: 208,
+                                            columnNumber: 19
+                                        }, this),
+                                        activeItemsCount > 0 && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](PaginationControls, {
+                                            currentPage: currentPage,
+                                            totalPages: totalPages,
+                                            pageSize: HOUSEHOLDS_PER_PAGE,
+                                            totalItems: activeItemsCount,
+                                            onPrev: ()=>setPage((prev)=>Math.max(1, prev - 1)),
+                                            onNext: ()=>setPage((prev)=>Math.min(totalPages, prev + 1))
+                                        }, void 0, false, {
+                                            fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                                            lineNumber: 245,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 137,
+                                    lineNumber: 159,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 102,
+                            lineNumber: 124,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1018,29 +1055,29 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                 children: "Close"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                lineNumber: 227,
+                                lineNumber: 260,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 226,
+                            lineNumber: 259,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                    lineNumber: 76,
+                    lineNumber: 98,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 73,
+            lineNumber: 95,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 72,
+        lineNumber: 94,
         columnNumber: 5
     }, this);
 }
@@ -1053,7 +1090,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                 children: value
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 246,
+                lineNumber: 279,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1061,13 +1098,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                 children: label
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 247,
+                lineNumber: 280,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 245,
+        lineNumber: 278,
         columnNumber: 5
     }, this);
 }
@@ -1079,7 +1116,7 @@ function TabButton({ active, label, onClick }) {
         children: label
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 254,
+        lineNumber: 287,
         columnNumber: 5
     }, this);
 }
@@ -1092,7 +1129,7 @@ function HouseholdCard({ name, address }) {
                 children: name
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 271,
+                lineNumber: 304,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1100,13 +1137,13 @@ function HouseholdCard({ name, address }) {
                 children: address
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 272,
+                lineNumber: 305,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 270,
+        lineNumber: 303,
         columnNumber: 5
     }, this);
 }
@@ -1116,7 +1153,78 @@ function EmptyList({ message }) {
         children: message
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 279,
+        lineNumber: 312,
+        columnNumber: 5
+    }, this);
+}
+function PaginationControls({ currentPage, totalPages, pageSize, totalItems, onPrev, onNext }) {
+    const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalItems);
+    return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+        className: "flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2",
+        children: [
+            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                className: "text-xs text-gray-500",
+                children: [
+                    "Showing ",
+                    start,
+                    "-",
+                    end,
+                    " of ",
+                    totalItems
+                ]
+            }, void 0, true, {
+                fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                lineNumber: 338,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                className: "flex items-center gap-2",
+                children: [
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                        type: "button",
+                        onClick: onPrev,
+                        disabled: currentPage <= 1,
+                        className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50",
+                        children: "Previous"
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                        lineNumber: 343,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                        className: "text-xs font-medium text-gray-600",
+                        children: [
+                            currentPage,
+                            " / ",
+                            totalPages
+                        ]
+                    }, void 0, true, {
+                        fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                        lineNumber: 351,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                        type: "button",
+                        onClick: onNext,
+                        disabled: currentPage >= totalPages,
+                        className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50",
+                        children: "Next"
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                        lineNumber: 354,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+                lineNumber: 342,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
+        lineNumber: 337,
         columnNumber: 5
     }, this);
 }
@@ -1133,12 +1241,12 @@ function EmptyList({ message }) {
             d: "M6 18L18 6M6 6l12 12"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 290,
+            lineNumber: 372,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 289,
+        lineNumber: 371,
         columnNumber: 5
     }, this);
 }
@@ -1155,12 +1263,12 @@ function UsersIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 298,
+            lineNumber: 380,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 297,
+        lineNumber: 379,
         columnNumber: 5
     }, this);
 }
@@ -1177,12 +1285,12 @@ function UsersEmptyIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 306,
+            lineNumber: 388,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 305,
+        lineNumber: 387,
         columnNumber: 5
     }, this);
 }
@@ -1199,12 +1307,12 @@ function SearchIcon() {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 314,
+            lineNumber: 396,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 313,
+        lineNumber: 395,
         columnNumber: 5
     }, this);
 }

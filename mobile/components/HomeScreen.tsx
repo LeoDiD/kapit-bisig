@@ -39,9 +39,10 @@ interface HomeScreenProps {
   claimStatus?: 'claimed' | 'not-claimed';
   residentCode?: string;
   streetAddress?: string;
-  onNavigate?: (screen: 'home' | 'qr' | 'profile' | 'proof-request') => void;
+  onNavigate?: (screen: 'home' | 'qr' | 'profile' | 'proof-request' | 'registration-revision') => void;
   accountType?: 'resident' | 'volunteer';
   residentStatus?: string;
+  residentNote?: string;
 }
 
 interface DistributionItem {
@@ -68,6 +69,7 @@ interface HomeNotificationItem {
   message: string;
   date: string;
   distributionId?: string;
+  screen?: string;
   isRead?: boolean;
 }
 
@@ -158,6 +160,7 @@ export default function HomeScreen({
   onNavigate,
   accountType = 'resident',
   residentStatus,
+  residentNote,
 }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const [distributions, setDistributions] = useState<DistributionItem[]>([]);
@@ -168,7 +171,8 @@ export default function HomeScreen({
   const [residentNotifications, setResidentNotifications] = useState<HomeNotificationItem[]>([]);
 
   const isVolunteer = accountType === 'volunteer';
-  const isPendingResident = !isVolunteer && residentStatus === 'Pending';
+  const needsRevisionResident = !isVolunteer && residentStatus === 'Needs Revision';
+  const isPendingResident = !isVolunteer && (residentStatus === 'Pending' || needsRevisionResident);
 
   const loadDistributions = useCallback(async () => {
     if (isVolunteer && !mobileAuthService.isLoggedIn()) {
@@ -212,7 +216,7 @@ export default function HomeScreen({
   }, [isPendingResident, isVolunteer]);
 
   const loadResidentNotifications = useCallback(async () => {
-    if (isVolunteer || isPendingResident) {
+    if (isVolunteer) {
       setResidentNotifications([]);
       return;
     }
@@ -236,10 +240,11 @@ export default function HomeScreen({
         message: item.message,
         date: item.createdAt ? formatDistributionDate(new Date(item.createdAt)) : 'Just now',
         distributionId: typeof item.meta?.distributionId === 'string' ? item.meta.distributionId : undefined,
+        screen: typeof item.meta?.screen === 'string' ? item.meta.screen : undefined,
         isRead: Boolean(item.isRead),
       })),
     );
-  }, [isPendingResident, isVolunteer]);
+  }, [isVolunteer]);
 
   useEffect(() => {
     loadDistributions().catch(() => setLoading(false));
@@ -288,6 +293,10 @@ export default function HomeScreen({
     }
 
     setShowNotificationsModal(false);
+    if (notification.screen === 'registration-revision') {
+      onNavigate?.('registration-revision');
+      return;
+    }
     if (match) {
       setSelectedDistribution(match);
     }
@@ -319,12 +328,11 @@ export default function HomeScreen({
               Hi, {userName} 👋
             </Typography>
             <Typography variant="body" color={theme.colors.textSecondary} style={styles.greetingSubtext}>
-              {isPendingResident ? 'Account pending admin review' : 'Relief distribution updates'}
+              {needsRevisionResident ? 'Registration needs revision' : isPendingResident ? 'Account pending admin review' : 'Relief distribution updates'}
             </Typography>
           </View>
           <TouchableOpacity
-            style={[styles.notificationButton, isPendingResident && styles.notificationButtonDisabled]}
-            disabled={isPendingResident}
+            style={styles.notificationButton}
             onPress={handleOpenNotifications}
           >
             <Ionicons name="notifications-outline" size={24} color={theme.colors.textSecondary} />
@@ -340,7 +348,35 @@ export default function HomeScreen({
 
         {/* Section Label - only show when loading or has distributions */}
         {isPendingResident && (
-          <PendingAccessBanner message="Your account is pending approval. Distribution feed, notifications, and QR are disabled until approved." />
+          <PendingAccessBanner
+            message={
+              needsRevisionResident
+                ? (residentNote?.trim() || 'Your registration needs revision. Check your profile for the admin note. Distribution feed, notifications, and QR remain disabled until approval.')
+                : 'Your account is pending approval. Distribution feed, notifications, and QR are disabled until approved.'
+            }
+          />
+        )}
+
+        {needsRevisionResident && (
+          <View style={styles.proofCtaWrap}>
+            <Card style={styles.proofCtaCard}>
+              <View style={styles.proofCtaIcon}>
+                <Ionicons name="refresh-circle-outline" size={22} color="#166534" />
+              </View>
+              <View style={styles.proofCtaTextWrap}>
+                <Typography variant="body" weight="semiBold">Upload corrected registration files</Typography>
+                <Typography variant="body" color={theme.colors.textSecondary}>
+                  Send your corrected ID images and selfie so your registration can return to the review queue.
+                </Typography>
+              </View>
+              <Button
+                title="Upload now"
+                icon="arrow-forward"
+                onPress={() => onNavigate?.('registration-revision')}
+                style={styles.proofCtaButton}
+              />
+            </Card>
+          </View>
         )}
 
         {!isVolunteer && !isPendingResident && (
@@ -388,11 +424,13 @@ export default function HomeScreen({
               <Ionicons name="calendar-outline" size={48} color={theme.colors.primary} />
             </View>
             <Typography variant="h3" weight="semiBold" align="center">
-              {isPendingResident ? 'Account pending approval' : 'No active distribution right now'}
+              {needsRevisionResident ? 'Registration needs revision' : isPendingResident ? 'Account pending approval' : 'No active distribution right now'}
             </Typography>
             <Typography variant="body" color="#6B7280" align="center" style={{ marginTop: 8 }}>
               {isPendingResident
-                ? 'You can use Home and Profile while waiting. Distribution and announcements unlock after approval.'
+                ? needsRevisionResident
+                  ? 'Open your profile to review the admin note. Distribution and announcements unlock after approval.'
+                  : 'You can use Home and Profile while waiting. Distribution and announcements unlock after approval.'
                 : "We'll notify you when the next relief schedule is available."}
             </Typography>
           </View>

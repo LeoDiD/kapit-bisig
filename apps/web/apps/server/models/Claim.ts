@@ -163,8 +163,21 @@ const ClaimSchema = new Schema<IClaim>(
   { timestamps: true },
 );
 
-// Compound index: one claim per household per distribution
-ClaimSchema.index({ householdId: 1, distributionId: 1 }, { unique: true });
+// Compound indexes: one successful logical claim per scope.
+ClaimSchema.index(
+  { householdId: 1, distributionId: 1, claimCategory: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { claimCategory: 'DISTRIBUTION' },
+  },
+);
+ClaimSchema.index(
+  { residentId: 1, disasterEventId: 1, claimCategory: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { claimCategory: 'DISASTER_EVENT' },
+  },
+);
 ClaimSchema.index({ claimCategory: 1, disasterEventId: 1, residentId: 1 });
 
 /**

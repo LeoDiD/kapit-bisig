@@ -37,7 +37,8 @@ export default function DistributionPageClient() {
           registeredHouseholds: d.registeredHouseholds ?? 0,
           claimedHouseholds: d.claimedHouseholds ?? 0,
           notes: d.notes,
-          status: d.status as 'Unclaimed' | 'Claimed',
+          requiresBeneficiaryApproval: d.requiresBeneficiaryApproval ?? false,
+          status: d.status as 'Unclaimed' | 'Partially Claimed' | 'Claimed',
           claimedAt: d.claimedAt,
           createdAt: d.createdAt,
         }))

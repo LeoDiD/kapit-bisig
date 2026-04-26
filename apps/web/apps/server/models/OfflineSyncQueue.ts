@@ -11,6 +11,7 @@ export interface IOfflineSyncQueue extends Document {
   actorRole: OfflineActorRole;
   residentId?: mongoose.Types.ObjectId | null;
   disasterEventId?: mongoose.Types.ObjectId | null;
+  distributionId?: mongoose.Types.ObjectId | null;
   proofSubmissionId?: mongoose.Types.ObjectId | null;
   claimMongoId?: mongoose.Types.ObjectId | null;
   claimId?: string;
@@ -57,6 +58,11 @@ const OfflineSyncQueueSchema = new Schema<IOfflineSyncQueue>(
       ref: 'DisasterEvent',
       default: null,
     },
+    distributionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Distribution',
+      default: null,
+    },
     proofSubmissionId: {
       type: Schema.Types.ObjectId,
       ref: 'ProofSubmission',
@@ -99,6 +105,7 @@ const OfflineSyncQueueSchema = new Schema<IOfflineSyncQueue>(
 
 OfflineSyncQueueSchema.index({ actorId: 1, queueType: 1, clientGeneratedId: 1 }, { unique: true });
 OfflineSyncQueueSchema.index({ disasterEventId: 1, queueType: 1, syncStatus: 1 });
+OfflineSyncQueueSchema.index({ distributionId: 1, queueType: 1, syncStatus: 1 });
 
 OfflineSyncQueueSchema.set('toJSON', {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -23,7 +23,7 @@ export default function HouseholdProfileModal({ isOpen, onClose, data }: Househo
             <div className="flex justify-between items-start">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">{data.familyHeadName}</h2>
-                <p className="text-sm text-gray-500 mt-1">Household profile</p>
+                <p className="text-sm text-gray-500 mt-1">Relief registry record</p>
               </div>
               <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors" aria-label="Close">
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +54,7 @@ export default function HouseholdProfileModal({ isOpen, onClose, data }: Househo
                 <p className="text-sm font-medium text-gray-900">{data.contact}</p>
               </div>
               <div className="col-span-2">
-                <p className="text-xs text-gray-500 mb-1">Household Code</p>
+                <p className="text-xs text-gray-500 mb-1">Registry Code</p>
                 <p className="text-sm font-medium text-gray-900 font-mono">{data.householdCode}</p>
               </div>
             </div>

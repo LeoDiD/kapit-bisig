@@ -17,6 +17,7 @@ import SplashScreen from './components/SplashScreen';
 import HomeScreen from './components/HomeScreen';
 import ProfileScreen from './components/ProfileScreen';
 import ResidentProofRequestScreen from './components/ResidentProofRequestScreen';
+import ResidentRegistrationRevisionScreen from './components/ResidentRegistrationRevisionScreen';
 import VolunteerDashboardScreen from './components/VolunteerDashboardScreen';
 import QRReceiptScreen from './components/QRReceiptScreen';
 import VolunteerQRScannerScreen from './components/VolunteerQRScannerScreen';
@@ -35,7 +36,7 @@ import {
   ResidentProfile,
 } from './services/api/ResidentQrService';
 
-type Screen = 'home' | 'qr' | 'profile' | 'proof-request';
+type Screen = 'home' | 'qr' | 'profile' | 'proof-request' | 'registration-revision';
 type AccountType = 'resident' | 'volunteer' | null;
 type SplashInitialView = 'landing' | 'login';
 
@@ -148,7 +149,8 @@ export default function App() {
   const notificationReceivedListener = useRef<EventSubscription | null>(null);
   const notificationResponseListener = useRef<EventSubscription | null>(null);
   const pushTokenRef = useRef<string | null>(null);
-  const isResidentPending = accountType === 'resident' && residentProfile?.status === 'Pending';
+  const isResidentPending = accountType === 'resident'
+    && (residentProfile?.status === 'Pending' || residentProfile?.status === 'Needs Revision');
 
   const loadResidentProfile = async (): Promise<boolean> => {
     try {
@@ -208,8 +210,10 @@ export default function App() {
   const handleNavigate = (screen: Screen) => {
     if (isResidentPending && screen === 'qr') {
       Alert.alert(
-        'Pending Approval',
-        'QR access is disabled while your account is pending admin review.',
+        residentProfile?.status === 'Needs Revision' ? 'Needs Revision' : 'Pending Approval',
+        residentProfile?.status === 'Needs Revision'
+          ? 'QR access is disabled while your registration needs corrections from admin review.'
+          : 'QR access is disabled while your account is pending admin review.',
       );
       return;
     }
@@ -365,6 +369,7 @@ export default function App() {
             onLogout={handleLogout}
             accountType={accountType || undefined}
             residentStatus={residentProfile?.status}
+            residentNote={residentProfile?.rejectionReason}
             residentProfile={residentProfile}
             volunteerUser={volunteerUser}
             onResidentProfileUpdated={setResidentProfile}
@@ -373,6 +378,17 @@ export default function App() {
         );
       case 'proof-request':
         return <ResidentProofRequestScreen onBack={() => handleNavigate('home')} />;
+      case 'registration-revision':
+        return (
+          <ResidentRegistrationRevisionScreen
+            residentNote={residentProfile?.rejectionReason}
+            onBack={() => handleNavigate('profile')}
+            onSubmitted={(profile) => {
+              setResidentProfile(profile);
+              handleNavigate('home');
+            }}
+          />
+        );
       case 'qr':
         if (accountType === 'volunteer') {
           return <VolunteerQRScannerScreen onBack={() => handleNavigate('home')} onNavigate={handleNavigate} />;
@@ -396,6 +412,7 @@ export default function App() {
             onNavigate={handleNavigate}
             accountType={accountType || undefined}
             residentStatus={residentProfile?.status}
+            residentNote={residentProfile?.rejectionReason}
             userName={residentProfile?.firstName || residentProfile?.fullName}
             barangayName={
               residentProfile?.barangay

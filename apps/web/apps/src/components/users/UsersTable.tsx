@@ -548,29 +548,28 @@ function MenuItem({
 }
 
 function StatusBadge({ status }: { status: AccountStatus }) {
-  const cls =
-    status === 'active'
-      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-      : status === 'pending'
-        ? 'bg-amber-50 text-amber-700 border-amber-200'
-        : 'bg-gray-100 text-gray-600 border-gray-300'
-
-  const dotCls =
-    status === 'active'
-      ? 'bg-emerald-500'
-      : status === 'pending'
-        ? 'bg-amber-500'
-        : 'bg-gray-400'
-
-  const label = status === 'active' ? 'Active' : status === 'pending' ? 'Pending' : 'Inactive'
+  if (status === 'active') {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        <span className="text-sm font-medium text-slate-700">Active</span>
+      </div>
+    )
+  }
+  
+  if (status === 'pending') {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+        <span className="text-sm font-medium text-slate-500">Pending</span>
+      </div>
+    )
+  }
 
   return (
-    <span
-      className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${cls}`}
-    >
-      <span className={`mr-2 h-1.5 w-1.5 rounded-full ${dotCls}`} />
-      {label}
-    </span>
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium text-slate-400">Inactive</span>
+    </div>
   )
 }
 
