@@ -18,7 +18,7 @@ NEW: MongoDB Integration for Resident Registration
 from fastapi import FastAPI, HTTPException, Request, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 import base64
 import cv2
 import numpy as np
@@ -224,7 +224,6 @@ class DuplicateCheckResponse(BaseModel):
     message: str
     # For storing resident on ALLOW
     resident_id: Optional[str] = None
-    embedding: Optional[List[float]] = None
 
 class FaceRegisterResponse(BaseModel):
     success: bool
@@ -1470,6 +1469,7 @@ async def check_duplicate_face(request: DuplicateCheckRequest, http_request: Req
                     "embedding": embedding,
                     "registered_at": datetime.now().isoformat()
                 }
+                rebuild_face_index()
                 save_database()
             
             log_entry.update({
@@ -1505,8 +1505,7 @@ async def check_duplicate_face(request: DuplicateCheckRequest, http_request: Req
                 threshold=DUPLICATE_THRESHOLD,
                 processing_time_ms=processing_time,
                 message=message,
-                resident_id=str(embedding_id) if embedding_id else None,
-                embedding=embedding
+                resident_id=str(embedding_id) if embedding_id else None
             )
     
     except ValueError as e:

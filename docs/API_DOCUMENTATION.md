@@ -156,7 +156,8 @@ Response fields:
 - `processing_time_ms`
 - `message`
 - `resident_id` (when saved)
-- `embedding` (ALLOW path currently returns embedding)
+
+Note: face embeddings are stored server-side only and are not returned to clients.
 
 ### 2.4 Verification
 
