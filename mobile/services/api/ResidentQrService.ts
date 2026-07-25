@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 const API_BASE_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://10.45.3.83:3001/api',
+  'http://192.168.1.72:3001/api',
   'ResidentQrService',
 );
 
@@ -123,6 +123,7 @@ export interface ResidentBeneficiaryDistribution {
   notes?: string;
   applicationRequired: boolean;
   applicationStatus: 'Not Submitted' | 'Pending Verification' | 'Approved' | 'Rejected';
+  rejectionReason?: string | null;
   submissionVersion: number;
   lastSubmissionAt?: string | null;
 }
@@ -704,68 +705,90 @@ export async function syncQueuedResidentProofSubmissions(
     return { success: true, syncedCount: 0, failedCount: 0 };
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/beneficiaries/sync/proof-submissions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        deviceId: queue[0]?.deviceId || buildProofDeviceId(),
-        submissions: queue.map(({ queuedAt, syncStatus, lastError, ...item }) => item),
-      }),
-    });
+  let syncedCount = 0;
+  let failedCount = 0;
+  const remainingQueue: ResidentQueuedProofSubmission[] = [];
 
-    const parsed = await parseApiResponse<{
-      synced?: Array<{ clientGeneratedId: string; syncStatus: 'Synced' | 'Failed'; error?: string }>;
-    }>(response);
+  for (const item of queue) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/beneficiaries/sync/proof-submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          deviceId: item.deviceId || buildProofDeviceId(),
+          submissions: [{
+            clientGeneratedId: item.clientGeneratedId,
+            distributionId: item.distributionId,
+            disasterEventId: item.disasterEventId,
+            damageType: item.damageType,
+            description: item.description,
+            supportingInfo: item.supportingInfo,
+            dateSubmitted: item.dateSubmitted,
+            photoProofs: item.photoProofs,
+          }],
+        }),
+      });
 
-    if (!response.ok || !parsed.success) {
-      return {
-        success: false,
-        syncedCount: 0,
-        failedCount: queue.length,
-        message: parsed.message || 'Failed to sync queued proof submissions.',
-      };
-    }
+      const parsed = await parseApiResponse<{
+        synced?: Array<{ clientGeneratedId: string; syncStatus: 'Synced' | 'Failed'; error?: string }>;
+      }>(response);
 
-    const resultMap = new Map(
-      (parsed.data?.synced || []).map((item) => [item.clientGeneratedId, item]),
-    );
+      const syncResult = parsed.data?.synced?.[0];
 
-    const remainingQueue = queue
-      .map((item) => {
-        const result = resultMap.get(item.clientGeneratedId);
-        if (result?.syncStatus === 'Synced') {
-          return null;
+      if (response.ok && parsed.success && syncResult?.syncStatus === 'Synced') {
+        syncedCount++;
+        // Successfully synced -> removed from queue
+      } else {
+        const errorMsg = syncResult?.error || parsed.message || 'Sync failed.';
+        const status = response.status;
+
+        // Determine if this is a permanent validation/business-logic failure
+        const isPermanent =
+          status === 400 || // Validation error (Zod schema validation)
+          status === 403 || // Forbidden (e.g. REGISTRATION_NOT_APPROVED, RESIDENT_OUT_OF_SCOPE)
+          status === 409 || // Conflict (e.g. PROOF_ALREADY_APPROVED, SUBMISSION_WINDOW_CLOSED, EVENT_NOT_ACTIVE)
+          errorMsg.includes('APPROVED') ||
+          errorMsg.includes('ACTIVE') ||
+          errorMsg.includes('OUT_OF_SCOPE') ||
+          errorMsg.includes('LIMIT');
+
+        if (isPermanent) {
+          console.warn(`[Sync] Discarding invalid submission ${item.clientGeneratedId} due to permanent error:`, errorMsg);
+          failedCount++;
+          // Removed from queue to prevent head-of-line blocking (not added to remainingQueue)
+        } else {
+          remainingQueue.push({
+            ...item,
+            syncStatus: 'Failed' as const,
+            lastError: errorMsg,
+          });
+          failedCount++;
         }
-        return {
-          ...item,
-          syncStatus: 'Failed' as const,
-          lastError: result?.error || item.lastError || 'Sync failed.',
-        };
-      })
-      .filter(Boolean) as ResidentQueuedProofSubmission[];
-
-    await writeProofQueue(remainingQueue);
-
-    return {
-      success: true,
-      syncedCount: queue.length - remainingQueue.length,
-      failedCount: remainingQueue.length,
-      message: remainingQueue.length > 0
-        ? 'Some queued proof requests still need internet to sync.'
-        : 'Queued proof requests synced successfully.',
-    };
-  } catch {
-    return {
-      success: false,
-      syncedCount: 0,
-      failedCount: queue.length,
-      message: 'Still offline. Saved proof requests will sync once the connection returns.',
-    };
+      }
+    } catch (error) {
+      console.warn(`[Sync] Network error syncing submission ${item.clientGeneratedId}:`, error);
+      remainingQueue.push({
+        ...item,
+        syncStatus: 'Failed' as const,
+        lastError: 'Network connection failed.',
+      });
+      failedCount++;
+    }
   }
+
+  await writeProofQueue(remainingQueue);
+
+  return {
+    success: true,
+    syncedCount,
+    failedCount,
+    message: remainingQueue.length > 0
+      ? 'Some saved proof requests still need connection to sync.'
+      : 'Queued proof requests synced successfully.',
+  };
 }
 
 async function readProofQueue(): Promise<ResidentQueuedProofSubmission[]> {

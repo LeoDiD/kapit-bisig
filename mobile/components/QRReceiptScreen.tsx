@@ -11,7 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
-import * as MediaLibrary from 'expo-media-library';
+import Constants from 'expo-constants';
+
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
+
+// Lazy-load media library only outside Expo Go to prevent SDK 56 startup crash on older Expo Go clients
+const MediaLibrary = !isExpoGo ? require('expo-media-library') : null;
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import {
   fetchResidentQr,
@@ -30,7 +35,7 @@ export default function QRReceiptScreen({ onBack }: QRReceiptScreenProps) {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const qrCardRef = useRef<ViewShot | null>(null);
+  const qrCardRef = useRef<any>(null);
 
   const sanitizeResidentFullName = (rawName?: string): string => {
     const noiseWords = new Set([
@@ -111,6 +116,14 @@ export default function QRReceiptScreen({ onBack }: QRReceiptScreenProps) {
   };
 
   const handleDownloadQr = async () => {
+    if (isExpoGo) {
+      Alert.alert(
+        'Expo Go Limitation',
+        'Downloading images to your gallery is disabled in Expo Go to prevent crashes. Use a development build for native features.'
+      );
+      return;
+    }
+
     if (!qrCardRef.current || !qrData) {
       return;
     }

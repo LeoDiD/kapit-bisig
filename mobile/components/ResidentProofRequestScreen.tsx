@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -24,11 +24,18 @@ import { theme } from '../theme';
 import {
   fetchOpenBeneficiaryDistributions,
   getQueuedResidentProofSubmissions,
+  getResidentSession,
   getResidentToken,
   ResidentBeneficiaryDistribution,
   submitResidentProofSubmission,
   syncQueuedResidentProofSubmissions,
 } from '../services/api/ResidentQrService';
+import { saveProofDraft, loadProofDraft, clearProofDraft } from '../services/sync/ProofDraftService';
+import {
+  WatermarkOverlay,
+  captureWatermarkedPhoto,
+  buildWatermarkLabel,
+} from '../services/sync/photoWatermark';
 
 type DamageType = 'Flood' | 'House Damage' | 'Storm Surge' | 'Landslide' | 'Livelihood Loss' | 'Other';
 type RequirementTone = 'ready' | 'pending' | 'warning';
@@ -36,6 +43,7 @@ type RequirementTone = 'ready' | 'pending' | 'warning';
 type ProofPhoto = {
   id: string;
   uri: string;
+  watermarked?: boolean;
 };
 
 const DAMAGE_TYPES: DamageType[] = [
@@ -206,6 +214,15 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
   const [photos, setPhotos] = useState<ProofPhoto[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
+  const [draftRestoredBanner, setDraftRestoredBanner] = useState(false);
+  const [residentBarangay, setResidentBarangay] = useState('');
+  const [watermarkUri, setWatermarkUri] = useState<string | null>(null);
+  const [watermarkBarangay, setWatermarkBarangay] = useState('');
+  const [watermarkDateLabel, setWatermarkDateLabel] = useState('');
+  const watermarkViewRef = useRef<View | null>(null);
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const residentTokenRef = useRef<string | null>(null);
+  const draftLoadedRef = useRef(false);
 
   const selectedDistribution = openDistributions.find((item) => item.id === selectedDistributionId)
     ?? openDistributions[0]
@@ -275,7 +292,69 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
     loadScreenData().catch(() => {
       setDistributionLoading(false);
     });
+
+    // Load resident session for barangay (watermark) and draft restore
+    (async () => {
+      const token = await getResidentToken();
+      residentTokenRef.current = token;
+      if (!token) return;
+
+      const session = await getResidentSession();
+      if (session?.barangay) {
+        setResidentBarangay(session.barangay);
+      }
+
+      // Restore draft if one exists
+      const draft = await loadProofDraft(token);
+      if (draft && !draftLoadedRef.current) {
+        draftLoadedRef.current = true;
+        setSelectedDamageType(draft.damageType as DamageType);
+        setDescription(draft.description);
+        setSupportingInfo(draft.supportingInfo);
+        setShowSupportingInfo(draft.showSupportingInfo);
+        if (draft.selectedDistributionId) {
+          setSelectedDistributionId(draft.selectedDistributionId);
+        }
+        if (draft.photoUris.length > 0) {
+          setPhotos(draft.photoUris.map((uri, idx) => ({
+            id: `draft-${idx}-${Date.now()}`,
+            uri,
+            watermarked: true,
+          })));
+        }
+        setDraftRestoredBanner(true);
+      }
+    })().catch(() => undefined);
   }, [loadScreenData]);
+
+  // Debounced draft auto-save
+  useEffect(() => {
+    if (!draftLoadedRef.current && !description && photos.length === 0) return;
+
+    if (draftSaveTimerRef.current) {
+      clearTimeout(draftSaveTimerRef.current);
+    }
+
+    draftSaveTimerRef.current = setTimeout(() => {
+      const token = residentTokenRef.current;
+      if (!token) return;
+
+      saveProofDraft(token, {
+        damageType: selectedDamageType,
+        description,
+        supportingInfo,
+        showSupportingInfo,
+        selectedDistributionId,
+        photoUris: photos.map((p) => p.uri),
+      }).catch(() => undefined);
+    }, 500);
+
+    return () => {
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current);
+      }
+    };
+  }, [selectedDamageType, description, supportingInfo, showSupportingInfo, selectedDistributionId, photos]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -286,20 +365,44 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
     }
   }, [loadScreenData]);
 
-  const appendAssets = useCallback((uris: string[]) => {
-    setPhotos((current) => {
-      const next = [...current];
-      for (const uri of uris) {
-        if (next.length >= MAX_PHOTOS) break;
-        if (next.some((item) => item.uri === uri)) continue;
-        next.push({
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          uri,
-        });
+  const appendAssets = useCallback(async (uris: string[]) => {
+    // Apply watermark to each photo before adding
+    const barangay = residentBarangay || 'Unknown';
+    const dateLabel = buildWatermarkLabel();
+
+    for (const uri of uris) {
+      setWatermarkUri(uri);
+      setWatermarkBarangay(barangay);
+      setWatermarkDateLabel(dateLabel);
+
+      // Give the watermark overlay time to render
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      let finalUri = uri;
+      try {
+        if (watermarkViewRef.current) {
+          finalUri = await captureWatermarkedPhoto(watermarkViewRef);
+        }
+      } catch {
+        // Watermark failed — use original photo
       }
-      return next;
-    });
-  }, []);
+
+      setPhotos((current) => {
+        if (current.length >= MAX_PHOTOS) return current;
+        if (current.some((item) => item.uri === finalUri || item.uri === uri)) return current;
+        return [
+          ...current,
+          {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            uri: finalUri,
+            watermarked: finalUri !== uri,
+          },
+        ];
+      });
+    }
+
+    setWatermarkUri(null);
+  }, [residentBarangay]);
 
   const pickFromGallery = useCallback(async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -323,7 +426,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
     });
 
     if (!result.canceled) {
-      appendAssets(result.assets.map((asset) => asset.uri));
+      void appendAssets(result.assets.map((asset) => asset.uri));
     }
   }, [appendAssets, photos.length]);
 
@@ -346,7 +449,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      appendAssets([result.assets[0].uri]);
+      void appendAssets([result.assets[0].uri]);
     }
   }, [appendAssets, photos.length]);
 
@@ -415,6 +518,11 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
       setPhotos([]);
       setSelectedDamageType('Flood');
 
+      // Clear draft after successful submission
+      if (token) {
+        clearProofDraft(token).catch(() => undefined);
+      }
+
       if (!result.queued) {
         await loadScreenData();
       }
@@ -459,6 +567,17 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
               </Typography>
             </View>
           </View>
+
+          {draftRestoredBanner ? (
+            <Pressable
+              style={styles.draftBanner}
+              onPress={() => setDraftRestoredBanner(false)}
+            >
+              <Ionicons name="document-text-outline" size={16} color="#166534" />
+              <Text style={styles.draftBannerText}>Draft restored from your last session</Text>
+              <Ionicons name="close-outline" size={16} color="#6B7280" />
+            </Pressable>
+          ) : null}
 
           <Card variant="outlined" padding="md" style={styles.summaryCard}>
             <View style={styles.summaryTopRow}>
@@ -578,6 +697,20 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
                         <Typography variant="caption" color={theme.colors.textSecondary} numberOfLines={2}>
                           {selectedDistribution.notes}
                         </Typography>
+                      ) : null}
+
+                      {selectedDistribution.applicationStatus === 'Rejected' && selectedDistribution.rejectionReason ? (
+                        <View style={styles.rejectionReasonBox}>
+                          <View style={styles.rejectionReasonHeader}>
+                            <Ionicons name="warning-outline" size={14} color={theme.colors.warning} />
+                            <Typography variant="caption" weight="semiBold" color={theme.colors.warning}>
+                              Rejection feedback:
+                            </Typography>
+                          </View>
+                          <Typography variant="caption" color={theme.colors.textPrimary}>
+                            {selectedDistribution.rejectionReason}
+                          </Typography>
+                        </View>
                       ) : null}
                     </View>
                   ) : null}
@@ -704,6 +837,12 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
               {photos.map((photo) => (
                 <View key={photo.id} style={styles.photoTile}>
                   <Image source={{ uri: photo.uri }} style={styles.photoImage} />
+                  {photo.watermarked ? (
+                    <View style={styles.watermarkBadge}>
+                      <Ionicons name="shield-checkmark" size={10} color="#FFFFFF" />
+                      <Text style={styles.watermarkBadgeText}>Stamped</Text>
+                    </View>
+                  ) : null}
                   <TouchableOpacity style={styles.removePhotoButton} onPress={() => removePhoto(photo.id)}>
                     <Ionicons name="close" size={14} color="#FFFFFF" />
                   </TouchableOpacity>
@@ -740,6 +879,16 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
           />
         </View>
       </KeyboardAvoidingView>
+
+      {/* Off-screen watermark overlay for photo capture */}
+      {watermarkUri ? (
+        <WatermarkOverlay
+          uri={watermarkUri}
+          barangay={watermarkBarangay}
+          dateLabel={watermarkDateLabel}
+          viewRef={watermarkViewRef}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -901,6 +1050,20 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(17,24,39,0.06)',
+  },
+  rejectionReasonBox: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.warningBg,
+    borderWidth: 1,
+    borderColor: '#F5D487',
+    gap: 4,
+  },
+  rejectionReasonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   selectedDistributionHeader: {
     flexDirection: 'row',
@@ -1093,5 +1256,40 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     width: '100%',
+  },
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: 'rgba(22,163,74,0.18)',
+  },
+  draftBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#166534',
+    fontWeight: '500',
+  },
+  watermarkBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(22,163,74,0.85)',
+  },
+  watermarkBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
 });

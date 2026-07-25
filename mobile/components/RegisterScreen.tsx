@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { VerificationResult } from '../services/ai';
 import { resolveApiBaseUrl, resolveDevApiFallbackUrl } from '../services/config/apiSecurity';
@@ -29,12 +30,12 @@ const { width } = Dimensions.get('window');
 // API Configuration
 const API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://10.45.3.83:3001/api',
+  'http://192.168.1.72:3001/api',
   'RegisterScreen API',
 );
 const FACE_API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_FACE_API_URL,
-  'http://10.45.3.83:8000',
+  'http://192.168.1.72:8000',
   'RegisterScreen Face API',
 );
 const FACE_CAPTURE_ATTEMPT_LIMIT = 10;
@@ -208,7 +209,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [faceCaptureCooldownUntil, setFaceCaptureCooldownUntil] = useState(0);
   const [faceCaptureCooldownRemaining, setFaceCaptureCooldownRemaining] = useState(0);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const cameraRef = useRef<any>(null);
+  const cameraRef = useRef<CameraView>(null);
 
   useEffect(() => {
     if (faceCaptureCooldownUntil <= Date.now()) {
@@ -228,6 +229,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   // Validation
   const [showErrors, setShowErrors] = useState(false);
+  const [isStep1Validating, setIsStep1Validating] = useState(false);
   const [step1Errors, setStep1Errors] = useState({
     firstName: false,
     lastName: false,
@@ -1271,14 +1273,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     });
 
     if (!result.canceled && result.assets[0]) {
-      resetStep3ScreeningState();
-      if (currentImageSide === 'front') {
-        setFrontIdImage(result.assets[0].uri);
-        if (showErrors) setStep3Errors(prev => ({ ...prev, frontIdImage: false }));
-      } else {
-        setBackIdImage(result.assets[0].uri);
-        if (showErrors) setStep3Errors(prev => ({ ...prev, backIdImage: false }));
-      }
+      await handleIdImageResult(result.assets[0].uri, currentImageSide);
     }
   };
 
@@ -1300,14 +1295,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     });
 
     if (!result.canceled && result.assets[0]) {
-      resetStep3ScreeningState();
-      if (currentImageSide === 'front') {
-        setFrontIdImage(result.assets[0].uri);
-        if (showErrors) setStep3Errors(prev => ({ ...prev, frontIdImage: false }));
-      } else {
-        setBackIdImage(result.assets[0].uri);
-        if (showErrors) setStep3Errors(prev => ({ ...prev, backIdImage: false }));
-      }
+      await handleIdImageResult(result.assets[0].uri, currentImageSide);
     }
   };
 
@@ -1325,6 +1313,111 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     });
     const mime = inferImageMimeType(uri);
     return `data:${mime};base64,${base64}`;
+  };
+
+  // ============================================
+  // ID Image Quality Checks & Pre-processing
+  // ============================================
+
+  /** Minimum dimensions for an ID image to produce reliable OCR results. */
+  const ID_IMAGE_MIN_WIDTH = 800;
+  const ID_IMAGE_MIN_HEIGHT = 500;
+  /** Maximum file size in bytes before we reject the image (too compressed = no detail). */
+  const ID_IMAGE_MIN_FILE_BYTES = 30 * 1024; // 30 KB
+  /** Target width for pre-processed ID images sent to the server. */
+  const ID_IMAGE_TARGET_WIDTH = 1600;
+
+  /**
+   * Validate and pre-process an ID card image before it is used in the
+   * registration flow.
+   *
+   * Returns the (possibly resized) image URI on success, or null + an error
+   * message if the image quality is unacceptable.
+   */
+  const validateAndProcessIdImage = async (
+    uri: string,
+  ): Promise<{ processedUri: string; warning: string | null } | { error: string }> => {
+    try {
+      // Step 1: Check file exists and file size
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) {
+        return { error: 'Image file was not found. Please try again.' };
+      }
+
+      const fileSize = (fileInfo as any).size || 0;
+      if (fileSize > 0 && fileSize < ID_IMAGE_MIN_FILE_BYTES) {
+        return {
+          error: `Image file is too small (${Math.round(fileSize / 1024)}KB). Please capture a clearer, higher resolution photo of your ID.`,
+        };
+      }
+
+      // Step 2: Pre-process through expo-image-manipulator
+      // - Resize to a consistent width for reliable OCR
+      // - Compress as JPEG at 85% quality to balance size vs clarity
+      const manipulated = await ImageManipulator.manipulateAsync(
+        uri,
+        [
+          {
+            resize: { width: ID_IMAGE_TARGET_WIDTH },
+          },
+        ],
+        {
+          compress: 0.85,
+          format: ImageManipulator.SaveFormat.JPEG,
+        },
+      );
+
+      // Step 3: Check the processed image dimensions
+      let warning: string | null = null;
+      if (
+        manipulated.width < ID_IMAGE_MIN_WIDTH ||
+        manipulated.height < ID_IMAGE_MIN_HEIGHT
+      ) {
+        warning =
+          'Image resolution is low. For best results, hold your phone closer to the ID or use a higher resolution camera.';
+      }
+
+      return { processedUri: manipulated.uri, warning };
+    } catch (err) {
+      console.warn('[RegisterScreen] ID image pre-processing failed:', err);
+      // Fall back to the original image if manipulation fails
+      return { processedUri: uri, warning: null };
+    }
+  };
+
+  /**
+   * Handle the result of an image capture/pick for an ID side.
+   * Validates quality, pre-processes, and sets state.
+   */
+  const handleIdImageResult = async (
+    uri: string,
+    side: 'front' | 'back',
+  ): Promise<void> => {
+    const result = await validateAndProcessIdImage(uri);
+
+    if ('error' in result) {
+      Alert.alert('Image Quality Issue', result.error, [
+        { text: 'OK' },
+      ]);
+      return;
+    }
+
+    resetStep3ScreeningState();
+
+    if (result.warning) {
+      setStep3ValidationWarnings((prev) => [
+        ...prev.filter((w) => !w.includes('resolution')),
+        result.warning!,
+      ]);
+    }
+
+    if (side === 'front') {
+      setFrontIdImage(result.processedUri);
+      if (showErrors) setStep3Errors((prev) => ({ ...prev, frontIdImage: false }));
+    } else {
+      setBackIdImage(result.processedUri);
+      if (showErrors) setStep3Errors((prev) => ({ ...prev, backIdImage: false }));
+    }
   };
 
   // Step 4: Face Scan functions - DISABLED for testing
@@ -1822,8 +1915,15 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const handleNextStep = async () => {
     setShowErrors(true);
     
-    if (currentStep === 1 && !(await validateStep1())) {
-      return;
+    if (currentStep === 1) {
+      setIsStep1Validating(true);
+      try {
+        if (!(await validateStep1())) {
+          return;
+        }
+      } finally {
+        setIsStep1Validating(false);
+      }
     }
     if (currentStep === 2 && !validateStep2()) {
       return;
@@ -2318,6 +2418,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                   onPress={() => {
                     const previousBarangay = barangay;
                     setBarangay(option);
+                    setCity('Labrador');
                     setShowBarangayDropdown(false);
                     if (showErrors) setStep2Errors(prev => ({ ...prev, barangay: false }));
                     
@@ -3157,13 +3258,15 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             <TouchableOpacity
               style={[
                 styles.nextButton,
-                (isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')) && styles.nextButtonDisabled,
+                (isStep1Validating || isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')) && styles.nextButtonDisabled,
               ]}
               onPress={handleNextStep}
-              disabled={isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')}
+              disabled={isStep1Validating || isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')}
             >
               <Text style={styles.nextButtonText}>
-                {isStep3Validating
+                {isStep1Validating
+                  ? 'Validating...'
+                  : isStep3Validating
                   ? 'Checking ID...'
                   : currentStep === 3 && step3ValidationStatus === 'error'
                     ? 'Fix ID Upload'
@@ -4837,7 +4940,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   faceFrameOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   faceFrameTop: {
     flex: 1,
@@ -4907,7 +5010,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   scanSuccessOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',

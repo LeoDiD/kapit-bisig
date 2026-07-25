@@ -5,18 +5,77 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import type { EventSubscription } from 'expo-modules-core';
-import type { Notification, NotificationResponse } from 'expo-notifications/build/Notifications.types';
-import type { NotificationHandler } from 'expo-notifications/build/NotificationsHandler';
-import { AndroidImportance } from 'expo-notifications/build/NotificationChannelManager.types';
-import { addNotificationReceivedListener, addNotificationResponseReceivedListener } from 'expo-notifications/build/NotificationsEmitter';
-import { setNotificationHandler } from 'expo-notifications/build/NotificationsHandler';
-import { getPermissionsAsync, requestPermissionsAsync } from 'expo-notifications/build/NotificationPermissions';
-import { setNotificationChannelAsync } from 'expo-notifications/build/setNotificationChannelAsync';
-import { scheduleNotificationAsync } from 'expo-notifications/build/scheduleNotificationAsync';
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
+
+// Lazy-load notifications only outside Expo Go to prevent SDK 56 startup crash
+const Notifications = !isExpoGo ? require('expo-notifications') : null;
+
+// Mock types for TypeScript compiler
+type Notification = any;
+type NotificationResponse = any;
+type NotificationHandler = any;
+
+// Safe wrapper functions to prevent crashes on Expo Go
+function setNotificationHandler(handler: any) {
+  if (Notifications) {
+    Notifications.setNotificationHandler(handler);
+  }
+}
+
+function addNotificationReceivedListener(listener: any) {
+  if (Notifications) {
+    return Notifications.addNotificationReceivedListener(listener);
+  }
+  return { remove: () => {} } as any;
+}
+
+function addNotificationResponseReceivedListener(listener: any) {
+  if (Notifications) {
+    return Notifications.addNotificationResponseReceivedListener(listener);
+  }
+  return { remove: () => {} } as any;
+}
+
+async function getPermissionsAsync() {
+  if (Notifications) {
+    return Notifications.getPermissionsAsync();
+  }
+  return { status: 'denied' } as any;
+}
+
+async function requestPermissionsAsync() {
+  if (Notifications) {
+    return Notifications.requestPermissionsAsync();
+  }
+  return { status: 'denied' } as any;
+}
+
+async function setNotificationChannelAsync(channelId: string, channel: any) {
+  if (Notifications) {
+    return Notifications.setNotificationChannelAsync(channelId, channel);
+  }
+}
+
+async function scheduleNotificationAsync(request: any) {
+  if (Notifications) {
+    return Notifications.scheduleNotificationAsync(request);
+  }
+}
+
+const AndroidImportance = Notifications ? Notifications.AndroidImportance : {
+  UNSPECIFIED: -1,
+  NONE: 0,
+  MIN: 1,
+  LOW: 2,
+  DEFAULT: 3,
+  HIGH: 4,
+  MAX: 5
+};
 import SplashScreen from './components/SplashScreen';
 import HomeScreen from './components/HomeScreen';
 import ProfileScreen from './components/ProfileScreen';
 import ResidentProofRequestScreen from './components/ResidentProofRequestScreen';
+import { registerBackgroundProofSync, unregisterBackgroundProofSync } from './services/sync/BackgroundSyncService';
 import ResidentRegistrationRevisionScreen from './components/ResidentRegistrationRevisionScreen';
 import VolunteerDashboardScreen from './components/VolunteerDashboardScreen';
 import QRReceiptScreen from './components/QRReceiptScreen';
@@ -172,7 +231,6 @@ export default function App() {
       return true;
     } catch {
       return false;
-    } finally {
     }
   };
 
@@ -205,6 +263,9 @@ export default function App() {
     setSplashInitialView('login');
     setShowSplash(true);
     setCurrentScreen('home');
+
+    // Unregister background sync on logout
+    unregisterBackgroundProofSync().catch(() => undefined);
   };
 
   const handleNavigate = (screen: Screen) => {
@@ -245,6 +306,9 @@ export default function App() {
       };
 
       initializeSession().catch(() => undefined);
+
+      // Register background proof sync after session is resolved
+      registerBackgroundProofSync().catch(() => undefined);
     }
   }, [showSplash]);
 
@@ -321,7 +385,7 @@ export default function App() {
       const data = (response.notification.request.content.data || {}) as { screen?: Screen };
       const targetScreen = data.screen;
 
-      if (targetScreen === 'home' || targetScreen === 'qr' || targetScreen === 'profile') {
+      if (targetScreen === 'home' || targetScreen === 'qr' || targetScreen === 'profile' || targetScreen === 'proof-request') {
         handleNavigate(targetScreen);
       } else {
         handleNavigate('home');
