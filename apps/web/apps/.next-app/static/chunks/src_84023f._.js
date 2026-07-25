@@ -15,7 +15,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var _s = __turbopack_refresh__.signature(), _s1 = __turbopack_refresh__.signature();
 'use client';
 ;
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const AuthContext = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["createContext"](undefined);
 function AuthProvider({ children }) {
     _s();
@@ -242,7 +242,7 @@ __turbopack_refresh__.register(_c, "AuthProvider");
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/node_modules/next/dist/build/polyfills/process.js [app-client] (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const BARANGAY_OPTIONS = [
     'Bolo',
     'Bongalon',
@@ -811,7 +811,7 @@ const STEP_DETAILS = {
     2: {
         eyebrow: 'Step 2 of 4',
         title: 'Select covered barangays',
-        description: 'Choose the 2 to 4 additional barangays whose residents, together with the host barangay, are covered by this distribution.'
+        description: 'Choose the 2 to 4 additional barangays whose residents, together with the host barangay, are covered by this distribution. Residents will still need an approved beneficiary application before claiming.'
     },
     3: {
         eyebrow: 'Step 3 of 4',

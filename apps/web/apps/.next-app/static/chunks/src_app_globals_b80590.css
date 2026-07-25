@@ -1898,9 +1898,6 @@ video {
 .bg-slate-50\/60 {
   background-color: rgb(248 250 252/ 0.6);
 }
-.bg-slate-50\/95 {
-  background-color: rgb(248 250 252/ 0.95);
-}
 .bg-slate-700\/30 {
   background-color: rgb(51 65 85/ 0.3);
 }
@@ -1945,6 +1942,9 @@ video {
 }
 .bg-white\/80 {
   background-color: rgb(255 255 255/ 0.8);
+}
+.bg-white\/95 {
+  background-color: rgb(255 255 255/ 0.95);
 }
 .bg-yellow-500 {
   --tw-bg-opacity: 1;
@@ -2963,6 +2963,74 @@ html * {
 .no-bg-transition, 
 .no-bg-transition * {
   transition-property: none !important;
+}
+html:not(.dark) .bg-slate-50 {
+  background-color: #f8f9fb !important;
+  background-image: radial-gradient(circle at 20% 20%, rgba(236, 195, 35, 0.025) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(0, 74, 28, 0.018) 0%, transparent 50%);
+}
+html:not(.dark) .bg-white {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+html:not(.dark) section.bg-white, 
+html:not(.dark) div.bg-white[class*="rounded"] {
+  transition: box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1), transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+html:not(.dark) section.bg-white:hover, 
+html:not(.dark) div.bg-white[class*="rounded-2xl"]:hover, 
+html:not(.dark) div.bg-white[class*="rounded-[28px]"]:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 12px 28px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  transform: translatey(-1px);
+}
+html:not(.dark) .border-gray-100 {
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+html:not(.dark) .border-gray-200 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+html:not(.dark) .border-slate-200 {
+  border-color: rgba(0, 0, 0, 0.07) !important;
+}
+html:not(.dark) .border-slate-100 {
+  border-color: rgba(0, 0, 0, 0.045) !important;
+}
+html:not(.dark) header.sticky {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(248, 249, 251, 0.95) 100%) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03), 0 4px 16px rgba(0, 0, 0, 0.025);
+}
+html:not(.dark) aside.bg-white {
+  background: linear-gradient(195deg, #ffffff 0%, #fafbfc 40%, #f6f7f9 100%) !important;
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.04), 2px 0 12px rgba(0, 0, 0, 0.02);
+}
+html:not(.dark) .bg-slate-50[class*="rounded"] {
+  background: linear-gradient(135deg, #f1f5f9 0%, #f8f9fb 50%, #f5f3ef 100%) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+html:not(.dark) .divide-slate-200 > :not([hidden]) ~ :not([hidden]), 
+html:not(.dark) .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(0, 0, 0, 0.055) !important;
+}
+html:not(.dark) .bg-gray-50 {
+  background: linear-gradient(160deg, #f9fafb 0%, #f7f8fa 50%, #f5f3ef 100%) !important;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+html:not(.dark) ::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+html:not(.dark) ::-webkit-scrollbar-track {
+  background: transparent;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 9999px;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+html:not(.dark) .bg-slate-100 {
+  background-color: #f0f1f4 !important;
 }
 html.dark .bg-white {
   background-color: rgb(30 41 59) !important;

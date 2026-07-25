@@ -60,7 +60,7 @@ const __TURBOPACK__default__export__ = showToast;
     "notificationsApi": ()=>notificationsApi,
     "profileApi": ()=>profileApi
 });
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const BARANGAY_OPTIONS = [
     'Bolo',
     'Bongalon',
@@ -2647,7 +2647,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 'use client';
 ;
 ;
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const AuthContext = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["createContext"](undefined);
 function AuthProvider({ children }) {
     const [user, setUser] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"](null);
@@ -3195,7 +3195,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$AuthContext$2e
 ;
 ;
 ;
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 function maskName(fullName) {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return 'Uxxxx';
@@ -5483,7 +5483,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$
 function Header({ title, subtitle }) {
     __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$AuthContext$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAuth"]();
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("header", {
-        className: "sticky top-0 z-40 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-md pb-5 -mt-6 -mx-6 px-6 pt-10 sm:px-10 mb-8 border-b border-gray-200/75 dark:border-slate-800 transition-all",
+        className: "sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pb-5 -mt-6 -mx-6 px-6 pt-10 sm:px-10 mb-8 border-b border-gray-200/75 dark:border-slate-800 transition-all",
         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
             className: "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
             children: [
@@ -5735,7 +5735,7 @@ const mainNavItems = [
         superadminOnly: true
     },
     {
-        name: 'Households',
+        name: 'Relief Registry',
         href: '/households',
         icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$house$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$export__default__as__House$7d$__["House"],
         superadminOnly: false

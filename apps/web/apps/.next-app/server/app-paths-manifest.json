@@ -2,9 +2,7 @@
   "/page": "app/page.js",
   "/login/page": "app/login/page.js",
   "/target-beneficiaries/page": "app/target-beneficiaries/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
   "/households/page": "app/households/page.js",
-  "/resident-registration/page": "app/resident-registration/page.js",
-  "/users/page": "app/users/page.js",
-  "/verified-residents/page": "app/verified-residents/page.js",
   "/distribution/page": "app/distribution/page.js"
 }

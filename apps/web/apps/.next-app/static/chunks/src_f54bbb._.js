@@ -270,7 +270,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var _s = __turbopack_refresh__.signature(), _s1 = __turbopack_refresh__.signature();
 'use client';
 ;
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const AuthContext = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["createContext"](undefined);
 function AuthProvider({ children }) {
     _s();
@@ -497,7 +497,7 @@ __turbopack_refresh__.register(_c, "AuthProvider");
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/node_modules/next/dist/build/polyfills/process.js [app-client] (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const BARANGAY_OPTIONS = [
     'Bolo',
     'Bongalon',
@@ -1067,7 +1067,7 @@ const INITIAL_PROOF_SUMMARY = {
     approved: 0,
     rejected: 0
 };
-const API_BASE = (("TURBOPACK compile-time value", "/api")?.trim() || '/api').replace(/\/api\/?$/, '');
+const API_BASE = (__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_API_URL?.trim() || '/api').replace(/\/api\/?$/, '');
 function getProofId(submission) {
     return String(submission.id || submission._id || '');
 }
@@ -1422,7 +1422,7 @@ function TargetBeneficiariesPageClient() {
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
                                 className: "mt-2 max-w-3xl text-sm text-gray-600 dark:text-slate-400",
-                                children: "Review affected-resident proof submissions, approve complete requests, and return incomplete requests so residents can upload clearer proof or missing barangay documents."
+                                children: "Review affected-resident proof submissions, approve complete requests, and return incomplete requests so residents can upload clearer proof or missing barangay documents for each distribution."
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx>",
                                 lineNumber: 318,
@@ -2231,7 +2231,7 @@ function TargetBeneficiariesPageClient() {
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$ConfirmModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                 isOpen: confirmApproveOpen && !!reviewTarget,
                 title: "Approve Proof Submission",
-                body: reviewTarget ? `Approve the proof submission from ${reviewTarget.resident.fullName} for ${reviewTarget.event.name}? This will make the resident eligible for that event once the registration record is approved.` : '',
+                body: reviewTarget ? `Approve the proof submission from ${reviewTarget.resident.fullName} for ${reviewTarget.event.name}? This will make the resident eligible for that distribution once the registration record is approved.` : '',
                 confirmLabel: reviewLoading ? 'Approving...' : 'Approve Submission',
                 loading: reviewLoading,
                 onCancel: closeReviewModals,

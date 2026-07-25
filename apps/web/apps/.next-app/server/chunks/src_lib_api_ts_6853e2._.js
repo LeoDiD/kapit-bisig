@@ -16,7 +16,7 @@ module.exports = {
     "notificationsApi": ()=>notificationsApi,
     "profileApi": ()=>profileApi
 });
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const BARANGAY_OPTIONS = [
     'Bolo',
     'Bongalon',

@@ -15,7 +15,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var _s = __turbopack_refresh__.signature(), _s1 = __turbopack_refresh__.signature();
 'use client';
 ;
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const AuthContext = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["createContext"](undefined);
 function AuthProvider({ children }) {
     _s();
@@ -433,7 +433,7 @@ const __TURBOPACK__default__export__ = showToast;
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/node_modules/next/dist/build/polyfills/process.js [app-client] (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const BARANGAY_OPTIONS = [
     'Bolo',
     'Bongalon',
@@ -1002,7 +1002,7 @@ const STEP_DETAILS = {
     2: {
         eyebrow: 'Step 2 of 4',
         title: 'Select covered barangays',
-        description: 'Choose the 2 to 4 additional barangays whose residents, together with the host barangay, are covered by this distribution.'
+        description: 'Choose the 2 to 4 additional barangays whose residents, together with the host barangay, are covered by this distribution. Residents will still need an approved beneficiary application before claiming.'
     },
     3: {
         eyebrow: 'Step 3 of 4',
@@ -2388,6 +2388,8 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
     ]);
     if (!open || !distribution) return null;
     const noRegistered = data && data.totals.registered === 0;
+    const populationLabel = data?.requiresBeneficiaryApproval ? 'Eligible' : 'Registered';
+    const emptyPopulationLabel = data?.requiresBeneficiaryApproval ? 'approved beneficiary' : 'registered household';
     const filteredClaimed = data?.claimed.filter((h)=>{
         const q = search.trim().toLowerCase();
         if (!q) return true;
@@ -2417,7 +2419,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                     onClick: onClose
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                    lineNumber: 96,
+                    lineNumber: 98,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2435,12 +2437,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                 className: "w-10 h-10 rounded-full bg-[#0F533A] flex items-center justify-center",
                                                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersIcon, {}, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 104,
+                                                    lineNumber: 106,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 103,
+                                                lineNumber: 105,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2450,7 +2452,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         children: "Covered Households"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 107,
+                                                        lineNumber: 109,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2461,19 +2463,19 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 108,
+                                                        lineNumber: 110,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 106,
+                                                lineNumber: 108,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 102,
+                                        lineNumber: 104,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -2483,23 +2485,23 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                         "aria-label": "Close",
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](XIcon, {}, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 118,
+                                            lineNumber: 120,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 112,
+                                        lineNumber: 114,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                lineNumber: 101,
+                                lineNumber: 103,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 100,
+                            lineNumber: 102,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2524,7 +2526,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         strokeWidth: "4"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 130,
+                                                        lineNumber: 132,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2533,25 +2535,25 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                         d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 131,
+                                                        lineNumber: 133,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 129,
+                                                lineNumber: 131,
                                                 columnNumber: 19
                                             }, this),
                                             "Loading households…"
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                        lineNumber: 128,
+                                        lineNumber: 130,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 127,
+                                    lineNumber: 129,
                                     columnNumber: 15
                                 }, this),
                                 error && !loading && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2559,7 +2561,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                     children: error
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 140,
+                                    lineNumber: 142,
                                     columnNumber: 15
                                 }, this),
                                 !loading && !error && noRegistered && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2569,26 +2571,30 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                             className: "w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3",
                                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersEmptyIcon, {}, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 149,
+                                                lineNumber: 151,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 148,
+                                            lineNumber: 150,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
                                             className: "text-sm text-gray-500 font-medium",
-                                            children: "No registered household."
-                                        }, void 0, false, {
+                                            children: [
+                                                "No ",
+                                                emptyPopulationLabel,
+                                                "."
+                                            ]
+                                        }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 151,
+                                            lineNumber: 153,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 147,
+                                    lineNumber: 149,
                                     columnNumber: 15
                                 }, this),
                                 !loading && !error && data && !noRegistered && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2598,12 +2604,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                             className: "grid grid-cols-3 gap-3",
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCard, {
-                                                    label: "Registered",
+                                                    label: populationLabel,
                                                     value: data.totals.registered,
                                                     color: "text-gray-900"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 162,
+                                                    lineNumber: 164,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCard, {
@@ -2612,7 +2618,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     color: "text-green-600"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 163,
+                                                    lineNumber: 165,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SummaryCard, {
@@ -2621,13 +2627,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     color: "text-[#EAB308]"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 164,
+                                                    lineNumber: 166,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 161,
+                                            lineNumber: 163,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2637,12 +2643,12 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     className: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-400",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SearchIcon, {}, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                        lineNumber: 170,
+                                                        lineNumber: 172,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 169,
+                                                    lineNumber: 171,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
@@ -2652,13 +2658,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     className: "w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-800 placeholder-gray-400"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 172,
+                                                    lineNumber: 174,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 168,
+                                            lineNumber: 170,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2670,7 +2676,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     onClick: ()=>setActiveTab('notYetClaimed')
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 182,
+                                                    lineNumber: 184,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](TabButton, {
@@ -2679,13 +2685,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                     onClick: ()=>setActiveTab('claimed')
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 187,
+                                                    lineNumber: 189,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 181,
+                                            lineNumber: 183,
                                             columnNumber: 17
                                         }, this),
                                         activeTab === 'notYetClaimed' && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2694,19 +2700,19 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                 message: search ? 'No households match your search.' : 'All households have claimed.'
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 198,
+                                                lineNumber: 200,
                                                 columnNumber: 23
                                             }, this) : paginatedNotYetClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](HouseholdCard, {
                                                     name: h.householdName,
                                                     address: h.address
                                                 }, h.householdId, false, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 201,
+                                                    lineNumber: 203,
                                                     columnNumber: 25
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 196,
+                                            lineNumber: 198,
                                             columnNumber: 19
                                         }, this),
                                         activeTab === 'claimed' && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2715,7 +2721,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                 message: search ? 'No households match your search.' : 'No households have claimed yet.'
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                lineNumber: 210,
+                                                lineNumber: 212,
                                                 columnNumber: 23
                                             }, this) : paginatedClaimed.map((h)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                     className: "p-3 bg-gray-50 rounded-xl border border-gray-100",
@@ -2730,7 +2736,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                             children: h.householdName
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                            lineNumber: 219,
+                                                                            lineNumber: 221,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2738,13 +2744,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                             children: h.address
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                            lineNumber: 220,
+                                                                            lineNumber: 222,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                    lineNumber: 218,
+                                                                    lineNumber: 220,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 h.proofMethod && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -2752,13 +2758,13 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                                     children: h.proofMethod
                                                                 }, void 0, false, {
                                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                                    lineNumber: 223,
+                                                                    lineNumber: 225,
                                                                     columnNumber: 31
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 217,
+                                                            lineNumber: 219,
                                                             columnNumber: 27
                                                         }, this),
                                                         h.claimedAt && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2775,7 +2781,7 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 229,
+                                                            lineNumber: 231,
                                                             columnNumber: 29
                                                         }, this),
                                                         h.claimedBy?.name && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2786,18 +2792,18 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                            lineNumber: 234,
+                                                            lineNumber: 236,
                                                             columnNumber: 29
                                                         }, this)
                                                     ]
                                                 }, h.householdId, true, {
                                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                                    lineNumber: 213,
+                                                    lineNumber: 215,
                                                     columnNumber: 25
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 208,
+                                            lineNumber: 210,
                                             columnNumber: 19
                                         }, this),
                                         activeItemsCount > 0 && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](PaginationControls, {
@@ -2809,19 +2815,19 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                             onNext: ()=>setPage((prev)=>Math.min(totalPages, prev + 1))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                            lineNumber: 245,
+                                            lineNumber: 247,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                    lineNumber: 159,
+                                    lineNumber: 161,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 124,
+                            lineNumber: 126,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2833,29 +2839,29 @@ function ViewHouseholdsModal({ open, onClose, distribution }) {
                                 children: "Close"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                                lineNumber: 260,
+                                lineNumber: 262,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                            lineNumber: 259,
+                            lineNumber: 261,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                    lineNumber: 98,
+                    lineNumber: 100,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 95,
+            lineNumber: 97,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 94,
+        lineNumber: 96,
         columnNumber: 5
     }, this);
 }
@@ -2870,7 +2876,7 @@ _c = ViewHouseholdsModal;
                 children: value
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 279,
+                lineNumber: 281,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2878,13 +2884,13 @@ _c = ViewHouseholdsModal;
                 children: label
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 280,
+                lineNumber: 282,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 278,
+        lineNumber: 280,
         columnNumber: 5
     }, this);
 }
@@ -2897,7 +2903,7 @@ function TabButton({ active, label, onClick }) {
         children: label
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 287,
+        lineNumber: 289,
         columnNumber: 5
     }, this);
 }
@@ -2911,7 +2917,7 @@ function HouseholdCard({ name, address }) {
                 children: name
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 304,
+                lineNumber: 306,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2919,13 +2925,13 @@ function HouseholdCard({ name, address }) {
                 children: address
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 305,
+                lineNumber: 307,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 303,
+        lineNumber: 305,
         columnNumber: 5
     }, this);
 }
@@ -2936,7 +2942,7 @@ function EmptyList({ message }) {
         children: message
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 312,
+        lineNumber: 314,
         columnNumber: 5
     }, this);
 }
@@ -2959,7 +2965,7 @@ function PaginationControls({ currentPage, totalPages, pageSize, totalItems, onP
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 338,
+                lineNumber: 340,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -2973,7 +2979,7 @@ function PaginationControls({ currentPage, totalPages, pageSize, totalItems, onP
                         children: "Previous"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                        lineNumber: 343,
+                        lineNumber: 345,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -2985,7 +2991,7 @@ function PaginationControls({ currentPage, totalPages, pageSize, totalItems, onP
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                        lineNumber: 351,
+                        lineNumber: 353,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -2996,19 +3002,19 @@ function PaginationControls({ currentPage, totalPages, pageSize, totalItems, onP
                         children: "Next"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                        lineNumber: 354,
+                        lineNumber: 356,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-                lineNumber: 342,
+                lineNumber: 344,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 337,
+        lineNumber: 339,
         columnNumber: 5
     }, this);
 }
@@ -3026,12 +3032,12 @@ _c5 = PaginationControls;
             d: "M6 18L18 6M6 6l12 12"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 372,
+            lineNumber: 374,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 371,
+        lineNumber: 373,
         columnNumber: 5
     }, this);
 }
@@ -3049,12 +3055,12 @@ function UsersIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 380,
+            lineNumber: 382,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 379,
+        lineNumber: 381,
         columnNumber: 5
     }, this);
 }
@@ -3072,12 +3078,12 @@ function UsersEmptyIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 388,
+            lineNumber: 390,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 387,
+        lineNumber: 389,
         columnNumber: 5
     }, this);
 }
@@ -3095,12 +3101,12 @@ function SearchIcon() {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-            lineNumber: 396,
+            lineNumber: 398,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/ViewHouseholdsModal.tsx>",
-        lineNumber: 395,
+        lineNumber: 397,
         columnNumber: 5
     }, this);
 }
@@ -3185,7 +3191,15 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
                                                         lineNumber: 36,
                                                         columnNumber: 19
-                                                    }, this)
+                                                    }, this),
+                                                    distribution.requiresBeneficiaryApproval ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                                        className: "mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700",
+                                                        children: "Target beneficiary approval required"
+                                                    }, void 0, false, {
+                                                        fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
+                                                        lineNumber: 40,
+                                                        columnNumber: 21
+                                                    }, this) : null
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
@@ -3205,12 +3219,12 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                         "aria-label": "Close",
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](XIcon, {}, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 48,
+                                            lineNumber: 53,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                        lineNumber: 42,
+                                        lineNumber: 47,
                                         columnNumber: 15
                                     }, this)
                                 ]
@@ -3238,20 +3252,20 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CalendarIcon, {}, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                            lineNumber: 59,
+                                                            lineNumber: 64,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             children: "Scheduled Date"
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                            lineNumber: 60,
+                                                            lineNumber: 65,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 58,
+                                                    lineNumber: 63,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3259,13 +3273,13 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                     children: distribution.scheduled
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 62,
+                                                    lineNumber: 67,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 57,
+                                            lineNumber: 62,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3276,20 +3290,20 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ClockIcon, {}, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                            lineNumber: 69,
+                                                            lineNumber: 74,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             children: "Status"
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                            lineNumber: 70,
+                                                            lineNumber: 75,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 68,
+                                                    lineNumber: 73,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3298,24 +3312,24 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                         status: distribution.status
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                        lineNumber: 73,
+                                                        lineNumber: 78,
                                                         columnNumber: 19
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 72,
+                                                    lineNumber: 77,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 67,
+                                            lineNumber: 72,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 56,
+                                    lineNumber: 61,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3326,20 +3340,20 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersIcon, {}, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 81,
+                                                    lineNumber: 86,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                    children: "Covered Households"
+                                                    children: distribution.requiresBeneficiaryApproval ? 'Eligible Beneficiaries' : 'Covered Households'
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 82,
+                                                    lineNumber: 87,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 80,
+                                            lineNumber: 85,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3350,27 +3364,27 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                     children: distribution.households
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 85,
+                                                    lineNumber: 90,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                     className: "text-gray-400 text-sm font-normal ml-1",
-                                                    children: "households"
+                                                    children: distribution.requiresBeneficiaryApproval ? 'approved residents' : 'households'
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 86,
+                                                    lineNumber: 91,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 84,
+                                            lineNumber: 89,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 79,
+                                    lineNumber: 84,
                                     columnNumber: 13
                                 }, this),
                                 !!distribution.assignedBarangays?.length && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3381,7 +3395,7 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             children: "Covered Barangays"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 92,
+                                            lineNumber: 99,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3391,18 +3405,18 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                                     children: item
                                                 }, item, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 95,
+                                                    lineNumber: 102,
                                                     columnNumber: 21
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 93,
+                                            lineNumber: 100,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 91,
+                                    lineNumber: 98,
                                     columnNumber: 15
                                 }, this),
                                 distribution.notes && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3413,7 +3427,7 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             children: "Notes"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 109,
+                                            lineNumber: 116,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3421,13 +3435,13 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             children: distribution.notes
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 110,
+                                            lineNumber: 117,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 108,
+                                    lineNumber: 115,
                                     columnNumber: 15
                                 }, this),
                                 distribution.claimedAt && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3438,20 +3452,20 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CalendarIcon, {}, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 118,
+                                                    lineNumber: 125,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                     children: "Claimed At"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                                    lineNumber: 119,
+                                                    lineNumber: 126,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 117,
+                                            lineNumber: 124,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3463,19 +3477,19 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                             })
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 121,
+                                            lineNumber: 128,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 116,
+                                    lineNumber: 123,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                            lineNumber: 54,
+                            lineNumber: 59,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3488,7 +3502,7 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                     children: "Close"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 130,
+                                    lineNumber: 137,
                                     columnNumber: 13
                                 }, this),
                                 distribution.status === 'Unclaimed' && onMarkClaimed && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -3501,20 +3515,20 @@ function DistributionDetailsModal({ open, onClose, distribution, onMarkClaimed }
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckCircleIcon, {}, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                            lineNumber: 146,
+                                            lineNumber: 153,
                                             columnNumber: 17
                                         }, this),
                                         "Mark as Claimed"
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                                    lineNumber: 138,
+                                    lineNumber: 145,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                            lineNumber: 129,
+                            lineNumber: 136,
                             columnNumber: 11
                         }, this)
                     ]
@@ -3544,18 +3558,18 @@ _c = DistributionDetailsModal;
         children: [
             isUnclaimed ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ClockSmallIcon, {}, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                lineNumber: 171,
+                lineNumber: 178,
                 columnNumber: 22
             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckSmallIcon, {}, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                lineNumber: 171,
+                lineNumber: 178,
                 columnNumber: 43
             }, this),
             status
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 164,
+        lineNumber: 171,
         columnNumber: 5
     }, this);
 }
@@ -3573,12 +3587,12 @@ _c1 = StatusPill;
             d: "M6 18L18 6M6 6l12 12"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 182,
+            lineNumber: 189,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 181,
+        lineNumber: 188,
         columnNumber: 5
     }, this);
 }
@@ -3597,7 +3611,7 @@ function LocationIcon() {
                 d: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                lineNumber: 190,
+                lineNumber: 197,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -3607,13 +3621,13 @@ function LocationIcon() {
                 d: "M15 11a3 3 0 11-6 0 3 3 0 016 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-                lineNumber: 191,
+                lineNumber: 198,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 189,
+        lineNumber: 196,
         columnNumber: 5
     }, this);
 }
@@ -3631,12 +3645,12 @@ function CalendarIcon() {
             d: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 199,
+            lineNumber: 206,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 198,
+        lineNumber: 205,
         columnNumber: 5
     }, this);
 }
@@ -3654,12 +3668,12 @@ function ClockIcon() {
             d: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 207,
+            lineNumber: 214,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 206,
+        lineNumber: 213,
         columnNumber: 5
     }, this);
 }
@@ -3677,12 +3691,12 @@ function ClockSmallIcon() {
             d: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 215,
+            lineNumber: 222,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 214,
+        lineNumber: 221,
         columnNumber: 5
     }, this);
 }
@@ -3700,12 +3714,12 @@ function CheckSmallIcon() {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 223,
+            lineNumber: 230,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 222,
+        lineNumber: 229,
         columnNumber: 5
     }, this);
 }
@@ -3723,12 +3737,12 @@ function UsersIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 231,
+            lineNumber: 238,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 230,
+        lineNumber: 237,
         columnNumber: 5
     }, this);
 }
@@ -3746,12 +3760,12 @@ function CheckCircleIcon() {
             d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-            lineNumber: 239,
+            lineNumber: 246,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionDetailsModal.tsx>",
-        lineNumber: 238,
+        lineNumber: 245,
         columnNumber: 5
     }, this);
 }
@@ -3915,7 +3929,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                 onMarkClaimed: onMarkClaimed
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 143,
+                lineNumber: 144,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$distribution$2f$ViewHouseholdsModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -3924,7 +3938,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                 distribution: householdsDistribution
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 150,
+                lineNumber: 151,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3942,7 +3956,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             children: "Distribution Directory"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 160,
+                                            lineNumber: 161,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
@@ -3950,7 +3964,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             children: "Scheduled and claimed distributions"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 161,
+                                            lineNumber: 162,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -3962,13 +3976,13 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 164,
+                                            lineNumber: 165,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 159,
+                                    lineNumber: 160,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3982,7 +3996,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 171,
+                                            lineNumber: 172,
                                             columnNumber: 17
                                         }, this) : null,
                                         status !== 'All' ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -3993,24 +4007,24 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 176,
+                                            lineNumber: 177,
                                             columnNumber: 17
                                         }, this) : null
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 169,
+                                    lineNumber: 170,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                            lineNumber: 158,
+                            lineNumber: 159,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                        lineNumber: 157,
+                        lineNumber: 158,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4025,12 +4039,12 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             className: "absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400",
                                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SearchIcon, {}, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 188,
+                                                lineNumber: 189,
                                                 columnNumber: 17
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 187,
+                                            lineNumber: 188,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
@@ -4040,13 +4054,13 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             className: "w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 shadow-sm outline-none transition-colors focus:border-slate-400 focus:bg-white focus:ring-0"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 190,
+                                            lineNumber: 191,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 186,
+                                    lineNumber: 187,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4070,18 +4084,18 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                             children: barangayLabel
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                            lineNumber: 210,
+                                                            lineNumber: 211,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                            lineNumber: 211,
+                                                            lineNumber: 212,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 200,
+                                                    lineNumber: 201,
                                                     columnNumber: 17
                                                 }, this),
                                                 barangayOpen ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](DropdownMenu, {
@@ -4094,13 +4108,13 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                     }
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 214,
+                                                    lineNumber: 215,
                                                     columnNumber: 19
                                                 }, this) : null
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 199,
+                                            lineNumber: 200,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4121,18 +4135,18 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                             children: statusLabel
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                            lineNumber: 237,
+                                                            lineNumber: 238,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                            lineNumber: 238,
+                                                            lineNumber: 239,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 227,
+                                                    lineNumber: 228,
                                                     columnNumber: 17
                                                 }, this),
                                                 statusOpen ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](DropdownMenu, {
@@ -4145,13 +4159,13 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                     }
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 241,
+                                                    lineNumber: 242,
                                                     columnNumber: 19
                                                 }, this) : null
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 226,
+                                            lineNumber: 227,
                                             columnNumber: 15
                                         }, this),
                                         canCreate ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -4161,24 +4175,24 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             children: "+ New Distribution"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 254,
+                                            lineNumber: 255,
                                             columnNumber: 17
                                         }, this) : null
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 198,
+                                    lineNumber: 199,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                            lineNumber: 185,
+                            lineNumber: 186,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                        lineNumber: 184,
+                        lineNumber: 185,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4195,7 +4209,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Barangay"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 270,
+                                                lineNumber: 271,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -4203,7 +4217,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Registered Households"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 271,
+                                                lineNumber: 272,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -4211,7 +4225,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Claims"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 272,
+                                                lineNumber: 273,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -4219,7 +4233,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Scheduled For"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 273,
+                                                lineNumber: 274,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -4227,7 +4241,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Current Status"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 274,
+                                                lineNumber: 275,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -4235,7 +4249,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "Claimed On"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 275,
+                                                lineNumber: 276,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -4245,23 +4259,23 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                     children: "Actions"
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 277,
+                                                    lineNumber: 278,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 276,
+                                                lineNumber: 277,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 269,
+                                        lineNumber: 270,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 268,
+                                    lineNumber: 269,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
@@ -4279,7 +4293,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                                 children: row.barangay.charAt(0)
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 288,
+                                                                lineNumber: 289,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -4287,18 +4301,18 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                                 children: row.barangay
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 291,
+                                                                lineNumber: 292,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 287,
+                                                        lineNumber: 288,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 286,
+                                                    lineNumber: 287,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -4308,19 +4322,19 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersMiniIcon, {}, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 297,
+                                                                lineNumber: 298,
                                                                 columnNumber: 25
                                                             }, this),
                                                             row.registeredHouseholds > 0 ? row.registeredHouseholds : '--'
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 296,
+                                                        lineNumber: 297,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 295,
+                                                    lineNumber: 296,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -4333,21 +4347,21 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                                 children: [
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckMiniIcon, {}, void 0, false, {
                                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                        lineNumber: 306,
+                                                                        lineNumber: 307,
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     row.claimedHouseholds
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 305,
+                                                                lineNumber: 306,
                                                                 columnNumber: 27
                                                             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                                 className: "text-sm font-medium text-slate-400",
                                                                 children: "0"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 310,
+                                                                lineNumber: 311,
                                                                 columnNumber: 27
                                                             }, this),
                                                             row.registeredHouseholds > 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -4358,18 +4372,18 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                lineNumber: 313,
+                                                                lineNumber: 314,
                                                                 columnNumber: 27
                                                             }, this) : null
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 303,
+                                                        lineNumber: 304,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 302,
+                                                    lineNumber: 303,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -4377,7 +4391,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                     children: row.scheduled
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 318,
+                                                    lineNumber: 319,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -4386,12 +4400,12 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                         status: row.status
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 321,
+                                                        lineNumber: 322,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 320,
+                                                    lineNumber: 321,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -4403,7 +4417,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                     }) : '--'
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 324,
+                                                    lineNumber: 325,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -4418,29 +4432,29 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                                 "Manage ",
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
                                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                                    lineNumber: 340,
+                                                                    lineNumber: 341,
                                                                     columnNumber: 34
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                            lineNumber: 336,
+                                                            lineNumber: 337,
                                                             columnNumber: 25
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                        lineNumber: 335,
+                                                        lineNumber: 336,
                                                         columnNumber: 23
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                    lineNumber: 334,
+                                                    lineNumber: 335,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, row.id, true, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 285,
+                                            lineNumber: 286,
                                             columnNumber: 19
                                         }, this)) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
@@ -4451,39 +4465,39 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 children: "No distributions found matching your filter criteria."
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                                lineNumber: 349,
+                                                lineNumber: 350,
                                                 columnNumber: 21
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                            lineNumber: 348,
+                                            lineNumber: 349,
                                             columnNumber: 19
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 347,
+                                        lineNumber: 348,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 282,
+                                    lineNumber: 283,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                            lineNumber: 267,
+                            lineNumber: 268,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                        lineNumber: 266,
+                        lineNumber: 267,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 156,
+                lineNumber: 157,
                 columnNumber: 7
             }, this),
             activeMenu && menuPos ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2d$dom$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["createPortal"](/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4505,7 +4519,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](EyeIcon, {}, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 378,
+                                        lineNumber: 379,
                                         columnNumber: 31
                                     }, void 0),
                                     label: "View Details",
@@ -4515,26 +4529,26 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                     }
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 377,
+                                    lineNumber: 378,
                                     columnNumber: 23
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](QrIcon, {}, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 385,
+                                        lineNumber: 386,
                                         columnNumber: 39
                                     }, void 0),
                                     label: "Show QR Code",
                                     onClick: closeRowMenu
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 385,
+                                    lineNumber: 386,
                                     columnNumber: 23
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](HouseholdsIcon, {}, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 387,
+                                        lineNumber: 388,
                                         columnNumber: 31
                                     }, void 0),
                                     label: "View Households",
@@ -4544,13 +4558,13 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                     }
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 386,
+                                    lineNumber: 387,
                                     columnNumber: 23
                                 }, this),
                                 row.status !== 'Claimed' ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                                     icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckGreenIcon, {}, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                        lineNumber: 396,
+                                        lineNumber: 397,
                                         columnNumber: 33
                                     }, void 0),
                                     label: "Mark as claimed",
@@ -4561,7 +4575,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                     }
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                    lineNumber: 395,
+                                    lineNumber: 396,
                                     columnNumber: 25
                                 }, this) : null
                             ]
@@ -4569,12 +4583,12 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                     })()
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                    lineNumber: 370,
+                    lineNumber: 371,
                     columnNumber: 15
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 360,
+                lineNumber: 361,
                 columnNumber: 13
             }, this), document.body) : null
         ]
@@ -4602,12 +4616,12 @@ function DropdownMenu({ menuRef, items, selected, onSelect }) {
                             className: "flex w-5 items-center justify-center",
                             children: isSelected ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {}, void 0, false, {
                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                                lineNumber: 446,
+                                lineNumber: 447,
                                 columnNumber: 84
                             }, this) : null
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                            lineNumber: 446,
+                            lineNumber: 447,
                             columnNumber: 15
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -4615,24 +4629,24 @@ function DropdownMenu({ menuRef, items, selected, onSelect }) {
                             children: option.label
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                            lineNumber: 447,
+                            lineNumber: 448,
                             columnNumber: 15
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                    lineNumber: 445,
+                    lineNumber: 446,
                     columnNumber: 13
                 }, this)
             }, option.value, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 436,
+                lineNumber: 437,
                 columnNumber: 11
             }, this);
         })
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 429,
+        lineNumber: 430,
         columnNumber: 5
     }, this);
 }
@@ -4647,14 +4661,14 @@ function StatusPill({ status }) {
                 className: `mr-2 h-1.5 w-1.5 rounded-full ${dotClass}`
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 473,
+                lineNumber: 474,
                 columnNumber: 7
             }, this),
             status
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 472,
+        lineNumber: 473,
         columnNumber: 5
     }, this);
 }
@@ -4672,14 +4686,14 @@ function MenuItem({ icon, label, onClick, tone = 'default' }) {
                 children: icon
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 499,
+                lineNumber: 500,
                 columnNumber: 7
             }, this),
             label
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 494,
+        lineNumber: 495,
         columnNumber: 5
     }, this);
 }
@@ -4697,12 +4711,12 @@ function SearchIcon() {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 508,
+            lineNumber: 509,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 507,
+        lineNumber: 508,
         columnNumber: 5
     }, this);
 }
@@ -4720,12 +4734,12 @@ function ChevronDownIcon() {
             d: "M19 9l-7 7-7-7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 516,
+            lineNumber: 517,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 515,
+        lineNumber: 516,
         columnNumber: 5
     }, this);
 }
@@ -4743,12 +4757,12 @@ function CheckIcon() {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 524,
+            lineNumber: 525,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 523,
+        lineNumber: 524,
         columnNumber: 5
     }, this);
 }
@@ -4766,12 +4780,12 @@ function UsersMiniIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 532,
+            lineNumber: 533,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 531,
+        lineNumber: 532,
         columnNumber: 5
     }, this);
 }
@@ -4790,7 +4804,7 @@ function EyeIcon() {
                 d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 540,
+                lineNumber: 541,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -4800,13 +4814,13 @@ function EyeIcon() {
                 d: "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 541,
+                lineNumber: 542,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 539,
+        lineNumber: 540,
         columnNumber: 5
     }, this);
 }
@@ -4825,7 +4839,7 @@ function QrIcon() {
                 d: "M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 549,
+                lineNumber: 550,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -4835,13 +4849,13 @@ function QrIcon() {
                 d: "M14 14h1v1h-1v-1zM16 16h1v1h-1v-1zM18 14h-1v1h1v3h-3v-1h-1v-3h2"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-                lineNumber: 550,
+                lineNumber: 551,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 548,
+        lineNumber: 549,
         columnNumber: 5
     }, this);
 }
@@ -4859,12 +4873,12 @@ function CheckGreenIcon() {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 558,
+            lineNumber: 559,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 557,
+        lineNumber: 558,
         columnNumber: 5
     }, this);
 }
@@ -4882,12 +4896,12 @@ function CheckMiniIcon() {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 566,
+            lineNumber: 567,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 565,
+        lineNumber: 566,
         columnNumber: 5
     }, this);
 }
@@ -4905,12 +4919,12 @@ function HouseholdsIcon() {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-            lineNumber: 574,
+            lineNumber: 575,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
-        lineNumber: 573,
+        lineNumber: 574,
         columnNumber: 5
     }, this);
 }
@@ -5340,6 +5354,7 @@ function DistributionPageClient() {
                         registeredHouseholds: d.registeredHouseholds ?? 0,
                         claimedHouseholds: d.claimedHouseholds ?? 0,
                         notes: d.notes,
+                        requiresBeneficiaryApproval: d.requiresBeneficiaryApproval ?? false,
                         status: d.status,
                         claimedAt: d.claimedAt,
                         createdAt: d.createdAt
@@ -5434,7 +5449,7 @@ function DistributionPageClient() {
                                         className: "w-10 h-10 rounded-xl bg-gray-200"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                                        lineNumber: 125,
+                                        lineNumber: 126,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -5444,36 +5459,36 @@ function DistributionPageClient() {
                                                 className: "h-5 w-16 bg-gray-200 rounded"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                                                lineNumber: 126,
+                                                lineNumber: 127,
                                                 columnNumber: 44
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                 className: "h-3 w-24 bg-gray-200 rounded"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                                                lineNumber: 126,
+                                                lineNumber: 127,
                                                 columnNumber: 92
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                                        lineNumber: 126,
+                                        lineNumber: 127,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                                lineNumber: 124,
+                                lineNumber: 125,
                                 columnNumber: 15
                             }, this)
                         }, i, false, {
                             fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                            lineNumber: 123,
+                            lineNumber: 124,
                             columnNumber: 13
                         }, this))
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                    lineNumber: 121,
+                    lineNumber: 122,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$Skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableSkeleton"], {
@@ -5481,13 +5496,13 @@ function DistributionPageClient() {
                     columns: 6
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                    lineNumber: 131,
+                    lineNumber: 132,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-            lineNumber: 119,
+            lineNumber: 120,
             columnNumber: 7
         }, this);
     }
@@ -5500,7 +5515,7 @@ function DistributionPageClient() {
                 barangays: barangaysCount
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                lineNumber: 138,
+                lineNumber: 139,
                 columnNumber: 7
             }, this),
             error && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -5510,12 +5525,12 @@ function DistributionPageClient() {
                     children: error
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                    lineNumber: 147,
+                    lineNumber: 148,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                lineNumber: 146,
+                lineNumber: 147,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$distribution$2f$DistributionsTable$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -5525,7 +5540,7 @@ function DistributionPageClient() {
                 canCreate: isSuperadmin
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                lineNumber: 151,
+                lineNumber: 152,
                 columnNumber: 7
             }, this),
             isSuperadmin && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$distribution$2f$NewDistributionModal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -5535,13 +5550,13 @@ function DistributionPageClient() {
                 barangayOptions: scopedBarangays
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-                lineNumber: 159,
+                lineNumber: 160,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/DistributionPageClient.tsx>",
-        lineNumber: 137,
+        lineNumber: 138,
         columnNumber: 5
     }, this);
 }
