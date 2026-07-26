@@ -54,7 +54,8 @@ export default function ApprovedUsersByBarangayTable() {
         if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load approved users')
         if (mounted) setRows(Array.isArray(data.data) ? data.data : [])
       } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load approved users')
+        console.error('Failed to load approved users:', err)
+        if (mounted) setError('Failed to load approved users. Please try again.')
       } finally {
         if (mounted) setLoading(false)
       }

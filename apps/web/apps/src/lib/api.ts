@@ -352,7 +352,12 @@ const createHeaders = (method: string = 'GET'): HeadersInit => {
 };
 
 /**
- * Handle API response
+ * Handle API response.
+ *
+ * Security: raw server text, HTTP status codes, and non-JSON responses are
+ * logged to the console for developer debugging only.  Error.message uses
+ * only the server's intentional JSON message or a generic fallback so that
+ * downstream UI code can safely display it without leaking system details.
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') || '';
@@ -369,13 +374,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    const fallbackMessage =
-      rawText && !isJson
-        ? rawText.slice(0, 180)
-        : `Request failed with status ${response.status}`;
-    const error = new Error(data?.message || fallbackMessage || 'An error occurred');
+    // Log raw details for developer debugging — never expose to UI
+    console.error(
+      `[API] ${response.status} ${response.url}`,
+      isJson ? data : rawText?.slice(0, 300),
+    );
+
+    // User-safe message: prefer server's intentional JSON message, else generic
+    const userMessage = data?.message || 'Something went wrong. Please try again.';
+
+    const error = new Error(userMessage);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (error as any).response = data ?? { message: fallbackMessage };
+    (error as any).response = data ?? { message: userMessage };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (error as any).status = response.status;
     throw error;

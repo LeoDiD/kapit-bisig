@@ -1,8 +1,6 @@
 {
-  "/page": "app/page.js",
   "/login/page": "app/login/page.js",
-  "/target-beneficiaries/page": "app/target-beneficiaries/page.js",
+  "/page": "app/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/households/page": "app/households/page.js",
-  "/distribution/page": "app/distribution/page.js"
+  "/target-beneficiaries/page": "app/target-beneficiaries/page.js"
 }

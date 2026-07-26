@@ -78,7 +78,8 @@ export default function AccountProfileSection() {
         showToast.error(res.message || 'Update failed')
       }
     } catch (err: any) {
-      showToast.error(err.message || 'Failed to update profile')
+      console.error('Profile update failed:', err)
+      showToast.error('Failed to update profile. Please try again.')
     } finally {
       setSaving(false)
       setConfirmOpen(false)

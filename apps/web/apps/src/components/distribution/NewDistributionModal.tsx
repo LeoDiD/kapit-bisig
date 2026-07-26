@@ -312,8 +312,8 @@ export default function NewDistributionModal({
         nextCursor: data.nextCursor,
       }))
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch eligible staff'
-      setErrors((prev) => ({ ...prev, global: message }))
+      console.error('Failed to fetch eligible staff:', error)
+      setErrors((prev) => ({ ...prev, global: 'Failed to fetch eligible staff. Please try again.' }))
       setStaffData({ items: [], nextCursor: null })
     } finally {
       setIsLoadingStaff(false)
@@ -377,7 +377,7 @@ export default function NewDistributionModal({
     }
 
     const code = err.response?.code
-    const message = err.response?.message || err.message || 'Failed to create distribution'
+    const message = err.response?.message || 'Failed to create distribution. Please try again.'
 
     if (
       code === 'OUT_OF_SCOPE_STAFF' ||

@@ -1117,8 +1117,8 @@ function ProtectedRoute({ children }) {
             setConfirmPassword('');
             __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["showToast"].success('Password set successfully');
         } catch (err) {
-            const parsed = err;
-            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["showToast"].error(parsed.message || 'Failed to set password');
+            console.error('Set password failed:', err);
+            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["showToast"].error('Failed to set password. Please try again.');
         } finally{
             setSaving(false);
         }

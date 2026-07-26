@@ -85,8 +85,8 @@ export default function VerifiedResidentsPage() {
       setRows(response.data)
       setCurrentPage(1)
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to load verified residents.'
-      setError(message)
+      console.error('Failed to fetch verified residents:', e)
+      setError('Failed to load verified residents. Please try again.')
       setRows([])
     } finally {
       setFetching(false)
@@ -118,7 +118,8 @@ export default function VerifiedResidentsPage() {
       }
       setReviewResident(response.data)
     } catch (e) {
-      setReviewError(e instanceof Error ? e.message : 'Failed to load verified resident details.')
+      console.error('Failed to load verified resident details:', e)
+      setReviewError('Failed to load verified resident details. Please try again.')
     } finally {
       setReviewLoading(false)
     }

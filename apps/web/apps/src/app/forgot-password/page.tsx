@@ -64,7 +64,8 @@ export default function ForgotPasswordPage() {
       showToast.success('If the email exists, an OTP was sent.')
       setStep('otp')
     } catch (err: unknown) {
-      const msg = (err as { message?: string }).message || 'Something went wrong.'
+      console.error('Forgot password OTP send failed:', err)
+      const msg = (err as { message?: string }).message || 'Something went wrong. Please try again.'
       setError(msg)
     } finally {
       setIsLoading(false)
@@ -93,8 +94,8 @@ export default function ForgotPasswordPage() {
       showToast.success('OTP verified.')
       setStep('reset')
     } catch (err: unknown) {
-      const msg = (err as { message?: string }).message || 'Invalid or expired code.'
-      setError(`${msg} Please use the latest OTP sent to your email.`)
+      console.error('Verify OTP failed:', err)
+      setError('Invalid or expired code. Please use the latest OTP sent to your email.')
     } finally {
       setIsLoading(false)
     }
@@ -108,7 +109,8 @@ export default function ForgotPasswordPage() {
       setOtp('')
       showToast.success('A new OTP has been sent.')
     } catch (err: unknown) {
-      const msg = (err as { message?: string }).message || 'Failed to resend OTP.'
+      console.error('Resend OTP failed:', err)
+      const msg = (err as { message?: string }).message || 'Failed to resend OTP. Please try again.'
       setError(msg)
     } finally {
       setIsResending(false)
@@ -136,7 +138,8 @@ export default function ForgotPasswordPage() {
       showToast.success('Password reset successfully! Please sign in.')
       router.push('/login')
     } catch (err: unknown) {
-      const msg = (err as { message?: string }).message || 'Failed to reset password.'
+      console.error('Reset password failed:', err)
+      const msg = (err as { message?: string }).message || 'Failed to reset password. Please try again.'
       setError(msg)
     } finally {
       setIsLoading(false)

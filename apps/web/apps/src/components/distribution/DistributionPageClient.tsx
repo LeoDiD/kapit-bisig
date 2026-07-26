@@ -45,8 +45,8 @@ export default function DistributionPageClient() {
         setRows(mapped)
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load distributions'
-      setError(message)
+      console.error('Failed to load distributions:', err)
+      setError('Failed to load distributions. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -95,7 +95,8 @@ export default function DistributionPageClient() {
       showToast.success('Distribution created.')
       await fetchDistributions()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to create distribution'
+      console.error('Failed to create distribution:', err)
+      const message = 'Failed to create distribution. Please try again.'
       setError(message)
       showToast.error(message)
       throw err
@@ -109,7 +110,8 @@ export default function DistributionPageClient() {
       showToast.success('Distribution marked as claimed.')
       await fetchDistributions()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to mark as claimed'
+      console.error('Failed to mark as claimed:', err)
+      const message = 'Failed to mark as claimed. Please try again.'
       setError(message)
       showToast.error(message)
     }

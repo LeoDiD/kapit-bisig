@@ -66,8 +66,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       setConfirmPassword('')
       showToast.success('Password set successfully')
     } catch (err: unknown) {
-      const parsed = err as { message?: string }
-      showToast.error(parsed.message || 'Failed to set password')
+      console.error('Set password failed:', err)
+      showToast.error('Failed to set password. Please try again.')
     } finally {
       setSaving(false)
     }

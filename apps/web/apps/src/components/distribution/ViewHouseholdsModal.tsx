@@ -33,8 +33,8 @@ export default function ViewHouseholdsModal({
         setError(res.message || 'Failed to load households')
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load households'
-      setError(msg)
+      console.error('Failed to load households:', err)
+      setError('Failed to load households. Please try again.')
     } finally {
       setLoading(false)
     }

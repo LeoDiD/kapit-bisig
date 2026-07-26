@@ -105,7 +105,8 @@ export default function SecuritySection() {
         setConfirmOpen(false)
       }
     } catch (err: any) {
-      showToast.error(err.message || 'Failed to send verification code')
+      console.error('Password change OTP request failed:', err)
+      showToast.error('Failed to send verification code. Please try again.')
       setConfirmOpen(false)
     } finally {
       setSaving(false)
@@ -140,7 +141,8 @@ export default function SecuritySection() {
         }
       }
     } catch (err: any) {
-      setOtpError(err.message || 'Failed to verify code')
+      console.error('OTP verification failed:', err)
+      setOtpError('Verification failed. Please try again.')
     } finally {
       setSaving(false)
     }

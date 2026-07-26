@@ -215,8 +215,8 @@ export default function TargetBeneficiariesPageClient() {
       setProofSummary(nextSummary)
       setTotalPages(nextTotalPages)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load proof submissions.'
-      setError(message)
+      console.error('Failed to load proof submissions:', err)
+      setError('Failed to load proof submissions. Please try again.')
       setProofRows([])
       setProofSummary(INITIAL_PROOF_SUMMARY)
     } finally {
@@ -301,8 +301,8 @@ export default function TargetBeneficiariesPageClient() {
         return
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update proof submission.'
-      showToast.error(message)
+      console.error('Failed to update proof submission:', err)
+      showToast.error('Failed to update proof submission. Please try again.')
       setReviewLoading(false)
     }
   }, [closeReviewModals, page, proofRows.length, reviewDecision, reviewReason, reviewTarget, selectedStatus])

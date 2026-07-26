@@ -108,7 +108,12 @@ function getScopedBarangays(role, assignedBarangays) {
     return headers;
 };
 /**
- * Handle API response
+ * Handle API response.
+ *
+ * Security: raw server text, HTTP status codes, and non-JSON responses are
+ * logged to the console for developer debugging only.  Error.message uses
+ * only the server's intentional JSON message or a generic fallback so that
+ * downstream UI code can safely display it without leaking system details.
  */ async function handleResponse(response) {
     const contentType = response.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
@@ -122,11 +127,14 @@ function getScopedBarangays(role, assignedBarangays) {
         }
     }
     if (!response.ok) {
-        const fallbackMessage = rawText && !isJson ? rawText.slice(0, 180) : `Request failed with status ${response.status}`;
-        const error = new Error(data?.message || fallbackMessage || 'An error occurred');
+        // Log raw details for developer debugging — never expose to UI
+        console.error(`[API] ${response.status} ${response.url}`, isJson ? data : rawText?.slice(0, 300));
+        // User-safe message: prefer server's intentional JSON message, else generic
+        const userMessage = data?.message || 'Something went wrong. Please try again.';
+        const error = new Error(userMessage);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error.response = data ?? {
-            message: fallbackMessage
+            message: userMessage
         };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error.status = response.status;
@@ -3226,7 +3234,8 @@ function ApprovedUsersByBarangayTable() {
                 if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load approved users');
                 if (mounted) setRows(Array.isArray(data.data) ? data.data : []);
             } catch (err) {
-                if (mounted) setError(err instanceof Error ? err.message : 'Failed to load approved users');
+                console.error('Failed to load approved users:', err);
+                if (mounted) setError('Failed to load approved users. Please try again.');
             } finally{
                 if (mounted) setLoading(false);
             }
@@ -3268,7 +3277,7 @@ function ApprovedUsersByBarangayTable() {
                         children: maskName(row.original.fullName)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                        lineNumber: 88,
+                        lineNumber: 89,
                         columnNumber: 11
                     }, this)
             },
@@ -3303,7 +3312,7 @@ function ApprovedUsersByBarangayTable() {
                                 children: "Approved Users by Barangay"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                lineNumber: 119,
+                                lineNumber: 120,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -3311,13 +3320,13 @@ function ApprovedUsersByBarangayTable() {
                                 children: "Names are masked for privacy."
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                lineNumber: 120,
+                                lineNumber: 121,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                        lineNumber: 118,
+                        lineNumber: 119,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3329,7 +3338,7 @@ function ApprovedUsersByBarangayTable() {
                                 children: "Filter by Barangay"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                lineNumber: 124,
+                                lineNumber: 125,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$SelectDropdown$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -3342,19 +3351,19 @@ function ApprovedUsersByBarangayTable() {
                                 menuClassName: "max-h-72"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                lineNumber: 127,
+                                lineNumber: 128,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                        lineNumber: 123,
+                        lineNumber: 124,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                lineNumber: 117,
+                lineNumber: 118,
                 columnNumber: 7
             }, this),
             error ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -3362,7 +3371,7 @@ function ApprovedUsersByBarangayTable() {
                 children: error
             }, void 0, false, {
                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                lineNumber: 140,
+                lineNumber: 141,
                 columnNumber: 9
             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                 className: "overflow-x-auto",
@@ -3374,17 +3383,17 @@ function ApprovedUsersByBarangayTable() {
                                             children: header.isPlaceholder ? null : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$tanstack$2f$react$2d$table$2f$build$2f$lib$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$locals$7d$__["flexRender"](header.column.columnDef.header, header.getContext())
                                         }, header.id, false, {
                                             fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                            lineNumber: 148,
+                                            lineNumber: 149,
                                             columnNumber: 21
                                         }, this))
                                 }, headerGroup.id, false, {
                                     fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                    lineNumber: 146,
+                                    lineNumber: 147,
                                     columnNumber: 17
                                 }, this))
                         }, void 0, false, {
                             fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                            lineNumber: 144,
+                            lineNumber: 145,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableBody"], {
@@ -3395,12 +3404,12 @@ function ApprovedUsersByBarangayTable() {
                                     children: "Loading approved users..."
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                    lineNumber: 160,
+                                    lineNumber: 161,
                                     columnNumber: 19
                                 }, this)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                lineNumber: 159,
+                                lineNumber: 160,
                                 columnNumber: 17
                             }, this) : table.getRowModel().rows.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableRow"], {
                                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -3409,46 +3418,46 @@ function ApprovedUsersByBarangayTable() {
                                     children: "No approved users found."
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                    lineNumber: 166,
+                                    lineNumber: 167,
                                     columnNumber: 19
                                 }, this)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                lineNumber: 165,
+                                lineNumber: 166,
                                 columnNumber: 17
                             }, this) : table.getRowModel().rows.map((row)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableRow"], {
                                     children: row.getVisibleCells().map((cell)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
                                             children: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$tanstack$2f$react$2d$table$2f$build$2f$lib$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$locals$7d$__["flexRender"](cell.column.columnDef.cell, cell.getContext())
                                         }, cell.id, false, {
                                             fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                            lineNumber: 174,
+                                            lineNumber: 175,
                                             columnNumber: 23
                                         }, this))
                                 }, row.id, false, {
                                     fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                                    lineNumber: 172,
+                                    lineNumber: 173,
                                     columnNumber: 19
                                 }, this))
                         }, void 0, false, {
                             fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                            lineNumber: 157,
+                            lineNumber: 158,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                    lineNumber: 143,
+                    lineNumber: 144,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-                lineNumber: 142,
+                lineNumber: 143,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/dashboard/ApprovedUsersByBarangayTable.tsx>",
-        lineNumber: 116,
+        lineNumber: 117,
         columnNumber: 5
     }, this);
 }
@@ -6333,8 +6342,8 @@ function ProtectedRoute({ children }) {
             setConfirmPassword('');
             __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showToast"].success('Password set successfully');
         } catch (err) {
-            const parsed = err;
-            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showToast"].error(parsed.message || 'Failed to set password');
+            console.error('Set password failed:', err);
+            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showToast"].error('Failed to set password. Please try again.');
         } finally{
             setSaving(false);
         }

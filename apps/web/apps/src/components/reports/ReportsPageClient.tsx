@@ -447,7 +447,8 @@ export default function ReportsPageClient() {
         setError(res.message || 'Failed to generate report')
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to generate report')
+      console.error('Failed to generate report:', err)
+      setError('Failed to generate report. Please try again.')
     } finally {
       setLoading(false)
     }

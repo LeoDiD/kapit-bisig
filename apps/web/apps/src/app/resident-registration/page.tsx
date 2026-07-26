@@ -338,8 +338,8 @@ export default function ResidentRegistrationPage() {
       setRows(response.data)
       setSelectedIds([])
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to load resident registrations.'
-      setError(message)
+      console.error('Failed to fetch resident registrations:', e)
+      setError('Failed to load resident registrations. Please try again.')
       setRows([])
     } finally {
       setFetching(false)
@@ -454,7 +454,8 @@ export default function ResidentRegistrationPage() {
       }
       setReviewResident(response.data)
     } catch (e) {
-      setReviewError(e instanceof Error ? e.message : 'Failed to load resident review details.')
+      console.error('Failed to load resident review details:', e)
+      setReviewError('Failed to load resident review details. Please try again.')
     } finally {
       setReviewLoading(false)
     }
@@ -504,12 +505,11 @@ export default function ResidentRegistrationPage() {
           )
         }
       } catch (e) {
+        console.error('Failed to approve registration:', e)
         showToast.error(
-          e instanceof Error
-            ? e.message
-            : isBulk
-              ? 'Failed to approve selected registrations.'
-              : 'Failed to approve registration.',
+          isBulk
+            ? 'Failed to approve selected registrations.'
+            : 'Failed to approve registration.',
         )
       } finally {
         setBusyId(null)
@@ -573,12 +573,11 @@ export default function ResidentRegistrationPage() {
           )
         }
       } catch (e) {
+        console.error('Failed to return registration for revision:', e)
         showToast.error(
-          e instanceof Error
-            ? e.message
-            : isBulk
-              ? 'Failed to return selected registrations.'
-              : 'Failed to return registration.',
+          isBulk
+            ? 'Failed to return selected registrations.'
+            : 'Failed to return registration.',
         )
       } finally {
         setBusyId(null)

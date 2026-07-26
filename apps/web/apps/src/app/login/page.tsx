@@ -102,6 +102,7 @@ export default function LoginPage() {
 
       await completeLogin()
     } catch (err: unknown) {
+      console.error('Login failed:', err)
       const parsed = err as { message?: string }
       const msg = parsed.message || ''
       if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
@@ -125,8 +126,9 @@ export default function LoginPage() {
       await resendLoginOtp(otpToken)
       showToast.success('A new verification code has been sent.')
     } catch (err: unknown) {
+      console.error('Resend login OTP failed:', err)
       const parsed = err as { message?: string }
-      const msg = parsed.message || 'Failed to resend verification code.'
+      const msg = parsed.message || 'Failed to resend verification code. Please try again.'
       setError(msg)
       showToast.error(msg)
     } finally {
