@@ -1230,10 +1230,10 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl",
+                className: "relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-2xl",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-gray-100 px-6 py-5",
+                        className: "border-b border-gray-100 dark:border-slate-800 px-6 py-5",
                         children: [
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                 className: "flex items-start justify-between gap-4",
@@ -1241,7 +1241,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "text-xs font-bold uppercase tracking-[0.18em] text-[#0F533A]",
+                                                className: "text-xs font-bold uppercase tracking-[0.18em] text-[#0F533A] dark:text-emerald-400",
                                                 children: "Create Distribution"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1249,7 +1249,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
-                                                className: "mt-2 text-xl font-black text-gray-900",
+                                                className: "mt-2 text-xl font-black text-gray-900 dark:text-slate-100",
                                                 children: "Plan a barangay relief release"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1257,7 +1257,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "mt-2 text-sm text-gray-600",
+                                                className: "mt-2 text-sm text-gray-600 dark:text-slate-400",
                                                 children: "Keep your existing distribution workflow, now styled to match the disaster event setup experience."
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1274,7 +1274,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                         type: "button",
                                         onClick: onClose,
                                         disabled: isCreating,
-                                        className: "rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50",
+                                        className: "rounded-full border border-gray-200 dark:border-slate-700 p-2 text-gray-500 dark:text-slate-400 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-300 disabled:opacity-50",
                                         "aria-label": "Close",
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](XIcon, {}, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1300,10 +1300,10 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                     3,
                                     4
                                 ].map((s)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                        className: `rounded-2xl border px-4 py-3 ${s === step ? 'border-[#0F533A] bg-[#0F533A]/6' : s < step ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`,
+                                        className: `rounded-2xl border px-4 py-3 ${s === step ? 'border-[#0F533A] bg-[#0F533A]/6 dark:border-[#0F533A]/50 dark:bg-[#0F533A]/30' : s < step ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/30' : 'border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800'}`,
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: `text-[11px] font-bold uppercase tracking-[0.16em] ${s === step ? 'text-[#0F533A]' : s < step ? 'text-emerald-700' : 'text-gray-500'}`,
+                                                className: `text-[11px] font-bold uppercase tracking-[0.16em] ${s === step ? 'text-[#0F533A] dark:text-emerald-400' : s < step ? 'text-emerald-700 dark:text-emerald-500' : 'text-gray-500 dark:text-slate-400'}`,
                                                 children: [
                                                     "Step ",
                                                     s
@@ -1314,7 +1314,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "mt-1 text-sm font-bold text-gray-900",
+                                                className: "mt-1 text-sm font-bold text-gray-900 dark:text-slate-100",
                                                 children: s === 1 ? 'Host' : s === 2 ? 'Coverage' : s === 3 ? 'Schedule' : 'Team'
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1345,10 +1345,10 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                         },
                         children: [
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                className: "rounded-2xl border border-gray-200 bg-gray-50/70 px-5 py-4",
+                                className: "rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/50 px-5 py-4",
                                 children: [
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                        className: "text-xs font-bold uppercase tracking-[0.18em] text-gray-500",
+                                        className: "text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400",
                                         children: currentStepDetails.eyebrow
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1356,7 +1356,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h4", {
-                                        className: "mt-2 text-lg font-black text-gray-900",
+                                        className: "mt-2 text-lg font-black text-gray-900 dark:text-slate-100",
                                         children: currentStepDetails.title
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1364,7 +1364,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                        className: "mt-2 text-sm text-gray-600",
+                                        className: "mt-2 text-sm text-gray-600 dark:text-slate-300",
                                         children: currentStepDetails.description
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1388,7 +1388,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("label", {
-                                                                className: "mb-1.5 block text-sm font-semibold text-gray-700",
+                                                                className: "mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200",
                                                                 children: "Relief Giving Location (Host Barangay)"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1396,7 +1396,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                className: "text-xs text-gray-500",
+                                                                className: "text-xs text-gray-500 dark:text-slate-400",
                                                                 children: "Choose the main relief release point for this distribution."
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1410,7 +1410,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                        className: "rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-600",
+                                                        className: "rounded-full border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-gray-600 dark:text-slate-300",
                                                         children: barangay ? '1 selected' : 'Pick 1'
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1436,7 +1436,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                         },
                                                         className: [
                                                             'flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-colors',
-                                                            selected ? 'border-[#0F533A] bg-[#0F533A]/5 text-[#0F533A]' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                                                            selected ? 'border-[#0F533A] bg-[#0F533A]/5 dark:bg-[#0F533A]/20 text-[#0F533A] dark:text-emerald-400' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'
                                                         ].join(' '),
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -1504,7 +1504,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("label", {
-                                                                className: "mb-1.5 block text-sm font-semibold text-gray-700",
+                                                                className: "mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200",
                                                                 children: [
                                                                     "Assigned Barangays (",
                                                                     MIN_ASSIGN,
@@ -1518,7 +1518,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                className: "text-xs text-gray-500",
+                                                                className: "text-xs text-gray-500 dark:text-slate-400",
                                                                 children: "Choose the additional barangays whose residents will claim at the selected host barangay. The host barangay is included automatically."
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1532,7 +1532,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                        className: "rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-600",
+                                                        className: "rounded-full border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-gray-600 dark:text-slate-300",
                                                         children: [
                                                             assignedBarangays.length,
                                                             " selected"
@@ -1569,7 +1569,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                         disabled: disableSelect,
                                                         className: [
                                                             'flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-colors',
-                                                            selected ? 'border-[#0F533A] bg-[#0F533A]/5 text-[#0F533A]' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+                                                            selected ? 'border-[#0F533A] bg-[#0F533A]/5 dark:bg-[#0F533A]/20 text-[#0F533A] dark:text-emerald-400' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700',
                                                             disableSelect ? 'opacity-50 cursor-not-allowed' : ''
                                                         ].join(' '),
                                                         children: [
@@ -1641,7 +1641,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                 children: [
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("label", {
-                                                        className: "mb-1.5 block text-sm font-semibold text-gray-700",
+                                                        className: "mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200",
                                                         children: "Scheduled Date/Time"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1657,14 +1657,14 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                             setScheduled(e.target.value);
                                                             setErrors({});
                                                         },
-                                                        className: "w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                                                        className: "w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
                                                         lineNumber: 607,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                        className: "mt-1.5 text-xs text-gray-500",
+                                                        className: "mt-1.5 text-xs text-gray-500 dark:text-slate-400",
                                                         children: [
                                                             "Allowed: current month only, ",
                                                             DISTRIBUTION_START_HOUR,
@@ -1696,7 +1696,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                 children: [
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("label", {
-                                                        className: "mb-1.5 block text-sm font-semibold text-gray-700",
+                                                        className: "mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200",
                                                         children: "Notes (Optional)"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1711,14 +1711,14 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                         },
                                                         rows: 4,
                                                         placeholder: "Add coordination notes, reminders, or release instructions.",
-                                                        className: "w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                                                        className: "w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500 placeholder-gray-400 dark:placeholder-slate-500"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
                                                         lineNumber: 626,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                        className: "mt-1.5 text-xs text-gray-500",
+                                                        className: "mt-1.5 text-xs text-gray-500 dark:text-slate-400",
                                                         children: [
                                                             notes.length,
                                                             "/",
@@ -1755,7 +1755,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                 children: [
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("label", {
-                                                        className: "mb-1.5 block text-sm font-semibold text-gray-700",
+                                                        className: "mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200",
                                                         children: "Assign Staff / Volunteers"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1763,7 +1763,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                        className: "mb-2 text-xs text-gray-500",
+                                                        className: "mb-2 text-xs text-gray-500 dark:text-slate-400",
                                                         children: "Each selected person should cover at least one barangay in this distribution, and the whole team must cover the host plus all selected barangays."
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1774,7 +1774,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                         value: staffQuery,
                                                         onChange: (e)=>setStaffQuery(e.target.value),
                                                         placeholder: "Search by name or email",
-                                                        className: "w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                                                        className: "w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500 placeholder-gray-400 dark:placeholder-slate-500"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
                                                         lineNumber: 649,
@@ -1787,9 +1787,9 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                className: "max-h-64 overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100",
+                                                className: "max-h-64 overflow-y-auto rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm divide-y divide-gray-100 dark:divide-slate-700",
                                                 children: isLoadingStaff ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                    className: "p-4 text-sm text-gray-600 flex items-center gap-2",
+                                                    className: "p-4 text-sm text-gray-600 dark:text-slate-400 flex items-center gap-2",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SpinnerIcon, {}, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1803,7 +1803,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                     lineNumber: 659,
                                                     columnNumber: 21
                                                 }, this) : staffData.items.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                    className: "p-4 text-sm text-gray-500",
+                                                    className: "p-4 text-sm text-gray-500 dark:text-slate-400",
                                                     children: "No staff found for this scope."
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1813,7 +1813,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                     const selected = assignedStaffIds.includes(staff.id);
                                                     const coveredTargets = staff.coveredBarangays?.length ? staff.coveredBarangays : getCoveredTargets(staff.scopesSummary);
                                                     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("label", {
-                                                        className: `px-4 py-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${selected ? 'bg-[#0F533A]/4' : 'hover:bg-gray-50'}`,
+                                                        className: `px-4 py-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${selected ? 'bg-[#0F533A]/4 dark:bg-[#0F533A]/20' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`,
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                                 className: "flex items-center gap-3 min-w-0",
@@ -1822,7 +1822,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                                         type: "checkbox",
                                                                         checked: selected,
                                                                         onChange: ()=>toggleStaff(staff),
-                                                                        className: "h-4 w-4 rounded border-gray-300 text-[#0F533A] focus:ring-[#0F533A]"
+                                                                        className: "h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-[#0F533A] dark:bg-slate-700 focus:ring-[#0F533A]"
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
                                                                         lineNumber: 674,
@@ -1832,7 +1832,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                                         className: "min-w-0",
                                                                         children: [
                                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                                className: "text-sm font-semibold text-gray-900 truncate",
+                                                                                className: "text-sm font-semibold text-gray-900 dark:text-slate-100 truncate",
                                                                                 children: staff.fullName
                                                                             }, void 0, false, {
                                                                                 fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1840,7 +1840,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                                                 columnNumber: 31
                                                                             }, this),
                                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                                className: "text-[11px] text-gray-500 truncate",
+                                                                                className: "text-[11px] text-gray-500 dark:text-slate-400 truncate",
                                                                                 children: [
                                                                                     "Covers ",
                                                                                     coveredTargets.join(', ') || 'No target barangay'
@@ -1866,7 +1866,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                                 className: "flex items-center gap-2 shrink-0",
                                                                 children: [
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                        className: "px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-medium",
+                                                                        className: "px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 text-[11px] font-medium",
                                                                         children: staff.role
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",
@@ -1874,7 +1874,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                                                         columnNumber: 29
                                                                     }, this),
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                        className: "px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-600",
+                                                                        className: "px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-[11px] font-medium text-slate-600 dark:text-slate-300",
                                                                         children: [
                                                                             coveredTargets.length,
                                                                             " barangay",
@@ -1992,7 +1992,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-t border-gray-100 px-6 py-4 bg-white shrink-0",
+                        className: "border-t border-gray-100 dark:border-slate-800 px-6 py-4 bg-white dark:bg-slate-900 shrink-0",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "flex flex-wrap justify-end gap-3",
                             children: [
@@ -2000,7 +2000,7 @@ function NewDistributionModal({ open, onClose, onCreate, barangayOptions }) {
                                     type: "button",
                                     onClick: step === 1 ? onClose : goBack,
                                     disabled: isCreating,
-                                    className: "rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50",
+                                    className: "rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-slate-300 transition-colors hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50",
                                     children: step === 1 ? 'Cancel' : 'Back'
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/NewDistributionModal.tsx>",

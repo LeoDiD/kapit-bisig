@@ -268,7 +268,7 @@ function ScreeningLog({ resident }) {
             hasReasons && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h5", {
-                        className: "mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500",
+                        className: "mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400",
                         children: "System Notes"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -276,7 +276,7 @@ function ScreeningLog({ resident }) {
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("ul", {
-                        className: "list-inside list-disc space-y-1 text-sm text-slate-600",
+                        className: "list-inside list-disc space-y-1 text-sm text-slate-600 dark:text-slate-300",
                         children: reasons.map((r, i)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("li", {
                                 children: r
                             }, i, false, {
@@ -298,7 +298,7 @@ function ScreeningLog({ resident }) {
             hasFlags && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h5", {
-                        className: "mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500",
+                        className: "mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400",
                         children: "Active Flags"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -306,7 +306,7 @@ function ScreeningLog({ resident }) {
                         columnNumber: 12
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                        className: "text-sm font-medium tracking-wide text-slate-800",
+                        className: "text-sm font-medium tracking-wide text-slate-800 dark:text-slate-200",
                         children: flags.map((f)=>f.replace(/_/g, ' ')).join(', ')
                     }, void 0, false, {
                         fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -329,10 +329,10 @@ function ScreeningLog({ resident }) {
 _c = ScreeningLog;
 function SummaryCard({ label, value, hint }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-        className: "rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4",
+        className: "rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-4",
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                className: "text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500",
+                className: "text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400",
                 children: label
             }, void 0, false, {
                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -340,7 +340,7 @@ function SummaryCard({ label, value, hint }) {
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                className: "mt-3 text-xl font-black text-slate-900",
+                className: "mt-3 text-xl font-black text-slate-900 dark:text-slate-100",
                 children: value
             }, void 0, false, {
                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -348,7 +348,7 @@ function SummaryCard({ label, value, hint }) {
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                className: "mt-1 text-xs font-medium text-slate-600",
+                className: "mt-1 text-xs font-medium text-slate-600 dark:text-slate-400",
                 children: hint
             }, void 0, false, {
                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -365,10 +365,10 @@ function SummaryCard({ label, value, hint }) {
 _c1 = SummaryCard;
 function ChecklistItem({ label, checked }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-        className: "flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3",
+        className: "flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3",
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                className: "text-sm font-medium text-slate-700",
+                className: "text-sm font-medium text-slate-700 dark:text-slate-200",
                 children: label
             }, void 0, false, {
                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -376,7 +376,7 @@ function ChecklistItem({ label, checked }) {
                 columnNumber: 7
             }, this),
             checked ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                className: "flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-emerald-600",
+                className: "flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
                         className: "h-3.5 w-3.5",
@@ -405,7 +405,7 @@ function ChecklistItem({ label, checked }) {
                 lineNumber: 165,
                 columnNumber: 9
             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                className: "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700",
+                className: "inline-flex items-center rounded-full border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/30 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400",
                 children: "Missing"
             }, void 0, false, {
                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -425,7 +425,7 @@ function DetailItem({ label, value, mono = false }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                className: "mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400",
+                className: "mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500",
                 children: label
             }, void 0, false, {
                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -433,7 +433,7 @@ function DetailItem({ label, value, mono = false }) {
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: `text-sm font-medium text-gray-900 ${mono ? 'font-mono break-all' : 'break-words'}`,
+                className: `text-sm font-medium text-gray-900 dark:text-slate-200 ${mono ? 'font-mono break-all' : 'break-words'}`,
                 children: displayValue
             }, void 0, false, {
                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -451,12 +451,12 @@ _c3 = DetailItem;
 function ImageCard({ title, src }) {
     const resolvedSrc = resolveAssetUrl(src);
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-        className: "overflow-hidden rounded-2xl border border-gray-200 bg-white",
+        className: "overflow-hidden rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800",
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "border-b border-gray-100 px-4 py-3",
+                className: "border-b border-gray-100 dark:border-slate-700 px-4 py-3",
                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                    className: "text-xs font-bold uppercase tracking-wider text-gray-500",
+                    className: "text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400",
                     children: title
                 }, void 0, false, {
                     fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -469,7 +469,7 @@ function ImageCard({ title, src }) {
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "bg-slate-50 p-4",
+                className: "bg-slate-50 dark:bg-slate-900/50 p-4",
                 children: resolvedSrc ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("a", {
                     href: resolvedSrc,
                     target: "_blank",
@@ -479,14 +479,14 @@ function ImageCard({ title, src }) {
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("img", {
                             src: resolvedSrc,
                             alt: title,
-                            className: "h-56 w-full rounded-xl border border-gray-200 bg-white object-contain"
+                            className: "h-56 w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 object-contain"
                         }, void 0, false, {
                             fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
                             lineNumber: 219,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500",
+                            className: "mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400",
                             children: "Open full size"
                         }, void 0, false, {
                             fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -499,7 +499,7 @@ function ImageCard({ title, src }) {
                     lineNumber: 218,
                     columnNumber: 11
                 }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "flex h-56 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-sm font-medium text-gray-400",
+                    className: "flex h-56 items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-gray-400 dark:text-slate-500",
                     children: "No image uploaded"
                 }, void 0, false, {
                     fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -542,17 +542,17 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "relative flex max-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.25)]",
+                    className: "relative flex max-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-[0_24px_80px_rgba(0,0,0,0.25)]",
                     children: [
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                            className: "shrink-0 border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-6 py-5",
+                            className: "shrink-0 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-white via-slate-50 to-white dark:from-slate-900 dark:via-slate-800/30 dark:to-slate-900 px-6 py-5",
                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                 className: "flex items-start justify-between gap-4",
                                 children: [
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "text-xs font-bold uppercase tracking-[0.24em] text-gray-400",
+                                                className: "text-xs font-bold uppercase tracking-[0.24em] text-gray-400 dark:text-slate-500",
                                                 children: eyebrow
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -560,7 +560,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h2", {
-                                                className: "mt-1 text-2xl font-bold text-gray-900",
+                                                className: "mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100",
                                                 children: getDisplayName(resident)
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -568,7 +568,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                 columnNumber: 17
                                             }, this),
                                             resident ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500",
+                                                className: "mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400",
                                                 children: [
                                                     resident.residentCode || 'Resident code pending',
                                                     " - ",
@@ -580,7 +580,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                 columnNumber: 19
                                             }, this) : null,
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "mt-1 text-sm text-gray-500",
+                                                className: "mt-1 text-sm text-gray-500 dark:text-slate-400",
                                                 children: modalDescription
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -595,7 +595,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                         onClick: onClose,
-                                        className: "rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700",
+                                        className: "rounded-full p-2 text-gray-400 dark:text-slate-400 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-200",
                                         "aria-label": "Close resident review modal",
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("svg", {
                                             className: "h-5 w-5",
@@ -634,11 +634,11 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                            className: "flex-1 overflow-y-auto bg-slate-50/60 px-6 py-6",
+                            className: "flex-1 overflow-y-auto bg-slate-50/60 dark:bg-slate-900/50 px-6 py-6",
                             children: loading ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                 className: "flex min-h-[360px] items-center justify-center",
                                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                    className: "h-10 w-10 animate-spin rounded-full border-b-2 border-gray-900"
+                                    className: "h-10 w-10 animate-spin rounded-full border-b-2 border-gray-900 dark:border-slate-100"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
                                     lineNumber: 299,
@@ -649,7 +649,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                 lineNumber: 298,
                                 columnNumber: 15
                             }, this) : error ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                className: "rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-700",
+                                className: "rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-900/20 px-5 py-4 text-sm font-semibold text-rose-700 dark:text-rose-400",
                                 children: error
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -659,7 +659,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                 className: "space-y-6",
                                 children: [
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                        className: "rounded-2xl border border-gray-200 bg-white p-5",
+                                        className: "rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5",
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                 className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
@@ -675,13 +675,13 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                             columnNumber: 24
                                                         }, this),
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                            className: "flex items-center gap-2 text-sm text-slate-500",
+                                                            className: "flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400",
                                                             children: [
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                                     children: [
                                                                         "System Confidence: ",
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("strong", {
-                                                                            className: "text-slate-900",
+                                                                            className: "text-slate-900 dark:text-slate-100",
                                                                             children: [
                                                                                 resident.verification?.screeningConfidence ?? 0,
                                                                                 "%"
@@ -700,7 +700,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                                 (resident.verification?.idCheckRequiresManualReview || idCheckDecision === 'BLOCK' || idCheckDecision === 'REVIEW') && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
                                                                     children: [
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                            className: "text-slate-300",
+                                                                            className: "text-slate-300 dark:text-slate-600",
                                                                             children: "•"
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -708,7 +708,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                                             columnNumber: 32
                                                                         }, this),
                                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                            className: "font-semibold text-amber-600",
+                                                                            className: "font-semibold text-amber-600 dark:text-amber-500",
                                                                             children: "Manual Review Required"
                                                                         }, void 0, false, {
                                                                             fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -735,7 +735,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                 columnNumber: 18
                                             }, this),
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                className: "mt-3 text-sm text-slate-500 max-w-2xl",
+                                                className: "mt-3 text-sm text-slate-500 dark:text-slate-400 max-w-2xl",
                                                 children: "Automated screening provides a baseline by flagging inconsistencies, but human confirmation is strictly required for final official approval."
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -800,10 +800,10 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                 className: "space-y-6",
                                                 children: [
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                        className: "rounded-2xl border border-gray-200 bg-white p-5",
+                                                        className: "rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
-                                                                className: "mb-4 text-sm font-bold uppercase tracking-wider text-gray-500",
+                                                                className: "mb-4 text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400",
                                                                 children: "Resident Information"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -941,10 +941,10 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                        className: "rounded-2xl border border-gray-200 bg-white p-5",
+                                                        className: "rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
-                                                                className: "mb-4 text-sm font-bold uppercase tracking-wider text-gray-500",
+                                                                className: "mb-4 text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400",
                                                                 children: "ID Screening"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -1050,10 +1050,10 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                                 columnNumber: 23
                                                             }, this),
                                                             resident.verification?.rawTextPreview ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                className: "mt-5 rounded-2xl border border-gray-200 bg-slate-50 p-4",
+                                                                className: "mt-5 rounded-2xl border border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-4",
                                                                 children: [
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                        className: "mb-2 text-xs font-bold uppercase tracking-wider text-gray-500",
+                                                                        className: "mb-2 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400",
                                                                         children: "OCR Text Preview"
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -1061,7 +1061,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                        className: "text-sm leading-6 text-slate-700",
+                                                                        className: "text-sm leading-6 text-slate-700 dark:text-slate-300",
                                                                         children: resident.verification.rawTextPreview
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -1115,10 +1115,10 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                                 className: "space-y-6",
                                                 children: [
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                        className: "rounded-2xl border border-gray-200 bg-white p-5",
+                                                        className: "rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
-                                                                className: "mb-4 text-sm font-bold uppercase tracking-wider text-gray-500",
+                                                                className: "mb-4 text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400",
                                                                 children: "Review Checklist"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -1230,7 +1230,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                 lineNumber: 306,
                                 columnNumber: 15
                             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                className: "rounded-2xl border border-gray-200 bg-white px-5 py-8 text-sm font-medium text-gray-500",
+                                className: "rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-8 text-sm font-medium text-gray-500 dark:text-slate-400",
                                 children: "Select a registration to review."
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -1243,12 +1243,12 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                            className: "shrink-0 border-t border-gray-100 bg-white px-6 py-4",
+                            className: "shrink-0 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-4",
                             children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                 className: "flex flex-wrap items-center justify-between gap-3",
                                 children: [
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                        className: "text-xs font-medium text-gray-500",
+                                        className: "text-xs font-medium text-gray-500 dark:text-slate-400",
                                         children: readOnly ? 'View the uploaded ID, selfie, and screening results for this approved resident record.' : 'Review the uploaded ID, selfie, and screening results before approving or returning this registration.'
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -1261,7 +1261,7 @@ function ResidentReviewModal({ isOpen, resident, loading = false, error = null, 
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                 type: "button",
                                                 onClick: onClose,
-                                                className: "rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50",
+                                                className: "rounded-xl border border-gray-200 dark:border-slate-700 px-4 py-2.5 text-sm font-semibold text-gray-600 dark:text-slate-300 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800",
                                                 children: "Close"
                                             }, void 0, false, {
                                                 fileName: "<[project]/src/components/residents/ResidentReviewModal.tsx>",
@@ -1448,7 +1448,7 @@ function FilterDropdown({ value, options, onChange, className = '', buttonClassN
                 type: "button",
                 onClick: ()=>setOpen((prev)=>!prev),
                 className: [
-                    'w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700',
+                    'w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 shadow-sm transition-colors hover:border-[#004A1C]/30 hover:bg-slate-50 hover:text-[#004A1C] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]',
                     buttonClassName
                 ].join(' '),
                 children: [
@@ -1474,7 +1474,7 @@ function FilterDropdown({ value, options, onChange, className = '', buttonClassN
             open && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                 ref: menuRef,
                 className: [
-                    'absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50 max-h-64 overflow-y-auto',
+                    'absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50 max-h-64 overflow-y-auto dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]',
                     menuClassName
                 ].join(' '),
                 children: options.map((opt)=>{
@@ -1487,7 +1487,7 @@ function FilterDropdown({ value, options, onChange, className = '', buttonClassN
                         },
                         className: [
                             'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
-                            selected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70'
+                            selected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700'
                         ].join(' '),
                         children: [
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -6370,7 +6370,7 @@ function VerifiedResidentsPage() {
                             className: "w-full min-w-[560px] border-collapse text-left",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("thead", {
-                                    className: "bg-white border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider",
+                                    className: "bg-white dark:bg-transparent border-b border-gray-200 dark:border-slate-700 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider",
                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -6409,7 +6409,7 @@ function VerifiedResidentsPage() {
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
-                                    className: "divide-y divide-gray-100 bg-white text-sm",
+                                    className: "divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-transparent text-sm",
                                     children: fetching ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                             colSpan: 3,
@@ -6418,14 +6418,14 @@ function VerifiedResidentsPage() {
                                                 className: "inline-flex flex-col items-center",
                                                 children: [
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](SpinnerIcon, {
-                                                        className: "h-8 w-8 text-gray-700"
+                                                        className: "h-8 w-8 text-gray-700 dark:text-slate-300"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/app/verified-residents/page.tsx>",
                                                         lineNumber: 266,
                                                         columnNumber: 25
                                                     }, this),
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                        className: "mt-2 text-xs font-medium text-gray-500",
+                                                        className: "mt-2 text-xs font-medium text-gray-500 dark:text-slate-400",
                                                         children: "Fetching verified residents..."
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/app/verified-residents/page.tsx>",
@@ -6449,7 +6449,7 @@ function VerifiedResidentsPage() {
                                         columnNumber: 19
                                     }, this) : rows.length === 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                            className: "px-6 py-16 text-center text-gray-500 font-medium",
+                                            className: "px-6 py-16 text-center text-gray-500 dark:text-slate-400 font-medium",
                                             colSpan: 3,
                                             children: [
                                                 "No verified residents found filtering by ",
@@ -6469,7 +6469,7 @@ function VerifiedResidentsPage() {
                                         const id = r._id || r.id || '';
                                         const verifiedTimestamp = getVerifiedTimestamp(r);
                                         return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
-                                            className: "hover:bg-gray-50/70 transition-colors group",
+                                            className: "hover:bg-gray-50/70 dark:hover:bg-slate-800/50 transition-colors group",
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4 whitespace-normal break-words",
@@ -6477,7 +6477,7 @@ function VerifiedResidentsPage() {
                                                         className: "flex items-center gap-3",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600",
+                                                                className: "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400",
                                                                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](RowCheckIcon, {
                                                                     className: "h-4 w-4"
                                                                 }, void 0, false, {
@@ -6494,7 +6494,7 @@ function VerifiedResidentsPage() {
                                                                 className: "min-w-0",
                                                                 children: [
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                        className: "truncate font-bold text-gray-900",
+                                                                        className: "truncate font-bold text-gray-900 dark:text-slate-100",
                                                                         children: maskResidentName(r)
                                                                     }, void 0, false, {
                                                                         fileName: "<[project]/src/app/verified-residents/page.tsx>",
@@ -6502,7 +6502,7 @@ function VerifiedResidentsPage() {
                                                                         columnNumber: 31
                                                                     }, this),
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                                                        className: "mt-1 text-xs font-medium text-slate-500",
+                                                                        className: "mt-1 text-xs font-medium text-slate-500 dark:text-slate-400",
                                                                         children: [
                                                                             "Verified ",
                                                                             formatVerifiedTimestamp(verifiedTimestamp)
@@ -6530,7 +6530,7 @@ function VerifiedResidentsPage() {
                                                     columnNumber: 25
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-gray-600 font-medium",
+                                                    className: "px-6 py-4 text-gray-600 dark:text-slate-300 font-medium",
                                                     children: r.barangay
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/app/verified-residents/page.tsx>",
@@ -6542,7 +6542,7 @@ function VerifiedResidentsPage() {
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                         type: "button",
                                                         onClick: ()=>id && openReview(id),
-                                                        className: "inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
+                                                        className: "inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-colors hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](EyeIcon, {
                                                                 className: "h-4 w-4"
@@ -6587,10 +6587,10 @@ function VerifiedResidentsPage() {
                         columnNumber: 9
                     }, this),
                     rows.length > 0 && !fetching && !error && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "bg-gray-50/50 border-t border-gray-100 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+                        className: "bg-gray-50/50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-700 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
                         children: [
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                className: "text-xs font-bold text-gray-500 tracking-wide uppercase",
+                                className: "text-xs font-bold text-gray-500 dark:text-slate-400 tracking-wide uppercase",
                                 children: [
                                     "Page ",
                                     currentPage,
@@ -6598,7 +6598,7 @@ function VerifiedResidentsPage() {
                                     totalPages,
                                     " ",
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                        className: "text-gray-400 mx-1",
+                                        className: "text-gray-400 dark:text-slate-500 mx-1",
                                         children: "|"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/app/verified-residents/page.tsx>",
@@ -6621,7 +6621,7 @@ function VerifiedResidentsPage() {
                                         type: "button",
                                         onClick: ()=>setCurrentPage((p)=>Math.max(1, p - 1)),
                                         disabled: currentPage === 1,
-                                        className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
+                                        className: "rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
                                         children: "Prev"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/app/verified-residents/page.tsx>",
@@ -6631,7 +6631,7 @@ function VerifiedResidentsPage() {
                                     pageNumbers.map((page)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                             type: "button",
                                             onClick: ()=>setCurrentPage(page),
-                                            className: `rounded-lg px-3 py-1.5 text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors ${page === currentPage ? 'bg-gray-900 text-white border border-gray-900' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`,
+                                            className: `rounded-lg px-3 py-1.5 text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors ${page === currentPage ? 'bg-gray-900 text-white border border-gray-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white'}`,
                                             children: page
                                         }, page, false, {
                                             fileName: "<[project]/src/app/verified-residents/page.tsx>",
@@ -6642,7 +6642,7 @@ function VerifiedResidentsPage() {
                                         type: "button",
                                         onClick: ()=>setCurrentPage((p)=>Math.min(totalPages, p + 1)),
                                         disabled: currentPage === totalPages,
-                                        className: "rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
+                                        className: "rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
                                         children: "Next"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/app/verified-residents/page.tsx>",

@@ -299,9 +299,9 @@ function MenuItem({
   return (
     <button
       type="button" onClick={onClick}
-      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800"
+      className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700"
     >
-      <span className="text-gray-500 dark:text-slate-400">{icon}</span>{label}
+      <span className="text-slate-500 dark:text-slate-400">{icon}</span>{label}
     </button>
   )
 }
@@ -593,7 +593,7 @@ export default function ReportsPageClient() {
             type="button"
             onClick={fetchReport}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] disabled:opacity-60 text-white text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] disabled:opacity-60 text-white text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)]"
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -607,7 +607,7 @@ export default function ReportsPageClient() {
             type="button"
             onClick={handleExportCSV}
             disabled={!distributions.length}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors hover:bg-gray-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] hover:scale-[1.02] disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800/80 dark:hover:text-[#ECC323]"
           >
             <DownloadIcon className="h-4 w-4 text-gray-500 dark:text-slate-400" />
             Export CSV
@@ -617,7 +617,7 @@ export default function ReportsPageClient() {
             <button
               type="button"
               onClick={() => { setStartDate(''); setEndDate(''); setBarangay('All'); setReportType('distribution') }}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] hover:scale-[1.02] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800/80 dark:hover:text-[#ECC323]"
             >
               <ClearIcon className="h-4 w-4 text-gray-500 dark:text-slate-400" />
               Clear Filters
@@ -715,7 +715,7 @@ export default function ReportsPageClient() {
                           <div className="relative inline-block" ref={activeMenu === r.id ? rowMenuWrapRef : undefined}>
                             <button
                               onClick={(e) => onToggleMenu(r.id, e)}
-                              className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                              className="rounded-full p-1 text-gray-400 transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] dark:text-slate-500 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]"
                             >
                               <DotsIcon />
                             </button>

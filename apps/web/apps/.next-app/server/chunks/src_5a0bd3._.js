@@ -616,6 +616,24 @@ const api = {
             credentials: 'include'
         });
         return handleResponse(response);
+    },
+    // ==================== AUDIT LOGS ====================
+    /**
+   * Get audit logs
+   */ async getAuditLogs (params) {
+        const sp = new URLSearchParams();
+        if (typeof params?.page === 'number') sp.append('page', String(params.page));
+        if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+        if (params?.action) sp.append('action', params.action);
+        if (params?.entityType) sp.append('entityType', params.entityType);
+        if (params?.actorRole) sp.append('actorRole', params.actorRole);
+        const qs = sp.toString();
+        const url = `${API_URL}/audit-logs${qs ? `?${qs}` : ''}`;
+        const response = await fetch(url, {
+            headers: createHeaders(),
+            credentials: 'include'
+        });
+        return handleResponse(response);
     }
 };
 const __TURBOPACK__default__export__ = api;
@@ -1763,7 +1781,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                     className: "px-6 py-4 pr-6 text-right",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                         onClick: ()=>handleViewProfile(item),
-                                                        className: "inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500/60 dark:hover:bg-slate-700/80 dark:hover:text-blue-300 md:opacity-0 md:group-hover:opacity-100",
+                                                        className: "inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)] focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500/60 dark:hover:bg-slate-700/80 dark:hover:text-blue-300",
                                                         children: "View Record"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1886,27 +1904,37 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
 function DropdownMenu({ menuRef, items, selected, onSelect }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         ref: menuRef,
-        className: "absolute right-0 top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900 md:w-[120%]",
+        className: "absolute left-0 top-full z-50 mt-2 max-h-64 w-full overflow-y-auto rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)] md:w-[120%]",
         children: items.map((opt)=>{
             const isSelected = opt.value === selected;
             return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                 onClick: ()=>onSelect(opt.value),
-                className: `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-700 hover:bg-gray-50 font-medium dark:text-slate-200 dark:hover:bg-slate-800/80'}`,
+                className: [
+                    'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
+                    isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700'
+                ].join(' '),
                 children: [
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                        className: "w-5 flex items-center justify-center",
+                        children: isSelected ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
+                            className: "w-4 h-4"
+                        }, void 0, false, {
+                            fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                            lineNumber: 368,
+                            columnNumber: 29
+                        }, this) : null
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                        lineNumber: 367,
+                        columnNumber: 13
+                    }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                         className: "truncate",
                         children: opt.label
                     }, void 0, false, {
                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 366,
+                        lineNumber: 370,
                         columnNumber: 13
-                    }, this),
-                    isSelected && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
-                        className: "w-4 h-4"
-                    }, void 0, false, {
-                        fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 367,
-                        columnNumber: 28
                     }, this)
                 ]
             }, opt.value, true, {
@@ -1934,12 +1962,12 @@ function SearchIcon() {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 378,
+            lineNumber: 381,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 377,
+        lineNumber: 380,
         columnNumber: 5
     }, this);
 }
@@ -1956,12 +1984,12 @@ function ChevronDownIcon() {
             d: "M19 9l-7 7-7-7"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 385,
+            lineNumber: 388,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 384,
+        lineNumber: 387,
         columnNumber: 5
     }, this);
 }
@@ -1978,12 +2006,12 @@ function CheckIcon({ className }) {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 392,
+            lineNumber: 395,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 391,
+        lineNumber: 394,
         columnNumber: 5
     }, this);
 }
@@ -2000,12 +2028,12 @@ function UsersMenuIcon({ className }) {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 399,
+            lineNumber: 402,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 398,
+        lineNumber: 401,
         columnNumber: 5
     }, this);
 }
@@ -2024,7 +2052,7 @@ function SpinnerIcon({ className }) {
                 strokeWidth: "3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 406,
+                lineNumber: 409,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2034,13 +2062,13 @@ function SpinnerIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 407,
+                lineNumber: 410,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 405,
+        lineNumber: 408,
         columnNumber: 5
     }, this);
 }
@@ -4384,6 +4412,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$re
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$file$2d$text$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$export__default__as__FileText$7d$__ = __turbopack_import__("[project]/node_modules/lucide-react/dist/esm/icons/file-text.js [app-ssr] (ecmascript) {export default as FileText}");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$settings$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$export__default__as__Settings$7d$__ = __turbopack_import__("[project]/node_modules/lucide-react/dist/esm/icons/settings.js [app-ssr] (ecmascript) {export default as Settings}");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$log$2d$out$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$export__default__as__LogOut$7d$__ = __turbopack_import__("[project]/node_modules/lucide-react/dist/esm/icons/log-out.js [app-ssr] (ecmascript) {export default as LogOut}");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$activity$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$export__default__as__Activity$7d$__ = __turbopack_import__("[project]/node_modules/lucide-react/dist/esm/icons/activity.js [app-ssr] (ecmascript) {export default as Activity}");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$AuthContext$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/src/lib/AuthContext.tsx [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/src/lib/toast.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/src/components/ui/sidebar.tsx [app-ssr] (ecmascript)");
@@ -4455,6 +4484,12 @@ const mainNavItems = [
         href: '/reports',
         icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$chart$2d$no$2d$axes$2d$combined$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$export__default__as__ChartNoAxesCombined$7d$__["ChartNoAxesCombined"],
         superadminOnly: false
+    },
+    {
+        name: 'Audit Logs',
+        href: '/audit-logs',
+        icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$activity$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$export__default__as__Activity$7d$__["Activity"],
+        superadminOnly: true
     }
 ];
 function AppSidebar() {
@@ -4490,18 +4525,18 @@ function AppSidebar() {
                     className: "h-3.5 w-3.5"
                 }, void 0, false, {
                     fileName: "<[project]/src/components/app-sidebar.tsx>",
-                    lineNumber: 72,
+                    lineNumber: 74,
                     columnNumber: 17
                 }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$chevron$2d$right$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$7b$export__default__as__ChevronRight$7d$__["ChevronRight"], {
                     className: "h-3.5 w-3.5"
                 }, void 0, false, {
                     fileName: "<[project]/src/components/app-sidebar.tsx>",
-                    lineNumber: 72,
+                    lineNumber: 74,
                     columnNumber: 59
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                lineNumber: 65,
+                lineNumber: 67,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4522,12 +4557,12 @@ function AppSidebar() {
                             }
                         }, void 0, false, {
                             fileName: "<[project]/src/components/app-sidebar.tsx>",
-                            lineNumber: 78,
+                            lineNumber: 80,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                        lineNumber: 77,
+                        lineNumber: 79,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -4536,13 +4571,13 @@ function AppSidebar() {
                         children: "Kapit Bisig"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                        lineNumber: 88,
+                        lineNumber: 90,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                lineNumber: 76,
+                lineNumber: 78,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("nav", {
@@ -4555,7 +4590,7 @@ function AppSidebar() {
                                 children: "Main Menu"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 102,
+                                lineNumber: 104,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4568,18 +4603,18 @@ function AppSidebar() {
                                         children: item.name
                                     }, item.name, false, {
                                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                        lineNumber: 109,
+                                        lineNumber: 111,
                                         columnNumber: 17
                                     }, this))
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 105,
+                                lineNumber: 107,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                        lineNumber: 101,
+                        lineNumber: 103,
                         columnNumber: 9
                     }, this),
                     isSuperadmin && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4589,7 +4624,7 @@ function AppSidebar() {
                                 children: "Administration"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 124,
+                                lineNumber: 126,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4602,24 +4637,24 @@ function AppSidebar() {
                                         children: item.name
                                     }, item.name, false, {
                                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                        lineNumber: 131,
+                                        lineNumber: 133,
                                         columnNumber: 19
                                     }, this))
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 127,
+                                lineNumber: 129,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                        lineNumber: 123,
+                        lineNumber: 125,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                lineNumber: 100,
+                lineNumber: 102,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4633,7 +4668,7 @@ function AppSidebar() {
                         children: "Settings"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                        lineNumber: 148,
+                        lineNumber: 150,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -4647,12 +4682,12 @@ function AppSidebar() {
                                     className: "h-4 w-4"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                    lineNumber: 158,
+                                    lineNumber: 160,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 157,
+                                lineNumber: 159,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -4661,19 +4696,19 @@ function AppSidebar() {
                                 children: "Logout"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 160,
+                                lineNumber: 162,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                        lineNumber: 152,
+                        lineNumber: 154,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                lineNumber: 147,
+                lineNumber: 149,
                 columnNumber: 7
             }, this),
             showLogoutModal && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$dom$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["createPortal"](/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4684,7 +4719,7 @@ function AppSidebar() {
                         onClick: ()=>!loggingOut && setShowLogoutModal(false)
                     }, void 0, false, {
                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                        lineNumber: 175,
+                        lineNumber: 177,
                         columnNumber: 13
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4698,17 +4733,17 @@ function AppSidebar() {
                                         className: "h-7 w-7"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                        lineNumber: 182,
+                                        lineNumber: 184,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                    lineNumber: 181,
+                                    lineNumber: 183,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 180,
+                                lineNumber: 182,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
@@ -4716,7 +4751,7 @@ function AppSidebar() {
                                 children: "Confirm Logout"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 185,
+                                lineNumber: 187,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -4724,7 +4759,7 @@ function AppSidebar() {
                                 children: "Are you sure you want to log out? You will need to sign in again to access the system."
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 186,
+                                lineNumber: 188,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -4737,7 +4772,7 @@ function AppSidebar() {
                                         children: "Cancel"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                        lineNumber: 190,
+                                        lineNumber: 192,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -4747,31 +4782,31 @@ function AppSidebar() {
                                         children: loggingOut ? 'Logging out...' : 'Logout'
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                        lineNumber: 197,
+                                        lineNumber: 199,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                                lineNumber: 189,
+                                lineNumber: 191,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/app-sidebar.tsx>",
-                        lineNumber: 179,
+                        lineNumber: 181,
                         columnNumber: 13
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                lineNumber: 174,
+                lineNumber: 176,
                 columnNumber: 11
             }, this), document.body)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/app-sidebar.tsx>",
-        lineNumber: 63,
+        lineNumber: 65,
         columnNumber: 5
     }, this);
 }
@@ -4785,7 +4820,7 @@ function NavItem({ href, icon: Icon, isActive, isOpen, children }) {
                 className: "absolute left-0 top-1/2 h-3/4 w-[4px] -translate-y-1/2 rounded-full bg-[#ECC323] shadow-sm"
             }, void 0, false, {
                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                lineNumber: 238,
+                lineNumber: 240,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -4794,12 +4829,12 @@ function NavItem({ href, icon: Icon, isActive, isOpen, children }) {
                     className: "h-4 w-4"
                 }, void 0, false, {
                     fileName: "<[project]/src/components/app-sidebar.tsx>",
-                    lineNumber: 241,
+                    lineNumber: 243,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                lineNumber: 240,
+                lineNumber: 242,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -4808,13 +4843,13 @@ function NavItem({ href, icon: Icon, isActive, isOpen, children }) {
                 children: children
             }, void 0, false, {
                 fileName: "<[project]/src/components/app-sidebar.tsx>",
-                lineNumber: 243,
+                lineNumber: 245,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/app-sidebar.tsx>",
-        lineNumber: 227,
+        lineNumber: 229,
         columnNumber: 5
     }, this);
 }

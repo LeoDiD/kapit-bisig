@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/AuthContext'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
+import FilterDropdown from '@/components/ui/FilterDropdown'
 
 const ALL_STATUSES = '__ALL_STATUSES__'
 const ALL_BARANGAYS = 'All Barangays'
@@ -365,35 +366,31 @@ export default function TargetBeneficiariesPageClient() {
                 </button>
               </div>
 
-              <select
+              <FilterDropdown
                 value={selectedStatus}
-                onChange={(event) => {
-                  setSelectedStatus(event.target.value)
+                options={[
+                  { value: 'Pending Verification', label: 'Pending Verification' },
+                  { value: ALL_STATUSES, label: 'All Statuses' },
+                  { value: 'Approved', label: 'Approved' },
+                  { value: 'Rejected', label: 'Needs Revision' },
+                ]}
+                onChange={(val) => {
+                  setSelectedStatus(val)
                   setPage(1)
                 }}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
-              >
-                <option value="Pending Verification">Pending Verification</option>
-                <option value={ALL_STATUSES}>All Statuses</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Needs Revision</option>
-              </select>
+              />
 
-              <select
+              <FilterDropdown
                 value={selectedBarangay}
-                onChange={(event) => {
-                  setSelectedBarangay(event.target.value)
+                options={[
+                  { value: ALL_BARANGAYS, label: ALL_BARANGAYS },
+                  ...scopedBarangays.map((barangay) => ({ value: barangay, label: barangay })),
+                ]}
+                onChange={(val) => {
+                  setSelectedBarangay(val)
                   setPage(1)
                 }}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
-              >
-                <option value={ALL_BARANGAYS}>{ALL_BARANGAYS}</option>
-                {scopedBarangays.map((barangay) => (
-                  <option key={barangay} value={barangay}>
-                    {barangay}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           </div>
 

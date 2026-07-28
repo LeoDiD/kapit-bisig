@@ -2139,7 +2139,7 @@ function UsersTable() {
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                     onClick: ()=>setIsAddModalOpen(true),
-                                    className: "inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white",
+                                    className: "inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:scale-[1.02] hover:bg-gray-800 hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)] dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white",
                                     children: "+ New Staff"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/users/UsersTable.tsx>",
@@ -2182,7 +2182,7 @@ function UsersTable() {
                                             placeholder: "Search by name or email...",
                                             value: searchQuery,
                                             onChange: (e)=>setSearchQuery(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$inputValidation$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["sanitizeAsciiText"](e.target.value)),
-                                            className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+                                            className: "w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors hover:border-[#004A1C]/30 hover:bg-slate-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/users/UsersTable.tsx>",
                                             lineNumber: 270,
@@ -2207,7 +2207,7 @@ function UsersTable() {
                                                         setBarangayDropdownOpen(false);
                                                         setStatusDropdownOpen((v)=>!v);
                                                     },
-                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
+                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-slate-50 hover:text-[#004A1C] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             className: "truncate",
@@ -2260,7 +2260,7 @@ function UsersTable() {
                                                         setStatusDropdownOpen(false);
                                                         setBarangayDropdownOpen((v)=>!v);
                                                     },
-                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
+                                                    className: "w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-slate-50 hover:text-[#004A1C] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             className: "truncate",
@@ -2308,7 +2308,7 @@ function UsersTable() {
                                                 setFilterStatus('all');
                                                 setFilterBarangay('all');
                                             },
-                                            className: "inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80",
+                                            className: "inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]",
                                             children: [
                                                 "Clear (",
                                                 activeFilterCount,
@@ -2390,7 +2390,7 @@ function UsersTable() {
                             className: "w-full min-w-[950px] border-collapse text-left",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("thead", {
-                                    className: "border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500",
+                                    className: "border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400",
                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2452,12 +2452,12 @@ function UsersTable() {
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
-                                    className: "divide-y divide-gray-100 bg-white text-sm",
+                                    className: "divide-y divide-gray-100 bg-white text-sm dark:divide-slate-800 dark:bg-transparent",
                                     children: users.length > 0 ? users.map((u)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
-                                            className: "group transition-colors hover:bg-gray-50/70",
+                                            className: "group transition-colors hover:bg-gray-50/70 dark:hover:bg-slate-800/50",
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-gray-900 font-bold whitespace-normal break-words",
+                                                    className: "px-6 py-4 text-gray-900 dark:text-slate-100 font-bold whitespace-normal break-words",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                         className: "flex items-center gap-4",
                                                         children: [
@@ -2470,7 +2470,7 @@ function UsersTable() {
                                                                 columnNumber: 27
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "font-bold text-gray-900",
+                                                                className: "font-bold text-gray-900 dark:text-slate-100",
                                                                 children: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.fullName || '--'
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/users/UsersTable.tsx>",
@@ -2489,7 +2489,7 @@ function UsersTable() {
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-gray-600 font-medium whitespace-normal break-words",
+                                                    className: "px-6 py-4 text-gray-600 dark:text-slate-300 font-medium whitespace-normal break-words",
                                                     children: u.email || '--'
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/users/UsersTable.tsx>",
@@ -2511,7 +2511,7 @@ function UsersTable() {
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-gray-600 font-medium whitespace-normal",
+                                                    className: "px-6 py-4 text-gray-600 dark:text-slate-300 font-medium whitespace-normal",
                                                     children: formatDate(u.createdAt)
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/users/UsersTable.tsx>",
@@ -2525,7 +2525,7 @@ function UsersTable() {
                                                         "data-row-menu": true,
                                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                             onClick: (e)=>toggleRowDropdown(u.id, e),
-                                                            className: "inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 md:opacity-0 md:group-hover:opacity-100",
+                                                            className: "inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-all duration-300 hover:border-[#004A1C]/30 hover:bg-slate-50 hover:text-[#004A1C] focus:outline-none focus:ring-2 focus:ring-[#004A1C]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323] dark:focus:ring-[#ECC323]/20",
                                                             children: [
                                                                 "Manage ",
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
@@ -2599,9 +2599,9 @@ function UsersTable() {
                     left: dropdownPosition.left,
                     zIndex: 9999
                 },
-                className: "w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)]",
+                className: "w-52 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]",
                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "py-2 flex flex-col",
+                    className: "flex flex-col gap-1",
                     children: [
                         users.find((u)=>u.id === activeDropdown)?.isActive ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](MenuItem, {
                             icon: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](DeactivateIcon, {
@@ -2700,27 +2700,34 @@ function UsersTable() {
 function DropdownMenu({ menuRef, items, selected, onSelect, wide }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         ref: menuRef,
-        className: `absolute right-0 top-full z-50 mt-1.5 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg ${wide ? 'w-[120%]' : 'w-full'}`,
+        className: `absolute right-0 top-full z-50 mt-1.5 max-h-60 overflow-y-auto rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)] ${wide ? 'w-[120%]' : 'w-full'}`,
         children: items.map((opt)=>{
             const isSelected = opt.value === selected;
             return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                 onClick: ()=>onSelect(opt.value),
-                className: `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'}`,
+                className: `w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors ${isSelected ? 'bg-[#EAB308] text-gray-900 font-medium' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700 font-medium'}`,
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                        className: "truncate",
-                        children: opt.label
+                        className: "w-5 flex items-center justify-center",
+                        children: isSelected ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
+                            className: "w-4 h-4"
+                        }, void 0, false, {
+                            fileName: "<[project]/src/components/users/UsersTable.tsx>",
+                            lineNumber: 513,
+                            columnNumber: 29
+                        }, this) : null
                     }, void 0, false, {
                         fileName: "<[project]/src/components/users/UsersTable.tsx>",
                         lineNumber: 512,
                         columnNumber: 13
                     }, this),
-                    isSelected && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
-                        className: "w-4 h-4"
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                        className: "truncate",
+                        children: opt.label
                     }, void 0, false, {
                         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                        lineNumber: 513,
-                        columnNumber: 28
+                        lineNumber: 515,
+                        columnNumber: 13
                     }, this)
                 ]
             }, opt.value, true, {
@@ -2736,24 +2743,24 @@ function DropdownMenu({ menuRef, items, selected, onSelect, wide }) {
     }, this);
 }
 function MenuItem({ icon, label, variant = 'default', onClick }) {
-    const textColor = variant === 'danger' ? 'text-red-600 hover:bg-red-50' : variant === 'success' ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-700 hover:bg-gray-50';
+    const textColor = variant === 'danger' ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10' : variant === 'success' ? 'text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700';
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
         onClick: onClick,
-        className: `w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-3 transition-colors ${textColor}`,
+        className: `w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${textColor}`,
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                 className: "opacity-80",
                 children: icon
             }, void 0, false, {
                 fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                lineNumber: 544,
+                lineNumber: 546,
                 columnNumber: 7
             }, this),
             label
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 540,
+        lineNumber: 542,
         columnNumber: 5
     }, this);
 }
@@ -2766,21 +2773,21 @@ function StatusBadge({ status }) {
                     className: "h-1.5 w-1.5 rounded-full bg-emerald-500"
                 }, void 0, false, {
                     fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                    lineNumber: 554,
+                    lineNumber: 556,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                    className: "text-sm font-medium text-slate-700",
+                    className: "text-sm font-medium text-slate-700 dark:text-slate-300",
                     children: "Active"
                 }, void 0, false, {
                     fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                    lineNumber: 555,
+                    lineNumber: 557,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 553,
+            lineNumber: 555,
             columnNumber: 7
         }, this);
     }
@@ -2792,37 +2799,37 @@ function StatusBadge({ status }) {
                     className: "h-1.5 w-1.5 rounded-full bg-amber-400"
                 }, void 0, false, {
                     fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                    lineNumber: 563,
+                    lineNumber: 565,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                    className: "text-sm font-medium text-slate-500",
+                    className: "text-sm font-medium text-slate-500 dark:text-slate-400",
                     children: "Pending"
                 }, void 0, false, {
                     fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                    lineNumber: 564,
+                    lineNumber: 566,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 562,
+            lineNumber: 564,
             columnNumber: 7
         }, this);
     }
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         className: "flex items-center gap-2",
         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-            className: "text-sm font-medium text-slate-400",
+            className: "text-sm font-medium text-slate-400 dark:text-slate-500",
             children: "Inactive"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 571,
+            lineNumber: 573,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 570,
+        lineNumber: 572,
         columnNumber: 5
     }, this);
 }
@@ -2841,7 +2848,7 @@ function SpinnerIcon({ className }) {
                 strokeWidth: "3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                lineNumber: 579,
+                lineNumber: 581,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2851,13 +2858,13 @@ function SpinnerIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                lineNumber: 580,
+                lineNumber: 582,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 578,
+        lineNumber: 580,
         columnNumber: 5
     }, this);
 }
@@ -2874,12 +2881,12 @@ function SearchIcon({ className = 'w-4 h-4' }) {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 588,
+            lineNumber: 590,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 587,
+        lineNumber: 589,
         columnNumber: 5
     }, this);
 }
@@ -2896,12 +2903,12 @@ function ChevronDownIcon({ className = 'w-4 h-4 text-gray-400' }) {
             d: "M19 9l-7 7-7-7"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 595,
+            lineNumber: 597,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 594,
+        lineNumber: 596,
         columnNumber: 5
     }, this);
 }
@@ -2918,12 +2925,12 @@ function CheckIcon({ className = 'w-4 h-4' }) {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 602,
+            lineNumber: 604,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 601,
+        lineNumber: 603,
         columnNumber: 5
     }, this);
 }
@@ -2940,12 +2947,12 @@ function UsersMenuIcon({ className = 'w-4 h-4 text-gray-400' }) {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 609,
+            lineNumber: 611,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 608,
+        lineNumber: 610,
         columnNumber: 5
     }, this);
 }
@@ -2962,12 +2969,12 @@ function CheckCircleIcon({ className = 'w-4 h-4' }) {
             d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 616,
+            lineNumber: 618,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 615,
+        lineNumber: 617,
         columnNumber: 5
     }, this);
 }
@@ -2985,7 +2992,7 @@ function ClockIcon({ className = 'w-4 h-4' }) {
                 d: "M12 8v4l3 3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                lineNumber: 623,
+                lineNumber: 625,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2995,13 +3002,13 @@ function ClockIcon({ className = 'w-4 h-4' }) {
                 d: "M12 22a10 10 0 110-20 10 10 0 010 20z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/users/UsersTable.tsx>",
-                lineNumber: 624,
+                lineNumber: 626,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 622,
+        lineNumber: 624,
         columnNumber: 5
     }, this);
 }
@@ -3018,12 +3025,12 @@ function ActivateIcon({ className = 'w-4 h-4' }) {
             d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 631,
+            lineNumber: 633,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 630,
+        lineNumber: 632,
         columnNumber: 5
     }, this);
 }
@@ -3040,12 +3047,12 @@ function DeactivateIcon({ className = 'w-4 h-4' }) {
             d: "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 638,
+            lineNumber: 640,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 637,
+        lineNumber: 639,
         columnNumber: 5
     }, this);
 }
@@ -3062,12 +3069,12 @@ function DeleteIcon({ className = 'w-4 h-4' }) {
             d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16"
         }, void 0, false, {
             fileName: "<[project]/src/components/users/UsersTable.tsx>",
-            lineNumber: 645,
+            lineNumber: 647,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/users/UsersTable.tsx>",
-        lineNumber: 644,
+        lineNumber: 646,
         columnNumber: 5
     }, this);
 }

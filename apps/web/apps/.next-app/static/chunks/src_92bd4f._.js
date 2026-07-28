@@ -1348,20 +1348,29 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
         barangayOptions
     ]);
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("section", {
-        className: "relative overflow-hidden rounded-[2rem] border border-white/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl p-6 lg:p-8 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.08)] mb-8",
+        className: "relative z-20 rounded-[2rem] border border-white/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl p-6 lg:p-8 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.08)] mb-8",
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-[#ECC323]/20 dark:from-[#ECC323]/10 to-[#004A1C]/5 dark:to-[#004A1C]/20 rounded-full blur-[80px] pointer-events-none"
-            }, void 0, false, {
+                className: "absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none",
+                children: [
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                        className: "absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-[#ECC323]/20 dark:from-[#ECC323]/10 to-[#004A1C]/5 dark:to-[#004A1C]/20 rounded-full blur-[80px] pointer-events-none"
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
+                        lineNumber: 188,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                        className: "absolute -bottom-24 -left-24 w-64 h-64 bg-[#004A1C]/5 dark:bg-slate-800/80 rounded-full blur-[60px] pointer-events-none"
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
+                        lineNumber: 189,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
                 fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
                 lineNumber: 187,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "absolute -bottom-24 -left-24 w-64 h-64 bg-[#004A1C]/5 dark:bg-slate-800/80 rounded-full blur-[60px] pointer-events-none"
-            }, void 0, false, {
-                fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                lineNumber: 188,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1379,7 +1388,7 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                         children: "Barangay"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                        lineNumber: 193,
+                                        lineNumber: 196,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1392,12 +1401,12 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                             ariaLabel: "Select barangay"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                            lineNumber: 197,
+                                            lineNumber: 200,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                        lineNumber: 196,
+                                        lineNumber: 199,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -1406,13 +1415,13 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                         children: activeUnusedLabel
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                        lineNumber: 205,
+                                        lineNumber: 208,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                lineNumber: 192,
+                                lineNumber: 195,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1424,7 +1433,7 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                         children: "Quantity"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                        lineNumber: 211,
+                                        lineNumber: 214,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("input", {
@@ -1440,7 +1449,7 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                         "aria-describedby": "code-generation-quantity-error"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                        lineNumber: 214,
+                                        lineNumber: 217,
                                         columnNumber: 13
                                     }, this),
                                     quantityError ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -1450,20 +1459,20 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                         children: quantityError
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                        lineNumber: 227,
+                                        lineNumber: 230,
                                         columnNumber: 15
                                     }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
                                         className: "mt-2.5 text-[11px] font-bold tracking-wider uppercase text-gray-400 dark:text-slate-500 h-4",
                                         children: "Min 1, Max 100"
                                     }, void 0, false, {
                                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                        lineNumber: 231,
+                                        lineNumber: 234,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                lineNumber: 210,
+                                lineNumber: 213,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1477,25 +1486,25 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                     children: [
                                         isLoading ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](Spinner, {}, void 0, false, {
                                             fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                            lineNumber: 243,
+                                            lineNumber: 246,
                                             columnNumber: 28
                                         }, this) : null,
                                         isLoading ? 'Working...' : 'Generate Codes'
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                    lineNumber: 236,
+                                    lineNumber: 239,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                lineNumber: 235,
+                                lineNumber: 238,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                        lineNumber: 191,
+                        lineNumber: 194,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1506,7 +1515,7 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                 children: expirationLine
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                lineNumber: 250,
+                                lineNumber: 253,
                                 columnNumber: 11
                             }, this),
                             hasGeneratedBatch ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -1514,19 +1523,19 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                                 children: "New codes append to existing"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                                lineNumber: 252,
+                                lineNumber: 255,
                                 columnNumber: 13
                             }, this) : null
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                        lineNumber: 249,
+                        lineNumber: 252,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                lineNumber: 190,
+                lineNumber: 193,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](GenerateConfirmModal, {
@@ -1539,7 +1548,7 @@ function CodeGenerationForm({ barangay, setBarangay, quantity, setQuantity, expi
                 isLoading: isLoading
             }, void 0, false, {
                 fileName: "<[project]/src/components/codeGeneration/CodeGenerationForm.tsx>",
-                lineNumber: 259,
+                lineNumber: 262,
                 columnNumber: 7
             }, this)
         ]

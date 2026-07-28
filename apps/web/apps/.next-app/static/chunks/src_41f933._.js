@@ -1797,7 +1797,7 @@ function HouseholdsTable({ rows, loading, error, hasAnyRows, onRetry, searchQuer
                                                     className: "px-6 py-4 pr-6 text-right",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                         onClick: ()=>handleViewProfile(item),
-                                                        className: "inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500/60 dark:hover:bg-slate-700/80 dark:hover:text-blue-300 md:opacity-0 md:group-hover:opacity-100",
+                                                        className: "inline-flex flex-shrink-0 items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)] focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500/60 dark:hover:bg-slate-700/80 dark:hover:text-blue-300",
                                                         children: "View Record"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
@@ -1922,27 +1922,37 @@ _c = HouseholdsTable;
 function DropdownMenu({ menuRef, items, selected, onSelect }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         ref: menuRef,
-        className: "absolute right-0 top-full z-50 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-900 md:w-[120%]",
+        className: "absolute left-0 top-full z-50 mt-2 max-h-64 w-full overflow-y-auto rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)] md:w-[120%]",
         children: items.map((opt)=>{
             const isSelected = opt.value === selected;
             return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                 onClick: ()=>onSelect(opt.value),
-                className: `w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-300' : 'text-gray-700 hover:bg-gray-50 font-medium dark:text-slate-200 dark:hover:bg-slate-800/80'}`,
+                className: [
+                    'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
+                    isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700'
+                ].join(' '),
                 children: [
+                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                        className: "w-5 flex items-center justify-center",
+                        children: isSelected ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
+                            className: "w-4 h-4"
+                        }, void 0, false, {
+                            fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                            lineNumber: 368,
+                            columnNumber: 29
+                        }, this) : null
+                    }, void 0, false, {
+                        fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
+                        lineNumber: 367,
+                        columnNumber: 13
+                    }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                         className: "truncate",
                         children: opt.label
                     }, void 0, false, {
                         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 366,
+                        lineNumber: 370,
                         columnNumber: 13
-                    }, this),
-                    isSelected && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
-                        className: "w-4 h-4"
-                    }, void 0, false, {
-                        fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                        lineNumber: 367,
-                        columnNumber: 28
                     }, this)
                 ]
             }, opt.value, true, {
@@ -1971,12 +1981,12 @@ function SearchIcon() {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 378,
+            lineNumber: 381,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 377,
+        lineNumber: 380,
         columnNumber: 5
     }, this);
 }
@@ -1994,12 +2004,12 @@ function ChevronDownIcon() {
             d: "M19 9l-7 7-7-7"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 385,
+            lineNumber: 388,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 384,
+        lineNumber: 387,
         columnNumber: 5
     }, this);
 }
@@ -2017,12 +2027,12 @@ function CheckIcon({ className }) {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 392,
+            lineNumber: 395,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 391,
+        lineNumber: 394,
         columnNumber: 5
     }, this);
 }
@@ -2040,12 +2050,12 @@ function UsersMenuIcon({ className }) {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-            lineNumber: 399,
+            lineNumber: 402,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 398,
+        lineNumber: 401,
         columnNumber: 5
     }, this);
 }
@@ -2065,7 +2075,7 @@ function SpinnerIcon({ className }) {
                 strokeWidth: "3"
             }, void 0, false, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 406,
+                lineNumber: 409,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -2075,13 +2085,13 @@ function SpinnerIcon({ className }) {
                 strokeLinecap: "round"
             }, void 0, false, {
                 fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-                lineNumber: 407,
+                lineNumber: 410,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/households/HouseholdsTable.tsx>",
-        lineNumber: 405,
+        lineNumber: 408,
         columnNumber: 5
     }, this);
 }

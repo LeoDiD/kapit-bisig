@@ -11,6 +11,7 @@ import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 import ResidentReviewModal from '@/components/residents/ResidentReviewModal'
+import FilterDropdown from '@/components/ui/FilterDropdown'
 
 function getResidentId(record: ResidentRecord): string {
   return record._id || record.id || ''
@@ -702,15 +703,11 @@ export default function ResidentRegistrationPage() {
                     </button>
                   </div>
 
-                  <select
+                  <FilterDropdown
                     value={barangay}
-                    onChange={(event) => setBarangay(event.target.value)}
-                    className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
-                  >
-                    {barangayOptions.map((item) => (
-                      <option key={item} value={item}>{item}</option>
-                    ))}
-                  </select>
+                    options={barangayOptions.map((item) => ({ value: item, label: item }))}
+                    onChange={(val) => setBarangay(val)}
+                  />
 
                   <button
                     type="button"

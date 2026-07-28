@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import type { AuditLogRecord } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import { ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react'
+import FilterDropdown from '@/components/ui/FilterDropdown'
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogRecord[]>([])
@@ -49,41 +50,39 @@ export default function AuditLogsPage() {
       />
 
       <div className="mt-6 flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex-1 max-w-sm relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <select 
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none"
+        <div className="flex-1 max-w-sm relative z-20">
+          <FilterDropdown
             value={actionFilter}
-            onChange={(e) => {
-              setActionFilter(e.target.value)
+            options={[
+              { value: '', label: 'All Actions' },
+              { value: 'LOGIN_SUCCESS', label: 'Login Success' },
+              { value: 'LOGIN_FAILURE', label: 'Login Failure' },
+              { value: 'DISTRIBUTION_CREATED', label: 'Distribution Created' },
+              { value: 'CLAIM_RECORDED', label: 'Claim Recorded' },
+              { value: 'STAFF_CREATED', label: 'Staff Created' },
+            ]}
+            onChange={(val) => {
+              setActionFilter(val)
               setPage(1)
             }}
-          >
-            <option value="">All Actions</option>
-            <option value="LOGIN_SUCCESS">Login Success</option>
-            <option value="LOGIN_FAILURE">Login Failure</option>
-            <option value="DISTRIBUTION_CREATED">Distribution Created</option>
-            <option value="CLAIM_RECORDED">Claim Recorded</option>
-            <option value="STAFF_CREATED">Staff Created</option>
-          </select>
+          />
         </div>
 
-        <div className="flex-1 max-w-sm relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <select 
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none"
+        <div className="flex-1 max-w-sm relative z-10">
+          <FilterDropdown
             value={roleFilter}
-            onChange={(e) => {
-              setRoleFilter(e.target.value)
+            options={[
+              { value: '', label: 'All Roles' },
+              { value: 'SUPERADMIN', label: 'Superadmin' },
+              { value: 'LGU_STAFF', label: 'LGU Staff' },
+              { value: 'Volunteer', label: 'Volunteer' },
+              { value: 'Resident', label: 'Resident' },
+            ]}
+            onChange={(val) => {
+              setRoleFilter(val)
               setPage(1)
             }}
-          >
-            <option value="">All Roles</option>
-            <option value="SUPERADMIN">Superadmin</option>
-            <option value="LGU_STAFF">LGU Staff</option>
-            <option value="Volunteer">Volunteer</option>
-            <option value="Resident">Resident</option>
-          </select>
+          />
         </div>
       </div>
 

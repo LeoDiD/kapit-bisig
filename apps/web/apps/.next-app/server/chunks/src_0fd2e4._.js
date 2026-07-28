@@ -2146,17 +2146,17 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                className: "mb-12 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm",
+                className: "mb-12 overflow-hidden rounded-[28px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm",
                 children: [
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-slate-200 bg-white px-5 py-4 sm:px-6",
+                        className: "border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-4 sm:px-6",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                            className: "text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500",
+                                            className: "text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400",
                                             children: "Distribution Directory"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2164,7 +2164,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("h3", {
-                                            className: "mt-2 text-xl font-bold tracking-[-0.03em] text-slate-950",
+                                            className: "mt-2 text-xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-100",
                                             children: "Scheduled and claimed distributions"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2172,7 +2172,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                                            className: "mt-1 text-sm text-slate-500",
+                                            className: "mt-1 text-sm text-slate-500 dark:text-slate-400",
                                             children: [
                                                 filtered.length,
                                                 " visible distribution",
@@ -2193,7 +2193,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                     className: "flex flex-wrap items-center gap-2",
                                     children: [
                                         barangay !== 'All' ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                            className: "rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700",
+                                            className: "rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300",
                                             children: [
                                                 "Barangay: ",
                                                 barangayLabel
@@ -2204,7 +2204,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             columnNumber: 17
                                         }, this) : null,
                                         status !== 'All' ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                            className: "rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700",
+                                            className: "rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300",
                                             children: [
                                                 "Status: ",
                                                 statusLabel
@@ -2232,7 +2232,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                        className: "border-b border-slate-200 bg-white px-5 py-4 sm:px-6",
+                        className: "border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-4 sm:px-6",
                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                             className: "flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between",
                             children: [
@@ -2255,7 +2255,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                             value: query,
                                             onChange: (e)=>setQuery(e.target.value),
                                             placeholder: "Search distributions...",
-                                            className: "w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 shadow-sm outline-none transition-colors focus:border-slate-400 focus:bg-white focus:ring-0"
+                                            className: "w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 shadow-sm outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-0"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
                                             lineNumber: 191,
@@ -2281,7 +2281,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                         setStatusOpen(false);
                                                         setActiveMenu(null);
                                                     },
-                                                    className: "flex w-full items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white",
+                                                    className: "flex w-full items-center justify-between rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 shadow-sm transition-colors hover:bg-white dark:hover:bg-slate-700",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             className: "truncate",
@@ -2332,7 +2332,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                         setBarangayOpen(false);
                                                         setActiveMenu(null);
                                                     },
-                                                    className: "flex w-full items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white",
+                                                    className: "flex w-full items-center justify-between rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 shadow-sm transition-colors hover:bg-white dark:hover:bg-slate-700",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                             className: "truncate",
@@ -2375,7 +2375,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                         canCreate ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                             type: "button",
                                             onClick: onOpenCreate,
-                                            className: "ml-1 inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-[#0F533A] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0b412d]",
+                                            className: "ml-1 inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-[#0F533A] px-5 py-2.5 text-sm font-bold text-white shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition-all duration-300 hover:bg-[#0a3f2c] hover:scale-[1.02] hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)]",
                                             children: "+ New Distribution"
                                         }, void 0, false, {
                                             fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2405,7 +2405,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                             className: "w-full min-w-[900px] border-collapse text-left",
                             children: [
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("thead", {
-                                    className: "border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500",
+                                    className: "border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-transparent text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400",
                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
                                         children: [
                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("th", {
@@ -2483,9 +2483,9 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tbody", {
-                                    className: "divide-y divide-slate-100 bg-white",
+                                    className: "divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-transparent",
                                     children: filtered.length ? filtered.map((row)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("tr", {
-                                            className: "group transition-colors hover:bg-slate-50",
+                                            className: "group transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50",
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
@@ -2493,7 +2493,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                         className: "flex items-center gap-4",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                                className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700",
+                                                                className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300",
                                                                 children: row.barangay.charAt(0)
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2501,7 +2501,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "font-bold text-slate-900",
+                                                                className: "font-bold text-slate-900 dark:text-slate-100",
                                                                 children: row.barangay
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2522,7 +2522,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
                                                     className: "px-6 py-4",
                                                     children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                        className: "flex items-center gap-2 text-sm font-medium text-slate-700",
+                                                        className: "flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300",
                                                         children: [
                                                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](UsersMiniIcon, {}, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2547,7 +2547,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                         className: "flex items-center gap-2",
                                                         children: [
                                                             row.claimedHouseholds > 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "inline-flex items-center gap-1.5 rounded-md border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700",
+                                                                className: "inline-flex items-center gap-1.5 rounded-md border border-emerald-100 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400",
                                                                 children: [
                                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](CheckMiniIcon, {}, void 0, false, {
                                                                         fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2561,7 +2561,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                                 lineNumber: 306,
                                                                 columnNumber: 27
                                                             }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "text-sm font-medium text-slate-400",
+                                                                className: "text-sm font-medium text-slate-400 dark:text-slate-500",
                                                                 children: "0"
                                                             }, void 0, false, {
                                                                 fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2569,7 +2569,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                                 columnNumber: 27
                                                             }, this),
                                                             row.registeredHouseholds > 0 ? /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                                className: "text-[11px] font-bold text-slate-400",
+                                                                className: "text-[11px] font-bold text-slate-400 dark:text-slate-500",
                                                                 children: [
                                                                     "/ ",
                                                                     row.registeredHouseholds
@@ -2591,7 +2591,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-sm font-medium text-slate-700",
+                                                    className: "px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300",
                                                     children: row.scheduled
                                                 }, void 0, false, {
                                                     fileName: "<[project]/src/components/distribution/DistributionsTable.tsx>",
@@ -2613,7 +2613,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("td", {
-                                                    className: "px-6 py-4 text-sm font-medium text-slate-600",
+                                                    className: "px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400",
                                                     children: row.claimedAt ? new Date(row.claimedAt).toLocaleDateString('en-US', {
                                                         year: 'numeric',
                                                         month: 'short',
@@ -2631,7 +2631,7 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                                                         "data-row-menu": true,
                                                         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                             onClick: (e)=>toggleRowMenu(row.id, e),
-                                                            className: "inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900",
+                                                            className: "inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-all duration-300 hover:border-[#004A1C]/30 hover:bg-slate-50 hover:text-[#004A1C] focus:outline-none focus:ring-2 focus:ring-[#004A1C]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323] dark:focus:ring-[#ECC323]/20",
                                                             children: [
                                                                 "Manage ",
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"](ChevronDownIcon, {}, void 0, false, {
@@ -2712,9 +2712,9 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
                     bottom: menuPos.opensUp ? window.innerHeight - menuPos.top + 8 : undefined,
                     left: menuPos.left
                 },
-                className: "z-[9999] w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]",
+                className: "z-[9999] w-56 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]",
                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "py-2",
+                    className: "flex flex-col gap-1",
                     children: (()=>{
                         const row = filtered.find((item)=>item.id === activeMenu);
                         if (!row) return null;
@@ -2801,15 +2801,15 @@ function DistributionsTable({ rows, onOpenCreate, onMarkClaimed, canCreate = tru
 function DropdownMenu({ menuRef, items, selected, onSelect }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
         ref: menuRef,
-        className: "absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_12px_32px_rgba(15,23,42,0.14)]",
+        className: "absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]",
         children: items.map((option)=>{
             const isSelected = option.value === selected;
             return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                 type: "button",
                 onClick: ()=>onSelect(option.value),
                 className: [
-                    'w-full rounded-xl px-4 py-2.5 text-left text-sm transition-colors',
-                    isSelected ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-700 hover:bg-slate-50'
+                    'w-full flex items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm transition-colors',
+                    isSelected ? 'bg-[#EAB308] text-gray-900 font-medium' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700 font-medium'
                 ].join(' '),
                 children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                     className: "flex items-center gap-2",
@@ -2853,8 +2853,8 @@ function DropdownMenu({ menuRef, items, selected, onSelect }) {
     }, this);
 }
 function StatusPill({ status }) {
-    const classes = status === 'Claimed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : status === 'Partially Claimed' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-amber-200 bg-amber-50 text-amber-700';
-    const dotClass = status === 'Claimed' ? 'bg-emerald-500' : status === 'Partially Claimed' ? 'bg-blue-500' : 'bg-amber-500';
+    const classes = status === 'Claimed' ? 'border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : status === 'Partially Claimed' ? 'border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+    const dotClass = status === 'Claimed' ? 'bg-emerald-500 dark:bg-emerald-400' : status === 'Partially Claimed' ? 'bg-blue-500 dark:bg-blue-400' : 'bg-amber-500 dark:bg-amber-400';
     const label = status === 'Claimed' ? 'Completed' : status === 'Partially Claimed' ? 'Active' : 'Scheduled';
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
         className: `inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${classes}`,
@@ -2875,12 +2875,12 @@ function StatusPill({ status }) {
     }, this);
 }
 function MenuItem({ icon, label, onClick, tone = 'default' }) {
-    const classes = tone === 'success' ? 'text-green-600 hover:bg-green-50' : 'text-slate-700 hover:bg-slate-50';
-    const iconClass = tone === 'success' ? 'text-green-600' : 'text-slate-500';
+    const classes = tone === 'success' ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700';
+    const iconClass = tone === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400';
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
         type: "button",
         onClick: onClick,
-        className: `flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${classes}`,
+        className: `flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition-colors ${classes}`,
         children: [
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                 className: iconClass,

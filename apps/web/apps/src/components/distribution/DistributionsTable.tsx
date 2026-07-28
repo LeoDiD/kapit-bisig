@@ -154,27 +154,27 @@ export default function DistributionsTable({
         distribution={householdsDistribution}
       />
 
-      <div className="mb-12 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+      <div className="mb-12 overflow-hidden rounded-[28px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
+        <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-4 sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Distribution Directory</p>
-              <h3 className="mt-2 text-xl font-bold tracking-[-0.03em] text-slate-950">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">Distribution Directory</p>
+              <h3 className="mt-2 text-xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-100">
                 Scheduled and claimed distributions
               </h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {filtered.length} visible distribution{filtered.length === 1 ? '' : 's'}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               {barangay !== 'All' ? (
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Barangay: {barangayLabel}
                 </span>
               ) : null}
               {status !== 'All' ? (
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Status: {statusLabel}
                 </span>
               ) : null}
@@ -182,7 +182,7 @@ export default function DistributionsTable({
           </div>
         </div>
 
-        <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+        <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-4 sm:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-md">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
@@ -192,7 +192,7 @@ export default function DistributionsTable({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search distributions..."
-                className="w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 shadow-sm outline-none transition-colors focus:border-slate-400 focus:bg-white focus:ring-0"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 shadow-sm outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-0"
               />
             </div>
 
@@ -206,7 +206,7 @@ export default function DistributionsTable({
                     setStatusOpen(false)
                     setActiveMenu(null)
                   }}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white"
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 shadow-sm transition-colors hover:bg-white dark:hover:bg-slate-700"
                 >
                   <span className="truncate">{barangayLabel}</span>
                   <ChevronDownIcon />
@@ -233,7 +233,7 @@ export default function DistributionsTable({
                     setBarangayOpen(false)
                     setActiveMenu(null)
                   }}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white"
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 shadow-sm transition-colors hover:bg-white dark:hover:bg-slate-700"
                 >
                   <span className="truncate">{statusLabel}</span>
                   <ChevronDownIcon />
@@ -255,7 +255,7 @@ export default function DistributionsTable({
                 <button
                   type="button"
                   onClick={onOpenCreate}
-                  className="ml-1 inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-[#0F533A] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0b412d]"
+                  className="ml-1 inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-[#0F533A] px-5 py-2.5 text-sm font-bold text-white shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition-all duration-300 hover:bg-[#0a3f2c] hover:scale-[1.02] hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)]"
                 >
                   + New Distribution
                 </button>
@@ -266,7 +266,7 @@ export default function DistributionsTable({
 
         <div className="overflow-x-auto w-full">
           <table className="w-full min-w-[900px] border-collapse text-left">
-            <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <thead className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-transparent text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
               <tr>
                 <th className="px-6 py-4">Barangay</th>
                 <th className="px-6 py-4">Registered Households</th>
@@ -280,21 +280,21 @@ export default function DistributionsTable({
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-transparent">
               {filtered.length ? (
                 filtered.map((row) => (
-                  <tr key={row.id} className="group transition-colors hover:bg-slate-50">
+                  <tr key={row.id} className="group transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
                           {row.barangay.charAt(0)}
                         </div>
-                        <span className="font-bold text-slate-900">{row.barangay}</span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{row.barangay}</span>
                       </div>
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                         <UsersMiniIcon />
                         {row.registeredHouseholds > 0 ? row.registeredHouseholds : '--'}
                       </div>
@@ -303,26 +303,26 @@ export default function DistributionsTable({
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {row.claimedHouseholds > 0 ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                          <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-100 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
                             <CheckMiniIcon />
                             {row.claimedHouseholds}
                           </span>
                         ) : (
-                          <span className="text-sm font-medium text-slate-400">0</span>
+                          <span className="text-sm font-medium text-slate-400 dark:text-slate-500">0</span>
                         )}
                         {row.registeredHouseholds > 0 ? (
-                          <span className="text-[11px] font-bold text-slate-400">/ {row.registeredHouseholds}</span>
+                          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">/ {row.registeredHouseholds}</span>
                         ) : null}
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-sm font-medium text-slate-700">{row.scheduled}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{row.scheduled}</td>
 
                     <td className="px-6 py-4">
                       <StatusPill status={row.status} />
                     </td>
 
-                    <td className="px-6 py-4 text-sm font-medium text-slate-600">
+                    <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">
                       {row.claimedAt
                         ? new Date(row.claimedAt).toLocaleDateString('en-US', {
                             year: 'numeric',
@@ -336,7 +336,7 @@ export default function DistributionsTable({
                       <div className="inline-block" data-row-menu>
                         <button
                           onClick={(e) => toggleRowMenu(row.id, e)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-all duration-300 hover:border-[#004A1C]/30 hover:bg-slate-50 hover:text-[#004A1C] focus:outline-none focus:ring-2 focus:ring-[#004A1C]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323] dark:focus:ring-[#ECC323]/20"
                         >
                           Manage <ChevronDownIcon />
                         </button>
@@ -366,9 +366,9 @@ export default function DistributionsTable({
                 bottom: menuPos.opensUp ? window.innerHeight - menuPos.top + 8 : undefined,
                 left: menuPos.left,
               }}
-              className="z-[9999] w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
+              className="z-[9999] w-56 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
             >
-              <div className="py-2">
+              <div className="flex flex-col gap-1">
                 {(() => {
                   const row = filtered.find((item) => item.id === activeMenu)
                   if (!row) return null
@@ -429,7 +429,7 @@ function DropdownMenu({
   return (
     <div
       ref={menuRef}
-      className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
+      className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
     >
       {items.map((option) => {
         const isSelected = option.value === selected
@@ -439,8 +439,8 @@ function DropdownMenu({
             type="button"
             onClick={() => onSelect(option.value)}
             className={[
-              'w-full rounded-xl px-4 py-2.5 text-left text-sm transition-colors',
-              isSelected ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-700 hover:bg-slate-50',
+              'w-full flex items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm transition-colors',
+              isSelected ? 'bg-[#EAB308] text-gray-900 font-medium' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700 font-medium',
             ].join(' ')}
           >
             <span className="flex items-center gap-2">
@@ -457,17 +457,17 @@ function DropdownMenu({
 function StatusPill({ status }: { status: DistributionStatus }) {
   const classes =
     status === 'Claimed'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      ? 'border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
       : status === 'Partially Claimed'
-        ? 'border-blue-200 bg-blue-50 text-blue-700'
-        : 'border-amber-200 bg-amber-50 text-amber-700'
+        ? 'border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+        : 'border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
 
   const dotClass =
     status === 'Claimed'
-      ? 'bg-emerald-500'
+      ? 'bg-emerald-500 dark:bg-emerald-400'
       : status === 'Partially Claimed'
-        ? 'bg-blue-500'
-        : 'bg-amber-500'
+        ? 'bg-blue-500 dark:bg-blue-400'
+        : 'bg-amber-500 dark:bg-amber-400'
 
   const label =
     status === 'Claimed'
@@ -495,14 +495,14 @@ function MenuItem({
   onClick: () => void
   tone?: 'default' | 'success'
 }) {
-  const classes = tone === 'success' ? 'text-green-600 hover:bg-green-50' : 'text-slate-700 hover:bg-slate-50'
-  const iconClass = tone === 'success' ? 'text-green-600' : 'text-slate-500'
+  const classes = tone === 'success' ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700'
+  const iconClass = tone === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${classes}`}
+      className={`flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition-colors ${classes}`}
     >
       <span className={iconClass}>{icon}</span>
       {label}
