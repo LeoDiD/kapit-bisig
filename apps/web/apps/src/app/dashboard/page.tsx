@@ -79,8 +79,8 @@ export default function DashboardPage() {
       setStats({
         totalHouseholds,
         pendingDistributions,
-        completedToday: 0,
-        pendingWrites: 0,
+        completedToday: report?.overview?.completedToday ?? 0,
+        pendingWrites: report?.overview?.pendingWrites ?? 0,
         claimRate: report?.overview?.claimRate ?? 0,
         totalDistributions: report?.overview?.totalDistributions ?? 0,
         totalRegistered: report?.overview?.totalRegisteredHouseholds ?? 0,

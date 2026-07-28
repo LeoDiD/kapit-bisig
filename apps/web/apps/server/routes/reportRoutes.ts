@@ -12,6 +12,7 @@ import mongoose from 'mongoose';
 import Distribution from '../models/Distribution';
 import DistributionClaim from '../models/DistributionClaim';
 import Resident from '../models/Resident';
+import Claim from '../models/Claim';
 import { AuthRequest } from '../middleware/unifiedAuth';
 import { BARANGAY_OPTIONS } from '../models/Distribution';
 
@@ -186,6 +187,25 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
     const overallClaimRate =
       totalRegistered > 0 ? Math.round((totalClaimed / totalRegistered) * 100) : 0;
 
+    // ── Compute completedToday and pendingWrites ────────────────
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    
+    // We apply matchStage (like barangay filter) to Claim queries as well
+    const claimMatchStage: Record<string, unknown> = {};
+    if (matchStage.barangay) claimMatchStage.barangay = matchStage.barangay;
+
+    const completedToday = await Claim.countDocuments({
+      ...claimMatchStage,
+      claimStatus: 'Claimed',
+      createdAt: { $gte: startOfToday }
+    });
+
+    const pendingWrites = await Claim.countDocuments({
+      ...claimMatchStage,
+      status: { $in: ['PENDING_CHAIN', 'CHAIN_FAILED'] }
+    });
+
     // ── Monthly trends (last 6 months) ──────────────────────────
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
@@ -282,6 +302,8 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
           totalClaimedHouseholds: totalClaimed,
           totalUnclaimedHouseholds: totalUnclaimed,
           claimRate: overallClaimRate,
+          completedToday,
+          pendingWrites,
         },
         distributions: rows,
         monthlyTrends,

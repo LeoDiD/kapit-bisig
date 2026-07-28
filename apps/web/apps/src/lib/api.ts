@@ -198,6 +198,8 @@ export interface ReportSummaryData {
     totalClaimedHouseholds: number;
     totalUnclaimedHouseholds: number;
     claimRate: number;
+    completedToday: number;
+    pendingWrites: number;
   };
   distributions: ReportDistributionRow[];
   monthlyTrends: { month: string; distributions: number; claimed: number }[];

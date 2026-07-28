@@ -1,6 +1,9 @@
 {
-  "/login/page": "app/login/page.js",
   "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
+  "/target-beneficiaries/page": "app/target-beneficiaries/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/target-beneficiaries/page": "app/target-beneficiaries/page.js"
+  "/verified-residents/page": "app/verified-residents/page.js",
+  "/resident-registration/page": "app/resident-registration/page.js",
+  "/users/page": "app/users/page.js"
 }
