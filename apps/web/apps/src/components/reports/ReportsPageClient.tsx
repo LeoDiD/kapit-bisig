@@ -159,9 +159,17 @@ function StatusPill({ status }: { status: string }) {
       : status === 'Partially Claimed'
         ? 'bg-[#EAB308] text-white'
         : 'bg-gray-400 text-white'
+        
+  const label =
+    status === 'Claimed'
+      ? 'Completed'
+      : status === 'Partially Claimed'
+        ? 'Active'
+        : 'Scheduled'
+        
   return (
     <span className={`inline-flex items-center justify-center h-6 px-3 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
-      {status}
+      {label}
     </span>
   )
 }

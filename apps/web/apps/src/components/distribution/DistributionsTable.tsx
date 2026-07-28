@@ -27,9 +27,9 @@ type StatusFilter = 'All' | DistributionStatus
 
 const statusOptions: { value: StatusFilter; label: string }[] = [
   { value: 'All', label: 'All Status' },
-  { value: 'Claimed', label: 'Claimed' },
-  { value: 'Partially Claimed', label: 'Partially Claimed' },
-  { value: 'Unclaimed', label: 'Unclaimed' },
+  { value: 'Claimed', label: 'Completed' },
+  { value: 'Partially Claimed', label: 'Active' },
+  { value: 'Unclaimed', label: 'Scheduled' },
 ]
 
 export default function DistributionsTable({
@@ -395,7 +395,7 @@ export default function DistributionsTable({
                       {row.status !== 'Claimed' ? (
                         <MenuItem
                           icon={<CheckGreenIcon />}
-                          label="Mark as claimed"
+                          label="Mark as completed"
                           tone="success"
                           onClick={() => {
                             onMarkClaimed(row.id)
@@ -469,10 +469,17 @@ function StatusPill({ status }: { status: DistributionStatus }) {
         ? 'bg-blue-500'
         : 'bg-amber-500'
 
+  const label =
+    status === 'Claimed'
+      ? 'Completed'
+      : status === 'Partially Claimed'
+        ? 'Active'
+        : 'Scheduled'
+
   return (
     <span className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${classes}`}>
       <span className={`mr-2 h-1.5 w-1.5 rounded-full ${dotClass}`} />
-      {status}
+      {label}
     </span>
   )
 }

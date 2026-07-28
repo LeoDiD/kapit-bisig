@@ -156,12 +156,12 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
       totalUnknownMethod += claims.unknown;
 
       let derivedStatus = d.status as string;
-      if (claimed >= registered && registered > 0) {
-        derivedStatus = 'Claimed';
-      } else if (claimed > 0) {
-        derivedStatus = 'Partially Claimed';
-      } else {
-        derivedStatus = 'Unclaimed';
+      if (derivedStatus !== 'Claimed') {
+        if (claimed >= registered && registered > 0) {
+          derivedStatus = 'Claimed';
+        } else if (claimed > 0) {
+          derivedStatus = 'Partially Claimed';
+        }
       }
 
       return {
@@ -195,10 +195,10 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
     const claimMatchStage: Record<string, unknown> = {};
     if (matchStage.barangay) claimMatchStage.barangay = matchStage.barangay;
 
-    const completedToday = await Claim.countDocuments({
-      ...claimMatchStage,
-      claimStatus: 'Claimed',
-      createdAt: { $gte: startOfToday }
+    const completedToday = await Distribution.countDocuments({
+      ...matchStage,
+      status: 'Claimed',
+      claimedAt: { $gte: startOfToday }
     });
 
     const pendingWrites = await Claim.countDocuments({
