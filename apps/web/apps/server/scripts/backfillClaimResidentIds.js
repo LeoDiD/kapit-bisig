@@ -41,13 +41,7 @@ const ClaimSchema = new mongoose.Schema(
     staffUserId: String,
     staffName: String,
     status: String,
-    blockchain: {
-      txHash: String,
-      blockNumber: Number,
-      householdHash: String,
-      eventHash: String,
-      staffSigner: String,
-    },
+
     errorMessage: String,
   },
   { timestamps: true, collection: 'claims' }

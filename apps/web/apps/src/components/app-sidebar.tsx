@@ -19,6 +19,7 @@ import {
   FileText,
   Settings,
   LogOut,
+  Activity,
 } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import { showToast } from '@/lib/toast'
@@ -35,6 +36,7 @@ const mainNavItems = [
   { name: 'Distribution', href: '/distribution', icon: ArrowLeftRight, superadminOnly: false },
   { name: 'Target Beneficiaries', href: '/target-beneficiaries', icon: FileText, superadminOnly: false },
   { name: 'Reports', href: '/reports', icon: ChartNoAxesCombined, superadminOnly: false },
+  { name: 'Audit Logs', href: '/audit-logs', icon: Activity, superadminOnly: true },
 ]
 
 export function AppSidebar() {

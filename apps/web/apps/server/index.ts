@@ -30,6 +30,7 @@ import householdListRoutes from './routes/householdListRoutes';
 import reportRoutes from './routes/reportRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import profileRoutes from './routes/profileRoutes';
+import auditLogRoutes from './routes/auditLogRoutes';
 import authRoutes from './routes/authRoutes';
 import verificationRoutes from './routes/verificationRoutes';
 import beneficiaryRoutes from './routes/beneficiaryRoutes';
@@ -134,6 +135,7 @@ app.use('/api/distributions', requireAuth, requireStaffOrSuperadmin, distributio
 app.use('/api/claims', requireAuth, requireStaffOrSuperadmin, claimRoutes);
 app.use('/api/households', requireAuth, requireStaffOrSuperadmin, householdListRoutes);
 app.use('/api/reports', requireAuth, requireStaffOrSuperadmin, reportRoutes);
+app.use('/api/audit-logs', requireAuth, requireStaffOrSuperadmin, auditLogRoutes);
 
 app.use('/api/notifications', notificationRoutes); // auth applied inside router
 

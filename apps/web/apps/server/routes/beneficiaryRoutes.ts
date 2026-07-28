@@ -31,6 +31,7 @@ import {
   validateResidentQrForEvent,
 } from '../services/beneficiaryService';
 import { logAudit } from '../utils/audit';
+import { broadcastScopedNotification, createNotification } from '../utils/createNotification';
 import { escapeRegex } from '../validation/mongoSanitize';
 import { getTargetBarangays, requiresBeneficiaryApproval } from '../services/distributionFlowService';
 
@@ -300,6 +301,20 @@ router.post(
         scopeType: result.scope.type,
         status: result.submission.status,
       });
+
+      const residentDoc = await Resident.findById(residentId).select('barangay fullName').lean();
+      if (residentDoc?.barangay) {
+        broadcastScopedNotification({
+          title: 'New Proof Submission',
+          message: `${residentDoc.fullName || 'A resident'} has submitted proof for ${result.scope.name}.`,
+          type: 'system',
+          meta: { 
+            submissionId: result.submission._id.toString(),
+            residentId,
+          },
+          targetBarangays: [residentDoc.barangay],
+        }).catch(err => console.error('[Notify Error]', err));
+      }
 
       return res.status(201).json({
         success: true,
@@ -586,6 +601,19 @@ router.patch(
         distributionId: result.distribution?._id?.toString?.() || '',
         status: result.eligibility.status,
       });
+
+      createNotification({
+        userId: result.resident._id.toString(),
+        title: 'Proof Submission Reviewed',
+        message: req.body.decision === 'Approved' 
+          ? `Your proof submission for ${result.scope.name} has been approved.`
+          : `Your proof submission for ${result.scope.name} has been rejected.`,
+        type: 'status_update',
+        meta: {
+          submissionId: result.submission._id.toString(),
+          decision: req.body.decision
+        }
+      }).catch(err => console.error('[Notify Error]', err));
 
       return res.json({
         success: true,

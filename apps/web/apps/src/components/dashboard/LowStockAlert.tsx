@@ -8,18 +8,16 @@ interface AlertItem {
 }
 
 interface AlertsPanelProps {
-  pendingWrites?: number
+
   pendingDistributions?: number
   unclaimedHouseholds?: number
   loading?: boolean
 }
 
-export default function LowStockAlert({ pendingWrites = 0, pendingDistributions = 0, unclaimedHouseholds = 0, loading }: AlertsPanelProps) {
+export default function LowStockAlert({ pendingDistributions = 0, unclaimedHouseholds = 0, loading }: AlertsPanelProps) {
   const alerts: AlertItem[] = []
 
-  if (pendingWrites > 0) {
-    alerts.push({ id: 'pw', label: 'Claim sync pending', detail: `${pendingWrites} pending item(s)`, severity: 'yellow' })
-  }
+
   if (pendingDistributions > 0) {
     alerts.push({ id: 'pd', label: 'Distributions unclaimed', detail: `${pendingDistributions} distribution(s) awaiting claims`, severity: 'red' })
   }

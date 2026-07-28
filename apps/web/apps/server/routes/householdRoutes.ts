@@ -41,7 +41,7 @@ import Distribution from '../models/Distribution';
 import Claim from '../models/Claim';
 import Notification from '../models/Notification';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
-import { computeEventHash, computeHouseholdHash } from '../utils/hashHelpers';
+
 import { upsertDistributionClaimFromClaim } from '../services/distributionFlowService';
 import bcrypt from 'bcrypt';
 import {
@@ -2221,8 +2221,6 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     const householdCode =
       String(resident.residentCode || '').trim() ||
       `HH-${resident.barangay.slice(0, 2).toUpperCase()}-${residentId.slice(-4).toUpperCase()}`;
-    const householdHash = computeHouseholdHash(householdId);
-    const eventHash = computeEventHash(distributionId);
 
     const claimId = `CLM-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
     const staffUserId = req.user?.userId || req.user?.id || 'unknown';
@@ -2247,11 +2245,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
           scannedBy: staffUserId,
           scannedAt: new Date(),
           source: 'ONLINE',
-          status: 'PENDING_CHAIN',
-          blockchain: {
-            householdHash,
-            eventHash,
-          },
+          status: 'CONFIRMED',
           errorMessage: '',
         },
       },

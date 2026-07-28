@@ -199,7 +199,7 @@ export interface ReportSummaryData {
     totalUnclaimedHouseholds: number;
     claimRate: number;
     completedToday: number;
-    pendingWrites: number;
+
   };
   distributions: ReportDistributionRow[];
   monthlyTrends: { month: string; distributions: number; claimed: number }[];
@@ -319,6 +319,20 @@ export interface BeneficiaryProofQueueSummary {
 
 export interface BeneficiaryProofSubmissionListResponse extends PaginatedApiResponse<BeneficiaryProofSubmissionRecord[]> {
   summary?: BeneficiaryProofQueueSummary;
+}
+
+export interface AuditLogRecord {
+  _id: string;
+  actorId: string | null;
+  actorRole: string;
+  actorName?: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown>;
+  ip: string;
+  userAgent: string;
+  createdAt: string;
 }
 
 // ========================== HELPERS ==========================
@@ -858,6 +872,34 @@ export const api = {
       credentials: 'include',
     });
     return handleResponse<ApiResponse<ReportSummaryData>>(response);
+  },
+
+  // ==================== AUDIT LOGS ====================
+
+  /**
+   * Get audit logs
+   */
+  async getAuditLogs(params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    entityType?: string;
+    actorRole?: string;
+  }): Promise<PaginatedApiResponse<AuditLogRecord[]>> {
+    const sp = new URLSearchParams();
+    if (typeof params?.page === 'number') sp.append('page', String(params.page));
+    if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+    if (params?.action) sp.append('action', params.action);
+    if (params?.entityType) sp.append('entityType', params.entityType);
+    if (params?.actorRole) sp.append('actorRole', params.actorRole);
+
+    const qs = sp.toString();
+    const url = `${API_URL}/audit-logs${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<PaginatedApiResponse<AuditLogRecord[]>>(response);
   },
 };
 

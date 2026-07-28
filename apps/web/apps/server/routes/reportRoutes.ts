@@ -187,7 +187,7 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
     const overallClaimRate =
       totalRegistered > 0 ? Math.round((totalClaimed / totalRegistered) * 100) : 0;
 
-    // ── Compute completedToday and pendingWrites ────────────────
+    // ── Compute completedToday ────────────────
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     
@@ -201,10 +201,6 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
       claimedAt: { $gte: startOfToday }
     });
 
-    const pendingWrites = await Claim.countDocuments({
-      ...claimMatchStage,
-      status: { $in: ['PENDING_CHAIN', 'CHAIN_FAILED'] }
-    });
 
     // ── Monthly trends (last 6 months) ──────────────────────────
     const now = new Date();
@@ -303,7 +299,7 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
           totalUnclaimedHouseholds: totalUnclaimed,
           claimRate: overallClaimRate,
           completedToday,
-          pendingWrites,
+
         },
         distributions: rows,
         monthlyTrends,

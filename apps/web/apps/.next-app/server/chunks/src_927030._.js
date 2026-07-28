@@ -802,6 +802,24 @@ const api = {
             credentials: 'include'
         });
         return handleResponse(response);
+    },
+    // ==================== AUDIT LOGS ====================
+    /**
+   * Get audit logs
+   */ async getAuditLogs (params) {
+        const sp = new URLSearchParams();
+        if (typeof params?.page === 'number') sp.append('page', String(params.page));
+        if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+        if (params?.action) sp.append('action', params.action);
+        if (params?.entityType) sp.append('entityType', params.entityType);
+        if (params?.actorRole) sp.append('actorRole', params.actorRole);
+        const qs = sp.toString();
+        const url = `${API_URL}/audit-logs${qs ? `?${qs}` : ''}`;
+        const response = await fetch(url, {
+            headers: createHeaders(),
+            credentials: 'include'
+        });
+        return handleResponse(response);
     }
 };
 const __TURBOPACK__default__export__ = api;

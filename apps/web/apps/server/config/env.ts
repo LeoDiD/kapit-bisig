@@ -53,8 +53,6 @@ const envSchema = z.object({
     .string({ message: 'SUPERADMIN_PASSWORD_HASH is required' })
     .min(1, 'SUPERADMIN_PASSWORD_HASH must not be empty'),
 
-  /* ---- Blockchain hash salt ---- */
-  HASH_SALT: z.string().default('kapit-bisig-salt'),
 
   /* ---- Cookie settings (optional, defaults based on NODE_ENV) ---- */
   COOKIE_NAME: z.string().default('sa_token'),

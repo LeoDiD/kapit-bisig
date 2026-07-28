@@ -19,7 +19,7 @@ interface DashboardStats {
   totalHouseholds: number
   pendingDistributions: number
   completedToday: number
-  pendingWrites: number
+
   claimRate: number
   totalDistributions: number
   totalRegistered: number
@@ -31,7 +31,7 @@ const INITIAL_STATS: DashboardStats = {
   totalHouseholds: 0,
   pendingDistributions: 0,
   completedToday: 0,
-  pendingWrites: 0,
+
   claimRate: 0,
   totalDistributions: 0,
   totalRegistered: 0,
@@ -80,7 +80,7 @@ export default function DashboardPage() {
         totalHouseholds,
         pendingDistributions,
         completedToday: report?.overview?.completedToday ?? 0,
-        pendingWrites: report?.overview?.pendingWrites ?? 0,
+
         claimRate: report?.overview?.claimRate ?? 0,
         totalDistributions: report?.overview?.totalDistributions ?? 0,
         totalRegistered: report?.overview?.totalRegisteredHouseholds ?? 0,
@@ -166,7 +166,7 @@ export default function DashboardPage() {
         </div>
         <div className="lg:col-span-4">
           <LowStockAlert
-            pendingWrites={stats.pendingWrites}
+
             pendingDistributions={stats.pendingDistributions}
             unclaimedHouseholds={stats.totalUnclaimed}
             loading={loading}
