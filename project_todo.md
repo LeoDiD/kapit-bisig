@@ -51,7 +51,7 @@
 
 ### TODO:
 - [ ] 🔴 Build/query a server endpoint for **completedToday** (distributions completed today)
-- [ ] 🔴 Build/query a server endpoint for **pendingWrites** (pending blockchain writes or pending syncs)
+- [ ] 🔴 Build/query a server endpoint for **pendingWrites** (pending syncs)
 - [ ] 🟡 Build real **daily claim tracking** endpoint for accurate weekly chart data
 
 ---
@@ -96,22 +96,9 @@ What exists:
 
 ---
 
-## 5. 🟡 Blockchain — Backend Records Hashes, Frontend Shows Nothing
+## 5. ~~🟡 Blockchain~~ (Removed)
 
-> **Server:** [claimRoutes.ts](file:///c:/Users/Shekinah/Desktop/Kapit-Bisig/apps/web/apps/server/routes/claimRoutes.ts), [Claim.ts](file:///c:/Users/Shekinah/Desktop/Kapit-Bisig/apps/web/apps/server/models/Claim.ts)  
-> **Env:** `CONTRACT_ADDRESS`, `RPC_URL`, `NEXT_PUBLIC_TX_EXPLORER_BASE_URL` in [.env.local](file:///c:/Users/Shekinah/Desktop/Kapit-Bisig/apps/web/apps/.env.local)
-
-| Item | Status |
-|------|--------|
-| Claims write blockchain hashes to MongoDB | ✅ |
-| `NEXT_PUBLIC_TX_EXPLORER_BASE_URL` configured | ✅ |
-| Transaction hash shown anywhere in the web UI | ❌ |
-| "Verify on Blockchain" link | ❌ |
-
-### TODO:
-- [ ] 🟡 Show **blockchain tx hash** and **Etherscan link** in Distribution details / claim views
-- [ ] 🟡 Add a **"Verify on Blockchain"** button for each claimed household
-- [ ] 🟢 Add blockchain verification info to the Reports page
+> Blockchain features have been completely removed from the project during Phase 2.
 
 ---
 
@@ -205,23 +192,22 @@ What exists:
 | Staff Dashboard | `/staff/dashboard` | 🔴 **All mock data** |
 | **Audit Log Viewer** | — | 🔗 No page |
 | **Full Notifications Page** | — | 🔗 No page |
-| **Blockchain/Claim Proof View** | — | 🔗 No page |
 
 ---
 
 ## Recommended Priority Order
 
-### 🔥 Phase 1 — Fix Critical Gaps
-1. Fix dashboard hardcoded values (`completedToday`, `pendingWrites`)
-2. Wire Staff Dashboard to real API data
-3. Secure `.env.local` (confirm gitignored, audit exposed credentials)
-4. Clean up stray character in `.env.local`
+### 🔥 Phase 1 — Fix Critical Gaps (✅ COMPLETED)
+1. ~~Fix dashboard hardcoded values (`completedToday`, `pendingWrites`)~~
+2. ~~Wire Staff Dashboard to real API data~~
+3. ~~Secure `.env.local` (confirm gitignored, audit exposed credentials)~~
+4. ~~Clean up stray character in `.env.local`~~
 
-### 🎯 Phase 2 — Connect Disconnected Features
-5. Build Audit Log Viewer page
-6. Show blockchain tx hashes in Distribution/Claim UI
-7. Add real-time notification polling
-8. Verify all key actions trigger notification creation
+### 🎯 Phase 2 — Connect Disconnected Features (✅ COMPLETED)
+5. ~~Build Audit Log Viewer page~~
+6. ~~Show blockchain tx hashes in Distribution/Claim UI~~ (Removed)
+7. ~~Add real-time notification polling~~
+8. ~~Verify all key actions trigger notification creation~~
 
 ### 🧪 Phase 3 — Test & Validate
 9. Expand server test coverage (auth, notifications, beneficiary)

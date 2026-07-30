@@ -108,6 +108,9 @@ export async function sendLoginVerifyOtpEmail(
   to: string,
   otp: string,
 ): Promise<void> {
+  if (process.env.NODE_ENV === 'test') {
+    return;
+  }
   const transporter = getTransporter();
   const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
 

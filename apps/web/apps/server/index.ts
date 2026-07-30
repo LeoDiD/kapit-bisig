@@ -4,7 +4,9 @@
 
 import dotenv from 'dotenv';
 import path from 'path';
-dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
+if (process.env.NODE_ENV !== 'test') {
+  dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
+}
 
 // Validate env vars immediately — exits if any required var is missing
 import { env } from './config/env';
@@ -137,14 +139,39 @@ app.use('/api/households', requireAuth, requireStaffOrSuperadmin, householdListR
 app.use('/api/reports', requireAuth, requireStaffOrSuperadmin, reportRoutes);
 app.use('/api/audit-logs', requireAuth, requireStaffOrSuperadmin, auditLogRoutes);
 
-app.use('/api/notifications', notificationRoutes); // auth applied inside router
-
-app.get('/api/health', (_req: Request, res: Response) => {
+app.use('/api/notifications', notificationRoutes); // Basic health check route
+app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
-    message: 'Server is running',
     timestamp: new Date().toISOString(),
+    debug: {
+      hasEmail: !!process.env.SUPERADMIN_EMAIL,
+      email: process.env.SUPERADMIN_EMAIL,
+      hasHash: !!process.env.SUPERADMIN_PASSWORD_HASH,
+      hash: process.env.SUPERADMIN_PASSWORD_HASH,
+    }
   });
+});
+
+app.get('/api/debug-db', async (_req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const StaffUser = require('./models/StaffUser').default;
+    const Resident = require('./models/Resident').default;
+    
+    const staff = await StaffUser.find({});
+    const residents = await Resident.find({}).select('+password');
+    
+    res.json({
+      staffCount: staff.length,
+      staff: staff,
+      residentCount: residents.length,
+      residents: residents,
+      dbState: mongoose.connection.readyState
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 app.use(notFoundHandler);
