@@ -225,7 +225,7 @@ export default function SecuritySection() {
                 onChange={(v) => handlePasswordInput('newPassword', v)}
                 show={showNew}
                 onToggle={() => setShowNew(!showNew)}
-                hint="Min. 16 characters, upper + lower + digit + symbol, no whitespace"
+                hint="Min. 8 characters, upper + lower + digit + symbol, no whitespace"
               />
               {/* Strength meter — same design as AddUserModal */}
               <PasswordStrengthMeter password={form.newPassword} />

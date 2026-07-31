@@ -107,7 +107,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   New Password
-                  <span className="text-gray-400 font-normal ml-1 text-xs">(Min. 16 chars, upper/lower/number/symbol)</span>
+                  <span className="text-gray-400 font-normal ml-1 text-xs">(Min. 8 chars, upper/lower/number/symbol)</span>
                 </label>
                 <div className="relative">
                   <input

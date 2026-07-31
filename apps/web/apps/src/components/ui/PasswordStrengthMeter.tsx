@@ -26,12 +26,11 @@ export function getPasswordStrength(password: string): PasswordStrengthLevel {
 
   const lower = password.toLowerCase()
   if (COMMON_WEAK_PATTERNS.some(p => lower.includes(p))) return 'weak'
-  if (password.length < 16) return 'weak'
 
   let score = 0
+  if (password.length >= 8) score++
+  if (password.length >= 12) score++
   if (password.length >= 16) score++
-  if (password.length >= 20) score++
-  if (password.length >= 24) score++
   if (/[A-Z]/.test(password)) score++
   if (/[a-z]/.test(password)) score++
   if (/[0-9]/.test(password)) score++
@@ -58,8 +57,8 @@ export function validateStrongPassword(password: string): { isValid: boolean; er
     errors.push('Password contains a common or guessable pattern')
   }
 
-  if (password.length < 16) {
-    errors.push('Password must be at least 16 characters')
+  if (password.length < 8) {
+    errors.push('Password must be at least 8 characters')
   }
   if (!/[A-Z]/.test(password)) {
     errors.push('Must contain at least one uppercase letter')

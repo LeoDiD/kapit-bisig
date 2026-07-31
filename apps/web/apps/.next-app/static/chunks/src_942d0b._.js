@@ -47,11 +47,10 @@ function getPasswordStrength(password) {
     if (!password) return '';
     const lower = password.toLowerCase();
     if (COMMON_WEAK_PATTERNS.some((p)=>lower.includes(p))) return 'weak';
-    if (password.length < 16) return 'weak';
     let score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
     if (password.length >= 16) score++;
-    if (password.length >= 20) score++;
-    if (password.length >= 24) score++;
     if (/[A-Z]/.test(password)) score++;
     if (/[a-z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
@@ -69,8 +68,8 @@ function validateStrongPassword(password) {
     if (COMMON_WEAK_PATTERNS.some((p)=>lower.includes(p))) {
         errors.push('Password contains a common or guessable pattern');
     }
-    if (password.length < 16) {
-        errors.push('Password must be at least 16 characters');
+    if (password.length < 8) {
+        errors.push('Password must be at least 8 characters');
     }
     if (!/[A-Z]/.test(password)) {
         errors.push('Must contain at least one uppercase letter');
@@ -107,12 +106,12 @@ function PasswordStrengthMeter({ password }) {
                     className: `h-full ${colorClass} ${widthClass} transition-all duration-300`
                 }, void 0, false, {
                     fileName: "<[project]/src/components/ui/PasswordStrengthMeter.tsx>",
-                    lineNumber: 114,
+                    lineNumber: 113,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "<[project]/src/components/ui/PasswordStrengthMeter.tsx>",
-                lineNumber: 113,
+                lineNumber: 112,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -125,19 +124,19 @@ function PasswordStrengthMeter({ password }) {
                         children: "— too weak to submit"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/ui/PasswordStrengthMeter.tsx>",
-                        lineNumber: 119,
+                        lineNumber: 118,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "<[project]/src/components/ui/PasswordStrengthMeter.tsx>",
-                lineNumber: 116,
+                lineNumber: 115,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/ui/PasswordStrengthMeter.tsx>",
-        lineNumber: 112,
+        lineNumber: 111,
         columnNumber: 5
     }, this);
 }
@@ -595,7 +594,7 @@ function ProtectedRoute({ children }) {
                                                     "New Password",
                                                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                         className: "text-gray-400 font-normal ml-1 text-xs",
-                                                        children: "(Min. 16 chars, upper/lower/number/symbol)"
+                                                        children: "(Min. 8 chars, upper/lower/number/symbol)"
                                                     }, void 0, false, {
                                                         fileName: "<[project]/src/components/layout/ProtectedRoute.tsx>",
                                                         lineNumber: 110,

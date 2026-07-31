@@ -36,6 +36,8 @@ import auditLogRoutes from './routes/auditLogRoutes';
 import authRoutes from './routes/authRoutes';
 import verificationRoutes from './routes/verificationRoutes';
 import beneficiaryRoutes from './routes/beneficiaryRoutes';
+import residentAuthRoutes from './routes/residentAuthRoutes';
+import staffMobileAuthRoutes from './routes/staffMobileAuthRoutes';
 
 import { requireAuth, requireStaffOrSuperadmin } from './middleware/unifiedAuth';
 import { generalRateLimiter } from './middleware/rateLimiter';
@@ -117,6 +119,7 @@ app.use(csrfProtect);
  * applied at the route level (see authRoutes.ts)
  */
 app.use('/api/auth', unifiedAuthRoutes); // unified login / logout / me
+app.use('/api/mobile-auth', staffMobileAuthRoutes); // extracted mobile OTP routes
 app.use('/api/mobile-auth', authRoutes); // token-based auth for mobile Volunteer app
 app.use('/api/auth/forgot-password', forgotPasswordRoutes); // forgot password OTP flow
 // Legacy /api/sa login path disabled to prevent bypassing unified OTP flow.
@@ -127,6 +130,7 @@ app.use('/api/users', userRoutes);
 
 app.use('/api/residents', residentRoutes); // route-level auth (register is public)
 app.use('/api/face', faceRoutes); // route-level auth where needed
+app.use('/api/household', residentAuthRoutes); // resident login/logout/me
 app.use('/api/household', householdRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/beneficiaries', beneficiaryRoutes);
