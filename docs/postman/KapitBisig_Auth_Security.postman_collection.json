@@ -33,7 +33,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"{{unifiedUsername}}\",\n  \"password\": \"{{unifiedPassword}}\",\n  \"rememberMe\": false\n}"
+          "raw": "{\n  \"email\": \"{{unifiedUsername}}\",\n  \"password\": \"{{unifiedPassword}}\",\n  \"rememberMe\": false\n}"
         },
         "url": "{{baseUrl}}/api/auth/login"
       },
@@ -79,7 +79,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"{{unifiedUsername}}\",\n  \"password\": \"wrong-password\",\n  \"rememberMe\": false\n}"
+          "raw": "{\n  \"email\": \"{{unifiedUsername}}\",\n  \"password\": \"wrong-password\",\n  \"rememberMe\": false\n}"
         },
         "url": "{{baseUrl}}/api/auth/login"
       },
@@ -104,7 +104,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"{{unifiedUsername}}\",\n  \"password\": \"{{unifiedPassword}}\",\n  \"rememberMe\": false,\n  \"isAdmin\": true\n}"
+          "raw": "{\n  \"email\": \"{{unifiedUsername}}\",\n  \"password\": \"{{unifiedPassword}}\",\n  \"rememberMe\": false,\n  \"isAdmin\": true\n}"
         },
         "url": "{{baseUrl}}/api/auth/login"
       },
@@ -129,7 +129,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": { \"$ne\": \"\" },\n  \"password\": \"x\"\n}"
+          "raw": "{\n  \"email\": { \"$ne\": \"\" },\n  \"password\": \"x\"\n}"
         },
         "url": "{{baseUrl}}/api/auth/login"
       },

@@ -151,7 +151,7 @@ export default function DistributionDetailsModal({
                 className="flex-1 py-2.5 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircleIcon />
-                Mark as Claimed
+                Mark as Completed
               </button>
             )}
           </div>
@@ -167,6 +167,13 @@ function StatusPill({ status }: { status: 'Claimed' | 'Unclaimed' | 'Partially C
   const isUnclaimed = status === 'Unclaimed'
   const isPartial = status === 'Partially Claimed'
   
+  const label =
+    status === 'Claimed'
+      ? 'Completed'
+      : isPartial
+        ? 'Active'
+        : 'Scheduled'
+        
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
       isUnclaimed 
@@ -176,7 +183,7 @@ function StatusPill({ status }: { status: 'Claimed' | 'Unclaimed' | 'Partially C
         : 'bg-green-600 text-white'
     }`}>
       {isUnclaimed ? <ClockSmallIcon /> : <CheckSmallIcon />}
-      {status}
+      {label}
     </span>
   )
 }

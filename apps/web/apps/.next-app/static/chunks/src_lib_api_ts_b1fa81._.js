@@ -18,7 +18,7 @@
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/node_modules/next/dist/build/polyfills/process.js [app-client] (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
-const API_URL = ("TURBOPACK compile-time value", "/api")?.trim() || '/api';
+const API_URL = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_API_URL?.trim() || '/api';
 const BARANGAY_OPTIONS = [
     'Bolo',
     'Bongalon',
@@ -66,7 +66,12 @@ function getScopedBarangays(role, assignedBarangays) {
     return headers;
 };
 /**
- * Handle API response
+ * Handle API response.
+ *
+ * Security: raw server text, HTTP status codes, and non-JSON responses are
+ * logged to the console for developer debugging only.  Error.message uses
+ * only the server's intentional JSON message or a generic fallback so that
+ * downstream UI code can safely display it without leaking system details.
  */ async function handleResponse(response) {
     const contentType = response.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
@@ -80,11 +85,14 @@ function getScopedBarangays(role, assignedBarangays) {
         }
     }
     if (!response.ok) {
-        const fallbackMessage = rawText && !isJson ? rawText.slice(0, 180) : `Request failed with status ${response.status}`;
-        const error = new Error(data?.message || fallbackMessage || 'An error occurred');
+        // Log raw details for developer debugging — never expose to UI
+        console.error(`[API] ${response.status} ${response.url}`, isJson ? data : rawText?.slice(0, 300));
+        // User-safe message: prefer server's intentional JSON message, else generic
+        const userMessage = data?.message || 'Something went wrong. Please try again.';
+        const error = new Error(userMessage);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error.response = data ?? {
-            message: fallbackMessage
+            message: userMessage
         };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         error.status = response.status;
@@ -390,6 +398,24 @@ const api = {
         if (params?.reportType) sp.append('reportType', params.reportType);
         const qs = sp.toString();
         const url = `${API_URL}/reports/summary${qs ? `?${qs}` : ''}`;
+        const response = await fetch(url, {
+            headers: createHeaders(),
+            credentials: 'include'
+        });
+        return handleResponse(response);
+    },
+    // ==================== AUDIT LOGS ====================
+    /**
+   * Get audit logs
+   */ async getAuditLogs (params) {
+        const sp = new URLSearchParams();
+        if (typeof params?.page === 'number') sp.append('page', String(params.page));
+        if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+        if (params?.action) sp.append('action', params.action);
+        if (params?.entityType) sp.append('entityType', params.entityType);
+        if (params?.actorRole) sp.append('actorRole', params.actorRole);
+        const qs = sp.toString();
+        const url = `${API_URL}/audit-logs${qs ? `?${qs}` : ''}`;
         const response = await fetch(url, {
             headers: createHeaders(),
             credentials: 'include'

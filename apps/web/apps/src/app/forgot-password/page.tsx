@@ -11,11 +11,11 @@ import PasswordStrengthMeter from '@/components/ui/PasswordStrengthMeter'
 type Step = 'email' | 'otp' | 'reset'
 
 /**
- * Password validation (mirrors backend policy: ≥16 chars, upper+lower+digit+symbol)
+ * Password validation (mirrors backend policy: ≥8 chars, upper+lower+digit+symbol)
  */
 const validateStrongPassword = (pw: string): { isValid: boolean; errors: string[] } => {
   const errors: string[] = []
-  if (pw.length < 16) errors.push('Must be at least 16 characters')
+  if (pw.length < 8) errors.push('Must be at least 8 characters')
   if (!/[A-Z]/.test(pw)) errors.push('Must contain an uppercase letter')
   if (!/[a-z]/.test(pw)) errors.push('Must contain a lowercase letter')
   if (!/[0-9]/.test(pw)) errors.push('Must contain a number')
@@ -64,7 +64,8 @@ export default function ForgotPasswordPage() {
       showToast.success('If the email exists, an OTP was sent.')
       setStep('otp')
     } catch (err: unknown) {
-      const msg = (err as { message?: string }).message || 'Something went wrong.'
+      console.error('Forgot password OTP send failed:', err)
+      const msg = (err as { message?: string }).message || 'Something went wrong. Please try again.'
       setError(msg)
     } finally {
       setIsLoading(false)
@@ -93,8 +94,8 @@ export default function ForgotPasswordPage() {
       showToast.success('OTP verified.')
       setStep('reset')
     } catch (err: unknown) {
-      const msg = (err as { message?: string }).message || 'Invalid or expired code.'
-      setError(`${msg} Please use the latest OTP sent to your email.`)
+      console.error('Verify OTP failed:', err)
+      setError('Invalid or expired code. Please use the latest OTP sent to your email.')
     } finally {
       setIsLoading(false)
     }
@@ -108,7 +109,8 @@ export default function ForgotPasswordPage() {
       setOtp('')
       showToast.success('A new OTP has been sent.')
     } catch (err: unknown) {
-      const msg = (err as { message?: string }).message || 'Failed to resend OTP.'
+      console.error('Resend OTP failed:', err)
+      const msg = (err as { message?: string }).message || 'Failed to resend OTP. Please try again.'
       setError(msg)
     } finally {
       setIsResending(false)
@@ -136,7 +138,8 @@ export default function ForgotPasswordPage() {
       showToast.success('Password reset successfully! Please sign in.')
       router.push('/login')
     } catch (err: unknown) {
-      const msg = (err as { message?: string }).message || 'Failed to reset password.'
+      console.error('Reset password failed:', err)
+      const msg = (err as { message?: string }).message || 'Failed to reset password. Please try again.'
       setError(msg)
     } finally {
       setIsLoading(false)
@@ -282,7 +285,7 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleResetPassword} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                New Password <span className="font-normal text-gray-400">(min. 16 characters)</span>
+                New Password <span className="font-normal text-gray-400">(min. 8 characters)</span>
               </label>
               <div className="relative">
                 <input
@@ -290,7 +293,7 @@ export default function ForgotPasswordPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(sanitizeNoWhitespace(e.target.value))}
                   maxLength={MAX_TEXT_LENGTH}
-                  placeholder="Strong password (≥16 chars)"
+                  placeholder="Strong password (≥8 chars)"
                   className="block w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] text-gray-900 bg-white text-sm"
                   required
                   disabled={isLoading}

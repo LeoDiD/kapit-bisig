@@ -341,8 +341,8 @@ export default function NewDistributionModal({
         nextCursor: data.nextCursor,
       }))
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch eligible staff'
-      setErrors((prev) => ({ ...prev, global: message }))
+      console.error('Failed to fetch eligible staff:', error)
+      setErrors((prev) => ({ ...prev, global: 'Failed to fetch eligible staff. Please try again.' }))
       setStaffData({ items: [], nextCursor: null })
     } finally {
       setIsLoadingStaff(false)
@@ -406,7 +406,7 @@ export default function NewDistributionModal({
     }
 
     const code = err.response?.code
-    const message = err.response?.message || err.message || 'Failed to create distribution'
+    const message = err.response?.message || 'Failed to create distribution. Please try again.'
 
     if (
       code === 'OUT_OF_SCOPE_STAFF' ||
@@ -493,13 +493,13 @@ export default function NewDistributionModal({
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={isCreating ? undefined : onClose} />
 
-      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-          <div className="border-b border-gray-100 px-6 py-5">
+      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-2xl">
+          <div className="border-b border-gray-100 dark:border-slate-800 px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0F533A]">Create Distribution</p>
-                <h3 className="mt-2 text-xl font-black text-gray-900">Plan a barangay relief release</h3>
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0F533A] dark:text-emerald-400">Create Distribution</p>
+                <h3 className="mt-2 text-xl font-black text-gray-900 dark:text-slate-100">Plan a barangay relief release</h3>
+                <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
                   Keep your existing distribution workflow, now styled to match the disaster event setup experience.
                 </p>
               </div>
@@ -508,7 +508,7 @@ export default function NewDistributionModal({
                 type="button"
                 onClick={onClose}
                 disabled={isCreating}
-                className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50"
+                className="rounded-full border border-gray-200 dark:border-slate-700 p-2 text-gray-500 dark:text-slate-400 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-300 disabled:opacity-50"
                 aria-label="Close"
               >
                 <XIcon />
@@ -519,12 +519,12 @@ export default function NewDistributionModal({
               {[1, 2, 3, 4].map((s) => (
                 <div
                   key={s}
-                  className={`rounded-2xl border px-4 py-3 ${s === step ? 'border-[#0F533A] bg-[#0F533A]/6' : s < step ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`}
+                  className={`rounded-2xl border px-4 py-3 ${s === step ? 'border-[#0F533A] bg-[#0F533A]/6 dark:border-[#0F533A]/50 dark:bg-[#0F533A]/30' : s < step ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/30' : 'border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800'}`}
                 >
-                  <p className={`text-[11px] font-bold uppercase tracking-[0.16em] ${s === step ? 'text-[#0F533A]' : s < step ? 'text-emerald-700' : 'text-gray-500'}`}>
+                  <p className={`text-[11px] font-bold uppercase tracking-[0.16em] ${s === step ? 'text-[#0F533A] dark:text-emerald-400' : s < step ? 'text-emerald-700 dark:text-emerald-500' : 'text-gray-500 dark:text-slate-400'}`}>
                     Step {s}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-gray-900">
+                  <p className="mt-1 text-sm font-bold text-gray-900 dark:text-slate-100">
                     {s === 1 ? 'Host' : s === 2 ? 'Coverage' : s === 3 ? 'Schedule' : 'Team'}
                   </p>
                 </div>
@@ -533,10 +533,10 @@ export default function NewDistributionModal({
           </div>
 
           <div className="space-y-4 overflow-y-auto px-6 py-5 flex-1 min-h-0" style={{ maxHeight: 'calc(92vh - 220px)' }}>
-            <div className="rounded-2xl border border-gray-200 bg-gray-50/70 px-5 py-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">{currentStepDetails.eyebrow}</p>
-              <h4 className="mt-2 text-lg font-black text-gray-900">{currentStepDetails.title}</h4>
-              <p className="mt-2 text-sm text-gray-600">{currentStepDetails.description}</p>
+            <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/50 px-5 py-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400">{currentStepDetails.eyebrow}</p>
+              <h4 className="mt-2 text-lg font-black text-gray-900 dark:text-slate-100">{currentStepDetails.title}</h4>
+              <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">{currentStepDetails.description}</p>
             </div>
 
             <div className="min-h-[280px]">
@@ -573,10 +573,10 @@ export default function NewDistributionModal({
                 <div>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-gray-700">Relief Giving Location (Host Barangay)</label>
-                    <p className="text-xs text-gray-500">Choose the main relief release point for this distribution.</p>
+                    <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200">Relief Giving Location (Host Barangay)</label>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Choose the main relief release point for this distribution.</p>
                   </div>
-                  <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-600">
+                  <span className="rounded-full border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-gray-600 dark:text-slate-300">
                     {barangay ? '1 selected' : 'Pick 1'}
                   </span>
                 </div>
@@ -595,7 +595,7 @@ export default function NewDistributionModal({
                         }}
                         className={[
                           'flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-colors',
-                          selected ? 'border-[#0F533A] bg-[#0F533A]/5 text-[#0F533A]' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+                          selected ? 'border-[#0F533A] bg-[#0F533A]/5 dark:bg-[#0F533A]/20 text-[#0F533A] dark:text-emerald-400' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700',
                         ].join(' ')}
                       >
                         <span className="flex h-5 w-5 items-center justify-center rounded-full border border-current/20">
@@ -619,10 +619,10 @@ export default function NewDistributionModal({
               <div>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-gray-700">Assigned Barangays ({MIN_ASSIGN}-{MAX_ASSIGN})</label>
-                    <p className="text-xs text-gray-500">Choose the additional barangays whose residents will claim at the selected host barangay. The host barangay is included automatically.</p>
+                    <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200">Assigned Barangays ({MIN_ASSIGN}-{MAX_ASSIGN})</label>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Choose the additional barangays whose residents will claim at the selected host barangay. The host barangay is included automatically.</p>
                   </div>
-                  <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-600">
+                  <span className="rounded-full border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-gray-600 dark:text-slate-300">
                     {assignedBarangays.length} selected
                   </span>
                 </div>
@@ -647,7 +647,7 @@ export default function NewDistributionModal({
                           disabled={disableSelect}
                           className={[
                             'flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-colors',
-                            selected ? 'border-[#0F533A] bg-[#0F533A]/5 text-[#0F533A]' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+                            selected ? 'border-[#0F533A] bg-[#0F533A]/5 dark:bg-[#0F533A]/20 text-[#0F533A] dark:text-emerald-400' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700',
                             disableSelect ? 'opacity-50 cursor-not-allowed' : '',
                           ].join(' ')}
                         >
@@ -667,7 +667,7 @@ export default function NewDistributionModal({
             {step === 3 && (
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">Scheduled Date/Time</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200">Scheduled Date/Time</label>
                   <input
                     type="datetime-local"
                     value={scheduled}
@@ -677,16 +677,16 @@ export default function NewDistributionModal({
                       setScheduled(e.target.value)
                       setErrors({})
                     }}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                    className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500"
                   />
-                  <p className="mt-1.5 text-xs text-gray-500">
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-slate-400">
                     Allowed: current month only, {DISTRIBUTION_START_HOUR}:00-{DISTRIBUTION_END_HOUR}:00, at least {SCHEDULE_MIN_LEAD_MINUTES} minutes ahead.
                   </p>
                   {errors.scheduled && <p className="mt-2 text-sm text-red-600">{errors.scheduled}</p>}
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">Notes (Optional)</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200">Notes (Optional)</label>
                   <textarea
                     value={notes}
                     onChange={(e) => {
@@ -695,9 +695,9 @@ export default function NewDistributionModal({
                     }}
                     rows={4}
                     placeholder="Add coordination notes, reminders, or release instructions."
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                    className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500 placeholder-gray-400 dark:placeholder-slate-500"
                   />
-                  <div className="mt-1.5 text-xs text-gray-500">{notes.length}/{NOTES_MAX}</div>
+                  <div className="mt-1.5 text-xs text-gray-500 dark:text-slate-400">{notes.length}/{NOTES_MAX}</div>
                   {errors.notes && <p className="mt-2 text-sm text-red-600">{errors.notes}</p>}
                 </div>
               </div>
@@ -706,26 +706,26 @@ export default function NewDistributionModal({
             {step === 4 && (
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">Assign Staff / Volunteers</label>
-                  <p className="mb-2 text-xs text-gray-500">
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200">Assign Staff / Volunteers</label>
+                  <p className="mb-2 text-xs text-gray-500 dark:text-slate-400">
                     Each selected person should cover at least one barangay in this distribution, and the whole team must cover the host plus all selected barangays.
                   </p>
                   <input
                     value={staffQuery}
                     onChange={(e) => setStaffQuery(e.target.value)}
                     placeholder="Search by name or email"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                    className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500 placeholder-gray-400 dark:placeholder-slate-500"
                   />
                 </div>
 
-                <div className="max-h-64 overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
+                <div className="max-h-64 overflow-y-auto rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm divide-y divide-gray-100 dark:divide-slate-700">
                   {isLoadingStaff ? (
-                    <div className="p-4 text-sm text-gray-600 flex items-center gap-2">
+                    <div className="p-4 text-sm text-gray-600 dark:text-slate-400 flex items-center gap-2">
                       <SpinnerIcon />
                       Loading eligible staff...
                     </div>
                   ) : staffData.items.length === 0 ? (
-                    <div className="p-4 text-sm text-gray-500">No staff found for this scope.</div>
+                    <div className="p-4 text-sm text-gray-500 dark:text-slate-400">No staff found for this scope.</div>
                   ) : (
                     staffData.items.map((staff) => {
                       const selected = assignedStaffIds.includes(staff.id)
@@ -733,27 +733,27 @@ export default function NewDistributionModal({
                         ? staff.coveredBarangays
                         : getCoveredTargets(staff.scopesSummary)
                       return (
-                        <label key={staff.id} className={`px-4 py-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${selected ? 'bg-[#0F533A]/4' : 'hover:bg-gray-50'}`}>
+                        <label key={staff.id} className={`px-4 py-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${selected ? 'bg-[#0F533A]/4 dark:bg-[#0F533A]/20' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
                           <div className="flex items-center gap-3 min-w-0">
                             <input
                               type="checkbox"
                               checked={selected}
                               onChange={() => toggleStaff(staff)}
-                              className="h-4 w-4 rounded border-gray-300 text-[#0F533A] focus:ring-[#0F533A]"
+                              className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-[#0F533A] dark:bg-slate-700 focus:ring-[#0F533A]"
                             />
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold text-gray-900 truncate">{staff.fullName}</div>
-                              <div className="text-[11px] text-gray-500 truncate">
+                              <div className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{staff.fullName}</div>
+                              <div className="text-[11px] text-gray-500 dark:text-slate-400 truncate">
                                 Covers {coveredTargets.join(', ') || 'No target barangay'}
                               </div>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[11px] font-medium">
+                            <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 text-[11px] font-medium">
                               {staff.role}
                             </span>
-                            <span className="px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-600">
+                            <span className="px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                               {coveredTargets.length} barangay{coveredTargets.length === 1 ? '' : 's'}
                             </span>
                           </div>
@@ -804,13 +804,13 @@ export default function NewDistributionModal({
             </div>
           </div>
 
-          <div className="border-t border-gray-100 px-6 py-4 bg-white shrink-0">
+          <div className="border-t border-gray-100 dark:border-slate-800 px-6 py-4 bg-white dark:bg-slate-900 shrink-0">
             <div className="flex flex-wrap justify-end gap-3">
               <button
                 type="button"
                 onClick={step === 1 ? onClose : goBack}
                 disabled={isCreating}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-slate-300 transition-colors hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50"
               >
                 {step === 1 ? 'Cancel' : 'Back'}
               </button>

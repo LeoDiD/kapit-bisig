@@ -118,16 +118,13 @@ const FAQS = [
   },
   {
     q: 'How are relief claims verified?',
-    a: 'Claims are verified through QR code scanning or face recognition at distribution sites. Each claim is recorded on the blockchain for transparency.',
+    a: 'Claims are verified through QR code scanning or face recognition at distribution sites. Each claim is recorded securely in the central database for transparency.',
   },
   {
     q: "What should I do if I can't log in?",
     a: 'Use the "Forgot Password" link on the login page to reset your password via email OTP. If issues persist, contact your system administrator.',
   },
-  {
-    q: 'How is blockchain used in the system?',
-    a: 'Every confirmed relief claim is recorded on Ethereum Sepolia, creating an immutable and auditable ledger of all distributions.',
-  },
+
 ]
 
 /* ── Components ───────────────────────────────────────── */

@@ -15,10 +15,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export type ClaimStatus =
-  | 'PENDING_CHAIN'
-  | 'CHAIN_SUBMITTED'
-  | 'CONFIRMED'
-  | 'CHAIN_FAILED';
+  | 'CONFIRMED';
 
 export type ClaimCategory = 'DISTRIBUTION' | 'DISASTER_EVENT';
 export type ResidentClaimStatus = 'Not Claimed' | 'Claimed';
@@ -47,15 +44,7 @@ export interface IClaim extends Document {
     syncedAt?: Date;
   };
   status: ClaimStatus;
-  blockchain: {
-    txHash?: string;
-    blockNumber?: number;
-    chainId?: number;
-    contractAddress?: string;
-    householdHash: string;
-    eventHash: string;
-    staffSigner?: string;
-  };
+
   errorMessage?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -142,19 +131,11 @@ const ClaimSchema = new Schema<IClaim>(
     },
     status: {
       type: String,
-      enum: ['PENDING_CHAIN', 'CHAIN_SUBMITTED', 'CONFIRMED', 'CHAIN_FAILED'],
-      default: 'PENDING_CHAIN',
+      enum: ['CONFIRMED'],
+      default: 'CONFIRMED',
       index: true,
     },
-    blockchain: {
-      txHash: { type: String, default: '' },
-      blockNumber: { type: Number, default: 0 },
-      chainId: { type: Number, default: 0 },
-      contractAddress: { type: String, default: '' },
-      householdHash: { type: String, required: true },
-      eventHash: { type: String, required: true },
-      staffSigner: { type: String, default: '' },
-    },
+
     errorMessage: {
       type: String,
       default: '',

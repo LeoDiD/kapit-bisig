@@ -25,6 +25,7 @@ import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 import { Request, Response } from 'express';
 
 const isProduction = process.env.NODE_ENV === 'production';
+const isTest = process.env.NODE_ENV === 'test';
 
 /**
  * Custom key generator for rate limiting.
@@ -55,7 +56,7 @@ const getClientIP = (req: Request): string => {
 export const generalRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
   // Keep strict defaults in production; allow higher local traffic during dev/HMR.
-  max: isProduction ? 100 : 1000,
+  max: isTest ? 10000 : isProduction ? 100 : 1000,
   message: {
     success: false,
     message: 'Too many requests. Please try again later.',
@@ -93,7 +94,7 @@ export const generalRateLimiter: RateLimitRequestHandler = rateLimit({
  */
 export const loginRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
-  max: 5, // Only 5 attempts allowed
+  max: isTest ? 10000 : 5, // Only 5 attempts allowed
   message: {
     success: false,
     message: 'Too many login attempts. Please try again later.',
@@ -126,7 +127,7 @@ export const loginRateLimiter: RateLimitRequestHandler = rateLimit({
  */
 export const registrationRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 60 * 1000, // 1-hour window
-  max: 3, // 3 registrations per hour
+  max: isTest ? 10000 : 3, // 3 registrations per hour
   message: {
     success: false,
     message: 'Too many accounts created from this IP. Please try again later.',
@@ -158,7 +159,7 @@ export const registrationRateLimiter: RateLimitRequestHandler = rateLimit({
  */
 export const passwordResetRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 60 * 1000, // 1-hour window
-  max: 3, // 3 reset requests per hour
+  max: isTest ? 10000 : 3, // 3 reset requests per hour
   message: {
     success: false,
     message: 'Too many password reset requests. Please try again later.',
@@ -186,7 +187,7 @@ export const passwordResetRateLimiter: RateLimitRequestHandler = rateLimit({
  */
 export const loginOtpRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
-  max: 3,
+  max: isTest ? 10000 : 3,
   message: {
     success: false,
     message: 'Too many OTP requests. Please try again later.',
@@ -214,7 +215,7 @@ export const loginOtpRateLimiter: RateLimitRequestHandler = rateLimit({
  */
 export const strictRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
-  max: 10, // 10 requests per window
+  max: isTest ? 10000 : 10, // 10 requests per window
   message: {
     success: false,
     message: 'Rate limit exceeded for sensitive operation.',
@@ -242,7 +243,7 @@ export const strictRateLimiter: RateLimitRequestHandler = rateLimit({
  */
 export const tokenValidationRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
-  max: 5, // Only 5 attempts allowed
+  max: isTest ? 10000 : 5, // Only 5 attempts allowed
   message: {
     success: false,
     message: 'Too many token validation attempts. Please try again later.',
@@ -276,7 +277,7 @@ export const tokenValidationRateLimiter: RateLimitRequestHandler = rateLimit({
  */
 export const householdRegistrationRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 60 * 1000, // 1-hour window
-  max: 3, // 3 registrations per hour
+  max: isTest ? 10000 : 3, // 3 registrations per hour
   message: {
     success: false,
     message: 'Too many registration attempts. Please try again later.',
@@ -303,7 +304,7 @@ export const householdRegistrationRateLimiter: RateLimitRequestHandler = rateLim
  */
 export const mobileLookupRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
-  max: 10,
+  max: isTest ? 10000 : 10,
   message: {
     success: false,
     message: 'Too many requests. Please try again later.',
@@ -333,7 +334,7 @@ export const mobileLookupRateLimiter: RateLimitRequestHandler = rateLimit({
  */
 export const tokenGenerationRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 60 * 1000, // 1-hour window
-  max: 50, // 50 tokens per hour
+  max: isTest ? 10000 : 50, // 50 tokens per hour
   message: {
     success: false,
     message: 'Token generation limit reached. Please try again later.',

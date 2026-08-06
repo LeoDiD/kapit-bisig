@@ -60,10 +60,11 @@ export default function HouseholdsPage() {
 
       setAllRows(mergedRows)
     } catch (e: unknown) {
+      console.error('Failed to fetch households:', e)
       const err = e as { status?: number; message?: string }
       if (err?.status === 401) setError('Your session has expired. Please log in again.')
       else if (err?.status === 403) setError('You do not have access to view households.')
-      else if (typeof err?.status === 'number') setError(err.message || 'Failed to fetch households.')
+      else if (typeof err?.status === 'number') setError('Failed to fetch households. Please try again.')
       else setError('Unable to connect to the server. Please make sure the backend is running.')
       setAllRows([])
     } finally {

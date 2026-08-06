@@ -199,6 +199,8 @@ export interface ReportSummaryData {
     totalClaimedHouseholds: number;
     totalUnclaimedHouseholds: number;
     claimRate: number;
+    completedToday: number;
+
   };
   distributions: ReportDistributionRow[];
   monthlyTrends: { month: string; distributions: number; claimed: number }[];
@@ -320,6 +322,20 @@ export interface BeneficiaryProofSubmissionListResponse extends PaginatedApiResp
   summary?: BeneficiaryProofQueueSummary;
 }
 
+export interface AuditLogRecord {
+  _id: string;
+  actorId: string | null;
+  actorRole: string;
+  actorName?: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown>;
+  ip: string;
+  userAgent: string;
+  createdAt: string;
+}
+
 // ========================== HELPERS ==========================
 
 /**
@@ -353,7 +369,12 @@ const createHeaders = (method: string = 'GET'): HeadersInit => {
 };
 
 /**
- * Handle API response
+ * Handle API response.
+ *
+ * Security: raw server text, HTTP status codes, and non-JSON responses are
+ * logged to the console for developer debugging only.  Error.message uses
+ * only the server's intentional JSON message or a generic fallback so that
+ * downstream UI code can safely display it without leaking system details.
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') || '';
@@ -370,13 +391,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    const fallbackMessage =
-      rawText && !isJson
-        ? rawText.slice(0, 180)
-        : `Request failed with status ${response.status}`;
-    const error = new Error(data?.message || fallbackMessage || 'An error occurred');
+    // Log raw details for developer debugging — never expose to UI
+    console.error(
+      `[API] ${response.status} ${response.url}`,
+      isJson ? data : rawText?.slice(0, 300),
+    );
+
+    // User-safe message: prefer server's intentional JSON message, else generic
+    const userMessage = data?.message || 'Something went wrong. Please try again.';
+
+    const error = new Error(userMessage);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (error as any).response = data ?? { message: fallbackMessage };
+    (error as any).response = data ?? { message: userMessage };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (error as any).status = response.status;
     throw error;
@@ -848,6 +874,34 @@ export const api = {
       credentials: 'include',
     });
     return handleResponse<ApiResponse<ReportSummaryData>>(response);
+  },
+
+  // ==================== AUDIT LOGS ====================
+
+  /**
+   * Get audit logs
+   */
+  async getAuditLogs(params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    entityType?: string;
+    actorRole?: string;
+  }): Promise<PaginatedApiResponse<AuditLogRecord[]>> {
+    const sp = new URLSearchParams();
+    if (typeof params?.page === 'number') sp.append('page', String(params.page));
+    if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+    if (params?.action) sp.append('action', params.action);
+    if (params?.entityType) sp.append('entityType', params.entityType);
+    if (params?.actorRole) sp.append('actorRole', params.actorRole);
+
+    const qs = sp.toString();
+    const url = `${API_URL}/audit-logs${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<PaginatedApiResponse<AuditLogRecord[]>>(response);
   },
 };
 

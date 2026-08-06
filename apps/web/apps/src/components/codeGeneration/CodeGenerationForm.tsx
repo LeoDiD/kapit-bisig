@@ -182,10 +182,13 @@ export default function CodeGenerationForm({
   )
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-white/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl p-6 lg:p-8 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.08)] mb-8">
+    <section className="relative z-20 rounded-[2rem] border border-white/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl p-6 lg:p-8 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.08)] mb-8">
       {/* Brand Ambient Glows */}
-      <div className="absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-[#ECC323]/20 dark:from-[#ECC323]/10 to-[#004A1C]/5 dark:to-[#004A1C]/20 rounded-full blur-[80px] pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-[#004A1C]/5 dark:bg-slate-800/80 rounded-full blur-[60px] pointer-events-none" />
+      <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-[#ECC323]/20 dark:from-[#ECC323]/10 to-[#004A1C]/5 dark:to-[#004A1C]/20 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-[#004A1C]/5 dark:bg-slate-800/80 rounded-full blur-[60px] pointer-events-none" />
+      </div>
+
       
       <div className="relative z-10">
         <div className="flex flex-col lg:flex-row lg:items-end gap-6">

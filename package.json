@@ -12,7 +12,8 @@
     "install:all": "npm install && cd apps/web/apps && npm install && cd ../../../mobile && npm install",
     "build:web": "cd apps/web/apps && npm run build",
     "test:auth:newman": "npx newman run docs/postman/KapitBisig_Auth_Security.postman_collection.json -e docs/postman/KapitBisig_Local.postman_environment.json --reporters cli",
-    "test:auth:newman:insecure": "npx newman run docs/postman/KapitBisig_Auth_Security.postman_collection.json -e docs/postman/KapitBisig_Local.postman_environment.json --reporters cli --insecure"
+    "test:auth:newman:insecure": "npx newman run docs/postman/KapitBisig_Auth_Security.postman_collection.json -e docs/postman/KapitBisig_Local.postman_environment.json --reporters cli --insecure",
+    "test:api:phase3": "cd apps/web/apps/server && npx tsx test/runPhase3NewmanTests.ts"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

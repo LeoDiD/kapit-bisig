@@ -254,7 +254,7 @@ export default function UsersTable() {
             </div>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-gray-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+              className="inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:scale-[1.02] hover:bg-gray-800 hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)] dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
             >
               + New Staff
             </button>
@@ -272,7 +272,7 @@ export default function UsersTable() {
                 placeholder="Search by name or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(sanitizeAsciiText(e.target.value))}
-                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors hover:border-[#004A1C]/30 hover:bg-slate-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50"
               />
             </div>
 
@@ -285,7 +285,7 @@ export default function UsersTable() {
                     setBarangayDropdownOpen(false)
                     setStatusDropdownOpen((v) => !v)
                   }}
-                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
+                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-slate-50 hover:text-[#004A1C] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]"
                 >
                   <span className="truncate">{selectedStatusLabel}</span>
                   <ChevronDownIcon />
@@ -312,7 +312,7 @@ export default function UsersTable() {
                     setStatusDropdownOpen(false)
                     setBarangayDropdownOpen((v) => !v)
                   }}
-                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
+                  className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-slate-50 hover:text-[#004A1C] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]"
                 >
                   <span className="truncate">{selectedBarangayLabel}</span>
                   <ChevronDownIcon />
@@ -340,7 +340,7 @@ export default function UsersTable() {
                     setFilterStatus('all')
                     setFilterBarangay('all')
                   }}
-                  className="inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
+                  className="inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]"
                 >
                   Clear ({activeFilterCount})
                 </button>
@@ -367,7 +367,7 @@ export default function UsersTable() {
             </div>
           ) : (
             <table className="w-full min-w-[950px] border-collapse text-left">
-              <thead className="border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500">
+              <thead className="border-b border-gray-200 bg-white text-xs font-bold uppercase tracking-wider text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
                 <tr>
                   <th className="px-6 py-4">Staff Member</th>
                   <th className="px-6 py-4">Contact Email</th>
@@ -379,22 +379,22 @@ export default function UsersTable() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-gray-100 bg-white text-sm">
+              <tbody className="divide-y divide-gray-100 bg-white text-sm dark:divide-slate-800 dark:bg-transparent">
                 {users.length > 0 ? (
                   users.map((u) => (
-                    <tr key={u.id} className="group transition-colors hover:bg-gray-50/70">
-                      <td className="px-6 py-4 text-gray-900 font-bold whitespace-normal break-words">
+                    <tr key={u.id} className="group transition-colors hover:bg-gray-50/70 dark:hover:bg-slate-800/50">
+                      <td className="px-6 py-4 text-gray-900 dark:text-slate-100 font-bold whitespace-normal break-words">
                         <div className="flex items-center gap-4">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-600">
                             {((u.firstName || u.fullName || 'S').charAt(0)).toUpperCase()}
                           </div>
-                          <span className="font-bold text-gray-900">
+                          <span className="font-bold text-gray-900 dark:text-slate-100">
                             {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.fullName || '--'}
                           </span>
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal break-words">
+                      <td className="px-6 py-4 text-gray-600 dark:text-slate-300 font-medium whitespace-normal break-words">
                         {u.email || '--'}
                       </td>
 
@@ -402,7 +402,7 @@ export default function UsersTable() {
                         <StatusBadge status={getAccountStatus(u)} />
                       </td>
 
-                      <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal">
+                      <td className="px-6 py-4 text-gray-600 dark:text-slate-300 font-medium whitespace-normal">
                         {formatDate(u.createdAt)}
                       </td>
 
@@ -410,7 +410,7 @@ export default function UsersTable() {
                         <div className="inline-block" data-row-menu>
                           <button
                             onClick={(e) => toggleRowDropdown(u.id, e)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-gray-50 hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 md:opacity-0 md:group-hover:opacity-100"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-sm transition-all duration-300 hover:border-[#004A1C]/30 hover:bg-slate-50 hover:text-[#004A1C] focus:outline-none focus:ring-2 focus:ring-[#004A1C]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323] dark:focus:ring-[#ECC323]/20"
                           >
                             Manage <ChevronDownIcon />
                           </button>
@@ -440,9 +440,9 @@ export default function UsersTable() {
             left: dropdownPosition.left,
             zIndex: 9999,
           }}
-          className="w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+          className="w-52 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
         >
-          <div className="py-2 flex flex-col">
+          <div className="flex flex-col gap-1">
             {users.find((u) => u.id === activeDropdown)?.isActive ? (
               <MenuItem icon={<DeactivateIcon className="w-4 h-4" />} label="Deactivate Account" onClick={() => handleToggleActive(activeDropdown, true)} />
             ) : (
@@ -495,7 +495,7 @@ function DropdownMenu({
   return (
     <div
       ref={menuRef}
-      className={`absolute right-0 top-full z-50 mt-1.5 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg ${
+      className={`absolute right-0 top-full z-50 mt-1.5 max-h-60 overflow-y-auto rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)] ${
         wide ? 'w-[120%]' : 'w-full'
       }`}
     >
@@ -505,12 +505,14 @@ function DropdownMenu({
           <button
             key={opt.value}
             onClick={() => onSelect(opt.value)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-              isSelected ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-50 font-medium'
+            className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors ${
+              isSelected ? 'bg-[#EAB308] text-gray-900 font-medium' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700 font-medium'
             }`}
           >
+            <span className="w-5 flex items-center justify-center">
+              {isSelected ? <CheckIcon className="w-4 h-4" /> : null}
+            </span>
             <span className="truncate">{opt.label}</span>
-            {isSelected && <CheckIcon className="w-4 h-4" />}
           </button>
         )
       })}
@@ -531,15 +533,15 @@ function MenuItem({
 }) {
   const textColor =
     variant === 'danger'
-      ? 'text-red-600 hover:bg-red-50'
+      ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10'
       : variant === 'success'
-        ? 'text-emerald-600 hover:bg-emerald-50'
-        : 'text-gray-700 hover:bg-gray-50'
+        ? 'text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10'
+        : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700'
 
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center gap-3 transition-colors ${textColor}`}
+      className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-colors ${textColor}`}
     >
       <span className="opacity-80">{icon}</span>
       {label}
@@ -552,7 +554,7 @@ function StatusBadge({ status }: { status: AccountStatus }) {
     return (
       <div className="flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        <span className="text-sm font-medium text-slate-700">Active</span>
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Active</span>
       </div>
     )
   }
@@ -561,14 +563,14 @@ function StatusBadge({ status }: { status: AccountStatus }) {
     return (
       <div className="flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-        <span className="text-sm font-medium text-slate-500">Pending</span>
+        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending</span>
       </div>
     )
   }
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm font-medium text-slate-400">Inactive</span>
+      <span className="text-sm font-medium text-slate-400 dark:text-slate-500">Inactive</span>
     </div>
   )
 }

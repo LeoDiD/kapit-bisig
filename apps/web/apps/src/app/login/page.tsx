@@ -102,6 +102,7 @@ export default function LoginPage() {
 
       await completeLogin()
     } catch (err: unknown) {
+      console.error('Login failed:', err)
       const parsed = err as { message?: string }
       const msg = parsed.message || ''
       if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
@@ -125,8 +126,9 @@ export default function LoginPage() {
       await resendLoginOtp(otpToken)
       showToast.success('A new verification code has been sent.')
     } catch (err: unknown) {
+      console.error('Resend login OTP failed:', err)
       const parsed = err as { message?: string }
-      const msg = parsed.message || 'Failed to resend verification code.'
+      const msg = parsed.message || 'Failed to resend verification code. Please try again.'
       setError(msg)
       showToast.error(msg)
     } finally {
@@ -214,7 +216,7 @@ export default function LoginPage() {
           <div className="grid grid-cols-2 gap-4 max-w-md w-full">
             <FeatureCard title="Precise" description="Data Driven aid Delivery" />
             <FeatureCard title="Equitable" description="Fairness Through AI Prioritization" />
-            <FeatureCard title="Transparent" description="Blockchain-verified relief Tracking" />
+            <FeatureCard title="Transparent" description="Digital relief Tracking" />
             <FeatureCard title="Resilient" description="Strengthening LGU disaster response" />
           </div>
         </div>
