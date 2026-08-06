@@ -12,6 +12,7 @@
 import { Router, Response } from 'express';
 import mongoose from 'mongoose';
 import Distribution from '../models/Distribution';
+import DisasterEvent from '../models/DisasterEvent';
 import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
 import StaffUser from '../models/StaffUser';
@@ -26,6 +27,7 @@ import { logAudit } from '../utils/audit';
 import { broadcastResidentNotification, broadcastScopedNotification } from '../utils/createNotification';
 import {
   countRegisteredHouseholdsForDistribution,
+  enrollApprovedResidentsInDistribution,
   getEligibleResidentIdsByDistribution,
   getTargetBarangays,
   requiresBeneficiaryApproval,
@@ -140,7 +142,7 @@ router.post(
         });
       }
 
-      const { barangay, assignedBarangays, assignedStaffIds, scheduled, notes } = parsed.data;
+      const { disasterEventId, barangay, assignedBarangays, assignedStaffIds, scheduled, notes } = parsed.data;
 
       cleanIdempotencyStore();
       const idempotencyKeyHeader = req.header('Idempotency-Key')?.trim();
@@ -239,7 +241,36 @@ router.post(
 
       const targetBarangays = getTargetBarangays(barangay, assignedBarangays);
 
+      const disasterEvent = await DisasterEvent.findById(disasterEventId)
+        .select('_id name status barangays')
+        .lean();
+      if (!disasterEvent) {
+        return res.status(404).json({
+          success: false,
+          code: 'DISASTER_EVENT_NOT_FOUND',
+          message: 'Disaster event not found.',
+        });
+      }
+      if (disasterEvent.status !== 'Active') {
+        return res.status(409).json({
+          success: false,
+          code: 'DISASTER_EVENT_NOT_ACTIVE',
+          message: 'Distributions can only be created for an active disaster event.',
+        });
+      }
+
+      const uncoveredByEvent = targetBarangays.filter((target) => !disasterEvent.barangays.includes(target));
+      if (uncoveredByEvent.length > 0) {
+        return res.status(400).json({
+          success: false,
+          code: 'EVENT_BARANGAY_MISMATCH',
+          message: 'Every distribution barangay must be covered by the selected disaster event.',
+          uncoveredBarangays: uncoveredByEvent,
+        });
+      }
+
       const distribution = new Distribution({
+        disasterEventId: disasterEvent._id,
         barangay,
         assignedBarangays,
         assignedStaffIds: uniqueStaffIds,
@@ -253,16 +284,20 @@ router.post(
 
       await distribution.save();
 
+      const enrollment = await enrollApprovedResidentsInDistribution(distribution);
       distribution.households = await countRegisteredHouseholdsForDistribution(distribution);
       await distribution.save();
 
       await logAudit(req, 'DISTRIBUTION_CREATED', 'Distribution', distribution._id.toString(), {
         barangay,
+        disasterEventId: disasterEvent._id.toString(),
+        disasterEventName: disasterEvent.name,
         assignedBarangays,
         scheduled,
         householdsDerived: distribution.households,
         requiresBeneficiaryApproval: true,
         assignedStaffCount: uniqueStaffIds.length,
+        automaticallyEnrolledResidents: enrollment.matchedResidents,
       });
 
       // Notify staff assigned to the covered barangays.
@@ -292,8 +327,9 @@ router.post(
 
       res.status(201).json({
         success: true,
-        message: 'Distribution created successfully',
+        message: `Distribution created successfully with ${enrollment.matchedResidents} automatically enrolled resident${enrollment.matchedResidents === 1 ? '' : 's'}.`,
         data: distribution.toJSON(),
+        enrollment,
       });
 
       if (idempotencyKeyHeader) {
@@ -304,8 +340,9 @@ router.post(
           distributionId: distribution._id.toString(),
           response: {
             success: true,
-            message: 'Distribution created successfully',
+            message: `Distribution created successfully with ${enrollment.matchedResidents} automatically enrolled resident${enrollment.matchedResidents === 1 ? '' : 's'}.`,
             data: distribution.toJSON(),
+            enrollment,
           },
         });
       }

@@ -19,7 +19,7 @@ import { resolveApiBaseUrl } from '../config/apiSecurity';
 // ============================================
 
 // Default API URL - Update this with your server IP
-const DEFAULT_API_URL = 'http://192.168.1.72:8000';
+const DEFAULT_API_URL = 'http://192.168.1.4:8000';
 
 // Get API URL from environment or use default
 const API_BASE_URL = resolveApiBaseUrl(
@@ -129,15 +129,15 @@ async function apiRequest<T>(
     return await response.json();
   } catch (error: any) {
     clearTimeout(timeoutId);
-    
+
     if (error.name === 'AbortError') {
       throw new Error('Request timeout. Please check your connection.');
     }
-    
+
     if (error.message?.includes('Network request failed')) {
       throw new Error('Unable to connect to server. Please check if the backend is running.');
     }
-    
+
     throw error;
   }
 }

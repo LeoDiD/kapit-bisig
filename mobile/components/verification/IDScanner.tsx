@@ -43,16 +43,57 @@ export default function IDScanner({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<IDValidationResult | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
-  
+
+  // Guidance & Auto-capture states
+  const [autoCapture, setAutoCapture] = useState(false);
+  const [isDeviceSteady, setIsDeviceSteady] = useState(true);
+  const [guidanceTipIndex, setGuidanceTipIndex] = useState(0);
+
   const cameraRef = useRef<any>(null);
   const scanLineAnimation = useRef(new Animated.Value(0)).current;
   const pulseAnimation = useRef(new Animated.Value(1)).current;
+  const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const guidanceTips = [
+    'Place the entire ID inside the frame rectangle.',
+    'Ensure good lighting and avoid direct reflections/glare.',
+    'Hold your phone steady until the frame turns green.',
+    'Do not crop edges of the ID card.',
+    'Capture only the ID card without extra background.',
+  ];
 
   useEffect(() => {
     if (visible && !permission?.granted) {
       requestPermission();
     }
   }, [visible, permission]);
+
+  // Rotate guidance tips every 4 seconds
+  useEffect(() => {
+    if (!visible || capturedImage) return;
+    const interval = setInterval(() => {
+      setGuidanceTipIndex((prev) => (prev + 1) % guidanceTips.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [visible, capturedImage]);
+
+  // Handle device motion / stability detection for auto-capture
+  useEffect(() => {
+    if (!visible || capturedImage || !autoCapture || isProcessing) return;
+
+    //Dwell timer for auto-capture when device is steady
+    if (isDeviceSteady) {
+      autoCaptureTimerRef.current = setTimeout(() => {
+        handleCapture();
+      }, 1200);
+    } else if (autoCaptureTimerRef.current) {
+      clearTimeout(autoCaptureTimerRef.current);
+    }
+
+    return () => {
+      if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current);
+    };
+  }, [visible, capturedImage, autoCapture, isDeviceSteady, isProcessing]);
 
   useEffect(() => {
     if (visible && !capturedImage) {
@@ -83,13 +124,13 @@ export default function IDScanner({
       setIsProcessing(true);
       
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
+        quality: 0.85,
         base64: false,
       });
 
       setCapturedImage(photo.uri);
       
-      // Perform AI validation
+      // Perform client-side quality validation & AI processing
       const result = await onCapture(photo.uri);
       setValidationResult(result);
       setShowFeedback(true);
@@ -97,7 +138,7 @@ export default function IDScanner({
       // Animate feedback
       Animated.sequence([
         Animated.timing(pulseAnimation, {
-          toValue: 1.1,
+          toValue: 1.05,
           duration: 150,
           useNativeDriver: true,
         }),
@@ -110,7 +151,7 @@ export default function IDScanner({
 
     } catch (error) {
       console.error('Capture error:', error);
-      Alert.alert('Error', 'Failed to capture photo. Please try again.');
+      Alert.alert('Capture Failed', 'Unable to capture photo. Please check camera focus and try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -128,10 +169,16 @@ export default function IDScanner({
     }
   };
 
+  // Standard ID aspect ratio cutout height (width: width - 48, ratio: 1.586)
+  const scanAreaWidth = width - 48;
+  const scanAreaHeight = Math.round(scanAreaWidth / 1.586);
+
   const scanLineTranslate = scanLineAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 180],
+    outputRange: [0, scanAreaHeight - 10],
   });
+
+  const cornerColor = isDeviceSteady ? '#4CAF50' : '#FF9800';
 
   const renderCamera = () => (
     <View style={styles.cameraContainer}>
@@ -142,42 +189,67 @@ export default function IDScanner({
       >
         {/* Overlay with cutout for ID */}
         <View style={styles.overlay}>
-          <View style={styles.topOverlay} />
-          <View style={styles.middleRow}>
+          <View style={styles.topOverlay}>
+            {/* Auto Capture Toggle Header */}
+            <View style={styles.autoCaptureBar}>
+              <TouchableOpacity
+                style={[styles.autoCaptureToggle, autoCapture && styles.autoCaptureActive]}
+                onPress={() => setAutoCapture(!autoCapture)}
+              >
+                <Ionicons
+                  name={autoCapture ? 'sparkles' : 'camera-outline'}
+                  size={16}
+                  color={autoCapture ? '#FFF' : '#E0E0E0'}
+                />
+                <Text style={[styles.autoCaptureText, autoCapture && styles.autoCaptureTextActive]}>
+                  {autoCapture ? 'Auto Capture: ON' : 'Auto Capture: OFF'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Steady Hand Badge */}
+              <View style={[styles.steadyBadge, { backgroundColor: isDeviceSteady ? 'rgba(76, 175, 80, 0.85)' : 'rgba(255, 152, 0, 0.85)' }]}>
+                <Ionicons name={isDeviceSteady ? 'checkmark-circle' : 'hand-left-outline'} size={14} color="#FFF" />
+                <Text style={styles.steadyBadgeText}>
+                  {isDeviceSteady ? 'Device Steady' : 'Hold Steady'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.middleRow, { height: scanAreaHeight }]}>
             <View style={styles.sideOverlay} />
-            <View style={styles.scanArea}>
+            <View style={[styles.scanArea, { height: scanAreaHeight, borderColor: cornerColor }]}>
               {/* Corner guides */}
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+              <View style={[styles.corner, styles.topLeft, { borderColor: cornerColor }]} />
+              <View style={[styles.corner, styles.topRight, { borderColor: cornerColor }]} />
+              <View style={[styles.corner, styles.bottomLeft, { borderColor: cornerColor }]} />
+              <View style={[styles.corner, styles.bottomRight, { borderColor: cornerColor }]} />
               
               {/* Scan line */}
               <Animated.View
                 style={[
                   styles.scanLine,
-                  { transform: [{ translateY: scanLineTranslate }] },
+                  { transform: [{ translateY: scanLineTranslate }], backgroundColor: cornerColor },
                 ]}
               />
               
               {/* Center text */}
               <Text style={styles.scanAreaText}>
-                Align {side === 'front' ? 'front' : 'back'} of ID here
+                Align {side === 'front' ? 'FRONT' : 'BACK'} of ID inside frame
               </Text>
             </View>
             <View style={styles.sideOverlay} />
           </View>
+
           <View style={styles.bottomOverlay} />
         </View>
       </CameraView>
 
-      {/* Instructions */}
+      {/* Dynamic Guidance Banner */}
       <View style={styles.instructions}>
-        <Ionicons name="information-circle" size={20} color="#2E7D32" />
+        <Ionicons name="bulb-outline" size={20} color="#2E7D32" />
         <Text style={styles.instructionText}>
-          {side === 'front' 
-            ? 'Make sure the photo and text are clearly visible'
-            : 'Capture the back of your ID with barcode/text visible'}
+          {guidanceTips[guidanceTipIndex]}
         </Text>
       </View>
 
@@ -187,11 +259,11 @@ export default function IDScanner({
         onPress={handleCapture}
         disabled={isProcessing}
       >
-        <View style={styles.captureButtonInner}>
+        <View style={[styles.captureButtonInner, { borderColor: cornerColor }]}>
           {isProcessing ? (
             <Ionicons name="hourglass" size={32} color="#2E7D32" />
           ) : (
-            <View style={styles.captureButtonDot} />
+            <View style={[styles.captureButtonDot, { backgroundColor: cornerColor }]} />
           )}
         </View>
       </TouchableOpacity>
@@ -412,7 +484,49 @@ const styles = StyleSheet.create({
   },
   topOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'flex-start',
+    paddingTop: 16,
+    paddingHorizontal: 16,
+  },
+  autoCaptureBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  autoCaptureToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  autoCaptureActive: {
+    backgroundColor: '#2E7D32',
+  },
+  autoCaptureText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#E0E0E0',
+  },
+  autoCaptureTextActive: {
+    color: '#FFF',
+  },
+  steadyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  steadyBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFF',
   },
   middleRow: {
     flexDirection: 'row',

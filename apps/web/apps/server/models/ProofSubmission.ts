@@ -135,7 +135,7 @@ const ProofSubmissionSchema = new Schema<IProofSubmission>(
   },
 );
 
-ProofSubmissionSchema.pre('validate', function(next) {
+ProofSubmissionSchema.pre('validate', function (next) {
   const currentUrls = Array.isArray(this.photoProofUrls) ? this.photoProofUrls.filter(Boolean) : [];
   const firstUrl = String(this.photoProofUrl || '').trim();
 

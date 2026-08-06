@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 const API_BASE_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://192.168.1.72:3001/api',
+  'http://192.168.1.4:3001/api',
   'ResidentQrService',
 );
 
@@ -32,11 +32,13 @@ export interface ResidentQrData {
   issuedAt: string;
   resident: {
     fullName: string;
+    avatarUrl?: string | null;
     barangay: string;
     city: string;
     streetAddress: string;
     status: string;
     qrStatus?: string;
+    verificationStatus?: string;
     createdAt: string;
   };
 }
@@ -147,6 +149,24 @@ export type ResidentQueuedProofSubmission = ResidentProofSubmissionPayload & {
   syncStatus: 'Pending Sync' | 'Failed';
   lastError?: string;
 };
+
+export interface ResidentProofSubmissionStatus {
+  id: string;
+  status: 'Pending Sync' | 'Pending Verification' | 'Approved' | 'Rejected';
+  rejectionReason?: string;
+  damageType: string;
+  photoCount: number;
+  dateSubmitted: string;
+  reviewedAt?: string | null;
+  submissionVersion: number;
+  automaticallyEnrolled: boolean;
+  event?: {
+    id: string;
+    name: string;
+    disasterType: string;
+    status: string;
+  } | null;
+}
 
 interface ApiResponse<T> {
   success: boolean;
@@ -303,7 +323,13 @@ export async function fetchResidentQr(token: string): Promise<{ success: boolean
 
     return {
       success: true,
-      data: payload.data,
+      data: {
+        ...payload.data,
+        resident: {
+          ...payload.data.resident,
+          avatarUrl: toAbsoluteAssetUrl(payload.data.resident.avatarUrl),
+        },
+      },
     };
   } catch {
     return {
@@ -616,6 +642,29 @@ export async function fetchActiveBeneficiaryEvent(
   }
 }
 
+export async function fetchResidentProofSubmissionStatus(
+  token: string,
+  disasterEventId: string,
+): Promise<{ success: boolean; message?: string; data?: ResidentProofSubmissionStatus | null }> {
+  try {
+    const query = encodeURIComponent(disasterEventId);
+    const response = await fetch(`${API_BASE_URL}/beneficiaries/proof-submissions/me?disasterEventId=${query}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const payload = await parseApiResponse<ResidentProofSubmissionStatus | null>(response);
+    if (!response.ok || !payload.success) {
+      return { success: false, message: payload.message || 'Failed to load proof status.' };
+    }
+    return { success: true, data: payload.data ?? null };
+  } catch {
+    return { success: false, message: 'Network error while loading proof status.' };
+  }
+}
+
 export async function fetchOpenBeneficiaryDistributions(
   token: string
 ): Promise<{ success: boolean; message?: string; data?: ResidentBeneficiaryDistribution[] }> {
@@ -907,6 +956,3 @@ export async function residentForgotPasswordReset(
     };
   }
 }
-
-
-

@@ -75,6 +75,8 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const { default: Claim } = await import('../models/Claim');
     const { default: DistributionClaim } = await import('../models/DistributionClaim');
     const { default: BeneficiaryEligibility } = await import('../models/BeneficiaryEligibility');
+    const { default: DisasterEvent } = await import('../models/DisasterEvent');
+    const { syncResidentEnrollmentsForEvent } = await import('../services/distributionFlowService');
 
     const staff = await StaffUser.create({
       email: 'staff-int@example.com',
@@ -120,10 +122,38 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const resA = await Resident.create(buildResidentPayload(1, 'Bolo'));
     const resB = await Resident.create(buildResidentPayload(2, 'Dulig'));
     const outOfAreaResident = await Resident.create(buildResidentPayload(3, 'Uyong'));
+    const lateApprovedResident = await Resident.create(buildResidentPayload(4, 'Bolo'));
+    const disasterEvent = await DisasterEvent.create({
+      name: 'Typhoon Integration',
+      disasterType: 'Typhoon',
+      barangays: ['Bolo', 'Bongalon', 'Dulig', 'San Jose'],
+      eventDate: new Date(),
+      status: 'Active',
+    });
+
+    await BeneficiaryEligibility.create([
+      {
+        residentId: resA._id,
+        disasterEventId: disasterEvent._id,
+        proofSubmissionId: new mongoose.Types.ObjectId(),
+        status: 'Eligible',
+        registrationStatus: 'Approved',
+        proofStatus: 'Approved',
+      },
+      {
+        residentId: resB._id,
+        disasterEventId: disasterEvent._id,
+        proofSubmissionId: new mongoose.Types.ObjectId(),
+        status: 'Eligible',
+        registrationStatus: 'Approved',
+        proofStatus: 'Approved',
+      },
+    ]);
 
     const createResponse = await request(app)
       .post('/api/distributions')
       .send({
+        disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
         assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
         scheduled: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
@@ -134,10 +164,40 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const distributionId = createResponse.body?.data?.id as string;
     assert.ok(distributionId);
     assert.strictEqual(createResponse.body?.data?.requiresBeneficiaryApproval, true);
+    assert.strictEqual(createResponse.body?.enrollment?.matchedResidents, 2);
+    assert.strictEqual(await BeneficiaryEligibility.countDocuments({
+      distributionId: new mongoose.Types.ObjectId(distributionId),
+      status: 'Eligible',
+    }), 2);
+
+    const lateProofSubmissionId = new mongoose.Types.ObjectId();
+    await BeneficiaryEligibility.create({
+      residentId: lateApprovedResident._id,
+      disasterEventId: disasterEvent._id,
+      proofSubmissionId: lateProofSubmissionId,
+      status: 'Eligible',
+      registrationStatus: 'Approved',
+      proofStatus: 'Approved',
+    });
+    const syncedAfterApproval = await syncResidentEnrollmentsForEvent({
+      residentId: lateApprovedResident._id,
+      disasterEventId: disasterEvent._id,
+      proofSubmissionId: lateProofSubmissionId,
+      registrationStatus: 'Approved',
+      proofStatus: 'Approved',
+      reviewedAt: new Date(),
+    });
+    assert.strictEqual(syncedAfterApproval, 1);
+    assert.ok(await BeneficiaryEligibility.exists({
+      residentId: lateApprovedResident._id,
+      distributionId: new mongoose.Types.ObjectId(distributionId),
+      status: 'Eligible',
+    }));
 
     const splitCoverageCreate = await request(app)
       .post('/api/distributions')
       .send({
+        disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
         assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
         scheduled: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
@@ -149,6 +209,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const insufficientCoverageCreate = await request(app)
       .post('/api/distributions')
       .send({
+        disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
         assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
         scheduled: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
@@ -183,31 +244,15 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     await createTokenForResident('ABCD-EFGH-IJKL', resA);
     await createTokenForResident('MNOP-QRST-UVWX', resB);
     await createTokenForResident('WXYZ-1234-ABCD', outOfAreaResident);
+    await createTokenForResident('LATE-3333-DDDD', lateApprovedResident);
     await createTokenForResident('ZZZZ-1111-AAAA', resA);
     await createTokenForResident('BBBB-2222-CCCC', resA);
-
-    await BeneficiaryEligibility.create([
-      {
-        residentId: resA._id,
-        distributionId: new mongoose.Types.ObjectId(distributionId),
-        status: 'Eligible',
-        registrationStatus: 'Approved',
-        proofStatus: 'Approved',
-      },
-      {
-        residentId: resB._id,
-        distributionId: new mongoose.Types.ObjectId(distributionId),
-        status: 'Eligible',
-        registrationStatus: 'Approved',
-        proofStatus: 'Approved',
-      },
-    ]);
 
     const householdsResponse = await request(app)
       .get(`/api/distributions/${distributionId}/households`);
     assert.strictEqual(householdsResponse.status, 200);
-    assert.strictEqual(householdsResponse.body?.data?.totals?.registered, 2);
-    assert.strictEqual(householdsResponse.body?.data?.totals?.notYetClaimed, 2);
+    assert.strictEqual(householdsResponse.body?.data?.totals?.registered, 3);
+    assert.strictEqual(householdsResponse.body?.data?.totals?.notYetClaimed, 3);
 
     const outOfAreaClaim = await request(app)
       .post('/api/claims/record-claim')
@@ -238,9 +283,19 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       });
     assert.strictEqual(claim2.status, 201);
 
+    const lateApprovedClaim = await request(app)
+      .post('/api/claims/record-claim')
+      .send({
+        claimToken: 'LATE-3333-DDDD',
+        distributionId,
+        distributionSite: 'Bolo Covered Court',
+      });
+    assert.strictEqual(lateApprovedClaim.status, 201);
+
     const secondDistributionResponse = await request(app)
       .post('/api/distributions')
       .send({
+        disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
         assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
         scheduled: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
@@ -251,40 +306,19 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const secondDistributionId = secondDistributionResponse.body?.data?.id as string;
     assert.ok(secondDistributionId);
 
-    const blockedWithoutNewApproval = await request(app)
+    const claimFromAutomaticEnrollment = await request(app)
       .post('/api/claims/record-claim')
       .send({
         claimToken: 'ZZZZ-1111-AAAA',
         distributionId: secondDistributionId,
         distributionSite: 'Bolo Covered Court',
       });
-    assert.strictEqual(blockedWithoutNewApproval.status, 403);
-    assert.match(
-      String(blockedWithoutNewApproval.body?.message || ''),
-      /approved target beneficiary/i,
-    );
-
-    await BeneficiaryEligibility.create({
-      residentId: resA._id,
-      distributionId: new mongoose.Types.ObjectId(secondDistributionId),
-      status: 'Eligible',
-      registrationStatus: 'Approved',
-      proofStatus: 'Approved',
-    });
-
-    const claimAfterNewApproval = await request(app)
-      .post('/api/claims/record-claim')
-      .send({
-        claimToken: 'BBBB-2222-CCCC',
-        distributionId: secondDistributionId,
-        distributionSite: 'Bolo Covered Court',
-      });
-    assert.strictEqual(claimAfterNewApproval.status, 201);
+    assert.strictEqual(claimFromAutomaticEnrollment.status, 201);
 
     await waitFor(
       'distribution claim sync',
       async () => DistributionClaim.countDocuments({ distributionId: new mongoose.Types.ObjectId(distributionId) }),
-      (count) => count === 2,
+      (count) => count === 3,
     );
 
     const dist = await waitFor(

@@ -1,13 +1,6 @@
 /**
  * Backend API Service for AI Verification
- * This service handles communication with the backend for OCR and face recognition
- * 
- * PRODUCTION SETUP:
- * You'll need to deploy a backend server with:
- * 1. Tesseract OCR for ID text extraction
- * 2. face-api.js for face detection and matching
- * 
- * See: backend/README.md for setup instructions
+ * Handles communication with the backend for OCR, face recognition, and process ID verification
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
@@ -21,10 +14,9 @@ const EncodingType = {
 
 // Configuration
 const API_CONFIG = {
-  // Replace with your actual backend URL
   baseUrl: resolveApiBaseUrl(
     process.env.EXPO_PUBLIC_API_URL,
-    'http://192.168.1.72:3001/api',
+    'http://192.168.1.4:3001/api',
     'VerificationAPIService',
   ),
   timeout: 30000, // 30 seconds for AI processing
@@ -121,7 +113,7 @@ class VerificationAPIService {
   async performOCR(imageUri: string, language: string = 'eng+fil'): Promise<OCRResult> {
     try {
       const base64 = await this.imageToBase64(imageUri);
-      
+
       const response = await this.fetchWithTimeout(`${this.baseUrl}/verification/ocr`, {
         method: 'POST',
         headers: {
@@ -156,7 +148,7 @@ class VerificationAPIService {
   async detectFaces(imageUri: string): Promise<FaceDetectionAPIResult> {
     try {
       const base64 = await this.imageToBase64(imageUri);
-      
+
       const response = await this.fetchWithTimeout(`${this.baseUrl}/face/detect`, {
         method: 'POST',
         headers: {
@@ -191,7 +183,7 @@ class VerificationAPIService {
         this.imageToBase64(image1Uri),
         this.imageToBase64(image2Uri),
       ]);
-      
+
       const response = await this.fetchWithTimeout(`${this.baseUrl}/face/compare`, {
         method: 'POST',
         headers: {
@@ -228,7 +220,7 @@ class VerificationAPIService {
       const base64Frames = await Promise.all(
         frames.map(uri => this.imageToBase64(uri))
       );
-      
+
       const response = await this.fetchWithTimeout(`${this.baseUrl}/face/liveness`, {
         method: 'POST',
         headers: {
@@ -260,6 +252,75 @@ class VerificationAPIService {
   }
 
   /**
+   * Process ID verification with client quality, OCR, fuzzy matching, and decision engine
+   */
+  async processIDVerification(data: {
+    frontIdImage: string;
+    backIdImage?: string;
+    idType: string;
+    userEnteredIdNumber: string;
+    userEnteredFullName?: string;
+    clientQualityScore?: number;
+  }): Promise<{
+    success: boolean;
+    decision: 'PASS' | 'REVIEW' | 'BLOCK';
+    finalScore: number;
+    scoreBreakdown: {
+      imageQualityScore: number;
+      ocrConfidenceScore: number;
+      documentMatchScore: number;
+      idNumberMatchScore: number;
+    };
+    extractedData: any;
+    feedbackMessage: string;
+    warnings: string[];
+    errors: string[];
+  }> {
+    try {
+      const frontBase64 = await this.imageToBase64(data.frontIdImage);
+      const backBase64 = data.backIdImage ? await this.imageToBase64(data.backIdImage) : undefined;
+
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/verification/process-id`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          frontIdImage: frontBase64,
+          backIdImage: backBase64,
+          idType: data.idType,
+          userEnteredIdNumber: data.userEnteredIdNumber,
+          userEnteredFullName: data.userEnteredFullName,
+          clientQualityScore: data.clientQualityScore ?? 100,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Process ID verification request failed with status ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('[VerificationAPI] Process ID verification error:', error);
+      return {
+        success: false,
+        decision: 'REVIEW',
+        finalScore: 50,
+        scoreBreakdown: {
+          imageQualityScore: data.clientQualityScore ?? 50,
+          ocrConfidenceScore: 0,
+          documentMatchScore: 50,
+          idNumberMatchScore: 50,
+        },
+        extractedData: null,
+        feedbackMessage: 'Verification requires manual administrative review due to connection or image issues.',
+        warnings: ['Failed to reach automated OCR server. Relegated to manual review queue.'],
+        errors: [],
+      };
+    }
+  }
+
+  /**
    * Full verification request
    */
   async performFullVerification(data: {
@@ -285,7 +346,7 @@ class VerificationAPIService {
         this.imageToBase64(data.backIdImage),
         this.imageToBase64(data.selfieImage),
       ]);
-      
+
       const response = await this.fetchWithTimeout(`${this.baseUrl}/verify/full`, {
         method: 'POST',
         headers: {
@@ -368,6 +429,3 @@ class VerificationAPIService {
 // Export singleton instance
 export const verificationAPI = new VerificationAPIService();
 export default VerificationAPIService;
-
-
-

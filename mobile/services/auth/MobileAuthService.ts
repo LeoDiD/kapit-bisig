@@ -19,7 +19,7 @@ import { resolveApiBaseUrl } from '../config/apiSecurity';
 const API_CONFIG = {
   baseUrl: resolveApiBaseUrl(
     process.env.EXPO_PUBLIC_API_URL,
-    'http://192.168.1.72:3001/api',
+    'http://192.168.1.4:3001/api',
     'MobileAuthService',
   ),
   timeout: 15000,
@@ -139,7 +139,7 @@ class MobileAuthService {
       if (storedToken && storedUser) {
         this.token = storedToken;
         this.user = JSON.parse(storedUser);
-        
+
         // Validate the token is still valid
         const isValid = await this.validateToken();
         if (!isValid) {
@@ -147,7 +147,7 @@ class MobileAuthService {
           this.isInitialized = true;
           return false;
         }
-        
+
         this.isInitialized = true;
         return true;
       }
@@ -382,7 +382,7 @@ class MobileAuthService {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         // Update user data
         this.user = data.data;

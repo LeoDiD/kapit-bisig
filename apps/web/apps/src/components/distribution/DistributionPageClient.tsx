@@ -83,6 +83,7 @@ export default function DistributionPageClient() {
     try {
       setError(null)
       await api.createDistribution({
+        disasterEventId: payload.disasterEventId,
         barangay: payload.barangay,
         assignedBarangays: payload.assignedBarangays,
         assignedStaffIds: payload.assignedStaffIds,

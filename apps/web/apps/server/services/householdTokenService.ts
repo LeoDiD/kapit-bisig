@@ -265,13 +265,15 @@ export class HouseholdTokenService {
         };
       }
       
-      // Build query - filter by barangay if provided for faster lookup
-      // Each barangay has its own "database" of tokens
+      // Use tokenPrefix for O(1) index lookup instead of scanning all tokens.
+      // tokenPrefix is the first 4 alphanumeric chars — with 36^4 = 1.6M possible
+      // values, collisions are near-zero so we only bcrypt-compare 1-2 candidates.
+      const inputPrefix = normalizedToken.replace(/-/g, '').slice(0, 4);
       const query: Record<string, unknown> = {
-        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED', 'USED', 'EXPIRED'] }),
+        tokenPrefix: inputPrefix,
       };
       
-      // Filter by barangay for barangay-specific token validation
+      // Optionally narrow further by barangay
       if (barangay && barangay.trim()) {
         query['householdInfo.barangay'] = barangay.trim();
         if (shouldLogDebug()) {
@@ -279,7 +281,7 @@ export class HouseholdTokenService {
         }
       }
       
-      // Find tokens matching criteria
+      // Find tokens matching prefix (typically 1-2 results)
       const tokens = await HouseholdToken.find(query).setOptions({ sanitizeFilter: false });
       if (shouldLogDebug()) {
         console.log('[TokenService] Candidate token count:', tokens.length);
@@ -462,17 +464,18 @@ export class HouseholdTokenService {
       // Normalize token
       const normalizedToken = plainToken.trim().toUpperCase();
       
-      // Build query - filter by barangay if provided for faster lookup
+      // Use tokenPrefix for O(1) index lookup instead of scanning all tokens
+      const inputPrefix = normalizedToken.replace(/-/g, '').slice(0, 4);
       const query: Record<string, unknown> = {
-        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED', 'USED', 'EXPIRED'] }),
+        tokenPrefix: inputPrefix,
       };
       
-      // Filter by barangay for faster lookup
+      // Optionally narrow further by barangay
       if (barangay && barangay.trim()) {
         query['householdInfo.barangay'] = barangay.trim();
       }
       
-      // Find the token by hash comparison
+      // Find tokens matching prefix (typically 1-2 results)
       const tokens = await HouseholdToken.find(query).setOptions({ sanitizeFilter: false });
       
       let matchedToken: IHouseholdToken | null = null;
@@ -796,13 +799,16 @@ export class HouseholdTokenService {
         };
       }
 
+      // Use tokenPrefix for O(1) index lookup instead of scanning all tokens
+      const inputPrefix = normalizedToken.replace(/-/g, '').slice(0, 4);
       const query: Record<string, unknown> = {
-        status: mongoose.trusted({ $in: ['UNUSED', 'LOCKED', 'USED', 'EXPIRED'] }),
+        tokenPrefix: inputPrefix,
       };
       if (barangay && barangay.trim()) {
         query['householdInfo.barangay'] = barangay.trim();
       }
 
+      // Find tokens matching prefix (typically 1-2 results)
       const tokens = await HouseholdToken.find(query).setOptions({ sanitizeFilter: false });
       let matchedToken: IHouseholdToken | null = null;
       for (const token of tokens) {

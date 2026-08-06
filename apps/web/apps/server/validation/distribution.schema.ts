@@ -7,6 +7,7 @@ import { barangayEnum, objectId } from './shared';
 
 /* POST /api/distributions — create */
 export const createDistributionBody = z.object({
+  disasterEventId: objectId,
   barangay: barangayEnum,
   assignedBarangays: z.array(barangayEnum)
     .min(2, 'Select at least 2 assigned barangays')

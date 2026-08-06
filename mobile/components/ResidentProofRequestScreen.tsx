@@ -22,11 +22,13 @@ import { Card } from './ui/Card';
 import { Typography } from './ui/Typography';
 import { theme } from '../theme';
 import {
-  fetchOpenBeneficiaryDistributions,
+  fetchActiveBeneficiaryEvent,
+  fetchResidentProofSubmissionStatus,
   getQueuedResidentProofSubmissions,
   getResidentSession,
   getResidentToken,
-  ResidentBeneficiaryDistribution,
+  ResidentDisasterEvent,
+  ResidentProofSubmissionStatus,
   submitResidentProofSubmission,
   syncQueuedResidentProofSubmissions,
 } from '../services/api/ResidentQrService';
@@ -121,92 +123,16 @@ function formatSchedule(value?: string): string {
   });
 }
 
-function formatShortDate(value?: string | null): string | null {
-  const trimmed = String(value || '').trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed.toLocaleDateString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function getDistributionChipLabel(distribution: ResidentBeneficiaryDistribution): string {
-  const shortDate = formatShortDate(distribution.scheduled);
-  return shortDate ? `${distribution.barangay} | ${shortDate}` : distribution.barangay;
-}
-
-function getApplicationTone(
-  status?: ResidentBeneficiaryDistribution['applicationStatus'],
-): RequirementTone {
-  switch (status) {
-    case 'Approved':
-      return 'ready';
-    case 'Rejected':
-      return 'warning';
-    case 'Pending Verification':
-    case 'Not Submitted':
-    default:
-      return 'pending';
-  }
-}
-
-function getApplicationLabel(
-  status?: ResidentBeneficiaryDistribution['applicationStatus'],
-): string {
-  switch (status) {
-    case 'Approved':
-      return 'Approved';
-    case 'Rejected':
-      return 'Needs update';
-    case 'Pending Verification':
-      return 'Pending review';
-    case 'Not Submitted':
-    default:
-      return 'Not submitted';
-  }
-}
-
-function getPrimaryActionLabel(
-  status: ResidentBeneficiaryDistribution['applicationStatus'] | 'Not Submitted',
-  submitting: boolean,
-): string {
-  if (submitting) {
-    return 'Submitting...';
-  }
-
-  if (status === 'Approved') {
-    return 'Already approved';
-  }
-
-  if (status === 'Rejected') {
-    return 'Resubmit proof';
-  }
-
-  if (status === 'Pending Verification') {
-    return 'Update proof';
-  }
-
-  return 'Send proof';
-}
-
 interface ResidentProofRequestScreenProps {
   onBack: () => void;
 }
 
 export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequestScreenProps) {
   const insets = useSafeAreaInsets();
-  const [openDistributions, setOpenDistributions] = useState<ResidentBeneficiaryDistribution[]>([]);
-  const [distributionLoading, setDistributionLoading] = useState(true);
+  const [activeEvent, setActiveEvent] = useState<ResidentDisasterEvent | null>(null);
+  const [proofStatus, setProofStatus] = useState<ResidentProofSubmissionStatus | null>(null);
+  const [eventLoading, setEventLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDistributionId, setSelectedDistributionId] = useState<string | null>(null);
   const [selectedDamageType, setSelectedDamageType] = useState<DamageType>('Flood');
   const [description, setDescription] = useState('');
   const [supportingInfo, setSupportingInfo] = useState('');
@@ -224,73 +150,69 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
   const residentTokenRef = useRef<string | null>(null);
   const draftLoadedRef = useRef(false);
 
-  const selectedDistribution = openDistributions.find((item) => item.id === selectedDistributionId)
-    ?? openDistributions[0]
-    ?? null;
-
   const trimmedDescriptionLength = description.trim().length;
   const descriptionReady = trimmedDescriptionLength >= 10;
   const photosReady = photos.length >= MIN_PHOTOS;
-  const distributionReady = Boolean(selectedDistribution);
-  const completedRequirementCount = [distributionReady, descriptionReady, photosReady].filter(Boolean).length;
+  const eventReady = Boolean(activeEvent);
+  const completedRequirementCount = [eventReady, descriptionReady, photosReady].filter(Boolean).length;
   const remainingPhotos = Math.max(0, MIN_PHOTOS - photos.length);
-  const selectedStatus = selectedDistribution?.applicationStatus ?? 'Not Submitted';
-  const alreadyApproved = selectedStatus === 'Approved';
-  const submitDisabled = submitting || distributionLoading || !selectedDistribution || alreadyApproved;
+  const proofLocked = proofStatus?.status === 'Approved' || proofStatus?.status === 'Pending Verification';
+  const canEditProof = !proofLocked;
+  const submitDisabled = submitting || eventLoading || !activeEvent || proofLocked;
   const footerPadding = Math.max(insets.bottom, theme.spacing.md);
   const hasSupportingInfo = supportingInfo.trim().length > 0;
   const showingSupportingInfo = showSupportingInfo || hasSupportingInfo;
 
   const missingItems = [
-    !distributionReady ? 'choose a distribution' : null,
+    !eventReady ? 'wait for an active disaster event' : null,
     !descriptionReady ? 'add a short description' : null,
     !photosReady ? `attach ${remainingPhotos} more photo${remainingPhotos === 1 ? '' : 's'}` : null,
   ].filter(Boolean) as string[];
 
-  const footerMessage = alreadyApproved
-    ? 'This distribution already has an approved proof request.'
-    : missingItems.length === 0
+  const footerMessage = missingItems.length === 0
       ? 'Everything looks ready for admin review.'
       : `Before sending, ${missingItems.join(', ')}.`;
 
   const loadScreenData = useCallback(async () => {
-    setDistributionLoading(true);
+    setEventLoading(true);
     try {
       const token = await getResidentToken();
       if (!token) {
-        setOpenDistributions([]);
-        setSelectedDistributionId(null);
+        setActiveEvent(null);
         setQueuedCount(0);
         return;
       }
 
-      const [distributionResult, syncResult, queue] = await Promise.all([
-        fetchOpenBeneficiaryDistributions(token),
+      const [eventResult, syncResult, queue] = await Promise.all([
+        fetchActiveBeneficiaryEvent(token),
         syncQueuedResidentProofSubmissions(token),
         getQueuedResidentProofSubmissions(),
       ]);
 
-      const nextDistributions = distributionResult.success ? distributionResult.data ?? [] : [];
-      setOpenDistributions(nextDistributions);
-      setSelectedDistributionId((current) => (
-        nextDistributions.some((item) => item.id === current)
-          ? current
-          : nextDistributions[0]?.id ?? null
-      ));
+      setActiveEvent(eventResult.success ? eventResult.data ?? null : null);
       setQueuedCount(queue.length);
+
+      const currentEvent = eventResult.success ? eventResult.data ?? null : null;
+      const currentEventId = currentEvent?.id || currentEvent?._id;
+      if (currentEventId) {
+        const statusResult = await fetchResidentProofSubmissionStatus(token, currentEventId);
+        setProofStatus(statusResult.success ? statusResult.data ?? null : null);
+      } else {
+        setProofStatus(null);
+      }
 
       if (syncResult.success && syncResult.syncedCount > 0) {
         const refreshedQueue = await getQueuedResidentProofSubmissions();
         setQueuedCount(refreshedQueue.length);
       }
     } finally {
-      setDistributionLoading(false);
+      setEventLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadScreenData().catch(() => {
-      setDistributionLoading(false);
+      setEventLoading(false);
     });
 
     // Load resident session for barangay (watermark) and draft restore
@@ -312,9 +234,6 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
         setDescription(draft.description);
         setSupportingInfo(draft.supportingInfo);
         setShowSupportingInfo(draft.showSupportingInfo);
-        if (draft.selectedDistributionId) {
-          setSelectedDistributionId(draft.selectedDistributionId);
-        }
         if (draft.photoUris.length > 0) {
           setPhotos(draft.photoUris.map((uri, idx) => ({
             id: `draft-${idx}-${Date.now()}`,
@@ -344,7 +263,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
         description,
         supportingInfo,
         showSupportingInfo,
-        selectedDistributionId,
+        selectedDistributionId: null,
         photoUris: photos.map((p) => p.uri),
       }).catch(() => undefined);
     }, 500);
@@ -354,7 +273,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
         clearTimeout(draftSaveTimerRef.current);
       }
     };
-  }, [selectedDamageType, description, supportingInfo, showSupportingInfo, selectedDistributionId, photos]);
+  }, [selectedDamageType, description, supportingInfo, showSupportingInfo, photos]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -458,13 +377,8 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!selectedDistribution) {
-      Alert.alert('No open distribution', 'There is no open relief distribution available for proof submission right now.');
-      return;
-    }
-
-    if (selectedDistribution.applicationStatus === 'Approved') {
-      Alert.alert('Already approved', 'This distribution already has an approved proof request.');
+    if (!activeEvent) {
+      Alert.alert('No active disaster', 'There is no active disaster event accepting proof submissions right now.');
       return;
     }
 
@@ -488,7 +402,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
     try {
       const photoProofs = await Promise.all(photos.map((item) => imageUriToDataUrl(item.uri)));
       const result = await submitResidentProofSubmission(token, {
-        distributionId: selectedDistribution.id,
+        disasterEventId: activeEvent.id || activeEvent._id || '',
         damageType: selectedDamageType,
         description: description.trim(),
         supportingInfo: supportingInfo.trim(),
@@ -531,7 +445,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
     } finally {
       setSubmitting(false);
     }
-  }, [description, loadScreenData, photos, selectedDamageType, selectedDistribution, supportingInfo]);
+  }, [activeEvent, description, loadScreenData, photos, selectedDamageType, supportingInfo]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -563,7 +477,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
               <Typography variant="label" color={theme.colors.textMuted}>Resident Request</Typography>
               <Typography variant="h3" weight="semiBold">Send proof</Typography>
               <Typography variant="body" color={theme.colors.textSecondary}>
-                Choose a relief distribution, add a short damage note, and upload clear photos.
+                Show how the active disaster affected you by adding a short damage note and clear photos.
               </Typography>
             </View>
           </View>
@@ -586,9 +500,9 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
               </View>
               <View style={styles.summaryCopy}>
                 <Typography variant="label" color={theme.colors.textMuted}>Target Beneficiary</Typography>
-                <Typography variant="body" weight="semiBold">One application per distribution</Typography>
+                <Typography variant="body" weight="semiBold">One verified proof per disaster</Typography>
                 <Typography variant="caption" color={theme.colors.textSecondary}>
-                  When a new distribution opens, a new proof request is needed.
+                  Once approved, you will be enrolled automatically in matching barangay distributions.
                 </Typography>
               </View>
               <View style={styles.progressBubble}>
@@ -607,8 +521,8 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
 
             <View style={styles.requirementWrap}>
               <RequirementPill
-                label={selectedDistribution ? 'Distribution selected' : distributionLoading ? 'Checking distributions' : 'Choose distribution'}
-                tone={selectedDistribution ? 'ready' : distributionLoading ? 'pending' : 'warning'}
+                label={activeEvent ? 'Disaster event found' : eventLoading ? 'Checking active event' : 'No active event'}
+                tone={activeEvent ? 'ready' : eventLoading ? 'pending' : 'warning'}
               />
               <RequirementPill
                 label={`${Math.min(trimmedDescriptionLength, 10)}/10 description`}
@@ -622,103 +536,76 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
 
             <View style={styles.selectionBlock}>
               <View style={styles.selectionHeaderRow}>
-                <Typography variant="caption" color={theme.colors.textSecondary}>Available distributions</Typography>
-                {selectedDistribution ? (
-                  <RequirementPill
-                    label={getApplicationLabel(selectedDistribution.applicationStatus)}
-                    tone={getApplicationTone(selectedDistribution.applicationStatus)}
-                  />
-                ) : null}
+                <Typography variant="caption" color={theme.colors.textSecondary}>Active disaster event</Typography>
               </View>
 
-              {distributionLoading ? (
+              {eventLoading ? (
                 <Typography variant="caption" color={theme.colors.textSecondary}>
-                  Checking open beneficiary distributions...
+                  Checking the active disaster event...
                 </Typography>
-              ) : openDistributions.length === 0 ? (
+              ) : !activeEvent ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="calendar-clear-outline" size={20} color={theme.colors.textMuted} />
                   <Typography variant="caption" color={theme.colors.textSecondary} style={styles.emptyStateText}>
-                    No open beneficiary distribution is available for your barangay right now.
+                    No active disaster event is accepting proof submissions right now.
                   </Typography>
                 </View>
               ) : (
-                <>
-                  {openDistributions.length > 1 ? (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.distributionChipRow}
-                    >
-                      {openDistributions.map((distribution) => {
-                        const selected = distribution.id === selectedDistribution?.id;
-                        return (
-                          <Pressable
-                            key={distribution.id}
-                            onPress={() => setSelectedDistributionId(distribution.id)}
-                            style={[styles.distributionChip, selected && styles.distributionChipSelected]}
-                          >
-                            <Text style={[styles.distributionChipText, selected && styles.distributionChipTextSelected]}>
-                              {getDistributionChipLabel(distribution)}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  ) : null}
-
-                  {selectedDistribution ? (
-                    <View style={styles.selectedDistributionCard}>
-                      <View style={styles.selectedDistributionHeader}>
-                        <View style={styles.selectedDistributionIcon}>
-                          <Ionicons name="cube-outline" size={16} color={theme.colors.primaryDark} />
-                        </View>
-                        <View style={styles.selectedDistributionCopy}>
-                          <Typography variant="body" weight="semiBold">
-                            {selectedDistribution.barangay} relief distribution
-                          </Typography>
-                          <Typography variant="caption" color={theme.colors.textSecondary}>
-                            {formatSchedule(selectedDistribution.scheduled)}
-                          </Typography>
-                        </View>
-                      </View>
-
-                      <Typography variant="caption" color={theme.colors.textSecondary}>
-                        Covers {selectedDistribution.targetBarangays.join(', ')}
-                      </Typography>
-
-                      {selectedDistribution.lastSubmissionAt ? (
-                        <Typography variant="caption" color={theme.colors.textMuted}>
-                          Last submitted {formatSchedule(selectedDistribution.lastSubmissionAt)}
-                        </Typography>
-                      ) : null}
-
-                      {selectedDistribution.notes ? (
-                        <Typography variant="caption" color={theme.colors.textSecondary} numberOfLines={2}>
-                          {selectedDistribution.notes}
-                        </Typography>
-                      ) : null}
-
-                      {selectedDistribution.applicationStatus === 'Rejected' && selectedDistribution.rejectionReason ? (
-                        <View style={styles.rejectionReasonBox}>
-                          <View style={styles.rejectionReasonHeader}>
-                            <Ionicons name="warning-outline" size={14} color={theme.colors.warning} />
-                            <Typography variant="caption" weight="semiBold" color={theme.colors.warning}>
-                              Rejection feedback:
-                            </Typography>
-                          </View>
-                          <Typography variant="caption" color={theme.colors.textPrimary}>
-                            {selectedDistribution.rejectionReason}
-                          </Typography>
-                        </View>
-                      ) : null}
+                <View style={styles.selectedDistributionCard}>
+                  <View style={styles.selectedDistributionHeader}>
+                    <View style={styles.selectedDistributionIcon}>
+                      <Ionicons name="thunderstorm-outline" size={16} color={theme.colors.primaryDark} />
                     </View>
-                  ) : null}
-                </>
+                    <View style={styles.selectedDistributionCopy}>
+                      <Typography variant="body" weight="semiBold">{activeEvent.name}</Typography>
+                      <Typography variant="caption" color={theme.colors.textSecondary}>
+                        {activeEvent.disasterType} | {formatSchedule(activeEvent.eventDate)}
+                      </Typography>
+                    </View>
+                  </View>
+                  <Typography variant="caption" color={theme.colors.textSecondary}>
+                    Your approved proof will apply automatically to matching distributions in {residentBarangay || 'your barangay'}.
+                  </Typography>
+                </View>
               )}
             </View>
           </Card>
 
+          {proofStatus ? (
+            <View style={[
+              styles.statusCard,
+              proofStatus.status === 'Approved' && styles.statusCardApproved,
+              proofStatus.status === 'Rejected' && styles.statusCardRejected,
+            ]}>
+              <View style={styles.statusIcon}>
+                <Ionicons
+                  name={proofStatus.status === 'Approved' ? 'checkmark-circle' : proofStatus.status === 'Rejected' ? 'alert-circle' : 'time'}
+                  size={24}
+                  color={proofStatus.status === 'Approved' ? '#15803D' : proofStatus.status === 'Rejected' ? '#B91C1C' : '#A16207'}
+                />
+              </View>
+              <View style={styles.statusCopy}>
+                <Text style={styles.statusEyebrow}>SUBMISSION STATUS</Text>
+                <Text style={styles.statusTitle}>
+                  {proofStatus.status === 'Approved' ? 'Proof approved' : proofStatus.status === 'Rejected' ? 'Changes are needed' : 'Under admin review'}
+                </Text>
+                <Text style={styles.statusMessage}>
+                  {proofStatus.status === 'Approved'
+                    ? `You are eligible for this event. Any matching distribution created for ${residentBarangay || 'your barangay'} will enroll you automatically.`
+                    : proofStatus.status === 'Rejected'
+                      ? (proofStatus.rejectionReason || 'Review the proof details and submit clearer information.')
+                      : 'You do not need to submit again. We will notify you after the admin completes the review.'}
+                </Text>
+                <View style={styles.statusMetaRow}>
+                  <Text style={styles.statusMeta}>{proofStatus.photoCount} photos</Text>
+                  <Text style={styles.statusMeta}>Version {proofStatus.submissionVersion}</Text>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {canEditProof ? (
+          <>
           <Card variant="outlined" padding="md" style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderCopy}>
@@ -857,19 +744,21 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
               ))}
             </View>
           </Card>
+          </>
+          ) : null}
         </ScrollView>
 
-        <View style={[styles.footer, { paddingBottom: footerPadding }]}>
+        {canEditProof ? <View style={[styles.footer, { paddingBottom: footerPadding }]}>
           <View style={styles.footerCopy}>
             <Typography
               variant="caption"
-              color={alreadyApproved ? theme.colors.primaryDark : theme.colors.textSecondary}
+              color={theme.colors.textSecondary}
             >
               {footerMessage}
             </Typography>
           </View>
           <Button
-            title={getPrimaryActionLabel(selectedStatus, submitting)}
+            title={submitting ? 'Submitting...' : 'Send proof'}
             onPress={() => {
               void handleSubmit();
             }}
@@ -877,7 +766,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
             icon="send-outline"
             style={styles.submitButton}
           />
-        </View>
+        </View> : null}
       </KeyboardAvoidingView>
 
       {/* Off-screen watermark overlay for photo capture */}
@@ -910,6 +799,16 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.lg,
     gap: theme.spacing.md,
   },
+  statusCard: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: '#FFF8E7', borderWidth: 1, borderColor: '#F2D68A' },
+  statusCardApproved: { backgroundColor: '#ECFDF3', borderColor: '#BBE3C9' },
+  statusCardRejected: { backgroundColor: '#FFF1F2', borderColor: '#F4C2C7' },
+  statusIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.72)', alignItems: 'center', justifyContent: 'center' },
+  statusCopy: { flex: 1 },
+  statusEyebrow: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: '#718078' },
+  statusTitle: { marginTop: 2, fontSize: 16, fontWeight: '800', color: '#23382F' },
+  statusMessage: { marginTop: 5, fontSize: 12.5, lineHeight: 18, color: '#586A61' },
+  statusMetaRow: { marginTop: 9, flexDirection: 'row', gap: 8 },
+  statusMeta: { fontSize: 10, fontWeight: '700', color: '#60736A', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 4 },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',

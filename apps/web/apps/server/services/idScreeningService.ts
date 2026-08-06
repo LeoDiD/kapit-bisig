@@ -55,6 +55,113 @@ interface NumberCandidate {
   isFormatValid: boolean;
 }
 
+// ============================================
+// OCR-aware character substitution and fuzzy matching
+// ============================================
+
+/**
+ * Common OCR misread characters.
+ * Tesseract frequently confuses visually similar characters, especially
+ * on low-contrast ID card backgrounds.
+ */
+const OCR_CHAR_SUBSTITUTIONS: Record<string, string> = {
+  O: '0',
+  D: '0',
+  I: '1',
+  l: '1',
+  S: '5',
+  B: '8',
+  Z: '2',
+  G: '6',
+  T: '7',
+  A: '4',
+};
+
+/**
+ * Apply common OCR character corrections to a digit string.
+ * Replaces frequently mis-recognized letters with their digit equivalents.
+ */
+function applyOcrCharCorrections(value: string): string {
+  return value
+    .split('')
+    .map((ch) => OCR_CHAR_SUBSTITUTIONS[ch] || ch)
+    .join('');
+}
+
+/**
+ * Calculate Levenshtein edit distance between two strings.
+ */
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix: number[][] = [];
+  for (let i = 0; i <= a.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= b.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      );
+    }
+  }
+
+  return matrix[a.length][b.length];
+}
+
+/**
+ * Compare two ID numbers with OCR-error tolerance.
+ *
+ * 1. Try exact match first.
+ * 2. Apply OCR character corrections and retry.
+ * 3. If still no exact match and the number is 8+ digits, allow
+ *    a Levenshtein distance of 1 (for single-character OCR errors).
+ *    For 12+ digits, allow a distance of 2.
+ */
+function fuzzyIdNumberMatch(extracted: string, entered: string): boolean {
+  if (extracted === entered) return true;
+
+  const corrected = applyOcrCharCorrections(extracted);
+  if (corrected === entered) return true;
+
+  // For very short IDs, don't allow fuzzy matching — too risky
+  if (entered.length < 8) return false;
+
+  const maxDistance = entered.length >= 12 ? 2 : 1;
+  return levenshteinDistance(corrected, entered) <= maxDistance;
+}
+
+/**
+ * Fuzzy keyword matching that tolerates 1-2 OCR character errors per word.
+ * E.g., "PHIUPPINE" matches "PHILIPPINE", "LI0ENSE" matches "LICENSE".
+ */
+function fuzzyKeywordMatch(text: string, keyword: string): boolean {
+  if (text.includes(keyword)) return true;
+
+  // For short keywords (≤4 chars), require exact match
+  if (keyword.length <= 4) return false;
+
+  // Check if any word in the text is within edit distance 2 of the keyword
+  const words = text.split(/\s+/);
+  const maxDistance = keyword.length >= 8 ? 2 : 1;
+  for (const word of words) {
+    // Only compare words of roughly similar length to the keyword
+    if (Math.abs(word.length - keyword.length) > maxDistance) continue;
+    if (levenshteinDistance(word, keyword) <= maxDistance) return true;
+  }
+
+  return false;
+}
+
 const DEFAULT_LIMITATIONS = [
   'Automated screening does not prove official issuer authenticity.',
   'OCR can fail on glare, blur, crop, compression, or damaged IDs.',
@@ -88,7 +195,9 @@ const TYPE_RULES: Record<SupportedIdType, TypeRule> = {
   },
   "Voter's ID": {
     keywords: ['VOTER', 'COMELEC', 'COMMISSION', 'ELECTIONS'],
-    numberPattern: /[A-Z0-9]{6,25}/g,
+    // Tightened: require at least one digit to avoid matching random text
+    // like "REPUBLIC" or "COMMISSION" as ID numbers
+    numberPattern: /(?=[A-Z0-9]*\d)[A-Z0-9]{6,25}/g,
   },
 };
 
@@ -158,7 +267,11 @@ function scoreIdType(text: string, idType: SupportedIdType): number {
   const upperText = String(text || '').toUpperCase();
   if (!upperText) return 0;
 
-  const keywordHits = rule.keywords.filter((keyword) => upperText.includes(keyword)).length;
+  // Use fuzzy keyword matching to tolerate OCR misreadings
+  // (e.g., "PHIUPPINE" → "PHILIPPINE", "LI0ENSE" → "LICENSE")
+  const keywordHits = rule.keywords.filter((keyword) =>
+    fuzzyKeywordMatch(upperText, keyword),
+  ).length;
   const keywordScore = keywordHits / rule.keywords.length;
 
   const patternMatches = Array.from(upperText.matchAll(rule.numberPattern))
@@ -198,10 +311,16 @@ function extractNumberCandidates(text: string, idType: SupportedIdType): NumberC
 
   const seen = new Set<string>();
   const upperText = String(text || '').toUpperCase();
-  const matches = Array.from(upperText.matchAll(rule.numberPattern));
+  const correctedText = applyOcrCharCorrections(upperText);
+
+  // Search in both raw OCR text and OCR-corrected text
+  const rawMatches = Array.from(upperText.matchAll(rule.numberPattern));
+  const correctedMatches = Array.from(correctedText.matchAll(rule.numberPattern));
+  const allMatches = [...rawMatches, ...correctedMatches];
+
   const candidates: NumberCandidate[] = [];
 
-  for (const match of matches) {
+  for (const match of allMatches) {
     const raw = String(match[0] || '').trim();
     if (!raw) continue;
 
@@ -230,12 +349,15 @@ function pickBestCandidate(
   if (candidates.length === 0) return null;
 
   const ranked = [...candidates].sort((left, right) => {
+    const leftMatch = fuzzyIdNumberMatch(left.normalized, enteredNormalizedIdNumber);
+    const rightMatch = fuzzyIdNumberMatch(right.normalized, enteredNormalizedIdNumber);
+
     const leftScore =
-      (left.normalized === enteredNormalizedIdNumber ? 100 : 0) +
+      (leftMatch ? 100 : 0) +
       (left.isFormatValid ? 25 : 0) +
       left.normalized.length;
     const rightScore =
-      (right.normalized === enteredNormalizedIdNumber ? 100 : 0) +
+      (rightMatch ? 100 : 0) +
       (right.isFormatValid ? 25 : 0) +
       right.normalized.length;
     return rightScore - leftScore;
@@ -405,8 +527,10 @@ export function analyzeIdScreeningFromOcr(
     enteredNormalizedIdNumber,
   );
 
+  // Use fuzzy matching with OCR error correction instead of strict ===
+  // This handles common OCR misreads like O↔0, I↔1, S↔5, B↔8
   const idNumberMatch = extractedCandidate
-    ? extractedCandidate.normalized === enteredNormalizedIdNumber
+    ? fuzzyIdNumberMatch(extractedCandidate.normalized, enteredNormalizedIdNumber)
     : null;
   const ocrConfidence = roundScore(
     computeAverage([

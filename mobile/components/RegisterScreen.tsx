@@ -30,12 +30,12 @@ const { width } = Dimensions.get('window');
 // API Configuration
 const API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://192.168.1.72:3001/api',
+  'http://192.168.1.4:3001/api',
   'RegisterScreen API',
 );
 const FACE_API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_FACE_API_URL,
-  'http://192.168.1.72:8000',
+  'http://192.168.1.4:8000',
   'RegisterScreen Face API',
 );
 const FACE_CAPTURE_ATTEMPT_LIMIT = 10;
@@ -151,14 +151,14 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [termsModalContent, setTermsModalContent] = useState<'terms' | 'privacy'>('terms');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  
+
   // Step 2: Household Information
   const [city, setCity] = useState('');
   const [barangay, setBarangay] = useState('');
   const [streetAddress, setStreetAddress] = useState('');
   const [householdSize, setHouseholdSize] = useState(1);
   const [vulnerableMembers, setVulnerableMembers] = useState<string[]>([]);
-  const [vulnerableCounts, setVulnerableCounts] = useState<{[key: string]: number}>({});
+  const [vulnerableCounts, setVulnerableCounts] = useState<{ [key: string]: number }>({});
   const [showVulnerableDetailsModal, setShowVulnerableDetailsModal] = useState(false);
 
   // Barangay dropdown
@@ -425,10 +425,9 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setTimeout(() => {
       const scrollResponder =
         (scrollViewRef.current as any)?.getScrollResponder?.() ?? (scrollViewRef.current as any);
-      const baseOffset = Platform.OS === 'android' ? 180 : 120;
-      const stepOffset = currentStep === 1 ? 30 : 0;
-      const keyboardOffset = keyboardHeight > 0 ? 16 : 0;
-      const extraOffset = baseOffset + stepOffset + keyboardOffset;
+      const baseOffset = Platform.OS === 'android' ? 200 : 140;
+      const keyboardOffset = keyboardHeight > 0 ? 30 : 0;
+      const extraOffset = baseOffset + keyboardOffset;
       scrollResponder?.scrollResponderScrollNativeHandleToKeyboard?.(target as any, extraOffset, true);
     }, 120);
   };
@@ -628,7 +627,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       termsAccepted: !termsAccepted,
     };
     setStep1Errors(errors);
-    
+
     // Scroll to first error
     if (errors.firstName) {
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -645,7 +644,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     } else if (errors.termsAccepted) {
       scrollViewRef.current?.scrollTo({ y: 600, animated: true });
     }
-    
+
     return !Object.values(errors).some(Boolean);
   };
 
@@ -699,7 +698,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           token: householdToken,
           barangay: barangay  // Send selected barangay for validation
         }),
@@ -714,11 +713,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           setTokenError(`This token is for ${data.householdInfo.barangay}, not ${barangay}. Please use a token issued for your barangay.`);
           return;
         }
-        
+
         setTokenValidated(true);
         setTokenHouseholdInfo(data.householdInfo || null);
         setTokenError(null);
-        
+
         // Clear error if showing
         if (showErrors) {
           setStep2Errors(prev => ({ ...prev, householdToken: false }));
@@ -766,7 +765,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       vulnerableCountExceeded,
     };
     setStep2Errors(errors);
-    
+
     // Scroll to first error
     if (errors.barangay) {
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
@@ -775,7 +774,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     } else if (errors.vulnerableCountExceeded) {
       scrollViewRef.current?.scrollTo({ y: 520, animated: true });
     }
-    
+
     return !Object.values(errors).some(Boolean);
   };
 
@@ -1472,7 +1471,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       setFaceInstructions(`Please wait ${remaining}s before taking another photo.`);
       return;
     }
-    
+
     try {
       setFaceCaptureAttempts((prev) => prev + 1);
       setFaceCaptureCooldownUntil(Date.now() + FACE_CAPTURE_COOLDOWN_MS);
@@ -1482,18 +1481,17 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         quality: 0.8,
         base64: true,
       });
-      
+
       if (!photo || !photo.base64) {
         throw new Error('Failed to capture photo');
       }
-      
-      // Store the captured photo URI immediately - this hides the camera
+
+      // Store the captured photo URI — show it inside the scanner modal
       setCapturedPhotoUri(photo.uri);
       setScanStatus('capturing');
       setFaceInstructions('AI is analyzing your photo...');
-      // Close the scanner immediately and continue analysis in the background
-      setShowFaceScanner(false);
-      
+      // Keep the scanner modal OPEN so the user sees the analysis result
+
       // Send to AI for analysis
       const detectResponse = await fetch(`${FACE_API_URL}/api/face/detect`, {
         method: 'POST',
@@ -1503,63 +1501,68 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           session_key: householdToken || mobileNumber || 'registration',
         }),
       });
-      
+
       if (!detectResponse.ok) {
         const errorData = await detectResponse.json().catch(() => ({}));
         throw new Error(errorData.detail || 'Face analysis failed');
       }
-      
+
       const result = await detectResponse.json();
-      
+
       // Check AI validation results
       if (!result.has_face) {
         setScanStatus('failed');
         setFaceInstructions('No face detected. Make sure your face is visible.');
         return;
       }
-      
+
       if (result.face_count > 1) {
         setScanStatus('failed');
         setFaceInstructions('Multiple faces detected. Only your face should be visible.');
         return;
       }
-      
+
       if (result.image_quality === 'blurry') {
         setScanStatus('failed');
         setFaceInstructions('Photo is blurry. Hold steady and try again.');
         return;
       }
-      
+
       if (result.image_quality === 'too_dark') {
         setScanStatus('failed');
         setFaceInstructions('Photo is too dark. Move to a brighter area.');
         return;
       }
-      
+
       if (result.image_quality === 'too_bright') {
         setScanStatus('failed');
         setFaceInstructions('Photo is too bright. Avoid direct light.');
         return;
       }
-      
+
       if (!result.is_real_image) {
         setScanStatus('failed');
-        setFaceInstructions('Please use your real face, not a photo.');
+        setFaceInstructions('Unable to confirm liveness. Please ensure good lighting and try again.');
         return;
       }
-      
+
       if (!result.is_valid) {
         setScanStatus('failed');
         setFaceInstructions(result.message || 'Validation failed. Please try again.');
         return;
       }
-      
+
       // Success!
       setFaceImage(photo.uri);
       setScanStatus('success');
       setFaceScanComplete(true);
       setFaceInstructions('Photo verified successfully!');
       if (showErrors) setStep4Errors({ faceScan: false });
+
+      // Auto-close the scanner modal after a short delay so user sees the success
+      setTimeout(() => {
+        setShowFaceScanner(false);
+      }, 1500);
     } catch (error: any) {
       console.error('Snap photo error:', error);
       setScanStatus('failed');
@@ -1590,26 +1593,22 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setDuplicateCheckResult(null);
     setSubmissionComplete(false);
     setSubmissionErrorMessage(null);
-    
+
     try {
       // Step 1: Prepare face image (10%)
       setVerificationProgress(10);
       setVerificationStep('Preparing face image...');
-      
+
       let faceBase64 = '';
       if (faceImage) {
         try {
-          const faceBase64Response = await fetch(faceImage);
-          const faceBlob = await faceBase64Response.blob();
-          const reader = new FileReader();
-          faceBase64 = await new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => {
-              const base64 = (reader.result as string).split(',')[1];
-              resolve(base64);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(faceBlob);
-          });
+          if (faceImage.startsWith('data:image')) {
+            faceBase64 = faceImage.split('base64,')[1] || '';
+          } else {
+            faceBase64 = await FileSystem.readAsStringAsync(faceImage, {
+              encoding: FILE_ENCODING.Base64,
+            });
+          }
         } catch (error) {
           console.log('[Verification] Failed to convert face image:', error);
           throw new Error('Failed to process face image');
@@ -1617,11 +1616,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       } else {
         throw new Error('No face image captured. Please go back and take a photo.');
       }
-      
+
       // Step 2: Check for duplicate face (30%)
       setVerificationProgress(30);
       setVerificationStep('Detecting face...');
-      
+
       const residentData = {
         firstName,
         lastName,
@@ -1632,40 +1631,40 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         streetAddress,
         householdToken,
       };
-      
+
       // Call the duplicate check endpoint
       const duplicateResponse = await fetch(`${FACE_API_URL}/api/face/check-duplicate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           image: faceBase64,
-          resident_data: residentData 
+          resident_data: residentData
         }),
       });
-      
+
       if (!duplicateResponse.ok) {
         const errorData = await duplicateResponse.json().catch(() => ({}));
-        const userFriendlyMsg = errorData.detail?.includes('face') 
+        const userFriendlyMsg = errorData.detail?.includes('face')
           ? 'Could not detect your face. Please ensure good lighting and face the camera directly.'
           : errorData.detail?.includes('connection') || errorData.detail?.includes('network')
-          ? 'Network connection error. Please check your internet and try again.'
-          : errorData.detail || 'Verification failed. Please try again.';
+            ? 'Network connection error. Please check your internet and try again.'
+            : errorData.detail || 'Verification failed. Please try again.';
         throw new Error(userFriendlyMsg);
       }
-      
+
       // Step 3: Processing results (60%)
       setVerificationProgress(60);
       setVerificationStep('Analyzing face embedding...');
-      
+
       const duplicateResult = await duplicateResponse.json();
-      
+
       // Store the duplicate check result for display
       setDuplicateCheckResult(duplicateResult);
-      
+
       // Step 4: Processing decision (80%)
       setVerificationProgress(80);
       setVerificationStep(`Decision: ${duplicateResult.decision}`);
-      
+
       // Handle BLOCK decision - duplicate detected
       if (duplicateResult.decision === 'BLOCK') {
         setVerificationProgress(100);
@@ -1700,7 +1699,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             console.warn('[Verification] Failed to record duplicate-block attempt:', recordError);
           }
         }
-        
+
         // Create a "failed" verification result for display
         const failedResult: VerificationResult = {
           isVerified: false,
@@ -1727,22 +1726,22 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           recommendations: ['Contact barangay office if you believe this is an error'],
         };
         setVerificationResult(failedResult);
-        
+
         // Show alert but don't submit to main database
         Alert.alert(
           'Registration Blocked',
           `This face is already registered.\n\nDuplicate registrations are not allowed.${duplicateAttemptMessage}`,
           [{ text: 'OK' }]
         );
-        
+
         setIsSubmitting(false);
         return; // Stop here - don't submit to main registration
       }
-      
+
       // Step 5: ALLOW - proceed with registration (90%)
       setVerificationProgress(90);
       setVerificationStep('Saving registration...');
-      
+
       // Create successful verification result
       const successResult: VerificationResult = {
         isVerified: true,
@@ -1769,7 +1768,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         recommendations: ['Registration approved - no duplicates found'],
       };
       setVerificationResult(successResult);
-      
+
       // Submit to main registration system
       const fullName = `${firstName} ${lastName}`.trim();
       const [frontIdImagePayload, backIdImagePayload, faceImagePayload] = await Promise.all([
@@ -1828,7 +1827,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       });
 
       const data = await response.json();
-      
+
       // Step 6: Complete (100%)
       setVerificationProgress(100);
 
@@ -1866,7 +1865,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       console.error('Verification/Submission error:', error);
       setVerificationProgress(100);
       setVerificationStep('Error');
-      
+
       let errorMessage = 'An error occurred during registration.';
       if (error.message?.includes('Network request failed') || error.message?.includes('fetch')) {
         errorMessage = 'Unable to connect to the server. Please check your connection.';
@@ -1905,7 +1904,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         return { label: 'ERROR', color: '#F39C12' };
       }
     }
-    
+
     const confidence = getConfidencePercentage();
     if (confidence >= 80) return { label: 'High Match', color: '#2ECC71' };
     if (confidence >= 50) return { label: 'Medium Match', color: '#F39C12' };
@@ -1914,7 +1913,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
   const handleNextStep = async () => {
     setShowErrors(true);
-    
+
     if (currentStep === 1) {
       setIsStep1Validating(true);
       try {
@@ -1934,22 +1933,22 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     if (currentStep === 4 && !validateStep4()) {
       return;
     }
-    
+
     setShowErrors(false);
-    
+
     // After Step 4 (Face Scan), perform verification
     if (currentStep === 4) {
       setCurrentStep(5);
       await performVerificationAndSubmit();
       return;
     }
-    
+
     // Step 5 is the final step
     if (currentStep === 5) {
       onComplete();
       return;
     }
-    
+
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     }
@@ -1984,7 +1983,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const formatDateInput = (text: string) => {
     // Remove non-numeric characters
     const cleaned = text.replace(/\D/g, '');
-    
+
     // Format as mm/dd/yyyy
     let formatted = '';
     if (cleaned.length > 0) {
@@ -2044,337 +2043,337 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     const confirmPasswordErrorMessage = getConfirmPasswordError(confirmPassword, password);
 
     return (
-    <View style={styles.formContent}>
-      <View style={styles.headerSection}>
-        <Text style={styles.title}>
-          <Text style={styles.titleBlack}>Let's get you </Text>
-          <Text style={styles.titleGreen}>registered</Text>
-        </Text>
-        <Text style={styles.subtitle}>
-          Please enter your details exactly as they appear on your valid ID to ensure smooth relief distribution.
-        </Text>
-      </View>
-
-      <View style={styles.formFields}>
-        {/* First Name */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>First Name</Text>
-          <View style={[styles.inputContainer, showErrors && step1Errors.firstName && styles.inputError]}>
-            <TextInput
-              style={styles.input}
-              placeholder="Juan"
-              placeholderTextColor="#999"
-              value={firstName}
-              onChangeText={(text) => {
-                setFirstName(text);
-                clearStep1Error('firstName');
-              }}
-              onFocus={(event) => handleInputFocus(event.target)}
-              onBlur={handleInputBlur}
-            />
-            <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
-          </View>
-          {showErrors && step1Errors.firstName && (
-            <Text style={styles.errorText}>
-              {firstNameErrorMessage || 'First name must be 2–50 characters and contain letters only.'}
-            </Text>
-          )}
+      <View style={styles.formContent}>
+        <View style={styles.headerSection}>
+          <Text style={styles.title}>
+            <Text style={styles.titleBlack}>Let's get you </Text>
+            <Text style={styles.titleGreen}>registered</Text>
+          </Text>
+          <Text style={styles.subtitle}>
+            Please enter your details exactly as they appear on your valid ID to ensure smooth relief distribution.
+          </Text>
         </View>
 
-        {/* Last Name */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Last Name</Text>
-          <View style={[styles.inputContainer, showErrors && step1Errors.lastName && styles.inputError]}>
-            <TextInput
-              style={styles.input}
-              placeholder="dela Cruz"
-              placeholderTextColor="#999"
-              value={lastName}
-              onChangeText={(text) => {
-                setLastName(text);
-                clearStep1Error('lastName');
-              }}
-              onFocus={(event) => handleInputFocus(event.target)}
-              onBlur={handleInputBlur}
-            />
-            <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
-          </View>
-          {showErrors && step1Errors.lastName && (
-            <Text style={styles.errorText}>
-              {lastNameErrorMessage || 'Last name must be 2–50 characters and contain letters only.'}
-            </Text>
-          )}
-        </View>
-
-        {/* Date of Birth */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Date of Birth</Text>
-          <TouchableOpacity 
-            style={[styles.inputContainer, showErrors && (step1Errors.dateOfBirth || step1Errors.ageRestriction) && styles.inputError]}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <TextInput
-              style={styles.input}
-              placeholder="mm/dd/yyyy"
-              placeholderTextColor="#999"
-              value={dateOfBirth}
-              onChangeText={(text) => {
-                handleDateChange(text);
-                clearAgeError();
-              }}
-              keyboardType="numeric"
-              maxLength={10}
-              editable={true}
-              onFocus={(event) => handleInputFocus(event.target)}
-              onBlur={handleInputBlur}
-            />
-            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.calendarIcons}>
-              <Ionicons name="calendar" size={22} color="#2E7D32" />
-            </TouchableOpacity>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(event, date) => {
-                onDatePickerChange(event, date);
-                clearAgeError();
-              }}
-              maximumDate={new Date()}
-            />
-          )}
-          {showErrors && step1Errors.ageRestriction && (
-            <Text style={styles.errorText}>You must be at least 18 years old to register</Text>
-          )}
-        </View>
-
-        {/* Gender - Radio Buttons */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Gender</Text>
-          <View style={[styles.genderRadioContainer, showErrors && step1Errors.gender && styles.genderError]}>
-            {(['Male', 'Female'] as const).map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={styles.genderRadioOption}
-                onPress={() => {
-                  setGender(option);
-                  clearStep1Error('gender');
+        <View style={styles.formFields}>
+          {/* First Name */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>First Name</Text>
+            <View style={[styles.inputContainer, showErrors && step1Errors.firstName && styles.inputError]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Juan"
+                placeholderTextColor="#999"
+                value={firstName}
+                onChangeText={(text) => {
+                  setFirstName(text);
+                  clearStep1Error('firstName');
                 }}
-              >
-                <View style={[
-                  styles.radioOuter,
-                  gender === option && styles.radioOuterActive,
-                  showErrors && step1Errors.gender && styles.radioOuterError,
-                ]}>
-                  {gender === option && <View style={styles.radioInner} />}
-                </View>
-                <Text style={[
-                  styles.genderRadioText,
-                  gender === option && styles.genderRadioTextActive,
-                ]}>
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.credentialsSection}>
-          <Text style={styles.credentialsSectionTitle}>Create your login credentials</Text>
-          <View style={styles.credentialsInfoBox}>
-            <Ionicons name="information-circle" size={18} color="#2E7D32" />
-            <Text style={styles.credentialsInfoText}>
-              You will use this mobile number and password to log in next time.
-            </Text>
-          </View>
-        </View>
-
-        {/* Mobile Number */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Mobile Number (Login ID)</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              isMobileNumberFocused && styles.inputFocused,
-              showErrors && (step1Errors.mobileNumber || step1Errors.mobileNumberFormat || step1Errors.mobileNumberDuplicate) && styles.inputError,
-            ]}
-          >
-            <TextInput
-              style={styles.input}
-              placeholder="09XXXXXXXXX"
-              placeholderTextColor="#999"
-              value={mobileNumber}
-              onChangeText={(text) => {
-                const sanitized = text.replace(/\D/g, '').slice(0, 11);
-                setMobileNumber(sanitized);
-                if (sanitized.trim()) {
-                  clearStep1Error('mobileNumber');
-                }
-                setStep1Errors(prev => ({ ...prev, mobileNumberFormat: false, mobileNumberDuplicate: false }));
-                if (!/^09\d{9}$/.test(sanitized)) {
-                  setMobileChecked(false);
-                  setMobileAvailabilityStatus('idle');
-                }
-              }}
-              keyboardType="phone-pad"
-              maxLength={11}
-              onFocus={(event) => {
-                setIsMobileNumberFocused(true);
-                handleInputFocus(event.target);
-              }}
-              onBlur={() => {
-                setIsMobileNumberFocused(false);
-                handleInputBlur();
-              }}
-            />
-            {isCheckingMobile ? (
-              <ActivityIndicator size="small" color="#2E7D32" style={styles.inputIconRight} />
-            ) : mobileChecked ? (
-              <Ionicons name="checkmark-circle" size={22} color="#2E7D32" style={styles.inputIconRight} />
-            ) : (
-              <Ionicons name="call" size={22} color="#2E7D32" style={styles.inputIconRight} />
+                onFocus={(event) => handleInputFocus(event.target)}
+                onBlur={handleInputBlur}
+              />
+              <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
+            </View>
+            {showErrors && step1Errors.firstName && (
+              <Text style={styles.errorText}>
+                {firstNameErrorMessage || 'First name must be 2–50 characters and contain letters only.'}
+              </Text>
             )}
           </View>
-          <Text style={styles.fieldHelperText}>Use 09XXXXXXXXX.</Text>
-          {mobileAvailabilityStatus === 'checking' && (
-            <Text style={styles.mobileInfoText}>Checking mobile number...</Text>
-          )}
-          {mobileAvailabilityStatus === 'available' && (
-            <Text style={styles.mobileSuccessText}>Mobile number is available.</Text>
-          )}
-          {mobileAvailabilityStatus === 'taken' && (
-            <Text style={styles.mobileWarningText}>This account already exists. Please sign in instead.</Text>
-          )}
-          {mobileAvailabilityStatus === 'error' && (
-            <Text style={styles.mobileWarningText}>Unable to check right now. You can still continue.</Text>
-          )}
-          {showErrors && step1Errors.mobileNumber && (
-            <Text style={styles.errorText}>Mobile number is required</Text>
-          )}
-          {showErrors && step1Errors.mobileNumberFormat && (
-            <Text style={styles.errorText}>{mobileNumberErrorMessage || 'Enter a valid mobile number'}</Text>
-          )}
-          {showErrors && step1Errors.mobileNumberDuplicate && (
-            <Text style={styles.errorText}>This account already exists. Please sign in instead.</Text>
-          )}
-        </View>
 
-        {/* Password */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Password</Text>
-          <View style={[styles.inputContainer, showErrors && step1Errors.password && styles.inputError]}>
-            <TextInput
-              style={styles.input}
-              placeholder="Create password"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={(text) => {
-                // Strip whitespace as user types
-                const sanitizedText = text.replace(/\s/g, '');
-                setPassword(sanitizedText);
-                setPasswordServerError(null);
-                if (!getPasswordError(sanitizedText)) clearStep1Error('password');
-              }}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              onFocus={(event) => handleStep1PasswordFocus(event.target)}
-              onBlur={handleInputBlur}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.inputIconRight}>
-              <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
-            </TouchableOpacity>
+          {/* Last Name */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Last Name</Text>
+            <View style={[styles.inputContainer, showErrors && step1Errors.lastName && styles.inputError]}>
+              <TextInput
+                style={styles.input}
+                placeholder="dela Cruz"
+                placeholderTextColor="#999"
+                value={lastName}
+                onChangeText={(text) => {
+                  setLastName(text);
+                  clearStep1Error('lastName');
+                }}
+                onFocus={(event) => handleInputFocus(event.target)}
+                onBlur={handleInputBlur}
+              />
+              <Ionicons name="person" size={22} color="#2E7D32" style={styles.inputIconRight} />
+            </View>
+            {showErrors && step1Errors.lastName && (
+              <Text style={styles.errorText}>
+                {lastNameErrorMessage || 'Last name must be 2–50 characters and contain letters only.'}
+              </Text>
+            )}
           </View>
-          <Text style={styles.fieldHelperText}>Use at least 8 characters with uppercase, lowercase, number, and special character.</Text>
-          {passwordStrength && (
-            <View style={styles.passwordStrengthContainer}>
-              <View style={styles.passwordStrengthTrack}>
-                <View
-                  style={[
-                    styles.passwordStrengthFill,
-                    { width: `${passwordStrength.progress}%`, backgroundColor: passwordStrength.color },
-                  ]}
-                />
-              </View>
-              <Text style={[styles.passwordStrengthText, { color: passwordStrength.color }]}>
-                Password strength: {passwordStrength.label}
+
+          {/* Date of Birth */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Date of Birth</Text>
+            <TouchableOpacity
+              style={[styles.inputContainer, showErrors && (step1Errors.dateOfBirth || step1Errors.ageRestriction) && styles.inputError]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <TextInput
+                style={styles.input}
+                placeholder="mm/dd/yyyy"
+                placeholderTextColor="#999"
+                value={dateOfBirth}
+                onChangeText={(text) => {
+                  handleDateChange(text);
+                  clearAgeError();
+                }}
+                keyboardType="numeric"
+                maxLength={10}
+                editable={true}
+                onFocus={(event) => handleInputFocus(event.target)}
+                onBlur={handleInputBlur}
+              />
+              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.calendarIcons}>
+                <Ionicons name="calendar" size={22} color="#2E7D32" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, date) => {
+                  onDatePickerChange(event, date);
+                  clearAgeError();
+                }}
+                maximumDate={new Date()}
+              />
+            )}
+            {showErrors && step1Errors.ageRestriction && (
+              <Text style={styles.errorText}>You must be at least 18 years old to register</Text>
+            )}
+          </View>
+
+          {/* Gender - Radio Buttons */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Gender</Text>
+            <View style={[styles.genderRadioContainer, showErrors && step1Errors.gender && styles.genderError]}>
+              {(['Male', 'Female'] as const).map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={styles.genderRadioOption}
+                  onPress={() => {
+                    setGender(option);
+                    clearStep1Error('gender');
+                  }}
+                >
+                  <View style={[
+                    styles.radioOuter,
+                    gender === option && styles.radioOuterActive,
+                    showErrors && step1Errors.gender && styles.radioOuterError,
+                  ]}>
+                    {gender === option && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={[
+                    styles.genderRadioText,
+                    gender === option && styles.genderRadioTextActive,
+                  ]}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.credentialsSection}>
+            <Text style={styles.credentialsSectionTitle}>Create your login credentials</Text>
+            <View style={styles.credentialsInfoBox}>
+              <Ionicons name="information-circle" size={18} color="#2E7D32" />
+              <Text style={styles.credentialsInfoText}>
+                You will use this mobile number and password to log in next time.
               </Text>
             </View>
-          )}
-          {showErrors && step1Errors.password && (
-            <Text style={styles.errorText}>
-              {passwordServerError || passwordErrorMessage || 'Invalid password'}
-            </Text>
-          )}
-        </View>
+          </View>
 
-        {/* Confirm Password */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Confirm Password</Text>
-          <View style={[styles.inputContainer, (showErrors && (step1Errors.confirmPassword || step1Errors.passwordMismatch)) && styles.inputError]}>
-            <TextInput
-              style={styles.input}
-              placeholder="Re-enter password"
-              placeholderTextColor="#999"
-              value={confirmPassword}
-              onChangeText={(text) => {
-                // Strip whitespace as user types
-                const sanitizedText = text.replace(/\s/g, '');
-                setConfirmPassword(sanitizedText);
-                if (sanitizedText.trim()) {
-                  const confirmError = getConfirmPasswordError(sanitizedText, password);
-                  setStep1Errors(prev => ({
-                    ...prev,
-                    confirmPassword: !!confirmError,
-                    passwordMismatch: confirmError === 'Passwords do not match',
-                  }));
+          {/* Mobile Number */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Mobile Number (Login ID)</Text>
+            <View
+              style={[
+                styles.inputContainer,
+                isMobileNumberFocused && styles.inputFocused,
+                showErrors && (step1Errors.mobileNumber || step1Errors.mobileNumberFormat || step1Errors.mobileNumberDuplicate) && styles.inputError,
+              ]}
+            >
+              <TextInput
+                style={styles.input}
+                placeholder="09XXXXXXXXX"
+                placeholderTextColor="#999"
+                value={mobileNumber}
+                onChangeText={(text) => {
+                  const sanitized = text.replace(/\D/g, '').slice(0, 11);
+                  setMobileNumber(sanitized);
+                  if (sanitized.trim()) {
+                    clearStep1Error('mobileNumber');
+                  }
+                  setStep1Errors(prev => ({ ...prev, mobileNumberFormat: false, mobileNumberDuplicate: false }));
+                  if (!/^09\d{9}$/.test(sanitized)) {
+                    setMobileChecked(false);
+                    setMobileAvailabilityStatus('idle');
+                  }
+                }}
+                keyboardType="phone-pad"
+                maxLength={11}
+                onFocus={(event) => {
+                  setIsMobileNumberFocused(true);
+                  handleInputFocus(event.target);
+                }}
+                onBlur={() => {
+                  setIsMobileNumberFocused(false);
+                  handleInputBlur();
+                }}
+              />
+              {isCheckingMobile ? (
+                <ActivityIndicator size="small" color="#2E7D32" style={styles.inputIconRight} />
+              ) : mobileChecked ? (
+                <Ionicons name="checkmark-circle" size={22} color="#2E7D32" style={styles.inputIconRight} />
+              ) : (
+                <Ionicons name="call" size={22} color="#2E7D32" style={styles.inputIconRight} />
+              )}
+            </View>
+            <Text style={styles.fieldHelperText}>Use 09XXXXXXXXX.</Text>
+            {mobileAvailabilityStatus === 'checking' && (
+              <Text style={styles.mobileInfoText}>Checking mobile number...</Text>
+            )}
+            {mobileAvailabilityStatus === 'available' && (
+              <Text style={styles.mobileSuccessText}>Mobile number is available.</Text>
+            )}
+            {mobileAvailabilityStatus === 'taken' && (
+              <Text style={styles.mobileWarningText}>This account already exists. Please sign in instead.</Text>
+            )}
+            {mobileAvailabilityStatus === 'error' && (
+              <Text style={styles.mobileWarningText}>Unable to check right now. You can still continue.</Text>
+            )}
+            {showErrors && step1Errors.mobileNumber && (
+              <Text style={styles.errorText}>Mobile number is required</Text>
+            )}
+            {showErrors && step1Errors.mobileNumberFormat && (
+              <Text style={styles.errorText}>{mobileNumberErrorMessage || 'Enter a valid mobile number'}</Text>
+            )}
+            {showErrors && step1Errors.mobileNumberDuplicate && (
+              <Text style={styles.errorText}>This account already exists. Please sign in instead.</Text>
+            )}
+          </View>
+
+          {/* Password */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Password</Text>
+            <View style={[styles.inputContainer, showErrors && step1Errors.password && styles.inputError]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Create password"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={(text) => {
+                  // Strip whitespace as user types
+                  const sanitizedText = text.replace(/\s/g, '');
+                  setPassword(sanitizedText);
+                  setPasswordServerError(null);
+                  if (!getPasswordError(sanitizedText)) clearStep1Error('password');
+                }}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                onFocus={(event) => handleStep1PasswordFocus(event.target)}
+                onBlur={handleInputBlur}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.inputIconRight}>
+                <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.fieldHelperText}>Use at least 8 characters with uppercase, lowercase, number, and special character.</Text>
+            {passwordStrength && (
+              <View style={styles.passwordStrengthContainer}>
+                <View style={styles.passwordStrengthTrack}>
+                  <View
+                    style={[
+                      styles.passwordStrengthFill,
+                      { width: `${passwordStrength.progress}%`, backgroundColor: passwordStrength.color },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.passwordStrengthText, { color: passwordStrength.color }]}>
+                  Password strength: {passwordStrength.label}
+                </Text>
+              </View>
+            )}
+            {showErrors && step1Errors.password && (
+              <Text style={styles.errorText}>
+                {passwordServerError || passwordErrorMessage || 'Invalid password'}
+              </Text>
+            )}
+          </View>
+
+          {/* Confirm Password */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Confirm Password</Text>
+            <View style={[styles.inputContainer, (showErrors && (step1Errors.confirmPassword || step1Errors.passwordMismatch)) && styles.inputError]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Re-enter password"
+                placeholderTextColor="#999"
+                value={confirmPassword}
+                onChangeText={(text) => {
+                  // Strip whitespace as user types
+                  const sanitizedText = text.replace(/\s/g, '');
+                  setConfirmPassword(sanitizedText);
+                  if (sanitizedText.trim()) {
+                    const confirmError = getConfirmPasswordError(sanitizedText, password);
+                    setStep1Errors(prev => ({
+                      ...prev,
+                      confirmPassword: !!confirmError,
+                      passwordMismatch: confirmError === 'Passwords do not match',
+                    }));
+                  }
+                }}
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                onFocus={(event) => handleStep1PasswordFocus(event.target)}
+                onBlur={handleInputBlur}
+              />
+              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.inputIconRight}>
+                <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
+              </TouchableOpacity>
+            </View>
+            {showErrors && step1Errors.confirmPassword && (
+              <Text style={styles.errorText}>{confirmPasswordErrorMessage || 'Please confirm your password'}</Text>
+            )}
+          </View>
+
+          {/* Terms and Conditions Checkbox */}
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              style={[styles.checkbox, showErrors && step1Errors.termsAccepted && styles.checkboxError]}
+              onPress={() => {
+                setTermsAccepted(!termsAccepted);
+                if (!termsAccepted) {
+                  setStep1Errors(prev => ({ ...prev, termsAccepted: false }));
                 }
               }}
-              secureTextEntry={!showConfirmPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              onFocus={(event) => handleStep1PasswordFocus(event.target)}
-              onBlur={handleInputBlur}
-            />
-            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.inputIconRight}>
-              <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={22} color="#2E7D32" />
+            >
+              {termsAccepted && (
+                <Ionicons name="checkmark" size={16} color="#2E7D32" />
+              )}
             </TouchableOpacity>
+            <View style={styles.termsTextContainer}>
+              <Text style={styles.termsText}>
+                I agree to the{' '}
+                <Text style={styles.termsLink} onPress={() => { setTermsModalContent('terms'); setShowTermsModal(true); }}>Terms of Service</Text>
+                {' '}and{' '}
+                <Text style={styles.termsLink} onPress={() => { setTermsModalContent('privacy'); setShowTermsModal(true); }}>Privacy Policy</Text>
+              </Text>
+            </View>
           </View>
-          {showErrors && step1Errors.confirmPassword && (
-            <Text style={styles.errorText}>{confirmPasswordErrorMessage || 'Please confirm your password'}</Text>
+          {showErrors && step1Errors.termsAccepted && (
+            <Text style={styles.errorTextTerms}>You must agree to the Terms and Privacy Policy to continue.</Text>
           )}
         </View>
-
-        {/* Terms and Conditions Checkbox */}
-        <View style={styles.termsContainer}>
-          <TouchableOpacity
-            style={[styles.checkbox, showErrors && step1Errors.termsAccepted && styles.checkboxError]}
-            onPress={() => {
-              setTermsAccepted(!termsAccepted);
-              if (!termsAccepted) {
-                setStep1Errors(prev => ({ ...prev, termsAccepted: false }));
-              }
-            }}
-          >
-            {termsAccepted && (
-              <Ionicons name="checkmark" size={16} color="#2E7D32" />
-            )}
-          </TouchableOpacity>
-          <View style={styles.termsTextContainer}>
-            <Text style={styles.termsText}>
-              I agree to the{' '}
-              <Text style={styles.termsLink} onPress={() => { setTermsModalContent('terms'); setShowTermsModal(true); }}>Terms of Service</Text>
-              {' '}and{' '}
-              <Text style={styles.termsLink} onPress={() => { setTermsModalContent('privacy'); setShowTermsModal(true); }}>Privacy Policy</Text>
-            </Text>
-          </View>
-        </View>
-        {showErrors && step1Errors.termsAccepted && (
-          <Text style={styles.errorTextTerms}>You must agree to the Terms and Privacy Policy to continue.</Text>
-        )}
       </View>
-    </View>
     );
   };
 
@@ -2397,7 +2396,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         {/* Barangay */}
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Barangay</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.inputContainer, styles.selectContainer, showErrors && step2Errors.barangay && styles.inputError]}
             onPress={() => setShowBarangayDropdown(!showBarangayDropdown)}
           >
@@ -2421,7 +2420,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                     setCity('Labrador');
                     setShowBarangayDropdown(false);
                     if (showErrors) setStep2Errors(prev => ({ ...prev, barangay: false }));
-                    
+
                     // Reset token validation if barangay changes
                     if (previousBarangay !== option && tokenValidated) {
                       setTokenValidated(false);
@@ -2469,7 +2468,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           <Text style={styles.fieldHint}>Enter the code provided by your barangay office for {barangay || 'your barangay'}</Text>
           <View style={styles.tokenInputRow}>
             <View style={[
-              styles.inputContainer, 
+              styles.inputContainer,
               styles.tokenInput,
               showErrors && step2Errors.householdToken && !tokenValidated && styles.inputError,
               tokenValidated && styles.inputSuccess
@@ -2511,7 +2510,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               )}
             </TouchableOpacity>
           </View>
-          
+
           {/* Barangay selection required hint */}
           {!barangay && (
             <View style={styles.tokenHintContainer}>
@@ -2519,7 +2518,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <Text style={styles.tokenHintText}>Please select your barangay first</Text>
             </View>
           )}
-          
+
           {/* Token validation feedback */}
           {tokenError && (
             <View style={styles.tokenErrorContainer}>
@@ -2527,7 +2526,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <Text style={styles.tokenErrorText}>{tokenError}</Text>
             </View>
           )}
-          
+
           {/* Token validated - show confirmation */}
           {tokenValidated && tokenHouseholdInfo && (
             <View style={styles.tokenSuccessContainer}>
@@ -2537,7 +2536,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               </View>
             </View>
           )}
-          
+
           {showErrors && step2Errors.householdToken && !tokenValidated && !tokenError && (
             <Text style={styles.errorText}>Please verify your household registration token</Text>
           )}
@@ -2553,7 +2552,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             <Text style={styles.householdSizeSubtitle}>Including yourself</Text>
           </View>
           <View style={styles.householdSizeControls}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.sizeButton}
               onPress={() =>
                 setHouseholdSize(prev => {
@@ -2575,7 +2574,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <Ionicons name="remove" size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.sizeValue}>{householdSize}</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.sizeButton, styles.sizeButtonPlus]}
               onPress={() =>
                 setHouseholdSize(prev => {
@@ -2605,7 +2604,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           <Text style={styles.vulnerableSubtitle}>
             Select all groups present in your household to help us prioritize special needs.
           </Text>
-          
+
           <View style={styles.vulnerableGrid}>
             {VULNERABLE_MEMBER_OPTIONS.map((item) => (
               <TouchableOpacity
@@ -2616,10 +2615,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 ]}
                 onPress={() => toggleVulnerableMember(item.id)}
               >
-                <Ionicons 
-                  name={item.icon as any} 
-                  size={28} 
-                  color={vulnerableMembers.includes(item.id) ? '#2E7D32' : '#666'} 
+                <Ionicons
+                  name={item.icon as any}
+                  size={28}
+                  color={vulnerableMembers.includes(item.id) ? '#2E7D32' : '#666'}
                 />
                 <Text style={[
                   styles.vulnerableCardText,
@@ -2644,8 +2643,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             >
               <Ionicons name="people" size={20} color="#2E7D32" />
               <Text style={styles.specifyCountButtonText}>
-                {vulnerableMembers.length === 1 
-                  ? 'More than 1 person? Tap to specify' 
+                {vulnerableMembers.length === 1
+                  ? 'More than 1 person? Tap to specify'
                   : 'Specify count per category'}
               </Text>
               <Ionicons name="chevron-forward" size={18} color="#2E7D32" />
@@ -2694,7 +2693,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         {/* Select ID Type */}
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Select ID Type</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.inputContainer, styles.selectContainer, showErrors && step3Errors.idType && styles.inputError]}
             onPress={() => setShowIdTypeDropdown(!showIdTypeDropdown)}
           >
@@ -2773,7 +2772,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         {/* Front of ID */}
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Front of ID</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.idUploadBox, showErrors && step3Errors.frontIdImage && styles.inputError]}
             onPress={() => openImagePicker('front')}
           >
@@ -2799,7 +2798,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         {/* Back of ID */}
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Back of ID</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.idUploadBox, showErrors && step3Errors.backIdImage && styles.inputError]}
             onPress={() => openImagePicker('back')}
           >
@@ -2943,7 +2942,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         </View>
 
         {/* Snap Photo Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.scanButton,
             faceScanComplete && styles.scanButtonComplete,
@@ -2958,19 +2957,19 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT
           }
         >
-          <Ionicons 
-            name={faceScanComplete ? "refresh" : "camera"} 
-            size={24} 
-            color="#FFF" 
+          <Ionicons
+            name={faceScanComplete ? "refresh" : "camera"}
+            size={24}
+            color="#FFF"
           />
           <Text style={styles.scanButtonText}>
             {faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT
               ? `Limit Reached (${FACE_CAPTURE_ATTEMPT_LIMIT})`
               : faceCaptureCooldownRemaining > 0
-              ? `Wait ${faceCaptureCooldownRemaining}s`
-              : faceScanComplete
-              ? 'Retake Photo'
-              : 'Snap a Photo'}
+                ? `Wait ${faceCaptureCooldownRemaining}s`
+                : faceScanComplete
+                  ? 'Retake Photo'
+                  : 'Snap a Photo'}
           </Text>
         </TouchableOpacity>
         <Text style={styles.fieldHelperText}>
@@ -3019,7 +3018,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   // Step 5: Verification Result with Duplicate Check Display
   const renderStep5 = () => {
     const status = getVerificationStatus();
-    
+
     // Show loading state while verifying
     if (isSubmitting) {
       return (
@@ -3028,15 +3027,15 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             <ActivityIndicator size="large" color="#2E7D32" />
             <Text style={styles.verificationLoadingTitle}>AI Face Verification</Text>
             <Text style={styles.verificationLoadingSubtitle}>Please wait...</Text>
-            
+
             {/* Progress bar */}
             <View style={styles.verificationProgressContainer}>
               <View style={styles.verificationProgressBar}>
-                <View 
+                <View
                   style={[
-                    styles.verificationProgressFill, 
+                    styles.verificationProgressFill,
                     { width: `${verificationProgress}%` }
-                  ]} 
+                  ]}
                 />
               </View>
             </View>
@@ -3051,13 +3050,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         <View style={styles.verificationResultContainer}>
           {/* Result Icon */}
           <View style={[styles.verificationResultIcon, { backgroundColor: (submissionErrorMessage ? '#F39C12' : status.color) + '20' }]}>
-            <Ionicons 
+            <Ionicons
               name={submissionErrorMessage
                 ? "warning"
-                : duplicateCheckResult?.decision === 'ALLOW' ? "shield-checkmark" : 
-                    duplicateCheckResult?.decision === 'BLOCK' ? "close-circle" : "warning"} 
-              size={60} 
-              color={submissionErrorMessage ? '#F39C12' : status.color} 
+                : duplicateCheckResult?.decision === 'ALLOW' ? "shield-checkmark" :
+                  duplicateCheckResult?.decision === 'BLOCK' ? "close-circle" : "warning"}
+              size={60}
+              color={submissionErrorMessage ? '#F39C12' : status.color}
             />
           </View>
 
@@ -3113,12 +3112,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
 
           {/* Complete, Retry, or Go Back Button */}
           {(submissionComplete || !!submissionErrorMessage || duplicateCheckResult?.decision === 'BLOCK' || duplicateCheckResult?.decision === 'ERROR') && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.completeButton, 
+                styles.completeButton,
                 duplicateCheckResult?.decision === 'BLOCK' && { backgroundColor: '#E74C3C' },
                 duplicateCheckResult?.decision === 'ERROR' && { backgroundColor: '#F39C12' }
-              ]} 
+              ]}
               onPress={() => {
                 if (duplicateCheckResult?.decision === 'BLOCK') {
                   onCancel();
@@ -3148,10 +3147,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                   ? 'Retry Photo'
                   : 'Back to Splash'}
               </Text>
-              <Ionicons 
-                name={duplicateCheckResult?.decision === 'ERROR' || submissionErrorMessage ? "refresh" : "home"} 
-                size={22} 
-                color="#FFF" 
+              <Ionicons
+                name={duplicateCheckResult?.decision === 'ERROR' || submissionErrorMessage ? "refresh" : "home"}
+                size={22}
+                color="#FFF"
               />
             </TouchableOpacity>
           )}
@@ -3166,534 +3165,534 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <View style={styles.backButtonIcon}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {currentStep === 3 ? 'Identity Verification' : currentStep === 4 ? 'Face Photo' : 'Resident Signup'}
-        </Text>
-        <View style={styles.headerRight}>
-          {(currentStep === 3 || currentStep === 4) && (
-            <Ionicons name="checkmark-circle" size={24} color="#2E7D32" />
-          )}
-        </View>
-      </View>
-
-      {/* Progress Section */}
-      <View style={styles.progressSection}>
-        <View style={styles.progressTextContainer}>
-          <Text style={styles.stepText}>Step {currentStep} of {totalSteps}</Text>
-        </View>
-        <View style={styles.progressSegmentsRow}>
-          {Array.from({ length: totalSteps }).map((_, index) => {
-            const stepNumber = index + 1;
-            const isCompleted = stepNumber < currentStep;
-            const isCurrent = stepNumber === currentStep;
-
-            return (
-              <View
-                key={`progress-segment-${stepNumber}`}
-                style={[
-                  styles.progressSegment,
-                  index !== totalSteps - 1 && styles.progressSegmentSpacing,
-                  isCompleted && styles.progressSegmentCompleted,
-                  isCurrent && styles.progressSegmentCurrent,
-                ]}
-              />
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Form Content */}
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          currentStep !== 5 && styles.scrollContentWithBottomActions,
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
-        {currentStep === 1 && renderStep1()}
-        {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
-        {currentStep === 5 && renderStep5()}
-      </ScrollView>
-
-      {/* Bottom Actions - Hide on Step 5 when submitting */}
-      {currentStep !== 5 && !(currentStep === 1 && keyboardHeight > 0) && (
-        <View
-          style={[
-            styles.bottomActions,
-            styles.bottomActionsFloating,
-            {
-              bottom: Platform.OS === 'ios' && keyboardHeight > 0
-                ? Math.max(keyboardHeight - insets.bottom, 0)
-                : 0,
-              paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom + 8, 14),
-            },
-          ]}
-        >
-          <View style={styles.bottomButtonsRow}>
-            <TouchableOpacity 
-              style={[
-                styles.backButtonBottom,
-                currentStep === 1 && styles.cancelButtonBottom,
-              ]}
-              onPress={handleBack}
-            >
-              <Text style={[styles.backButtonText, currentStep === 1 && styles.cancelButtonText]}>
-                {currentStep === 1 ? 'Cancel' : 'Back'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.nextButton,
-                (isStep1Validating || isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')) && styles.nextButtonDisabled,
-              ]}
-              onPress={handleNextStep}
-              disabled={isStep1Validating || isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')}
-            >
-              <Text style={styles.nextButtonText}>
-                {isStep1Validating
-                  ? 'Validating...'
-                  : isStep3Validating
-                  ? 'Checking ID...'
-                  : currentStep === 3 && step3ValidationStatus === 'error'
-                    ? 'Fix ID Upload'
-                  : currentStep === 4
-                    ? 'Verify & Submit'
-                    : currentStep === 3
-                      ? 'Continue'
-                      : 'Next Step'}
-              </Text>
-              <Ionicons name={currentStep === 4 ? "shield-checkmark" : "arrow-forward"} size={22} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Vulnerable Details Modal */}
-      <Modal
-        visible={showVulnerableDetailsModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowVulnerableDetailsModal(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowVulnerableDetailsModal(false)}
-        >
-          <View style={styles.vulnerableDetailsModalContent}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Specify Vulnerable Members</Text>
-            <Text style={styles.vulnerableModalSubtitle}>
-              How many people are in each category?
-            </Text>
-            
-            {VULNERABLE_MEMBER_OPTIONS.filter(item => vulnerableMembers.includes(item.id)).map((item) => (
-              <View key={item.id} style={styles.vulnerableCountRow}>
-                <View style={styles.vulnerableCountInfo}>
-                  <Ionicons name={item.icon as any} size={22} color="#2E7D32" />
-                  <Text style={styles.vulnerableCountLabel}>{item.label}</Text>
-                </View>
-                <View style={styles.vulnerableCountControls}>
-                  <TouchableOpacity 
-                    style={styles.countButton}
-                    onPress={() =>
-                      setVulnerableCounts(prev => {
-                        const nextCounts = {
-                          ...prev,
-                          [item.id]: Math.max(1, (prev[item.id] || 1) - 1),
-                        };
-                        if (showErrors) {
-                          const totalSelected = vulnerableMembers.reduce(
-                            (sum, memberId) => sum + Math.max(1, nextCounts[memberId] || 1),
-                            0,
-                          );
-                          setStep2Errors(current => ({
-                            ...current,
-                            vulnerableCountExceeded: totalSelected > householdSize,
-                          }));
-                        }
-                        return nextCounts;
-                      })
-                    }
-                  >
-                    <Ionicons name="remove" size={18} color="#333" />
-                  </TouchableOpacity>
-                  <Text style={styles.countValue}>{vulnerableCounts[item.id] || 1}</Text>
-                  <TouchableOpacity 
-                    style={[styles.countButton, styles.countButtonPlus]}
-                    onPress={() =>
-                      setVulnerableCounts(prev => {
-                        const nextCounts = {
-                          ...prev,
-                          [item.id]: (prev[item.id] || 1) + 1,
-                        };
-                        if (showErrors) {
-                          const totalSelected = vulnerableMembers.reduce(
-                            (sum, memberId) => sum + Math.max(1, nextCounts[memberId] || 1),
-                            0,
-                          );
-                          setStep2Errors(current => ({
-                            ...current,
-                            vulnerableCountExceeded: totalSelected > householdSize,
-                          }));
-                        }
-                        return nextCounts;
-                      })
-                    }
-                  >
-                    <Ionicons name="add" size={18} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-
-            <TouchableOpacity 
-              style={styles.vulnerableModalDoneButton}
-              onPress={() => setShowVulnerableDetailsModal(false)}
-            >
-              <Text style={styles.vulnerableModalDoneText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Image Picker Modal */}
-      <Modal
-        visible={showImagePickerModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowImagePickerModal(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowImagePickerModal(false)}
-        >
-          <View style={styles.imagePickerModalContent}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Upload {currentImageSide === 'front' ? 'Front' : 'Back'} of ID</Text>
-            
-            <TouchableOpacity style={styles.modalOption} onPress={takePhoto}>
-              <View style={styles.modalOptionIcon}>
-                <Ionicons name="camera" size={24} color="#2E7D32" />
-              </View>
-              <Text style={styles.modalOptionText}>Take a Photo</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.modalOption} onPress={pickFromGallery}>
-              <View style={styles.modalOptionIcon}>
-                <Ionicons name="images" size={24} color="#2E7D32" />
-              </View>
-              <Text style={styles.modalOptionText}>Choose from Gallery</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.modalCancelButton} 
-              onPress={() => setShowImagePickerModal(false)}
-            >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Face Scanner Modal - Simplified Snap Photo */}
-      <Modal
-        visible={showFaceScanner}
-        animationType="slide"
-        onRequestClose={closeFaceScanner}
-      >
-        <SafeAreaView style={styles.faceScannerContainer}>
-          {/* Scanner Header */}
-          <View style={styles.scannerHeader}>
-            <TouchableOpacity 
-              onPress={closeFaceScanner} 
-              style={styles.scannerCloseButton}
-              disabled={scanStatus === 'capturing'}
-            >
-              <Ionicons name="close" size={28} color="#FFF" />
-            </TouchableOpacity>
-            <Text style={styles.scannerTitle}>Take Your Photo</Text>
-            <View style={{ width: 28 }} />
-          </View>
-
-          {/* Camera View or Captured Image */}
-          <View style={styles.cameraContainer}>
-            {/* Show camera only when idle, show captured image otherwise */}
-            {scanStatus === 'idle' ? (
-              <CameraView
-                ref={cameraRef}
-                style={styles.camera}
-                facing="front"
-              />
-            ) : (
-              capturedPhotoUri && (
-                <Image
-                  source={{ uri: capturedPhotoUri }}
-                  style={styles.camera}
-                  resizeMode="cover"
-                />
-              )
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <View style={styles.backButtonIcon}>
+              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {currentStep === 3 ? 'Identity Verification' : currentStep === 4 ? 'Face Photo' : 'Resident Signup'}
+          </Text>
+          <View style={styles.headerRight}>
+            {(currentStep === 3 || currentStep === 4) && (
+              <Ionicons name="checkmark-circle" size={24} color="#2E7D32" />
             )}
-            
-            {/* Face Frame Overlay */}
-            <View style={[styles.faceFrameOverlay, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]} pointerEvents="none">
-              <View style={styles.faceFrameTop} />
-              <View style={styles.faceFrameMiddle}>
-                <View style={styles.faceFrameSide} />
-                <View style={[
-                  styles.faceFrameOval,
-                  scanStatus === 'success' && styles.faceFrameOvalDetected,
-                  scanStatus === 'failed' && styles.faceFrameOvalNoFace,
-                ]}>
-                  {/* Analyzing Indicator */}
-                  {scanStatus === 'capturing' && (
-                    <View style={styles.faceDetectionIndicator}>
-                      <ActivityIndicator size="large" color="#FFF" />
-                      <Text style={styles.faceDetectionText}>Analyzing...</Text>
-                    </View>
-                  )}
-                  
-                  {/* Error */}
-                  {scanStatus === 'failed' && (
-                    <View style={styles.noFaceWarning}>
-                      <Ionicons name="close-circle" size={40} color="#FF5252" />
-                      <Text style={styles.noFaceText}>{faceInstructions}</Text>
-                    </View>
-                  )}
+          </View>
+        </View>
+
+        {/* Progress Section */}
+        <View style={styles.progressSection}>
+          <View style={styles.progressTextContainer}>
+            <Text style={styles.stepText}>Step {currentStep} of {totalSteps}</Text>
+          </View>
+          <View style={styles.progressSegmentsRow}>
+            {Array.from({ length: totalSteps }).map((_, index) => {
+              const stepNumber = index + 1;
+              const isCompleted = stepNumber < currentStep;
+              const isCurrent = stepNumber === currentStep;
+
+              return (
+                <View
+                  key={`progress-segment-${stepNumber}`}
+                  style={[
+                    styles.progressSegment,
+                    index !== totalSteps - 1 && styles.progressSegmentSpacing,
+                    isCompleted && styles.progressSegmentCompleted,
+                    isCurrent && styles.progressSegmentCurrent,
+                  ]}
+                />
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Form Content */}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            currentStep !== 5 && styles.scrollContentWithBottomActions,
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          {currentStep === 1 && renderStep1()}
+          {currentStep === 2 && renderStep2()}
+          {currentStep === 3 && renderStep3()}
+          {currentStep === 4 && renderStep4()}
+          {currentStep === 5 && renderStep5()}
+        </ScrollView>
+
+        {/* Bottom Actions - Hide when keyboard is active or on Step 5 */}
+        {currentStep !== 5 && keyboardHeight === 0 && (
+          <View
+            style={[
+              styles.bottomActions,
+              styles.bottomActionsFloating,
+              {
+                bottom: Platform.OS === 'ios' && keyboardHeight > 0
+                  ? Math.max(keyboardHeight - insets.bottom, 0)
+                  : 0,
+                paddingBottom: keyboardHeight > 0 ? 10 : Math.max(insets.bottom + 8, 14),
+              },
+            ]}
+          >
+            <View style={styles.bottomButtonsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.backButtonBottom,
+                  currentStep === 1 && styles.cancelButtonBottom,
+                ]}
+                onPress={handleBack}
+              >
+                <Text style={[styles.backButtonText, currentStep === 1 && styles.cancelButtonText]}>
+                  {currentStep === 1 ? 'Cancel' : 'Back'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.nextButton,
+                  (isStep1Validating || isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')) && styles.nextButtonDisabled,
+                ]}
+                onPress={handleNextStep}
+                disabled={isStep1Validating || isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')}
+              >
+                <Text style={styles.nextButtonText}>
+                  {isStep1Validating
+                    ? 'Validating...'
+                    : isStep3Validating
+                      ? 'Checking ID...'
+                      : currentStep === 3 && step3ValidationStatus === 'error'
+                        ? 'Fix ID Upload'
+                        : currentStep === 4
+                          ? 'Verify & Submit'
+                          : currentStep === 3
+                            ? 'Continue'
+                            : 'Next Step'}
+                </Text>
+                <Ionicons name={currentStep === 4 ? "shield-checkmark" : "arrow-forward"} size={22} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Vulnerable Details Modal */}
+        <Modal
+          visible={showVulnerableDetailsModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowVulnerableDetailsModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowVulnerableDetailsModal(false)}
+          >
+            <View style={styles.vulnerableDetailsModalContent}>
+              <View style={styles.modalHandle} />
+              <Text style={styles.modalTitle}>Specify Vulnerable Members</Text>
+              <Text style={styles.vulnerableModalSubtitle}>
+                How many people are in each category?
+              </Text>
+
+              {VULNERABLE_MEMBER_OPTIONS.filter(item => vulnerableMembers.includes(item.id)).map((item) => (
+                <View key={item.id} style={styles.vulnerableCountRow}>
+                  <View style={styles.vulnerableCountInfo}>
+                    <Ionicons name={item.icon as any} size={22} color="#2E7D32" />
+                    <Text style={styles.vulnerableCountLabel}>{item.label}</Text>
+                  </View>
+                  <View style={styles.vulnerableCountControls}>
+                    <TouchableOpacity
+                      style={styles.countButton}
+                      onPress={() =>
+                        setVulnerableCounts(prev => {
+                          const nextCounts = {
+                            ...prev,
+                            [item.id]: Math.max(1, (prev[item.id] || 1) - 1),
+                          };
+                          if (showErrors) {
+                            const totalSelected = vulnerableMembers.reduce(
+                              (sum, memberId) => sum + Math.max(1, nextCounts[memberId] || 1),
+                              0,
+                            );
+                            setStep2Errors(current => ({
+                              ...current,
+                              vulnerableCountExceeded: totalSelected > householdSize,
+                            }));
+                          }
+                          return nextCounts;
+                        })
+                      }
+                    >
+                      <Ionicons name="remove" size={18} color="#333" />
+                    </TouchableOpacity>
+                    <Text style={styles.countValue}>{vulnerableCounts[item.id] || 1}</Text>
+                    <TouchableOpacity
+                      style={[styles.countButton, styles.countButtonPlus]}
+                      onPress={() =>
+                        setVulnerableCounts(prev => {
+                          const nextCounts = {
+                            ...prev,
+                            [item.id]: (prev[item.id] || 1) + 1,
+                          };
+                          if (showErrors) {
+                            const totalSelected = vulnerableMembers.reduce(
+                              (sum, memberId) => sum + Math.max(1, nextCounts[memberId] || 1),
+                              0,
+                            );
+                            setStep2Errors(current => ({
+                              ...current,
+                              vulnerableCountExceeded: totalSelected > householdSize,
+                            }));
+                          }
+                          return nextCounts;
+                        })
+                      }
+                    >
+                      <Ionicons name="add" size={18} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={styles.faceFrameSide} />
-              </View>
-              <View style={styles.faceFrameBottom} />
+              ))}
+
+              <TouchableOpacity
+                style={styles.vulnerableModalDoneButton}
+                onPress={() => setShowVulnerableDetailsModal(false)}
+              >
+                <Text style={styles.vulnerableModalDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Image Picker Modal */}
+        <Modal
+          visible={showImagePickerModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowImagePickerModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowImagePickerModal(false)}
+          >
+            <View style={styles.imagePickerModalContent}>
+              <View style={styles.modalHandle} />
+              <Text style={styles.modalTitle}>Upload {currentImageSide === 'front' ? 'Front' : 'Back'} of ID</Text>
+
+              <TouchableOpacity style={styles.modalOption} onPress={takePhoto}>
+                <View style={styles.modalOptionIcon}>
+                  <Ionicons name="camera" size={24} color="#2E7D32" />
+                </View>
+                <Text style={styles.modalOptionText}>Take a Photo</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption} onPress={pickFromGallery}>
+                <View style={styles.modalOptionIcon}>
+                  <Ionicons name="images" size={24} color="#2E7D32" />
+                </View>
+                <Text style={styles.modalOptionText}>Choose from Gallery</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowImagePickerModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Face Scanner Modal - Simplified Snap Photo */}
+        <Modal
+          visible={showFaceScanner}
+          animationType="slide"
+          onRequestClose={closeFaceScanner}
+        >
+          <SafeAreaView style={styles.faceScannerContainer}>
+            {/* Scanner Header */}
+            <View style={styles.scannerHeader}>
+              <TouchableOpacity
+                onPress={closeFaceScanner}
+                style={styles.scannerCloseButton}
+                disabled={scanStatus === 'capturing'}
+              >
+                <Ionicons name="close" size={28} color="#FFF" />
+              </TouchableOpacity>
+              <Text style={styles.scannerTitle}>Take Your Photo</Text>
+              <View style={{ width: 28 }} />
             </View>
 
-            {/* Success Overlay */}
-            {scanStatus === 'success' && (
-              <View style={[styles.scanSuccessOverlay, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]}>
-                <View style={styles.scanSuccessIcon}>
-                  <Ionicons name="checkmark-circle" size={80} color="#2ECC71" />
+            {/* Camera View or Captured Image */}
+            <View style={styles.cameraContainer}>
+              {/* Show camera only when idle, show captured image otherwise */}
+              {scanStatus === 'idle' ? (
+                <CameraView
+                  ref={cameraRef}
+                  style={styles.camera}
+                  facing="front"
+                />
+              ) : (
+                capturedPhotoUri && (
+                  <Image
+                    source={{ uri: capturedPhotoUri }}
+                    style={styles.camera}
+                    resizeMode="cover"
+                  />
+                )
+              )}
+
+              {/* Face Frame Overlay */}
+              <View style={[styles.faceFrameOverlay, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]} pointerEvents="none">
+                <View style={styles.faceFrameTop} />
+                <View style={styles.faceFrameMiddle}>
+                  <View style={styles.faceFrameSide} />
+                  <View style={[
+                    styles.faceFrameOval,
+                    scanStatus === 'success' && styles.faceFrameOvalDetected,
+                    scanStatus === 'failed' && styles.faceFrameOvalNoFace,
+                  ]}>
+                    {/* Analyzing Indicator */}
+                    {scanStatus === 'capturing' && (
+                      <View style={styles.faceDetectionIndicator}>
+                        <ActivityIndicator size="large" color="#FFF" />
+                        <Text style={styles.faceDetectionText}>Analyzing...</Text>
+                      </View>
+                    )}
+
+                    {/* Error */}
+                    {scanStatus === 'failed' && (
+                      <View style={styles.noFaceWarning}>
+                        <Ionicons name="close-circle" size={40} color="#FF5252" />
+                        <Text style={styles.noFaceText}>{faceInstructions}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.faceFrameSide} />
                 </View>
-                <Text style={styles.scanSuccessText}>Photo Verified!</Text>
+                <View style={styles.faceFrameBottom} />
               </View>
-            )}
-          </View>
 
-          {/* Scanner Bottom */}
-          <View style={styles.scannerBottom}>
-            {/* Instructions */}
-            <Text style={[
-              styles.scannerInstructions,
-              scanStatus === 'failed' && styles.scannerInstructionsWarning,
-              scanStatus === 'success' && styles.scannerInstructionsSuccess,
-            ]}>
-              {scanStatus === 'idle' && 'Position your face and tap to snap'}
-              {scanStatus === 'capturing' && 'AI is analyzing your photo...'}
-              {scanStatus === 'success' && 'Photo captured successfully!'}
-              {scanStatus === 'failed' && faceInstructions}
-            </Text>
-            
-            {/* Snap Photo Button - Only when idle */}
-            {scanStatus === 'idle' && (
-              <TouchableOpacity 
-                style={[
-                  styles.startScanButton,
-                  (faceCaptureCooldownRemaining > 0 || faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT) &&
+              {/* Success Overlay */}
+              {scanStatus === 'success' && (
+                <View style={[styles.scanSuccessOverlay, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]}>
+                  <View style={styles.scanSuccessIcon}>
+                    <Ionicons name="checkmark-circle" size={80} color="#2ECC71" />
+                  </View>
+                  <Text style={styles.scanSuccessText}>Photo Verified!</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Scanner Bottom */}
+            <View style={styles.scannerBottom}>
+              {/* Instructions */}
+              <Text style={[
+                styles.scannerInstructions,
+                scanStatus === 'failed' && styles.scannerInstructionsWarning,
+                scanStatus === 'success' && styles.scannerInstructionsSuccess,
+              ]}>
+                {scanStatus === 'idle' && 'Position your face and tap to snap'}
+                {scanStatus === 'capturing' && 'AI is analyzing your photo...'}
+                {scanStatus === 'success' && 'Photo captured successfully!'}
+                {scanStatus === 'failed' && faceInstructions}
+              </Text>
+
+              {/* Snap Photo Button - Only when idle */}
+              {scanStatus === 'idle' && (
+                <TouchableOpacity
+                  style={[
+                    styles.startScanButton,
+                    (faceCaptureCooldownRemaining > 0 || faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT) &&
                     styles.startScanButtonDisabled,
-                ]}
-                onPress={snapPhoto}
-                disabled={faceCaptureCooldownRemaining > 0 || faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT}
-              >
-                <Ionicons name="camera" size={28} color="#FFF" />
-                <Text style={styles.startScanButtonText}>
-                  {faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT
-                    ? `Limit Reached (${FACE_CAPTURE_ATTEMPT_LIMIT})`
-                    : faceCaptureCooldownRemaining > 0
-                    ? `Wait ${faceCaptureCooldownRemaining}s`
-                    : 'Snap Photo'}
-                </Text>
-              </TouchableOpacity>
-            )}
-            
-            {/* Retry Button - When failed */}
-            {scanStatus === 'failed' && (
-              <TouchableOpacity 
-                style={[styles.startScanButton, styles.retryButton]}
-                onPress={() => {
-                  setCapturedPhotoUri(null);
-                  setScanStatus('idle');
-                  setFaceInstructions('Position your face and tap to snap');
-                }}
-              >
-                <Ionicons name="refresh" size={24} color="#FFF" />
-                <Text style={styles.startScanButtonText}>Try Again</Text>
-              </TouchableOpacity>
-            )}
+                  ]}
+                  onPress={snapPhoto}
+                  disabled={faceCaptureCooldownRemaining > 0 || faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT}
+                >
+                  <Ionicons name="camera" size={28} color="#FFF" />
+                  <Text style={styles.startScanButtonText}>
+                    {faceCaptureAttempts >= FACE_CAPTURE_ATTEMPT_LIMIT
+                      ? `Limit Reached (${FACE_CAPTURE_ATTEMPT_LIMIT})`
+                      : faceCaptureCooldownRemaining > 0
+                        ? `Wait ${faceCaptureCooldownRemaining}s`
+                        : 'Snap Photo'}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
-            {/* Success State */}
-            {scanStatus === 'success' && (
-              <View style={styles.successContainer}>
-                <Ionicons name="checkmark-circle" size={32} color="#2ECC71" />
-                <Text style={styles.successText}>Closing in 2 seconds...</Text>
-              </View>
-            )}
-          </View>
-        </SafeAreaView>
-      </Modal>
+              {/* Retry Button - When failed */}
+              {scanStatus === 'failed' && (
+                <TouchableOpacity
+                  style={[styles.startScanButton, styles.retryButton]}
+                  onPress={() => {
+                    setCapturedPhotoUri(null);
+                    setScanStatus('idle');
+                    setFaceInstructions('Position your face and tap to snap');
+                  }}
+                >
+                  <Ionicons name="refresh" size={24} color="#FFF" />
+                  <Text style={styles.startScanButtonText}>Try Again</Text>
+                </TouchableOpacity>
+              )}
 
-      {/* Terms and Privacy Modal */}
-      <Modal
-        visible={showTermsModal}
-        animationType="slide"
-        onRequestClose={() => setShowTermsModal(false)}
-      >
-        <SafeAreaView style={styles.termsModalContainer}>
-          <View style={styles.termsModalHeader}>
-            <TouchableOpacity 
-              onPress={() => setShowTermsModal(false)} 
-              style={styles.termsModalCloseButton}
-            >
-              <Ionicons name="close" size={28} color="#333" />
-            </TouchableOpacity>
-            <Text style={styles.termsModalTitle}>
-              {termsModalContent === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
-            </Text>
-            <View style={{ width: 28 }} />
-          </View>
-          
-          <ScrollView style={styles.termsModalContent} showsVerticalScrollIndicator={false}>
-            {termsModalContent === 'terms' ? (
-              <View style={styles.termsModalTextContainer}>
-                <Text style={styles.termsModalHeading}>Terms of Service</Text>
-                <Text style={styles.termsModalDate}>Last Updated: January 2026</Text>
-                
-                <Text style={styles.termsModalSubheading}>1. Acceptance of Terms</Text>
-                <Text style={styles.termsModalParagraph}>
-                  By accessing and using the Kapit-Bisig Relief Distribution System mobile application, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use this application.
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>2. Description of Service</Text>
-                <Text style={styles.termsModalParagraph}>
-                  Kapit-Bisig is a digital platform designed to streamline the distribution of relief goods to residents during calamities and emergencies. The service includes resident registration, identity verification, QR code generation for relief claiming, and real-time notifications from local government units (LGUs).
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>3. User Registration</Text>
-                <Text style={styles.termsModalParagraph}>
-                  To use this service, you must register with accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials. You agree to provide truthful information about your identity and household composition.
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>4. User Responsibilities</Text>
-                <Text style={styles.termsModalParagraph}>
-                  • Provide accurate personal and household information{'\n'}
-                  • Upload valid government-issued identification documents{'\n'}
-                  • Not misrepresent your identity or household status{'\n'}
-                  • Not claim relief goods fraudulently{'\n'}
-                  • Keep your account credentials secure
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>5. Prohibited Activities</Text>
-                <Text style={styles.termsModalParagraph}>
-                  Users are prohibited from:{'\n'}
-                  • Creating multiple accounts for the same household{'\n'}
-                  • Sharing QR codes with non-household members{'\n'}
-                  • Attempting to manipulate the verification system{'\n'}
-                  • Using the service for any unlawful purpose
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>6. Limitation of Liability</Text>
-                <Text style={styles.termsModalParagraph}>
-                  The Kapit-Bisig system and its operators shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service. Relief distribution is subject to availability and LGU policies.
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>7. Modifications</Text>
-                <Text style={styles.termsModalParagraph}>
-                  We reserve the right to modify these terms at any time. Continued use of the service after modifications constitutes acceptance of the updated terms.
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.termsModalTextContainer}>
-                <Text style={styles.termsModalHeading}>Privacy Policy</Text>
-                <Text style={styles.termsModalDate}>Last Updated: January 2026</Text>
-                
-                <Text style={styles.termsModalSubheading}>1. Information We Collect</Text>
-                <Text style={styles.termsModalParagraph}>
-                  We collect the following types of information:{'\n'}
-                  • Personal Information: Full name, date of birth, gender, mobile number{'\n'}
-                  • Address Information: Barangay, street address{'\n'}
-                  • Household Information: Number of members, vulnerable member categories{'\n'}
-                  • Identity Documents: Government ID type, ID number, ID photos{'\n'}
-                  • Biometric Data: Facial scan for identity verification
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>2. How We Use Your Information</Text>
-                <Text style={styles.termsModalParagraph}>
-                  Your information is used to:{'\n'}
-                  • Verify your identity and eligibility for relief assistance{'\n'}
-                  • Generate your unique Family QR code{'\n'}
-                  • Process relief goods distribution{'\n'}
-                  • Send important announcements and notifications{'\n'}
-                  • Maintain distribution records and prevent fraud
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>3. Data Storage and Security</Text>
-                <Text style={styles.termsModalParagraph}>
-                  Your data is stored securely using industry-standard encryption. We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, or destruction.
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>4. Data Sharing</Text>
-                <Text style={styles.termsModalParagraph}>
-                  We may share your information with:{'\n'}
-                  • Local Government Units (LGUs) for relief distribution purposes{'\n'}
-                  • Government agencies as required by law{'\n'}
-                  • Authorized relief distribution centers
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>5. Your Rights</Text>
-                <Text style={styles.termsModalParagraph}>
-                  You have the right to:{'\n'}
-                  • Access your personal data{'\n'}
-                  • Request correction of inaccurate information{'\n'}
-                  • Request deletion of your account{'\n'}
-                  • Withdraw consent for data processing
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>6. Data Retention</Text>
-                <Text style={styles.termsModalParagraph}>
-                  We retain your personal data for as long as your account is active and as required by law. Distribution records may be retained for auditing and reporting purposes.
-                </Text>
-                
-                <Text style={styles.termsModalSubheading}>7. Contact Us</Text>
-                <Text style={styles.termsModalParagraph}>
-                  If you have questions about this Privacy Policy or your personal data, please contact your local barangay office or LGU.
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-          
-          <View style={styles.termsModalFooter}>
-            <TouchableOpacity 
-              style={styles.termsModalAcceptButton}
-              onPress={() => setShowTermsModal(false)}
-            >
-              <Text style={styles.termsModalAcceptText}>I Understand</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
+              {/* Success State */}
+              {scanStatus === 'success' && (
+                <View style={styles.successContainer}>
+                  <Ionicons name="checkmark-circle" size={32} color="#2ECC71" />
+                  <Text style={styles.successText}>Closing in 2 seconds...</Text>
+                </View>
+              )}
+            </View>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Terms and Privacy Modal */}
+        <Modal
+          visible={showTermsModal}
+          animationType="slide"
+          onRequestClose={() => setShowTermsModal(false)}
+        >
+          <SafeAreaView style={styles.termsModalContainer}>
+            <View style={styles.termsModalHeader}>
+              <TouchableOpacity
+                onPress={() => setShowTermsModal(false)}
+                style={styles.termsModalCloseButton}
+              >
+                <Ionicons name="close" size={28} color="#333" />
+              </TouchableOpacity>
+              <Text style={styles.termsModalTitle}>
+                {termsModalContent === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+              </Text>
+              <View style={{ width: 28 }} />
+            </View>
+
+            <ScrollView style={styles.termsModalContent} showsVerticalScrollIndicator={false}>
+              {termsModalContent === 'terms' ? (
+                <View style={styles.termsModalTextContainer}>
+                  <Text style={styles.termsModalHeading}>Terms of Service</Text>
+                  <Text style={styles.termsModalDate}>Last Updated: January 2026</Text>
+
+                  <Text style={styles.termsModalSubheading}>1. Acceptance of Terms</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    By accessing and using the Kapit-Bisig Relief Distribution System mobile application, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use this application.
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>2. Description of Service</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    Kapit-Bisig is a digital platform designed to streamline the distribution of relief goods to residents during calamities and emergencies. The service includes resident registration, identity verification, QR code generation for relief claiming, and real-time notifications from local government units (LGUs).
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>3. User Registration</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    To use this service, you must register with accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials. You agree to provide truthful information about your identity and household composition.
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>4. User Responsibilities</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    • Provide accurate personal and household information{'\n'}
+                    • Upload valid government-issued identification documents{'\n'}
+                    • Not misrepresent your identity or household status{'\n'}
+                    • Not claim relief goods fraudulently{'\n'}
+                    • Keep your account credentials secure
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>5. Prohibited Activities</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    Users are prohibited from:{'\n'}
+                    • Creating multiple accounts for the same household{'\n'}
+                    • Sharing QR codes with non-household members{'\n'}
+                    • Attempting to manipulate the verification system{'\n'}
+                    • Using the service for any unlawful purpose
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>6. Limitation of Liability</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    The Kapit-Bisig system and its operators shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service. Relief distribution is subject to availability and LGU policies.
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>7. Modifications</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    We reserve the right to modify these terms at any time. Continued use of the service after modifications constitutes acceptance of the updated terms.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.termsModalTextContainer}>
+                  <Text style={styles.termsModalHeading}>Privacy Policy</Text>
+                  <Text style={styles.termsModalDate}>Last Updated: January 2026</Text>
+
+                  <Text style={styles.termsModalSubheading}>1. Information We Collect</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    We collect the following types of information:{'\n'}
+                    • Personal Information: Full name, date of birth, gender, mobile number{'\n'}
+                    • Address Information: Barangay, street address{'\n'}
+                    • Household Information: Number of members, vulnerable member categories{'\n'}
+                    • Identity Documents: Government ID type, ID number, ID photos{'\n'}
+                    • Biometric Data: Facial scan for identity verification
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>2. How We Use Your Information</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    Your information is used to:{'\n'}
+                    • Verify your identity and eligibility for relief assistance{'\n'}
+                    • Generate your unique Family QR code{'\n'}
+                    • Process relief goods distribution{'\n'}
+                    • Send important announcements and notifications{'\n'}
+                    • Maintain distribution records and prevent fraud
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>3. Data Storage and Security</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    Your data is stored securely using industry-standard encryption. We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, or destruction.
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>4. Data Sharing</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    We may share your information with:{'\n'}
+                    • Local Government Units (LGUs) for relief distribution purposes{'\n'}
+                    • Government agencies as required by law{'\n'}
+                    • Authorized relief distribution centers
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>5. Your Rights</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    You have the right to:{'\n'}
+                    • Access your personal data{'\n'}
+                    • Request correction of inaccurate information{'\n'}
+                    • Request deletion of your account{'\n'}
+                    • Withdraw consent for data processing
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>6. Data Retention</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    We retain your personal data for as long as your account is active and as required by law. Distribution records may be retained for auditing and reporting purposes.
+                  </Text>
+
+                  <Text style={styles.termsModalSubheading}>7. Contact Us</Text>
+                  <Text style={styles.termsModalParagraph}>
+                    If you have questions about this Privacy Policy or your personal data, please contact your local barangay office or LGU.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.termsModalFooter}>
+              <TouchableOpacity
+                style={styles.termsModalAcceptButton}
+                onPress={() => setShowTermsModal(false)}
+              >
+                <Text style={styles.termsModalAcceptText}>I Understand</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
@@ -3778,7 +3777,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   scrollContentWithBottomActions: {
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
   formContent: {
     paddingHorizontal: 20,
@@ -5199,7 +5198,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginBottom: 20,
   },
-  
+
   // Step 5: Verification Result Styles
   verificationLoadingContainer: {
     flex: 1,

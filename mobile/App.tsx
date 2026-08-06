@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Alert, Platform } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Alert, Platform, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
@@ -211,7 +211,7 @@ export default function App() {
   const isResidentPending = accountType === 'resident'
     && (residentProfile?.status === 'Pending' || residentProfile?.status === 'Needs Revision');
 
-  const loadResidentProfile = async (): Promise<boolean> => {
+  const loadResidentProfile = async (preserveSessionOnFailure = false): Promise<boolean> => {
     try {
       const token = await getResidentToken();
       if (!token) {
@@ -221,8 +221,10 @@ export default function App() {
 
       const response = await fetchResidentProfile(token);
       if (!response.success || !response.data) {
-        await clearResidentSession();
-        setResidentProfile(null);
+        if (!preserveSessionOnFailure) {
+          await clearResidentSession();
+          setResidentProfile(null);
+        }
         return false;
       }
 
@@ -311,6 +313,16 @@ export default function App() {
       registerBackgroundProofSync().catch(() => undefined);
     }
   }, [showSplash]);
+
+  useEffect(() => {
+    if (accountType !== 'resident') return;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        loadResidentProfile(true).catch(() => undefined);
+      }
+    });
+    return () => subscription.remove();
+  }, [accountType]);
 
   useEffect(() => {
     const registerForPushNotificationsAsync = async () => {
