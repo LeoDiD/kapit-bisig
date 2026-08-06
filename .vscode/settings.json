@@ -14,5 +14,6 @@
   "typescript.tsserver.excludeDirectories": [
     "**/node_modules"
   ],
-  "typescript.tsserver.experimental.enableProjectDiagnostics": false
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/venv/Scripts/python.exe"
 }

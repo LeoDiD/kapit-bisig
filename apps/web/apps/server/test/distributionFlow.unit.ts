@@ -7,6 +7,7 @@ import {
 } from '../services/distributionFlowService';
 
 const validStaffId = '507f1f77bcf86cd799439011';
+const validDisasterEventId = '507f1f77bcf86cd799439012';
 const validSchedule = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
 export function runDistributionFlowUnitTests(): void {
@@ -30,6 +31,7 @@ export function runDistributionFlowUnitTests(): void {
   assert.strictEqual(deriveDistributionStatus(10, 10), 'Claimed');
 
   const validCreate = createDistributionBody.safeParse({
+    disasterEventId: validDisasterEventId,
     barangay: 'Bolo',
     assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
     scheduled: validSchedule,
@@ -39,6 +41,7 @@ export function runDistributionFlowUnitTests(): void {
   assert.strictEqual(validCreate.success, true);
 
   const minAssigned = createDistributionBody.safeParse({
+    disasterEventId: validDisasterEventId,
     barangay: 'Bolo',
     assignedBarangays: ['Bongalon', 'Dulig'],
     scheduled: validSchedule,
@@ -48,6 +51,7 @@ export function runDistributionFlowUnitTests(): void {
   assert.strictEqual(minAssigned.success, true);
 
   const tooFewAssigned = createDistributionBody.safeParse({
+    disasterEventId: validDisasterEventId,
     barangay: 'Bolo',
     assignedBarangays: ['Bongalon'],
     scheduled: validSchedule,
@@ -57,6 +61,7 @@ export function runDistributionFlowUnitTests(): void {
   assert.strictEqual(tooFewAssigned.success, false);
 
   const includesHost = createDistributionBody.safeParse({
+    disasterEventId: validDisasterEventId,
     barangay: 'Bolo',
     assignedBarangays: ['Bolo', 'Dulig', 'San Jose'],
     scheduled: validSchedule,

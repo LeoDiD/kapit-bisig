@@ -2,12 +2,18 @@ import mongoose from 'mongoose';
 import Distribution, { DistributionStatus, IDistribution } from '../models/Distribution';
 import DistributionClaim from '../models/DistributionClaim';
 import Resident from '../models/Resident';
-import BeneficiaryEligibility from '../models/BeneficiaryEligibility';
+import BeneficiaryEligibility, { RegistrationSnapshotStatus } from '../models/BeneficiaryEligibility';
+import { ProofSubmissionStatus } from '../models/ProofSubmission';
 
 type DistributionCoverage = Pick<
   IDistribution,
-  '_id' | 'barangay' | 'assignedBarangays' | 'requiresBeneficiaryApproval'
+  '_id' | 'disasterEventId' | 'barangay' | 'assignedBarangays' | 'requiresBeneficiaryApproval'
 >;
+
+type EnrollmentSummary = {
+  matchedResidents: number;
+  enrolledResidents: number;
+};
 
 export function getTargetBarangays(
   hostBarangay: string,
@@ -150,6 +156,135 @@ export async function isResidentApprovedBeneficiaryForDistribution(
   });
 
   return Boolean(resident);
+}
+
+/**
+ * Copies approved disaster-event eligibility into a distribution-specific
+ * enrollment snapshot. The distribution snapshot is what QR validation uses.
+ */
+export async function enrollApprovedResidentsInDistribution(
+  distribution: DistributionCoverage,
+): Promise<EnrollmentSummary> {
+  if (!distribution.disasterEventId) {
+    return { matchedResidents: 0, enrolledResidents: 0 };
+  }
+
+  const targetBarangays = getTargetBarangays(distribution.barangay, distribution.assignedBarangays);
+  const eventEligibilityRows = await BeneficiaryEligibility.find({
+    disasterEventId: distribution.disasterEventId,
+    distributionId: null,
+    status: 'Eligible',
+    registrationStatus: 'Approved',
+    proofStatus: 'Approved',
+  }).lean();
+
+  if (eventEligibilityRows.length === 0) {
+    return { matchedResidents: 0, enrolledResidents: 0 };
+  }
+
+  const eligibleResidentIds = eventEligibilityRows.map((row) => row.residentId);
+  const residents = await Resident.find({
+    _id: mongoose.trusted({ $in: eligibleResidentIds }),
+    barangay: mongoose.trusted({ $in: targetBarangays }),
+    status: 'Approved',
+    qrStatus: 'ACTIVE',
+  }).select('_id').lean();
+  const allowedIds = new Set(residents.map((resident) => resident._id.toString()));
+  const matchingRows = eventEligibilityRows.filter((row) => allowedIds.has(row.residentId.toString()));
+
+  if (matchingRows.length === 0) {
+    return { matchedResidents: 0, enrolledResidents: 0 };
+  }
+
+  const result = await BeneficiaryEligibility.bulkWrite(
+    matchingRows.map((row) => ({
+      updateOne: {
+        filter: { residentId: row.residentId, distributionId: distribution._id },
+        update: {
+          $set: {
+            disasterEventId: null,
+            distributionId: distribution._id,
+            proofSubmissionId: row.proofSubmissionId || null,
+            status: 'Eligible',
+            registrationStatus: 'Approved',
+            proofStatus: 'Approved',
+            rejectionReason: '',
+            reviewedBy: row.reviewedBy || '',
+            reviewedAt: row.reviewedAt || null,
+            lastQualifiedAt: row.lastQualifiedAt || row.reviewedAt || new Date(),
+          },
+        },
+        upsert: true,
+      },
+    })),
+    { ordered: false },
+  );
+
+  return {
+    matchedResidents: matchingRows.length,
+    enrolledResidents: result.upsertedCount + result.modifiedCount,
+  };
+}
+
+/**
+ * Runs after proof review so approval is reflected in every open matching
+ * distribution, including distributions created before the proof was reviewed.
+ */
+export async function syncResidentEnrollmentsForEvent(params: {
+  residentId: mongoose.Types.ObjectId;
+  disasterEventId: mongoose.Types.ObjectId;
+  proofSubmissionId: mongoose.Types.ObjectId;
+  registrationStatus: RegistrationSnapshotStatus;
+  proofStatus: ProofSubmissionStatus;
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: Date | null;
+}): Promise<number> {
+  const resident = await Resident.findById(params.residentId)
+    .select('_id barangay status qrStatus')
+    .lean();
+  if (!resident) return 0;
+
+  const candidates = await Distribution.find({
+    disasterEventId: params.disasterEventId,
+    status: mongoose.trusted({ $ne: 'Claimed' }),
+    requiresBeneficiaryApproval: true,
+  });
+  const matching = candidates.filter((distribution) =>
+    isResidentEligibleForDistribution(String(resident.barangay || ''), distribution));
+  if (matching.length === 0) return 0;
+
+  const eligible = params.registrationStatus === 'Approved'
+    && params.proofStatus === 'Approved'
+    && resident.status === 'Approved'
+    && resident.qrStatus === 'ACTIVE';
+
+  const result = await BeneficiaryEligibility.bulkWrite(
+    matching.map((distribution) => ({
+      updateOne: {
+        filter: { residentId: params.residentId, distributionId: distribution._id },
+        update: {
+          $set: {
+            disasterEventId: null,
+            distributionId: distribution._id,
+            proofSubmissionId: params.proofSubmissionId,
+            status: eligible ? 'Eligible' : 'Not Eligible',
+            registrationStatus: params.registrationStatus,
+            proofStatus: params.proofStatus,
+            rejectionReason: params.rejectionReason || '',
+            reviewedBy: params.reviewedBy || '',
+            reviewedAt: params.reviewedAt || null,
+            lastQualifiedAt: eligible ? params.reviewedAt || new Date() : null,
+          },
+        },
+        upsert: true,
+      },
+    })),
+    { ordered: false },
+  );
+
+  await Promise.all(matching.map((distribution) => syncDistributionStatus(distribution._id.toString())));
+  return result.upsertedCount + result.modifiedCount;
 }
 
 export async function countRegisteredHouseholdsForDistribution(

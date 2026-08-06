@@ -407,13 +407,35 @@ router.patch(
         }
       }
 
+      const previousStatus = resident.status;
       resident.status = status;
       resident.rejectionReason = status === 'Approved' ? undefined : rejectionReason?.trim();
       resident.verifiedAt = new Date();
       resident.verifiedBy = req.authUser?.userId || req.authUser?.sub || 'system';
+
+      if (status === 'Approved') {
+        if (previousStatus !== 'Approved' && resident.qrIssuedAt) {
+          resident.qrVersion = (resident.qrVersion || 1) + 1;
+        }
+        resident.qrIssuedAt = new Date();
+        resident.qrStatus = 'ACTIVE';
+      } else if (previousStatus === 'Approved') {
+        resident.qrStatus = 'REVOKED';
+      }
       await resident.save();
 
-      if (status === 'Needs Revision') {
+      if (status === 'Approved') {
+        await createNotification({
+          userId: resident._id.toString(),
+          title: 'Your Virtual Resident ID is Ready',
+          message: 'Your registration is approved. Open My Virtual ID in the app when claiming relief assistance.',
+          type: 'status_update',
+          meta: {
+            screen: 'qr',
+            residentId: resident._id.toString(),
+          },
+        });
+      } else if (status === 'Needs Revision') {
         await createNotification({
           userId: resident._id.toString(),
           title: 'Registration Needs Revision',

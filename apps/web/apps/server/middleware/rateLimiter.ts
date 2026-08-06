@@ -344,3 +344,34 @@ export const tokenGenerationRateLimiter: RateLimitRequestHandler = rateLimit({
   keyGenerator: getClientIP,
 });
 
+/**
+ * Registration OTP Rate Limiter
+ *
+ * Limits SMS OTP sending during registration to prevent
+ * SMS flooding and cost abuse.
+ *
+ * Policy:
+ * - 5 OTP send requests per 15 minutes per IP
+ * - Enough for legitimate retries, strict enough to prevent abuse
+ */
+export const registrationOtpRateLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15-minute window
+  max: 5,
+  message: {
+    success: false,
+    message: 'Too many OTP requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientIP,
+  handler: (_req: Request, res: Response) => {
+    console.warn(`[SECURITY] Registration OTP rate limit exceeded for IP: ${getClientIP(_req)}`);
+    res.status(429).json({
+      success: false,
+      message: 'Too many verification code requests. Please try again later.',
+      retryAfter: '15 minutes',
+    });
+  },
+});
+

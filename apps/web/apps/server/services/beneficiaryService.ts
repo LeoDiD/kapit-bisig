@@ -8,12 +8,18 @@ import BeneficiaryEligibility, { EligibilityStatus, IBeneficiaryEligibility } fr
 import Claim, { IClaim } from '../models/Claim';
 import OfflineSyncQueue, { IOfflineSyncQueue, OfflineActorRole, OfflineSyncQueueType, OfflineSyncStatus } from '../models/OfflineSyncQueue';
 import { persistVerificationImage, VERIFICATION_IMAGE_MAX_BYTES } from '../utils/imageStorage';
+import { createResidentNotification } from '../utils/createNotification';
 import { validateBase64Image } from '../validation/imageValidation';
 import {
   getTargetBarangays,
   isResidentEligibleForDistribution,
   requiresBeneficiaryApproval,
+  syncResidentEnrollmentsForEvent,
 } from './distributionFlowService';
+import {
+  buildResidentQrToken as buildSignedResidentQrToken,
+  parseResidentQrToken,
+} from './residentQrService';
 
 type ResidentApprovalStatus = 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
 
@@ -149,40 +155,11 @@ export function deriveEligibilityStatus(
 }
 
 export function buildResidentQrToken(residentCode: string): string {
-  const payload = {
-    v: 1,
-    t: 'resident',
-    rid: residentCode,
-  };
-  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
-  return `KBQR1.${encoded}`;
+  return buildSignedResidentQrToken(residentCode);
 }
 
 export function parseResidentCodeFromQrData(qrData: string): string | null {
-  if (!qrData || typeof qrData !== 'string') {
-    return null;
-  }
-
-  const trimmed = qrData.trim();
-  if (/^[A-Z]{2}-\d{4}-\d{6}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  if (!trimmed.startsWith('KBQR1.')) {
-    return null;
-  }
-
-  try {
-    const encodedPayload = trimmed.slice('KBQR1.'.length);
-    const decodedPayload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
-    const parsed = JSON.parse(decodedPayload) as { v?: number; t?: string; rid?: string };
-    if (parsed.v !== 1 || parsed.t !== 'resident' || typeof parsed.rid !== 'string') {
-      return null;
-    }
-    return parsed.rid.toUpperCase();
-  } catch {
-    return null;
-  }
+  return parseResidentQrToken(qrData)?.residentCode || null;
 }
 
 function getBase64PayloadBytes(value: string): number {
@@ -504,6 +481,13 @@ export async function submitResidentProof(params: ProofSubmissionInput): Promise
     }
   } else if (resolvedScope.event) {
     assertEventAcceptingSubmissions(resolvedScope.event);
+    if (!resolvedScope.event.barangays.includes(resident.barangay)) {
+      throw new BeneficiaryServiceError(
+        403,
+        'RESIDENT_OUT_OF_SCOPE',
+        'Resident barangay is not covered by this disaster event.',
+      );
+    }
   }
 
   const normalizedClientGeneratedId = String(params.clientGeneratedId || '').trim();
@@ -652,6 +636,52 @@ export async function reviewResidentProof(params: ProofReviewInput): Promise<{
     reviewedBy: params.reviewerId,
     reviewedAt: submission.reviewedAt,
   });
+
+  if (event) {
+    await syncResidentEnrollmentsForEvent({
+      residentId: resident._id,
+      disasterEventId: event._id,
+      proofSubmissionId: submission._id,
+      registrationStatus: resident.status,
+      proofStatus: submission.status,
+      rejectionReason: submission.rejectionReason,
+      reviewedBy: params.reviewerId,
+      reviewedAt: submission.reviewedAt,
+    });
+  }
+
+  // Notify the resident about the review decision
+  const scopeName = scope.name || 'your disaster proof';
+  if (params.decision === 'Approved') {
+    await createResidentNotification(resident._id.toString(), {
+      title: 'Proof Approved',
+      message: `Your disaster proof for ${scopeName} has been approved. You are now eligible for relief distribution.`,
+      type: 'status_update',
+      meta: {
+        screen: 'proof-request',
+        proofSubmissionId: submission._id.toString(),
+        distributionId: distribution?._id?.toString() || '',
+        disasterEventId: event?._id?.toString() || '',
+        decision: 'Approved',
+      },
+    });
+  } else if (params.decision === 'Rejected') {
+    const reason = submission.rejectionReason
+      ? `: ${submission.rejectionReason}`
+      : '. Please resubmit with updated photos and information.';
+    await createResidentNotification(resident._id.toString(), {
+      title: 'Proof Needs Update',
+      message: `Your disaster proof for ${scopeName} was not approved${reason}`,
+      type: 'status_update',
+      meta: {
+        screen: 'proof-request',
+        proofSubmissionId: submission._id.toString(),
+        distributionId: distribution?._id?.toString() || '',
+        disasterEventId: event?._id?.toString() || '',
+        decision: 'Rejected',
+      },
+    });
+  }
 
   return {
     scope,

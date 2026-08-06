@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import {
   getResidentToken,
   ResidentProfile,
@@ -412,6 +412,18 @@ export default function ProfileScreen({
           {!isVolunteer && (
             <>
               <SettingsItem
+                icon={isPendingResident ? 'lock-closed-outline' : 'card-outline'}
+                label={isPendingResident ? 'Virtual ID (available after approval)' : 'My Virtual Resident ID'}
+                onPress={() => {
+                  if (isPendingResident) {
+                    Alert.alert('Virtual ID locked', 'Your ID becomes available automatically when the admin approves your registration.');
+                  } else {
+                    onNavigate?.('qr');
+                  }
+                }}
+              />
+              <View style={styles.settingsDivider} />
+              <SettingsItem
                 icon="person-outline"
                 label="Edit Profile"
                 onPress={openEditModal}
@@ -465,21 +477,11 @@ export default function ProfileScreen({
             <Ionicons name="home-outline" size={22} color="#9CA3AF" />
             <Text style={styles.bottomNavText}>HOME</Text>
           </TouchableOpacity>
-          <View style={styles.bottomNavPlaceholder} />
           <TouchableOpacity style={styles.bottomNavItem}>
             <Ionicons name="person" size={22} color="#16A34A" />
             <Text style={[styles.bottomNavText, styles.bottomNavTextActive]}>PROFILE</Text>
           </TouchableOpacity>
         </View>
-        
-        {/* Floating QR Button */}
-        <TouchableOpacity
-          style={[styles.floatingQrButton, isPendingResident && styles.floatingQrButtonDisabled]}
-          onPress={() => onNavigate?.('qr')}
-          disabled={isPendingResident}
-        >
-          <MaterialCommunityIcons name="qrcode-scan" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
       </View>
 
       <Modal
@@ -826,16 +828,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 28,
+    minHeight: 58,
+    paddingTop: 7,
+    paddingBottom: 4,
   },
   bottomNavItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 56,
-  },
-  bottomNavPlaceholder: {
-    width: 64,
+    flex: 1,
   },
   bottomNavText: {
     fontSize: 10,
@@ -846,28 +846,6 @@ const styles = StyleSheet.create({
   },
   bottomNavTextActive: {
     color: '#16A34A',
-  },
-  floatingQrButton: {
-    position: 'absolute',
-    top: -28,
-    left: '50%',
-    marginLeft: -32,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#16A34A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-  },
-  floatingQrButtonDisabled: {
-    backgroundColor: '#9CA3AF',
   },
   modalOverlay: {
     flex: 1,

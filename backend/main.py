@@ -1012,18 +1012,26 @@ async def detect_face(request: FaceDetectRequest, http_request: Request):
             )
         
         # Build final response
-        all_valid = is_centered and face_size_ok and is_real
-        
-        if not is_centered and not face_size_ok:
-            message = "Center your face and move closer to the camera."
-        elif not is_centered:
-            message = "Please center your face in the frame."
-        elif not face_size_ok:
-            message = "Please move closer to the camera."
-        elif all_valid:
+        # For registration selfies, centering and size are advisory — only liveness is critical.
+        # The duplicate-check endpoint does the heavy lifting later.
+        all_valid = is_real  # Only require liveness for the detect step
+
+        # Build an advisory message with positioning tips
+        warnings = []
+        if not is_centered:
+            warnings.append("Try to center your face in the frame")
+        if not face_size_ok:
+            warnings.append("Move a bit closer to the camera")
+
+        if all_valid and not warnings:
             message = "Perfect! Face validated successfully."
+        elif all_valid and warnings:
+            message = "Face verified! Tip: " + "; ".join(warnings) + "."
         else:
             message = "Please adjust your position."
+
+        logger.info(f"Face detect result: is_valid={all_valid}, is_centered={is_centered}, "
+                     f"face_size_ok={face_size_ok}, is_real={is_real}")
         
         return FaceDetectionResult(
             has_face=True,

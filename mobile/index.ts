@@ -1,4 +1,8 @@
 import { registerRootComponent } from 'expo';
+import { LogBox } from 'react-native';
+
+// Suppress redbox/yellowbox popups on mobile screen (errors/warnings will still print to terminal)
+LogBox.ignoreAllLogs();
 
 import App from './App';
 

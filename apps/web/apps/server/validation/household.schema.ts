@@ -58,3 +58,19 @@ export const residentRevisionSubmitBody = z.object({
   backIdImage: z.string().min(1, 'Back ID image is required'),
   faceImage: z.string().min(1, 'Face image is required'),
 }).strict();
+
+/* POST /api/household/registration/send-otp */
+export const sendRegistrationOtpBody = z.object({
+  mobileNumber: z.string().min(1, 'Mobile number is required').max(20),
+}).strict();
+
+/* POST /api/household/registration/verify-otp */
+export const verifyRegistrationOtpBody = z.object({
+  otpToken: z.string().min(1, 'OTP token is required'),
+  otp: z.string().length(6, 'OTP must be exactly 6 digits').regex(/^\d{6}$/, 'OTP must be 6 digits'),
+}).strict();
+
+/* POST /api/household/registration/resend-otp */
+export const resendRegistrationOtpBody = z.object({
+  otpToken: z.string().min(1, 'OTP token is required'),
+}).strict();

@@ -153,3 +153,23 @@ export async function broadcastResidentNotification(
     console.warn('[broadcastResidentNotification] Failed:', err.message);
   }
 }
+
+/**
+ * Create a notification for a single resident (e.g. proof review result).
+ */
+export async function createResidentNotification(
+  residentId: string,
+  payload: Omit<NotificationPayload, 'userId'>,
+): Promise<void> {
+  try {
+    await Notification.create({
+      userId: new mongoose.Types.ObjectId(residentId),
+      title: payload.title,
+      message: payload.message,
+      type: payload.type,
+      meta: payload.meta,
+    });
+  } catch (err: any) {
+    console.warn('[createResidentNotification] Failed:', err.message);
+  }
+}

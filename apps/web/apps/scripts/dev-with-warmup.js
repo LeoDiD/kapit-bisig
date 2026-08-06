@@ -81,7 +81,8 @@ const nextArgs = ['dev']
 if (useTurbo) {
   nextArgs.push('--turbo')
 }
-nextArgs.push('-p', port)
+// Explicit LAN binding lets phones and other devices on the same Wi-Fi open the web app.
+nextArgs.push('-H', '0.0.0.0', '-p', port)
 
 const child = spawn(process.execPath, [nextBin, ...nextArgs], {
   stdio: ['inherit', 'pipe', 'pipe'],

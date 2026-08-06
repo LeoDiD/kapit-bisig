@@ -221,15 +221,15 @@ File: `mobile/.env`
 Update both variables to your current laptop IP:
 
 ```env
-EXPO_PUBLIC_API_URL=http://10.45.3.83:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://10.45.3.83:8000
+EXPO_PUBLIC_API_URL=http://192.168.1.4:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://192.168.1.4:8000
 ```
 
 Example:
 
 ```env
-EXPO_PUBLIC_API_URL=http://10.45.3.83:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://10.45.3.83:8000
+EXPO_PUBLIC_API_URL=http://192.168.1.4:3001/api
+EXPO_PUBLIC_FACE_API_URL=http://192.168.1.4:8000
 ```
 
 ### B. Web App Frontend (Optional, if opening web app from another device)
@@ -239,7 +239,7 @@ File: `apps/web/apps/.env.local`
 Update:
 
 ```env
-NEXT_PUBLIC_API_URL=http://10.45.3.83:3001/api
+NEXT_PUBLIC_API_URL=http://192.168.1.4:3001/api
 ```
 
 If you only use web app on the same laptop browser, `http://localhost:3001/api` is fine.
@@ -257,7 +257,7 @@ CORS_ORIGIN=*
 Or restrict to specific origin:
 
 ```env
-CORS_ORIGIN=http://10.45.3.83:3000
+CORS_ORIGIN=http://192.168.1.4:3000
 ```
 
 ### D. Backend Host Binding
@@ -393,6 +393,44 @@ node server/scripts/generateTestTokenSimple.js 10
 
 ---
 
-*Last Updated: February 2026*
+## Summary Commands: Running Mobile, Python AI & Node Backend
 
-npm start -- --clear
+```powershell
+# 1. Node.js / Express Backend (Port 3001)
+cd d:\kapit-bisig\apps\web\apps ; npm run server:dev
+
+# 2. Python AI & Face Recognition Backend (Port 8000)
+cd d:\kapit-bisig\backend ; .\venv\Scripts\Activate ; python main.py
+
+# 3. Mobile App (Expo / React Native)
+cd d:\kapit-bisig\mobile ; npm start
+
+cd d:\kapit-bisig\mobile
+npx expo start --clear
+
+```
+
+ Token #1
+   🎫 CODE: 4REB-K2YK-T6AS
+   📍 Barangay: San Jose
+   📅 Expires: 8/29/2026
+
+   Token #2
+   🎫 CODE: 94YP-2KAU-XZN7
+   📍 Barangay: San Jose
+   📅 Expires: 8/29/2026
+
+   Token #3
+   🎫 CODE: 88Q8-FRG4-KBRX
+   📍 Barangay: San Jose
+   📅 Expires: 8/29/2026
+
+   Token #4
+   🎫 CODE: 0T2P-BKEV-81OL
+   📍 Barangay: San Jose
+   📅 Expires: 8/29/2026
+
+   Token #5
+   🎫 CODE: N4R3-QRIR-2TVV
+   📍 Barangay: San Jose
+   📅 Expires: 8/29/2026

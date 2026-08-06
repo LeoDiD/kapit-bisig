@@ -98,7 +98,7 @@ export default function FaceScannerV2({
   onCancel,
   apiBaseUrl = resolveApiBaseUrl(
     process.env.EXPO_PUBLIC_FACE_API_URL,
-    'http://10.45.3.83:8000',
+    'http://192.168.1.4:8000',
     'FaceScannerV2',
   ),
   userId,
@@ -106,7 +106,7 @@ export default function FaceScannerV2({
 }: FaceScannerV2Props) {
   // Camera permission
   const [permission, requestPermission] = useCameraPermissions();
-  
+
   // Workflow state
   const [phase, setPhase] = useState<WorkflowPhase>('camera');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -114,14 +114,14 @@ export default function FaceScannerV2({
   const [capturedBase64, setCapturedBase64] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [result, setResult] = useState<FaceVerifyResponse | null>(null);
-  
+
   // Refs
   const cameraRef = useRef<CameraView>(null);
 
   // ============================================
   // RESET WORKFLOW
   // ============================================
-  
+
   const resetWorkflow = useCallback(() => {
     setPhase('camera');
     setIsAnalyzing(false);
@@ -148,7 +148,7 @@ export default function FaceScannerV2({
   // ============================================
   // STEP 2: CAPTURE PHOTO
   // ============================================
-  
+
   const handleCapture = async () => {
     if (!cameraRef.current || isAnalyzing) return;
 
@@ -168,7 +168,7 @@ export default function FaceScannerV2({
       setCapturedImage(photo.uri);
       setCapturedBase64(photo.base64);
       setPhase('captured');
-      
+
       // STEP 4-5: Start backend analysis
       setIsAnalyzing(true);
       await analyzeWithBackend(photo.base64, photo.uri);
@@ -184,7 +184,7 @@ export default function FaceScannerV2({
   // ============================================
   // STEP 5-7: BACKEND ANALYSIS (OpenCV)
   // ============================================
-  
+
   const analyzeWithBackend = async (base64Image: string, imageUri: string) => {
     try {
       // STEP 6a: Send to backend for face detection & quality check
@@ -247,7 +247,7 @@ export default function FaceScannerV2({
       }
 
       // STEP 6c: Face detected & quality OK - now verify/register
-      const endpoint = mode === 'verify' 
+      const endpoint = mode === 'verify'
         ? `${apiBaseUrl}/api/face/verify`
         : `${apiBaseUrl}/api/face/register`;
 
@@ -274,7 +274,7 @@ export default function FaceScannerV2({
           // VERIFIED - Face matched
           setPhase('verified');
           setResult(data);
-          
+
           // Auto-complete after showing result
           setTimeout(() => {
             onComplete(data, imageUri);
@@ -292,11 +292,11 @@ export default function FaceScannerV2({
           confidence: 100,
           message: data.message || 'Face registered successfully',
         };
-        
+
         if (data.success) {
           setPhase('verified');
           setResult(regResult);
-          
+
           setTimeout(() => {
             onComplete(regResult, imageUri);
           }, 2500);
@@ -318,7 +318,7 @@ export default function FaceScannerV2({
   // ============================================
   // STEP 8: RETRY
   // ============================================
-  
+
   const handleRetry = () => {
     resetWorkflow();
   };
@@ -326,7 +326,7 @@ export default function FaceScannerV2({
   // ============================================
   // RENDER: Permission Request
   // ============================================
-  
+
   if (!permission?.granted) {
     return (
       <Modal visible={visible} animationType="slide">
@@ -350,7 +350,7 @@ export default function FaceScannerV2({
   // ============================================
   // GET STATUS INFO
   // ============================================
-  
+
   const getStatusInfo = () => {
     switch (phase) {
       case 'camera':
@@ -369,7 +369,7 @@ export default function FaceScannerV2({
         };
       case 'verified':
         return {
-          text: mode === 'verify' 
+          text: mode === 'verify'
             ? `Verified${result?.name ? `: ${result.name}` : '!'}`
             : 'Face captured successfully!',
           color: '#00C853',
@@ -409,7 +409,7 @@ export default function FaceScannerV2({
   return (
     <Modal visible={visible} animationType="slide">
       <View style={styles.container}>
-        
+
         {/* ===== STEP 1 & 3: Camera Preview OR Captured Image ===== */}
         {phase === 'camera' ? (
           // STEP 1: Live camera preview
@@ -420,19 +420,19 @@ export default function FaceScannerV2({
           />
         ) : (
           // STEP 3: Captured image displayed (camera hidden)
-          <Image 
-            source={{ uri: capturedImage || '' }} 
-            style={styles.capturedImage} 
+          <Image
+            source={{ uri: capturedImage || '' }}
+            style={styles.capturedImage}
           />
         )}
 
         {/* Overlay */}
         <View style={styles.overlay}>
-          
+
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.closeButton} 
+            <TouchableOpacity
+              style={styles.closeButton}
               onPress={onCancel}
               disabled={isAnalyzing}
             >
@@ -481,11 +481,11 @@ export default function FaceScannerV2({
                 <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 8 }} />
               )}
               {statusInfo.icon && phase !== 'captured' && (
-                <Ionicons 
-                  name={statusInfo.icon as any} 
-                  size={20} 
-                  color="#FFF" 
-                  style={{ marginRight: 8 }} 
+                <Ionicons
+                  name={statusInfo.icon as any}
+                  size={20}
+                  color="#FFF"
+                  style={{ marginRight: 8 }}
                 />
               )}
               <Text style={styles.statusText}>{statusInfo.text}</Text>
@@ -505,7 +505,7 @@ export default function FaceScannerV2({
           {/* ===== STEP 2: Capture Button ===== */}
           <View style={styles.buttonContainer}>
             {phase === 'camera' && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.captureButton}
                 onPress={handleCapture}
                 activeOpacity={0.7}
@@ -521,7 +521,7 @@ export default function FaceScannerV2({
 
             {/* ===== STEP 8: Retry Button ===== */}
             {(phase === 'invalid' || phase === 'not_recognized') && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.retryButton}
                 onPress={handleRetry}
                 activeOpacity={0.7}
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'transparent',
   },
 
