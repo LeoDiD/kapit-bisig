@@ -72,7 +72,6 @@ export default function SplashScreen({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [isMobileInputFocused, setIsMobileInputFocused] = useState(false);
   const [isPasswordInputFocused, setIsPasswordInputFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -127,6 +126,22 @@ export default function SplashScreen({
     setShowOnboarding(true);
   };
 
+  // Normalize Philippine mobile number: strip non-digits, +63 → 0, bare 9xxx → 09xxx
+  const normalizeMobileForLogin = (value: string): string => {
+    const trimmed = (value || '').trim();
+    if (!trimmed) return '';
+    let sanitized = '';
+    if (trimmed.startsWith('+')) {
+      sanitized = `+${trimmed.slice(1).replace(/\D/g, '')}`;
+    } else {
+      sanitized = trimmed.replace(/\D/g, '');
+    }
+    if (sanitized.startsWith('+63')) return `0${sanitized.slice(3)}`;
+    if (sanitized.startsWith('63')) return `0${sanitized.slice(2)}`;
+    if (/^9\d{9}$/.test(sanitized)) return `0${sanitized}`;
+    return sanitized;
+  };
+
   const handleLogin = async () => {
     setLoginError('');
 
@@ -141,7 +156,8 @@ export default function SplashScreen({
       await mobileAuthService.logout();
       await clearResidentSession();
 
-      const response = await residentLogin(mobileNumber.trim(), password);
+      const normalizedMobile = normalizeMobileForLogin(mobileNumber);
+      const response = await residentLogin(normalizedMobile, password);
       if (!response.success || !response.data) {
         setLoginError(response.message || 'Login failed. Please try again.');
         return;
@@ -242,6 +258,32 @@ export default function SplashScreen({
 
     if (forgotNewPassword !== forgotConfirmPassword) {
       Alert.alert('Password Mismatch', 'Passwords do not match.');
+      return;
+    }
+
+    // Password complexity checks
+    if (/\s/.test(forgotNewPassword)) {
+      Alert.alert('Invalid Password', 'Password must not contain spaces.');
+      return;
+    }
+    const commonPatterns = [
+      'password', 'admin', '123456', 'qwerty', 'letmein', 'welcome',
+      'monkey', 'dragon', 'master', 'login', 'abc123', 'trustno1',
+      'iloveyou', 'sunshine', 'princess', 'kapitbisig', 'changeme',
+    ];
+    if (commonPatterns.some((p) => forgotNewPassword.toLowerCase().includes(p))) {
+      Alert.alert('Weak Password', 'This password is too common. Please choose a stronger one.');
+      return;
+    }
+    const hasUpper = /[A-Z]/.test(forgotNewPassword);
+    const hasLower = /[a-z]/.test(forgotNewPassword);
+    const hasDigit = /[0-9]/.test(forgotNewPassword);
+    const hasSpecial = /[!@#$%^&*()_+\-=[\]{}|;':",./<>?`~\\]/.test(forgotNewPassword);
+    if (forgotNewPassword.length < 8 || !hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+      Alert.alert(
+        'Weak Password',
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.',
+      );
       return;
     }
 
@@ -395,6 +437,7 @@ export default function SplashScreen({
                     onChangeText={setForgotEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    maxLength={254}
                   />
                 </View>
 
@@ -430,8 +473,9 @@ export default function SplashScreen({
                     placeholder="Enter 6-digit OTP"
                     placeholderTextColor="#888"
                     value={forgotVerificationCode}
-                    onChangeText={setForgotVerificationCode}
+                    onChangeText={(text) => setForgotVerificationCode(text.replace(/\D/g, '').slice(0, 6))}
                     keyboardType="number-pad"
+                    maxLength={6}
                     autoCapitalize="none"
                   />
                 </View>
@@ -478,6 +522,7 @@ export default function SplashScreen({
                     onChangeText={setForgotNewPassword}
                     secureTextEntry={!showForgotNewPassword}
                     autoCapitalize="none"
+                    maxLength={128}
                   />
                   <TouchableOpacity onPress={() => setShowForgotNewPassword(!showForgotNewPassword)} style={styles.eyeIcon}>
                     <Ionicons name={showForgotNewPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color="#888" />
@@ -494,6 +539,7 @@ export default function SplashScreen({
                     onChangeText={setForgotConfirmPassword}
                     secureTextEntry={!showForgotConfirmPassword}
                     autoCapitalize="none"
+                    maxLength={128}
                   />
                   <TouchableOpacity onPress={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)} style={styles.eyeIcon}>
                     <Ionicons name={showForgotConfirmPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color="#888" />
@@ -561,14 +607,15 @@ export default function SplashScreen({
             <Ionicons name="call-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Mobile Number"
+              placeholder="09XXXXXXXXX"
               placeholderTextColor="#888"
               value={mobileNumber}
-              onChangeText={setMobileNumber}
+              onChangeText={(text) => setMobileNumber(text.replace(/\D/g, '').slice(0, 11))}
               onFocus={() => setIsMobileInputFocused(true)}
               onBlur={() => setIsMobileInputFocused(false)}
               keyboardType="phone-pad"
               autoCapitalize="none"
+              maxLength={11}
             />
           </View>
 
@@ -583,6 +630,7 @@ export default function SplashScreen({
               onFocus={() => setIsPasswordInputFocused(true)}
               onBlur={() => setIsPasswordInputFocused(false)}
               secureTextEntry={!showPassword}
+              maxLength={128}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
               <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#888" />
@@ -594,15 +642,7 @@ export default function SplashScreen({
           )}
 
           <View style={styles.optionsContainer}>
-            <TouchableOpacity 
-              style={styles.rememberContainer} 
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
-              </View>
-              <Text style={styles.rememberText}>Remember me</Text>
-            </TouchableOpacity>
+            <View />
             <TouchableOpacity
               onPress={() => {
                 setForgotStep('email');
@@ -630,7 +670,7 @@ export default function SplashScreen({
           </TouchableOpacity>
 
           <View style={styles.registerContainer}>
-            <Text style={styles.registerPrompt}>Dont  have an account?  </Text>
+            <Text style={styles.registerPrompt}>Don't have an account? </Text>
             <TouchableOpacity onPress={handleRegister}>
               <Text style={styles.registerLink}>Register</Text>
             </TouchableOpacity>
@@ -997,31 +1037,9 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     marginBottom: 25,
-  },
-  rememberContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderWidth: 1,
-    borderColor: '#888',
-    borderRadius: 3,
-    marginRight: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#2E7D32',
-    borderColor: '#2E7D32',
-  },
-  rememberText: {
-    fontSize: 14,
-    color: '#333',
   },
   forgotText: {
     fontSize: 14,

@@ -10,7 +10,7 @@ import { resolveApiBaseUrl } from '../config/apiSecurity';
 
 const API_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
-  'http://10.45.3.83:3001/api',
+  'http://192.168.1.4:3001/api',
   'FaceRecognitionService',
 );
 
@@ -107,7 +107,7 @@ class FaceRecognitionService {
   private async _initializeModels(): Promise<void> {
     try {
       console.log('[FaceRecognition] Initializing face-api.js models...');
-      
+
       // For React Native, we'll use a server-side approach
       // face-api.js requires TensorFlow.js which has limited React Native support
       // 
@@ -116,7 +116,7 @@ class FaceRecognitionService {
       // 2. Use react-native-face-detection (ML Kit)
       // 3. Use AWS Rekognition or Azure Face API
       // 4. Use expo-face-detector for basic detection
-      
+
       this.isInitialized = true;
       console.log('[FaceRecognition] Face recognition service initialized');
     } catch (error) {
@@ -137,7 +137,7 @@ class FaceRecognitionService {
       return result;
     } catch (error) {
       console.warn('[FaceRecognition] API detection failed, using simulation:', error);
-      
+
       // Fallback to simulated detection for development
       return this.simulateFaceDetection(imageUri);
     }
@@ -165,11 +165,11 @@ class FaceRecognitionService {
       }
 
       const json = await response.json();
-      
+
       if (!json.success) {
         throw new Error(json.message || 'Face detection failed');
       }
-      
+
       const result = json.data;
       return {
         hasFace: result.hasFace,
@@ -190,7 +190,7 @@ class FaceRecognitionService {
    */
   private simulateFaceDetection(imageUri: string): FaceDetectionResult {
     console.log('[FaceRecognition] Using simulated detection for:', imageUri);
-    
+
     // Simulated successful detection
     return {
       hasFace: true,
@@ -219,7 +219,7 @@ class FaceRecognitionService {
    */
   async detectFaceInID(idImageUri: string): Promise<FaceDetectionResult> {
     const result = await this.detectFace(idImageUri);
-    
+
     // Additional checks specific to ID photos
     if (result.hasFace) {
       // ID photos typically have smaller faces
@@ -249,7 +249,7 @@ class FaceRecognitionService {
         qualityIssues.push('No face detected in the image');
         suggestions.push('Position your face in the center of the frame');
         suggestions.push('Ensure good lighting on your face');
-        
+
         return {
           isValid: false,
           faceDetection: detection,
@@ -388,11 +388,11 @@ class FaceRecognitionService {
       }
 
       const json = await response.json();
-      
+
       if (!json.success) {
         throw new Error(json.message || 'Face comparison failed');
       }
-      
+
       const result = json.data;
       return {
         isMatch: result.isMatch,
@@ -411,7 +411,7 @@ class FaceRecognitionService {
    */
   private simulateFaceComparison(): FaceMatchResult {
     console.log('[FaceRecognition] Using simulated comparison');
-    
+
     // Simulated successful match
     const distance = 0.35;
     return {
@@ -463,7 +463,7 @@ class FaceRecognitionService {
 
       if (selfieValidation.faceDetection.hasFace && idFaceDetection.hasFace) {
         matchResult = await this.compareFaces(selfieUri, idImageUri);
-        
+
         if (!matchResult.isMatch) {
           issues.push('Face does not match the ID photo');
         }
@@ -570,7 +570,7 @@ class FaceRecognitionService {
       return result;
     } catch (error) {
       console.warn('[FaceRecognition] Liveness check failed:', error);
-      
+
       // Fallback simulation
       return {
         isLive: true,
@@ -626,7 +626,7 @@ class FaceRecognitionService {
   async extractFaceDescriptor(imageUri: string): Promise<FaceDescriptor | null> {
     try {
       const detection = await this.detectFace(imageUri);
-      
+
       if (!detection.hasFace || !detection.boundingBox) {
         return null;
       }
@@ -701,7 +701,7 @@ class FaceRecognitionService {
   }> {
     try {
       const detection = await this.detectFace(imageUri);
-      
+
       if (!detection.hasFace) {
         return {
           overallScore: 0,
@@ -771,7 +771,7 @@ class FaceRecognitionService {
     try {
       // First validate the face
       const validation = await this.validateFaceForRegistration(imageUri);
-      
+
       if (!validation.isValid) {
         return {
           isDuplicate: false,

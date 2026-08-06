@@ -2,6 +2,10 @@ import assert from 'assert';
 import { analyzeIdScreeningFromOcr } from '../services/idScreeningService';
 
 function run(): void {
+  // ==================================================
+  // Original tests (must continue to pass)
+  // ==================================================
+
   const passResult = analyzeIdScreeningFromOcr({
     enteredIdType: 'PhilSys ID',
     enteredIdNumber: '1234-5678-9012',
@@ -65,7 +69,144 @@ function run(): void {
   assert.strictEqual(reviewResult.decision, 'REVIEW');
   assert.strictEqual(reviewResult.idNumberMatch, null);
   assert.ok(reviewResult.reviewFlags.includes('OCR_ID_NUMBER_UNREADABLE'));
+
+  console.log('  ✓ Original tests passed');
+
+  // ==================================================
+  // NEW: Fuzzy ID number matching (OCR error correction)
+  // ==================================================
+
+  // Test: OCR reads "O" instead of "0" in PhilSys ID → should still PASS
+  const ocrO0Result = analyzeIdScreeningFromOcr({
+    enteredIdType: 'PhilSys ID',
+    enteredIdNumber: '1234-5678-9012',
+    frontText: 'PHILIPPINE IDENTIFICATION PHILSYS PCN 1234 5678 9O12 JUAN DELA CRUZ',
+    backText: 'REPUBLIC OF THE PHILIPPINES',
+    frontOcrConfidence: 0.75,
+    backOcrConfidence: 0.52,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  assert.strictEqual(ocrO0Result.decision, 'PASS', 'O↔0 OCR correction should result in PASS');
+  assert.strictEqual(ocrO0Result.idNumberMatch, true, 'O↔0 should be treated as a match');
+  console.log('  ✓ O↔0 OCR correction test passed');
+
+  // Test: OCR reads "I" instead of "1" → should still PASS
+  const ocrI1Result = analyzeIdScreeningFromOcr({
+    enteredIdType: 'SSS ID',
+    enteredIdNumber: '12-3456789-0',
+    frontText: 'SSS SOCIAL SECURITY SYSTEM I2 3456789 0 MEMBER',
+    backText: '',
+    frontOcrConfidence: 0.68,
+    backOcrConfidence: 0.1,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  assert.strictEqual(ocrI1Result.decision, 'PASS', 'I↔1 OCR correction should result in PASS');
+  assert.strictEqual(ocrI1Result.idNumberMatch, true, 'I↔1 should be treated as a match');
+  console.log('  ✓ I↔1 OCR correction test passed');
+
+  // Test: Single digit OCR error in 12-digit ID → should still PASS (Levenshtein ≤ 2)
+  const ocrSingleDigitResult = analyzeIdScreeningFromOcr({
+    enteredIdType: 'PhilSys ID',
+    enteredIdNumber: '1234-5678-9012',
+    frontText: 'PHILIPPINE IDENTIFICATION PHILSYS PCN 1234 5678 9013',
+    backText: 'REPUBLIC OF THE PHILIPPINES',
+    frontOcrConfidence: 0.70,
+    backOcrConfidence: 0.52,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  assert.strictEqual(ocrSingleDigitResult.decision, 'PASS', 'Single digit error should still PASS for 12-digit ID');
+  assert.strictEqual(ocrSingleDigitResult.idNumberMatch, true);
+  console.log('  ✓ Single digit Levenshtein tolerance test passed');
+
+  // Test: Completely wrong ID number → should still BLOCK
+  const wrongIdResult = analyzeIdScreeningFromOcr({
+    enteredIdType: 'PhilSys ID',
+    enteredIdNumber: '1234-5678-9012',
+    frontText: 'PHILIPPINE IDENTIFICATION PHILSYS PCN 9999 8888 7777',
+    backText: 'REPUBLIC OF THE PHILIPPINES',
+    frontOcrConfidence: 0.88,
+    backOcrConfidence: 0.52,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  assert.strictEqual(wrongIdResult.decision, 'BLOCK', 'Completely wrong ID number should BLOCK');
+  assert.strictEqual(wrongIdResult.idNumberMatch, false);
+  console.log('  ✓ Wrong ID number still blocked');
+
+  // ==================================================
+  // NEW: Fuzzy keyword matching (OCR misread tolerance)
+  // ==================================================
+
+  // Test: OCR misreads "PHILIPPINE" as "PHIUPPINE" → should still detect PhilSys ID
+  const fuzzyKeywordResult = analyzeIdScreeningFromOcr({
+    enteredIdType: 'PhilSys ID',
+    enteredIdNumber: '1234-5678-9012',
+    frontText: 'PHIUPPINE IDENTIFICATION PHILSYS PCN 1234 5678 9012',
+    backText: 'REPUBLIC OF THE PHIUPPINES',
+    frontOcrConfidence: 0.65,
+    backOcrConfidence: 0.50,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  assert.strictEqual(fuzzyKeywordResult.typeMatch, true, 'Fuzzy keyword matching should detect PhilSys ID');
+  assert.strictEqual(fuzzyKeywordResult.decision, 'PASS');
+  console.log('  ✓ Fuzzy keyword matching test passed');
+
+  // Test: OCR misreads "LICENSE" as "LI0ENSE" → should still detect Driver's License
+  const fuzzyDriverResult = analyzeIdScreeningFromOcr({
+    enteredIdType: "Driver's License",
+    enteredIdNumber: 'N01-23-456789',
+    frontText: "DRIVER'S LI0ENSE LTO LAND N01 23 456789",
+    backText: 'TRANSPORTATION',
+    frontOcrConfidence: 0.60,
+    backOcrConfidence: 0.40,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  assert.strictEqual(fuzzyDriverResult.typeMatch, true, 'Fuzzy keyword should detect Driver License');
+  console.log('  ✓ Fuzzy keyword for Driver License test passed');
+
+  // ==================================================
+  // NEW: Voter's ID regex tightening
+  // ==================================================
+
+  // Test: Pure text should NOT match as Voter's ID number
+  const voterFalsePositiveResult = analyzeIdScreeningFromOcr({
+    enteredIdType: "Voter's ID",
+    enteredIdNumber: 'VIN123456',
+    frontText: 'VOTER COMELEC COMMISSION ELECTIONS REPUBLIC MANILA',
+    backText: '',
+    frontOcrConfidence: 0.75,
+    backOcrConfidence: 0.10,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  // The extracted candidate should not match "REPUBLIC" or "COMMISSION"
+  // as valid Voter's ID numbers because the regex now requires digits
+  assert.ok(
+    voterFalsePositiveResult.idNumberMatch !== true ||
+    voterFalsePositiveResult.decision !== 'PASS',
+    "Pure text words should not pass as Voter's ID numbers",
+  );
+  console.log('  ✓ Voter ID regex tightening test passed');
 }
 
 run();
-console.log('idScreening.unit.ts passed');
+console.log('\n✅ All idScreening unit tests passed');

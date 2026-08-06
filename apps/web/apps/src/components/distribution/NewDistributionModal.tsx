@@ -2,10 +2,11 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ScanEligibleUser } from '../../lib/api'
+import { api, DisasterEventRecord, ScanEligibleUser } from '../../lib/api'
 import { useAuth } from '@/lib/AuthContext'
 
 export type CreateDistributionPayload = {
+  disasterEventId: string
   barangay: string
   assignedBarangays: string[]
   assignedStaffIds: string[]
@@ -14,6 +15,7 @@ export type CreateDistributionPayload = {
 }
 
 type StepFieldErrors = {
+  disasterEventId?: string
   barangay?: string
   assignedBarangays?: string
   scheduled?: string
@@ -38,8 +40,8 @@ const DISTRIBUTION_END_HOUR = 20
 const STEP_DETAILS = {
   1: {
     eyebrow: 'Step 1 of 4',
-    title: 'Choose the host barangay',
-    description: 'Set the primary relief release location where the distribution will be hosted.',
+    title: 'Choose the disaster and host barangay',
+    description: 'Link this release to an active disaster event, then choose its primary relief location.',
   },
   2: {
     eyebrow: 'Step 2 of 4',
@@ -82,6 +84,9 @@ export default function NewDistributionModal({
   const isLguStaff = user?.role === 'LGU_STAFF'
 
   const [step, setStep] = useState(1)
+  const [disasterEventId, setDisasterEventId] = useState('')
+  const [activeEvents, setActiveEvents] = useState<DisasterEventRecord[]>([])
+  const [eventsLoading, setEventsLoading] = useState(false)
   const [barangay, setBarangay] = useState('')
   const [assignedBarangays, setAssignedBarangays] = useState<string[]>([])
   const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([])
@@ -103,6 +108,7 @@ export default function NewDistributionModal({
   useEffect(() => {
     if (!open) return
     setStep(1)
+    setDisasterEventId('')
     setBarangay('')
     setAssignedBarangays([])
     setAssignedStaffIds([])
@@ -131,6 +137,25 @@ export default function NewDistributionModal({
     const minDate = new Date(Date.now() + SCHEDULE_MIN_LEAD_MINUTES * 60 * 1000)
     return formatDateTimeLocal(minDate)
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    setEventsLoading(true)
+    api.getBeneficiaryEvents({ status: 'Active', page: 1, limit: 100 })
+      .then((response) => setActiveEvents(response.data ?? []))
+      .catch(() => setActiveEvents([]))
+      .finally(() => setEventsLoading(false))
+  }, [open])
+  const selectedEvent = useMemo(
+    () => activeEvents.find((event) => (event.id || event._id) === disasterEventId) ?? null,
+    [activeEvents, disasterEventId],
+  )
+  const availableBarangays = useMemo(
+    () => selectedEvent
+      ? barangayOptions.filter((option) => selectedEvent.barangays.includes(option))
+      : [],
+    [barangayOptions, selectedEvent],
+  )
   const scheduleMaxLocal = useMemo(() => {
     const now = new Date()
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 0, 0)
@@ -158,6 +183,9 @@ export default function NewDistributionModal({
 
   const validateStep1 = (): StepFieldErrors => {
     const out: StepFieldErrors = {}
+    if (!disasterEventId) {
+      out.disasterEventId = 'Select an active disaster event.'
+    }
     if (!barangay.trim()) {
       out.barangay = 'Host barangay is required.'
     }
@@ -259,6 +287,7 @@ export default function NewDistributionModal({
     return validateStep4()
   }, [
     step,
+    disasterEventId,
     barangay,
     assignedBarangays,
     scheduled,
@@ -397,6 +426,10 @@ export default function NewDistributionModal({
 
     for (const issue of err.response?.errors || []) {
       const path = issue.path || ''
+      if (path.includes('disasterEventId')) {
+        nextErrors.disasterEventId = issue.message || 'Select an active disaster event.'
+        setStep(1)
+      }
       if (path.includes('barangay')) {
         nextErrors.barangay = issue.message || 'Host barangay is required.'
         setStep(1)
@@ -438,6 +471,7 @@ export default function NewDistributionModal({
 
     try {
       await onCreate({
+        disasterEventId,
         barangay,
         assignedBarangays,
         assignedStaffIds,
@@ -507,7 +541,36 @@ export default function NewDistributionModal({
 
             <div className="min-h-[280px]">
             {step === 1 && (
-              <div>
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">Active disaster event</label>
+                  <p className="text-xs text-gray-500">Approved residents from this event will be enrolled automatically when their barangay is covered.</p>
+                  <select
+                    value={disasterEventId}
+                    disabled={eventsLoading}
+                    onChange={(event) => {
+                      setDisasterEventId(event.target.value)
+                      setBarangay('')
+                      setAssignedBarangays([])
+                      setAssignedStaffIds([])
+                      setErrors({})
+                    }}
+                    className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0F533A]"
+                  >
+                    <option value="">{eventsLoading ? 'Loading active events...' : 'Select an active event'}</option>
+                    {activeEvents.map((event) => (
+                      <option key={event.id || event._id} value={event.id || event._id}>
+                        {event.name} ({event.disasterType})
+                      </option>
+                    ))}
+                  </select>
+                  {!eventsLoading && activeEvents.length === 0 && (
+                    <p className="mt-2 text-sm text-amber-700">Create or activate a disaster event before scheduling a distribution.</p>
+                  )}
+                  {errors.disasterEventId && <p className="mt-2 text-sm text-red-600">{errors.disasterEventId}</p>}
+                </div>
+
+                <div>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200">Relief Giving Location (Host Barangay)</label>
@@ -519,7 +582,7 @@ export default function NewDistributionModal({
                 </div>
 
                 <div className="mt-3 grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                  {barangayOptions.map((b) => {
+                  {availableBarangays.map((b) => {
                     const selected = b === barangay
                     return (
                       <button
@@ -548,6 +611,7 @@ export default function NewDistributionModal({
                   Selected host: {barangay || 'None'}
                 </div>
                 {errors.barangay && <p className="mt-2 text-sm text-red-600">{errors.barangay}</p>}
+                </div>
               </div>
             )}
 
@@ -563,7 +627,7 @@ export default function NewDistributionModal({
                   </span>
                 </div>
                 <div className="mt-3 grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                  {barangayOptions
+                  {availableBarangays
                     .filter((b) => b !== barangay)
                     .map((b) => {
                       const selected = assignedBarangays.includes(b)

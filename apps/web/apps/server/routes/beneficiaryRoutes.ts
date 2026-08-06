@@ -176,7 +176,7 @@ router.get(
           residentId: resident._id,
           distributionId: mongoose.trusted({ $in: distributionIds }),
         })
-          .select('distributionId status updatedAt submissionVersion')
+          .select('distributionId status updatedAt submissionVersion rejectionReason')
           .lean()
         : [];
 
@@ -193,6 +193,7 @@ router.get(
             status?: string;
             updatedAt?: Date;
             submissionVersion?: number;
+            rejectionReason?: string;
           } | undefined;
 
           return {
@@ -204,6 +205,7 @@ router.get(
             notes: distribution.notes || '',
             applicationRequired: requiresBeneficiaryApproval(distribution),
             applicationStatus: submission?.status || 'Not Submitted',
+            rejectionReason: submission?.rejectionReason || null,
             submissionVersion: submission?.submissionVersion || 0,
             lastSubmissionAt: submission?.updatedAt || null,
           };
@@ -328,6 +330,59 @@ router.post(
             name: result.scope.name,
             status: result.scope.status,
           },
+        },
+      });
+    } catch (error) {
+      return handleServiceError(res, error);
+    }
+  },
+);
+
+router.get(
+  '/proof-submissions/me',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!isResidentRole(req.user?.role)) {
+        return res.status(403).json({ success: false, message: 'Only residents can view their proof status.' });
+      }
+
+      const disasterEventId = String(req.query.disasterEventId || '');
+      if (!mongoose.Types.ObjectId.isValid(disasterEventId)) {
+        return res.status(400).json({ success: false, message: 'A valid disasterEventId is required.' });
+      }
+
+      const submission = await ProofSubmission.findOne({
+        residentId: req.user?.userId,
+        disasterEventId,
+      })
+        .populate('disasterEventId', 'name disasterType status barangays eventDate submissionDeadline')
+        .sort({ updatedAt: -1 })
+        .lean();
+
+      if (!submission) {
+        return res.json({ success: true, data: null });
+      }
+
+      const event = submission.disasterEventId as any;
+      return res.json({
+        success: true,
+        data: {
+          id: submission._id.toString(),
+          status: submission.status,
+          rejectionReason: submission.rejectionReason || '',
+          damageType: submission.damageType,
+          photoCount: submission.photoProofUrls?.length || 0,
+          dateSubmitted: submission.dateSubmitted,
+          reviewedAt: submission.reviewedAt || null,
+          submissionVersion: submission.submissionVersion,
+          event: event && event._id ? {
+            id: event._id.toString(),
+            name: event.name,
+            disasterType: event.disasterType,
+            status: event.status,
+          } : null,
+          automaticallyEnrolled: submission.status === 'Approved',
         },
       });
     } catch (error) {

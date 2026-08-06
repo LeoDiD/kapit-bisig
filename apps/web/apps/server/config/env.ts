@@ -68,6 +68,16 @@ const envSchema = z.object({
   /* ---- Face recognition backend ---- */
   FACE_RECOGNITION_API_URL: z.string().optional(),
 
+  /* ---- SMS (used by registration mobile verification) ---- */
+  SMS_PROVIDER: z
+    .enum(['semaphore', 'twilio', 'vonage'])
+    .optional()
+    .default('semaphore'),
+  SMS_API_KEY: z.string().optional(),
+  SMS_SENDER_NAME: z.string().optional().default('KapitBisig'),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  VONAGE_API_SECRET: z.string().optional(),
+
   /* ---- SMTP / Email (used by forgot-password OTP flow) ---- */
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().optional(),

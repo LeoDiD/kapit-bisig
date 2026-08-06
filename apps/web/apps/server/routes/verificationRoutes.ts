@@ -156,6 +156,120 @@ router.post('/id-check', async (req: Request, res: Response) => {
   }
 });
 
+const processIdBodySchema = z.object({
+  frontIdImage: z.string().min(1, 'Front ID image is required'),
+  backIdImage: z.string().optional(),
+  idType: z.string().min(1, 'ID type is required'),
+  userEnteredIdNumber: z.string().min(1, 'User entered ID number is required'),
+  userEnteredFullName: z.string().optional(),
+  clientQualityScore: z.number().optional(),
+});
+
+router.post('/process-id', async (req: Request, res: Response) => {
+  const parsed = processIdBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      decision: 'REVIEW',
+      finalScore: 0,
+      scoreBreakdown: {
+        imageQualityScore: 0,
+        ocrConfidenceScore: 0,
+        documentMatchScore: 0,
+        idNumberMatchScore: 0,
+      },
+      extractedData: null,
+      feedbackMessage: parsed.error.issues[0]?.message || 'Invalid payload provided for ID process verification.',
+      warnings: [],
+      errors: [parsed.error.issues[0]?.message || 'Invalid payload'],
+    });
+  }
+
+  const { frontIdImage, backIdImage, idType, userEnteredIdNumber, clientQualityScore } = parsed.data;
+  const normalizedIdNumber = normalizeIdNumber(idType, userEnteredIdNumber);
+
+  try {
+    const formattedFront = toDataUrl(frontIdImage);
+    const formattedBack = backIdImage ? toDataUrl(backIdImage) : formattedFront;
+
+    const screening = await screenSubmittedId({
+      idType,
+      idNumber: normalizedIdNumber,
+      frontIdImage: formattedFront,
+      backIdImage: formattedBack,
+    });
+
+    // Multi-factor confidence calculation (Quality: 25%, OCR: 30%, Document: 20%, ID Match: 25%)
+    const qualityFactor = Math.min(100, Math.max(0, (clientQualityScore ?? (screening.qualityScore * 100))));
+    const ocrFactor = Math.min(100, Math.max(0, Math.round(screening.ocrConfidence * 100)));
+    const docMatchFactor = screening.typeMatch === false ? 0 : Math.min(100, Math.max(0, Math.round(screening.typeConfidence * 100)));
+    const idMatchFactor = screening.idNumberMatch === true ? 100 : (screening.idNumberMatch === false ? 10 : 50);
+
+    const weightedScore = Math.round(
+      (0.25 * qualityFactor) +
+      (0.30 * ocrFactor) +
+      (0.20 * docMatchFactor) +
+      (0.25 * idMatchFactor)
+    );
+
+    // Decision Logic
+    let decision: 'PASS' | 'REVIEW' | 'BLOCK' = screening.decision;
+    let feedbackMessage = 'ID verified successfully!';
+
+    if (decision === 'PASS' && weightedScore < 75) {
+      decision = 'REVIEW';
+    }
+
+    if (decision === 'PASS') {
+      feedbackMessage = 'ID successfully verified and matched!';
+    } else if (decision === 'REVIEW') {
+      feedbackMessage = screening.warnings[0] || 'Image quality or OCR confidence is moderate. ID uploaded for manual administrative review.';
+    } else {
+      feedbackMessage = screening.reasons[0] || 'Document screening failed due to mismatched ID details.';
+    }
+
+    return res.json({
+      success: true,
+      decision,
+      finalScore: weightedScore,
+      scoreBreakdown: {
+        imageQualityScore: qualityFactor,
+        ocrConfidenceScore: ocrFactor,
+        documentMatchScore: docMatchFactor,
+        idNumberMatchScore: idMatchFactor,
+      },
+      extractedData: {
+        fullName: null,
+        idNumber: screening.extractedIdNumber,
+        idTypeDetected: screening.detectedIdType,
+        rawText: screening.rawTextPreview,
+      },
+      feedbackMessage,
+      warnings: screening.warnings,
+      errors: screening.reasons,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('[VerificationRoute] /process-id error:', error);
+    return res.status(200).json({
+      success: true,
+      decision: 'REVIEW',
+      finalScore: 50,
+      scoreBreakdown: {
+        imageQualityScore: clientQualityScore ?? 50,
+        ocrConfidenceScore: 30,
+        documentMatchScore: 50,
+        idNumberMatchScore: 50,
+      },
+      extractedData: null,
+      feedbackMessage: 'Your ID has been submitted for manual administrative review.',
+      warnings: ['OCR processing warning: Image submitted for manual verification.'],
+      errors: [],
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 router.get('/health', (_req: Request, res: Response) => {
   res.json({
     success: true,

@@ -104,6 +104,7 @@ export interface PaginatedApiResponse<T> extends ApiResponse<T> {
 export interface DistributionData {
   id: string;
   _id: string;
+  disasterEventId?: string | null;
   barangay: string;
   assignedBarangays?: string[];
   assignedStaffIds?: string[];
@@ -516,6 +517,7 @@ export const api = {
    * Create a new distribution
    */
   async createDistribution(data: {
+    disasterEventId: string;
     barangay: string;
     assignedBarangays: string[];
     assignedStaffIds: string[];

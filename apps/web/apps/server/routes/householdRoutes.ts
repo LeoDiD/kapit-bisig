@@ -41,8 +41,13 @@ import Distribution from '../models/Distribution';
 import Claim from '../models/Claim';
 import Notification from '../models/Notification';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
-
-import { upsertDistributionClaimFromClaim } from '../services/distributionFlowService';
+import { computeEventHash, computeHouseholdHash } from '../utils/hashHelpers';
+import {
+  upsertDistributionClaimFromClaim,
+  requiresBeneficiaryApproval,
+  isResidentApprovedBeneficiaryForDistribution,
+} from '../services/distributionFlowService';
+import { buildResidentQrToken, parseResidentQrToken } from '../services/residentQrService';
 import bcrypt from 'bcrypt';
 import {
   loginRateLimiter,
@@ -50,6 +55,7 @@ import {
   tokenValidationRateLimiter,
   householdRegistrationRateLimiter,
   mobileLookupRateLimiter,
+  registrationOtpRateLimiter,
 } from '../middleware/rateLimiter';
 import { validateRequest } from '../validation/validateRequest';
 import {
@@ -58,6 +64,9 @@ import {
   registerHouseholdBody,
   checkMobileBody,
   residentRevisionSubmitBody,
+  sendRegistrationOtpBody,
+  verifyRegistrationOtpBody,
+  resendRegistrationOtpBody,
 } from '../validation/household.schema';
 import { validateBase64Image } from '../validation/imageValidation';
 import { normalizeIdNumber } from '../utils/idVerification';
@@ -79,6 +88,8 @@ import { buildScreeningValidationIssues, buildVerificationPayload } from '../ser
 import { screenSubmittedId } from '../services/idScreeningService';
 import { persistVerificationImage } from '../utils/imageStorage';
 import { broadcastScopedNotification } from '../utils/createNotification';
+import RegistrationOtp from '../models/RegistrationOtp';
+import { sendRegistrationOtpSms, isSmsConfigured } from '../utils/smsService';
 
 const router = Router();
 const CLAIMED_STATUSES = ['PENDING_CHAIN', 'CHAIN_SUBMITTED', 'CONFIRMED', 'CHAIN_FAILED'] as const;
@@ -101,7 +112,7 @@ router.get('/debug-tokens', async (_req: Request, res: Response) => {
 
     const tokens = await HouseholdToken.find({
       status: { $in: ['UNUSED', 'LOCKED'] },
-      expiresAt: { $gt: new Date() },
+      expiresAt: mongoose.trusted({ $gt: new Date() }),
     }).setOptions({ sanitizeFilter: false });
     
     const testToken = 'JFTP-3OMT-Y9Q7';
@@ -168,12 +179,6 @@ function sanitizeToken(token: string): string {
   return token.trim().toUpperCase();
 }
 
-interface ResidentQrPayloadV1 {
-  v: 1;
-  t: 'resident';
-  rid: string; // residentCode
-}
-
 type CachedScanResult = {
   residentId: string;
   residentCode: string;
@@ -213,17 +218,6 @@ const residentAvatarUpload = multer({
     cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
   },
 });
-
-function getResidentQrPayload(residentCode: string): string {
-  const payload: ResidentQrPayloadV1 = {
-    v: 1,
-    t: 'resident',
-    rid: residentCode,
-  };
-
-  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
-  return `KBQR1.${encoded}`;
-}
 
 function getMaskedName(fullName: string): string {
   const parts = String(fullName || '')
@@ -292,37 +286,6 @@ function getResidentDisplayName(input: { firstName?: string; lastName?: string; 
 function isAllowedScannerRole(role: string | undefined): boolean {
   if (!role) return false;
   return ['Volunteer', 'Staff', 'Admin', 'LGU_STAFF', 'SUPERADMIN'].includes(role);
-}
-
-function parseResidentCodeFromQr(qrData: string): string | null {
-  if (!qrData || typeof qrData !== 'string') {
-    return null;
-  }
-
-  const trimmed = qrData.trim();
-
-  // Accept direct resident code for manual test input.
-  if (/^[A-Z]{2}-\d{4}-\d{6}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  if (!trimmed.startsWith('KBQR1.')) {
-    return null;
-  }
-
-  try {
-    const encodedPayload = trimmed.slice('KBQR1.'.length);
-    const decodedPayload = Buffer.from(encodedPayload, 'base64url').toString('utf8');
-    const parsed = JSON.parse(decodedPayload) as Partial<ResidentQrPayloadV1>;
-
-    if (parsed.v !== 1 || parsed.t !== 'resident' || typeof parsed.rid !== 'string') {
-      return null;
-    }
-
-    return parsed.rid.toUpperCase();
-  } catch {
-    return null;
-  }
 }
 
 function cacheScanResult(cacheKey: string, value: Omit<CachedScanResult, 'cachedAt'>): void {
@@ -1250,7 +1213,7 @@ router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: Authen
     }
 
     let resident = await Resident.findById(userId).select(
-      'residentCode firstName lastName fullName barangay city streetAddress status createdAt qrVersion qrIssuedAt qrStatus'
+      'residentCode firstName lastName fullName avatarUrl barangay city streetAddress status createdAt qrVersion qrIssuedAt qrStatus'
     );
 
     if (!resident) {
@@ -1302,7 +1265,7 @@ router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: Authen
       }
 
       resident = await Resident.findById(userId).select(
-        'residentCode firstName lastName fullName barangay city streetAddress status createdAt qrVersion qrIssuedAt qrStatus'
+        'residentCode firstName lastName fullName avatarUrl barangay city streetAddress status createdAt qrVersion qrIssuedAt qrStatus'
       );
       if (!resident) {
         return res.status(404).json({
@@ -1318,7 +1281,11 @@ router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: Authen
       fullName: (resident as any).fullName,
     });
 
-    const qrData = getResidentQrPayload(resident.residentCode as string);
+    const qrData = buildResidentQrToken(
+      resident.residentCode as string,
+      resident.qrVersion || 1,
+      resident.qrIssuedAt || resident.createdAt,
+    );
 
     return res.json({
       success: true,
@@ -1330,12 +1297,14 @@ router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: Authen
         issuedAt: (resident.qrIssuedAt || resident.createdAt).toISOString(),
         resident: {
           fullName: residentDisplayName,
+          avatarUrl: resident.avatarUrl || null,
           barangay: resident.barangay,
           city: resident.city || '',
           streetAddress: resident.streetAddress,
           status: resident.status,
           createdAt: resident.createdAt,
           qrStatus: resident.qrStatus,
+          verificationStatus: 'Verified',
         },
       },
     });
@@ -1395,8 +1364,8 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
       });
     }
 
-    const residentCode = parseResidentCodeFromQr(qrData);
-    if (!residentCode) {
+    const parsedQr = parseResidentQrToken(qrData);
+    if (!parsedQr) {
       ResidentQrScanLog.create({
         residentId: null,
         residentCode: null,
@@ -1414,90 +1383,155 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
       });
     }
 
-    const cacheKey = residentCode;
+    const residentCode = parsedQr.residentCode;
+
+    if (parsedQr.qrVersion !== undefined) {
+      const qrState = await Resident.findOne({ residentCode })
+        .select('qrVersion status qrStatus')
+        .lean();
+      if (
+        !qrState ||
+        qrState.status !== 'Approved' ||
+        qrState.qrStatus === 'REVOKED' ||
+        (qrState.qrVersion || 1) !== parsedQr.qrVersion
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'This virtual ID is no longer active. Ask the resident to refresh their ID.',
+          code: 'QR_OUTDATED',
+        });
+      }
+    }
+
+    const cacheKey = `${residentCode}:${parsedQr.qrVersion || 'legacy'}`;
     const cached = getCachedScanResult(cacheKey);
     let alreadyClaimed = false;
+
+    let residentId = '';
+    let residentBarangay = '';
+    let residentStatus = '';
+    let residentDisplayName = '';
+    let maskedName = '';
+    let fromCache = false;
+
     if (cached) {
-      if (distributionId && typeof distributionId === 'string') {
-        alreadyClaimed = Boolean(
-          await Claim.findOne({
-            claimCategory: 'DISTRIBUTION',
-            residentId: cached.residentId,
-            distributionId: distributionId.trim(),
-            status: mongoose.trusted({ $in: [...CLAIMED_STATUSES] }),
-          }).select('_id')
-        );
+      residentId = cached.residentId;
+      residentBarangay = cached.barangay;
+      residentStatus = cached.status;
+      maskedName = cached.maskedName;
+      fromCache = true;
+    } else {
+      const resident = await Resident.findOne({ residentCode })
+        .select('residentCode firstName lastName fullName barangay city status qrStatus')
+        .lean();
+
+      if (!resident) {
+        ResidentQrScanLog.create({
+          residentId: null,
+          residentCode,
+          scannerId,
+          scannerRole,
+          result: 'NOT_FOUND',
+          ipAddress,
+          userAgent,
+        }).catch(() => undefined);
+
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found',
+          code: 'RESIDENT_NOT_FOUND',
+        });
       }
-      return res.json({
-        success: true,
-        data: {
-          residentId: cached.residentId,
-          maskedName: cached.maskedName,
-          alreadyClaimed,
-          fromCache: true,
-        },
+
+      if (resident.status !== 'Approved' || resident.qrStatus === 'REVOKED') {
+        return res.status(403).json({
+          success: false,
+          message: 'Resident QR is not active',
+          code: 'QR_INACTIVE',
+        });
+      }
+
+      residentId = resident._id.toString();
+      residentBarangay = resident.barangay;
+      residentStatus = resident.status;
+      residentDisplayName = getResidentDisplayName({
+        firstName: (resident as any).firstName,
+        lastName: (resident as any).lastName,
+        fullName: (resident as any).fullName,
+      });
+      maskedName = getMaskedName(residentDisplayName);
+
+      cacheScanResult(cacheKey, {
+        residentId,
+        residentCode: resident.residentCode,
+        maskedName,
+        barangay: residentBarangay,
+        city: resident.city || '',
+        status: residentStatus,
       });
     }
 
-    const resident = await Resident.findOne({ residentCode })
-      .select('residentCode firstName lastName fullName barangay city status qrStatus')
-      .lean();
-
-    if (!resident) {
-      ResidentQrScanLog.create({
-        residentId: null,
-        residentCode,
-        scannerId,
-        scannerRole,
-        result: 'NOT_FOUND',
-        ipAddress,
-        userAgent,
-      }).catch(() => undefined);
-
-      return res.status(404).json({
-        success: false,
-        message: 'Resident not found',
-        code: 'RESIDENT_NOT_FOUND',
-      });
-    }
-
-    const residentDisplayName = getResidentDisplayName({
-      firstName: (resident as any).firstName,
-      lastName: (resident as any).lastName,
-      fullName: (resident as any).fullName,
-    });
-
-    if (resident.status !== 'Approved' || resident.qrStatus === 'REVOKED') {
-      return res.status(403).json({
-        success: false,
-        message: 'Resident QR is not active',
-        code: 'QR_INACTIVE',
-      });
-    }
+    // Run the distribution eligibility checks
+    let isEligible = true;
+    let eligibilityError = '';
 
     if (distributionId && typeof distributionId === 'string') {
+      const distribution = await Distribution.findById(distributionId)
+        .select('_id barangay assignedBarangays requiresBeneficiaryApproval')
+        .lean();
+
+      if (!distribution) {
+        return res.status(404).json({
+          success: false,
+          message: 'Distribution not found',
+          code: 'DISTRIBUTION_NOT_FOUND',
+        });
+      }
+
+      // 1. Check barangay coverage
+      const coverage = new Set<string>([
+        distribution.barangay,
+        ...(Array.isArray(distribution.assignedBarangays) ? distribution.assignedBarangays : []),
+      ]);
+      if (!coverage.has(residentBarangay)) {
+        isEligible = false;
+        eligibilityError = 'Resident barangay is not covered by this relief distribution.';
+      }
+
+      // 2. Check if distribution requires beneficiary approval (approved proof)
+      if (isEligible && requiresBeneficiaryApproval(distribution as any)) {
+        const isApprovedTargetBeneficiary = await isResidentApprovedBeneficiaryForDistribution(
+          distributionId,
+          residentId,
+        );
+        if (!isApprovedTargetBeneficiary) {
+          isEligible = false;
+          eligibilityError = 'Resident is not an approved target beneficiary for this distribution (proof not approved).';
+        }
+      }
+
+      if (!isEligible) {
+        return res.status(403).json({
+          success: false,
+          message: eligibilityError,
+          code: 'RESIDENT_NOT_ELIGIBLE',
+        });
+      }
+
+      // 3. Check if already claimed
       alreadyClaimed = Boolean(
         await Claim.findOne({
           claimCategory: 'DISTRIBUTION',
-          residentId: resident._id.toString(),
+          residentId,
           distributionId: distributionId.trim(),
           status: mongoose.trusted({ $in: [...CLAIMED_STATUSES] }),
         }).select('_id')
       );
     }
 
-    cacheScanResult(cacheKey, {
-      residentId: resident._id.toString(),
-      residentCode: resident.residentCode,
-      maskedName: getMaskedName(residentDisplayName),
-      barangay: resident.barangay,
-      city: resident.city || '',
-      status: resident.status,
-    });
-
     ResidentQrScanLog.create({
-      residentId: resident._id,
-      residentCode: resident.residentCode,
+      residentId: new mongoose.Types.ObjectId(residentId),
+      residentCode,
       scannerId,
       scannerRole,
       result: 'VALID',
@@ -1508,10 +1542,10 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
     return res.json({
       success: true,
       data: {
-        residentId: resident._id.toString(),
-        maskedName: getMaskedName(residentDisplayName),
+        residentId,
+        maskedName,
         alreadyClaimed,
-        fromCache: false,
+        fromCache,
       },
     });
   } catch (error) {
@@ -1561,7 +1595,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     }
 
     const distribution = await Distribution.findById(distributionId)
-      .select('_id barangay assignedBarangays')
+      .select('_id barangay assignedBarangays requiresBeneficiaryApproval')
       .lean();
     if (!distribution) {
       return res.status(404).json({
@@ -1579,6 +1613,19 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
         success: false,
         message: 'Resident barangay is not covered by this distribution',
       });
+    }
+
+    if (requiresBeneficiaryApproval(distribution as any)) {
+      const isApprovedTargetBeneficiary = await isResidentApprovedBeneficiaryForDistribution(
+        distributionId,
+        residentId,
+      );
+      if (!isApprovedTargetBeneficiary) {
+        return res.status(403).json({
+          success: false,
+          message: 'Resident is not an approved target beneficiary for this distribution (proof not accepted)',
+        });
+      }
     }
 
     // Optional scanner scope check for Volunteer/LGU_STAFF accounts.
@@ -1855,6 +1902,308 @@ router.post('/testing/reset-registration', async (req: Request, res: Response) =
     });
   }
 });
+
+/* ================================================================== */
+/*  Registration SMS OTP Endpoints                                     */
+/* ================================================================== */
+
+const REGISTRATION_OTP_EXPIRY_MINUTES = 5;
+const REGISTRATION_OTP_MAX_ATTEMPTS = 5;
+const REGISTRATION_OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds
+
+/**
+ * Send Registration OTP
+ *
+ * POST /api/household/registration/send-otp
+ *
+ * Sends a 6-digit OTP via SMS to the given mobile number for
+ * registration verification. In dry-run mode (no SMS API key),
+ * the OTP is logged to the server console.
+ */
+router.post(
+  '/registration/send-otp',
+  registrationOtpRateLimiter,
+  validateRequest({ body: sendRegistrationOtpBody }),
+  async (req: Request, res: Response) => {
+    try {
+      const { mobileNumber } = req.body;
+
+      // Validate format
+      const normalizedMobile = normalizePhilippineMobileNumber(mobileNumber.trim());
+      if (!isValidPhilippineMobileNumber(normalizedMobile)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid mobile number format. Use 09XXXXXXXXX.',
+        });
+      }
+
+      // Check if mobile is already registered
+      const existingResident = await Resident.findOne({ mobileNumber: normalizedMobile });
+      if (existingResident) {
+        return res.status(409).json({
+          success: false,
+          message: 'This mobile number is already registered. Please sign in instead.',
+          code: 'DUPLICATE_MOBILE',
+        });
+      }
+
+      // Delete any existing OTP for this number (one active OTP per number)
+      await RegistrationOtp.deleteMany({ mobileNumber: normalizedMobile });
+
+      // Generate 6-digit OTP
+      const otp = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+      const otpHash = await bcrypt.hash(otp, 10);
+
+      // Store OTP record
+      const expiresAt = new Date(Date.now() + REGISTRATION_OTP_EXPIRY_MINUTES * 60 * 1000);
+      await RegistrationOtp.create({
+        mobileNumber: normalizedMobile,
+        otpHash,
+        expiresAt,
+        attemptsLeft: REGISTRATION_OTP_MAX_ATTEMPTS,
+        resendCooldownUntil: new Date(Date.now() + REGISTRATION_OTP_RESEND_COOLDOWN_MS),
+      });
+
+      // Send SMS (or log in dry-run)
+      try {
+        await sendRegistrationOtpSms(normalizedMobile, otp);
+      } catch (smsError) {
+        console.error('[HouseholdRoutes] SMS send error:', smsError);
+        // Don't fail registration if SMS fails — the OTP is still in the DB
+        // In dry-run mode this never errors
+      }
+
+      // Generate a short-lived JWT as otpToken
+      const otpToken = jwt.sign(
+        { mobile: normalizedMobile, purpose: 'registration-otp' },
+        getJWTSecret(),
+        { expiresIn: `${REGISTRATION_OTP_EXPIRY_MINUTES}m` } as SignOptions,
+      );
+
+      return res.json({
+        success: true,
+        message: isSmsConfigured()
+          ? 'Verification code sent to your mobile number.'
+          : 'Verification code generated (check server console in dev mode).',
+        otpToken,
+        expiresInSeconds: REGISTRATION_OTP_EXPIRY_MINUTES * 60,
+      });
+    } catch (error) {
+      console.error('[HouseholdRoutes] Send registration OTP error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification code. Please try again.',
+      });
+    }
+  },
+);
+
+/**
+ * Verify Registration OTP
+ *
+ * POST /api/household/registration/verify-otp
+ *
+ * Verifies the 6-digit OTP code entered by the user.
+ * On success, returns a verifiedToken JWT that proves the mobile
+ * number was verified — this is checked at final registration.
+ */
+router.post(
+  '/registration/verify-otp',
+  validateRequest({ body: verifyRegistrationOtpBody }),
+  async (req: Request, res: Response) => {
+    try {
+      const { otpToken, otp } = req.body;
+
+      // Verify the otpToken JWT
+      let decoded: { mobile: string; purpose: string };
+      try {
+        decoded = jwt.verify(otpToken, getJWTSecret()) as { mobile: string; purpose: string };
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: 'Verification code has expired. Please request a new one.',
+          code: 'OTP_EXPIRED',
+        });
+      }
+
+      if (decoded.purpose !== 'registration-otp') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid verification token.',
+        });
+      }
+
+      const mobileNumber = decoded.mobile;
+
+      // Find the active OTP record
+      const otpRecord = await RegistrationOtp.findOne({
+        mobileNumber,
+        usedAt: null,
+        expiresAt: mongoose.trusted({ $gt: new Date() }),
+      }).setOptions({ sanitizeFilter: false });
+
+      if (!otpRecord) {
+        return res.status(400).json({
+          success: false,
+          message: 'Verification code has expired. Please request a new one.',
+          code: 'OTP_EXPIRED',
+        });
+      }
+
+      // Check attempts
+      if (otpRecord.attemptsLeft <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Too many incorrect attempts. Please request a new code.',
+          code: 'MAX_ATTEMPTS',
+        });
+      }
+
+      // Compare OTP
+      const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
+      if (!isMatch) {
+        otpRecord.attemptsLeft -= 1;
+        await otpRecord.save();
+
+        return res.status(400).json({
+          success: false,
+          message: otpRecord.attemptsLeft > 0
+            ? `Incorrect code. ${otpRecord.attemptsLeft} attempt(s) remaining.`
+            : 'Too many incorrect attempts. Please request a new code.',
+          code: 'WRONG_OTP',
+          attemptsLeft: otpRecord.attemptsLeft,
+        });
+      }
+
+      // Mark OTP as used
+      otpRecord.usedAt = new Date();
+      await otpRecord.save();
+
+      // Generate a verifiedToken — proof that mobile number was verified
+      // This is checked during final registration submission
+      const verifiedToken = jwt.sign(
+        { mobile: mobileNumber, purpose: 'registration-verified', verifiedAt: Date.now() },
+        getJWTSecret(),
+        { expiresIn: '30m' } as SignOptions, // Generous: user has 30 min to complete registration
+      );
+
+      return res.json({
+        success: true,
+        message: 'Mobile number verified successfully!',
+        verified: true,
+        verifiedToken,
+      });
+    } catch (error) {
+      console.error('[HouseholdRoutes] Verify registration OTP error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Verification failed. Please try again.',
+      });
+    }
+  },
+);
+
+/**
+ * Resend Registration OTP
+ *
+ * POST /api/household/registration/resend-otp
+ *
+ * Generates a new OTP and resends it via SMS.
+ * Enforces a cooldown period between resends.
+ */
+router.post(
+  '/registration/resend-otp',
+  registrationOtpRateLimiter,
+  validateRequest({ body: resendRegistrationOtpBody }),
+  async (req: Request, res: Response) => {
+    try {
+      const { otpToken } = req.body;
+
+      // Verify the otpToken JWT
+      let decoded: { mobile: string; purpose: string };
+      try {
+        decoded = jwt.verify(otpToken, getJWTSecret()) as { mobile: string; purpose: string };
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: 'Session has expired. Please start over.',
+          code: 'OTP_EXPIRED',
+        });
+      }
+
+      if (decoded.purpose !== 'registration-otp') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid verification token.',
+        });
+      }
+
+      const mobileNumber = decoded.mobile;
+
+      // Check cooldown on existing record
+      const existingOtp = await RegistrationOtp.findOne({
+        mobileNumber,
+        usedAt: null,
+        expiresAt: mongoose.trusted({ $gt: new Date() }),
+      }).setOptions({ sanitizeFilter: false });
+
+      if (existingOtp && existingOtp.resendCooldownUntil > new Date()) {
+        const remainingMs = existingOtp.resendCooldownUntil.getTime() - Date.now();
+        const remainingSec = Math.ceil(remainingMs / 1000);
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${remainingSec} seconds before requesting a new code.`,
+          code: 'COOLDOWN',
+          retryAfterSeconds: remainingSec,
+        });
+      }
+
+      // Delete existing OTP and create new one
+      await RegistrationOtp.deleteMany({ mobileNumber });
+
+      const otp = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+      const otpHash = await bcrypt.hash(otp, 10);
+      const expiresAt = new Date(Date.now() + REGISTRATION_OTP_EXPIRY_MINUTES * 60 * 1000);
+
+      await RegistrationOtp.create({
+        mobileNumber,
+        otpHash,
+        expiresAt,
+        attemptsLeft: REGISTRATION_OTP_MAX_ATTEMPTS,
+        resendCooldownUntil: new Date(Date.now() + REGISTRATION_OTP_RESEND_COOLDOWN_MS),
+      });
+
+      // Send SMS
+      try {
+        await sendRegistrationOtpSms(mobileNumber, otp);
+      } catch (smsError) {
+        console.error('[HouseholdRoutes] SMS resend error:', smsError);
+      }
+
+      // Generate new otpToken
+      const newOtpToken = jwt.sign(
+        { mobile: mobileNumber, purpose: 'registration-otp' },
+        getJWTSecret(),
+        { expiresIn: `${REGISTRATION_OTP_EXPIRY_MINUTES}m` } as SignOptions,
+      );
+
+      return res.json({
+        success: true,
+        message: isSmsConfigured()
+          ? 'A new verification code has been sent.'
+          : 'New verification code generated (check server console).',
+        otpToken: newOtpToken,
+        expiresInSeconds: REGISTRATION_OTP_EXPIRY_MINUTES * 60,
+      });
+    } catch (error) {
+      console.error('[HouseholdRoutes] Resend registration OTP error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to resend code. Please try again.',
+      });
+    }
+  },
+);
 
 /**
  * Health check for household registration service

@@ -14,15 +14,19 @@ import {
   ImageBackground,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { mobileAuthService } from '../services/auth/MobileAuthService';
 import {
   fetchResidentDistributions,
   fetchResidentNotifications,
+  fetchActiveBeneficiaryEvent,
+  fetchResidentProofSubmissionStatus,
   getResidentToken,
   markResidentNotificationRead,
+  type ResidentDisasterEvent,
   type ResidentNotificationItem,
+  type ResidentProofSubmissionStatus,
 } from '../services/api/ResidentQrService';
 import PendingAccessBanner from './PendingAccessBanner';
 import { Typography } from './ui/Typography';
@@ -169,6 +173,8 @@ export default function HomeScreen({
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionItem | null>(null);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [residentNotifications, setResidentNotifications] = useState<HomeNotificationItem[]>([]);
+  const [activeDisasterEvent, setActiveDisasterEvent] = useState<ResidentDisasterEvent | null>(null);
+  const [proofStatus, setProofStatus] = useState<ResidentProofSubmissionStatus | null>(null);
 
   const isVolunteer = accountType === 'volunteer';
   const needsRevisionResident = !isVolunteer && residentStatus === 'Needs Revision';
@@ -246,20 +252,46 @@ export default function HomeScreen({
     );
   }, [isVolunteer]);
 
+  const loadActiveDisasterEvent = useCallback(async () => {
+    if (isVolunteer || isPendingResident) {
+      setActiveDisasterEvent(null);
+      return;
+    }
+    const residentToken = await getResidentToken();
+    if (!residentToken) {
+      setActiveDisasterEvent(null);
+      return;
+    }
+    const result = await fetchActiveBeneficiaryEvent(residentToken);
+    const event = result.success ? result.data ?? null : null;
+    setActiveDisasterEvent(event);
+    const eventId = event?.id || event?._id;
+    if (eventId) {
+      const statusResult = await fetchResidentProofSubmissionStatus(residentToken, eventId);
+      setProofStatus(statusResult.success ? statusResult.data ?? null : null);
+    } else {
+      setProofStatus(null);
+    }
+  }, [isPendingResident, isVolunteer]);
+
   useEffect(() => {
     loadDistributions().catch(() => setLoading(false));
     loadResidentNotifications().catch(() => undefined);
-  }, [loadDistributions, loadResidentNotifications]);
+    loadActiveDisasterEvent().catch(() => setActiveDisasterEvent(null));
+  }, [loadActiveDisasterEvent, loadDistributions, loadResidentNotifications]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await loadDistributions();
-      await loadResidentNotifications();
+      await Promise.all([
+        loadDistributions(),
+        loadResidentNotifications(),
+        loadActiveDisasterEvent(),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadDistributions, loadResidentNotifications]);
+  }, [loadActiveDisasterEvent, loadDistributions, loadResidentNotifications]);
 
   // Get the featured distribution (first one) for the hero card
   const featuredDistribution = distributions[0];
@@ -308,8 +340,7 @@ export default function HomeScreen({
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + 100 },
-          !loading && distributions.length === 0 && styles.scrollContentCentered
+          { paddingBottom: Math.max(insets.bottom, 12) + 76 },
         ]}
         refreshControl={
           <RefreshControl
@@ -330,6 +361,12 @@ export default function HomeScreen({
             <Typography variant="body" color={theme.colors.textSecondary} style={styles.greetingSubtext}>
               {needsRevisionResident ? 'Registration needs revision' : isPendingResident ? 'Account pending admin review' : 'Relief distribution updates'}
             </Typography>
+            {!isPendingResident && barangayName ? (
+              <View style={styles.barangayPill}>
+                <Ionicons name="location-outline" size={13} color="#166534" />
+                <Text style={styles.barangayPillText}>{barangayName}</Text>
+              </View>
+            ) : null}
           </View>
           <TouchableOpacity
             style={styles.notificationButton}
@@ -359,7 +396,7 @@ export default function HomeScreen({
 
         {needsRevisionResident && (
           <View style={styles.proofCtaWrap}>
-            <Card style={styles.proofCtaCard}>
+            <Card style={styles.revisionCtaCard}>
               <View style={styles.proofCtaIcon}>
                 <Ionicons name="refresh-circle-outline" size={22} color="#166534" />
               </View>
@@ -381,30 +418,96 @@ export default function HomeScreen({
 
         {!isVolunteer && !isPendingResident && (
           <View style={styles.proofCtaWrap}>
-            <Card style={styles.proofCtaCard}>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              onPress={() => onNavigate?.('proof-request')}
+              style={styles.proofCtaCard}
+              accessibilityRole="button"
+              accessibilityLabel="Submit disaster proof"
+            >
               <View style={styles.proofCtaIcon}>
-                <Ionicons name="document-text-outline" size={22} color="#166534" />
+                <Ionicons
+                  name={proofStatus?.status === 'Approved' ? 'checkmark-circle-outline' : proofStatus?.status === 'Pending Verification' ? 'time-outline' : 'camera-outline'}
+                  size={21}
+                  color="#166534"
+                />
               </View>
               <View style={styles.proofCtaTextWrap}>
-                <Typography variant="body" weight="semiBold">Need disaster assistance?</Typography>
-                <Typography variant="body" color={theme.colors.textSecondary}>
-                  Send 3 to 5 proof photos so admins can review your eligibility for the active event.
+                <View style={styles.proofCtaTitleRow}>
+                  <Text style={styles.proofCtaEyebrow}>
+                    {activeDisasterEvent ? activeDisasterEvent.disasterType.toUpperCase() : 'DISASTER PROOF'}
+                  </Text>
+                  {activeDisasterEvent ? <View style={styles.activeDot} /> : null}
+                </View>
+                <Typography variant="body" weight="semiBold" numberOfLines={1}>
+                  {proofStatus?.status === 'Approved'
+                    ? 'Proof approved — enrollment active'
+                    : proofStatus?.status === 'Pending Verification'
+                      ? 'Proof is under review'
+                      : activeDisasterEvent?.name || 'Need disaster assistance?'}
+                </Typography>
+                <Typography variant="caption" color={theme.colors.textSecondary} numberOfLines={2}>
+                  {proofStatus?.status === 'Approved'
+                    ? 'Matching distributions created for your barangay will include you automatically.'
+                    : proofStatus?.status === 'Pending Verification'
+                      ? 'No need to send again. Open this page to check the admin review status.'
+                      : proofStatus?.status === 'Rejected'
+                        ? 'Admin requested changes. Open your submission to update the proof.'
+                        : 'Upload 3–5 photos once. After approval, matching barangay distributions enroll you automatically.'}
                 </Typography>
               </View>
-              <Button
-                title="Submit proof"
-                icon="arrow-forward"
-                onPress={() => onNavigate?.('proof-request')}
-                style={styles.proofCtaButton}
-              />
-            </Card>
+              <View style={styles.proofCtaArrow}>
+                <Ionicons name="arrow-forward" size={19} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
           </View>
         )}
 
+        {!isVolunteer && !isPendingResident && !loading && distributions.length === 0 && (
+          <TouchableOpacity
+            style={styles.virtualIdPreview}
+            activeOpacity={0.86}
+            onPress={() => onNavigate?.('qr')}
+            accessibilityRole="button"
+            accessibilityLabel="Open my virtual resident ID"
+          >
+            <View style={styles.virtualIdTopRow}>
+              <View style={styles.virtualIdBrand}>
+                <View style={styles.virtualIdLogo}><Ionicons name="people" size={17} color="#FFFFFF" /></View>
+                <View>
+                  <Text style={styles.virtualIdBrandName}>KAPIT-BISIG</Text>
+                  <Text style={styles.virtualIdBrandSub}>VIRTUAL RESIDENT ID</Text>
+                </View>
+              </View>
+              <View style={styles.virtualIdVerified}>
+                <Ionicons name="checkmark-circle" size={14} color="#166534" />
+                <Text style={styles.virtualIdVerifiedText}>VERIFIED</Text>
+              </View>
+            </View>
+            <View style={styles.virtualIdBody}>
+              <View style={styles.virtualIdPerson}><Ionicons name="person" size={30} color="#5F8D76" /></View>
+              <View style={styles.virtualIdCopy}>
+                <Text style={styles.virtualIdLabel}>RESIDENT</Text>
+                <Text style={styles.virtualIdName} numberOfLines={1}>{userName}</Text>
+                <Text style={styles.virtualIdCode}>{residentCode}</Text>
+              </View>
+              <View style={styles.virtualIdOpen}>
+                <Ionicons name="qr-code-outline" size={23} color="#FFFFFF" />
+                <Text style={styles.virtualIdOpenText}>OPEN ID</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {!isPendingResident && (loading || distributions.length > 0) && (
-          <Typography variant="body" weight="semiBold" color={theme.colors.textMuted} style={styles.sectionLabel}>
-            UPCOMING DISTRIBUTION
-          </Typography>
+          <View style={styles.sectionHeadingRow}>
+            <Typography variant="body" weight="semiBold" style={styles.sectionLabel}>
+              Upcoming distribution
+            </Typography>
+            <View style={styles.sectionCountBadge}>
+              <Text style={styles.sectionCountText}>{distributions.length}</Text>
+            </View>
+          </View>
         )}
 
         {/* Loading State */}
@@ -484,14 +587,17 @@ export default function HomeScreen({
                 <Text style={styles.infoText}>{featuredDistribution.location}</Text>
               </View>
 
-              {/* View Details Button */}
-              <Button
-                variant={featuredDistribution.residentClaimed ? "secondary" : "primary"}
-                title={featuredDistribution.residentClaimed ? "View Claim Details" : "View Distribution Details"}
-                icon="arrow-forward"
-                onPress={() => setSelectedDistribution(featuredDistribution)}
-                style={{ marginTop: 8 }}
-              />
+              <View style={styles.heroActions}>
+                <TouchableOpacity style={styles.detailsAction} onPress={() => setSelectedDistribution(featuredDistribution)}>
+                  <Text style={styles.detailsActionText}>{featuredDistribution.residentClaimed ? 'Claim details' : 'View details'}</Text>
+                </TouchableOpacity>
+                {!isVolunteer && (
+                  <TouchableOpacity style={styles.idAction} onPress={() => onNavigate?.('qr')}>
+                    <Ionicons name="card-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.idActionText}>Show my ID</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           </View>
         )}
@@ -642,27 +748,17 @@ export default function HomeScreen({
       </Modal>
 
       {/* Bottom Navigation */}
-      <View style={[styles.bottomNavContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : theme.spacing.md }]}>
+      <View style={[styles.bottomNavContainer, { paddingBottom: Math.max(insets.bottom, 6) }]}>
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.navItem}>
             <Ionicons name="home" size={22} color={theme.colors.primary} />
-            <Typography variant="body" style={[styles.navText, styles.navTextActive]}>HOME</Typography>
+            <Typography variant="body" style={[styles.navText, styles.navTextActive]}>Home</Typography>
           </TouchableOpacity>
-          <View style={styles.navItemPlaceholder} />
           <TouchableOpacity style={styles.navItem} onPress={() => onNavigate?.('profile')}>
             <Ionicons name="person-outline" size={22} color={theme.colors.textMuted} />
-            <Typography variant="body" style={styles.navText}>PROFILE</Typography>
+            <Typography variant="body" style={styles.navText}>Profile</Typography>
           </TouchableOpacity>
         </View>
-        
-        {/* Floating QR Button */}
-        <TouchableOpacity
-          style={[styles.floatingQrButton, isPendingResident && styles.floatingQrButtonDisabled]}
-          onPress={() => onNavigate?.('qr')}
-          disabled={isPendingResident}
-        >
-          <MaterialCommunityIcons name="qrcode-scan" size={26} color={theme.colors.surface} />
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -678,7 +774,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 88,
   },
   scrollContentCentered: {
     flexGrow: 1,
@@ -688,41 +784,57 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 18,
   },
   headerLeft: {
     flex: 1,
   },
   greetingText: {
-    fontSize: 28,
-    fontWeight: '500',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#1F2937',
     letterSpacing: -0.5,
   },
   greetingSubtext: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#6B7280',
     marginTop: 4,
-    opacity: 0.8,
+    opacity: 0.9,
+  },
+  barangayPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#EAF8EF',
+  },
+  barangayPillText: {
+    color: '#166534',
+    fontSize: 11,
+    fontWeight: '600',
   },
   notificationButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 4,
+    marginLeft: 12,
     backgroundColor: 'rgba(255,255,255,0.78)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.95)',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
   },
   notificationButtonDisabled: {
     opacity: 0.45,
@@ -750,35 +862,112 @@ const styles = StyleSheet.create({
 
   // Section Label
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    letterSpacing: 1.5,
-    paddingHorizontal: 24,
-    marginBottom: 16,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  sectionHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sectionCountBadge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF8EF',
+  },
+  sectionCountText: {
+    color: '#15803D',
+    fontSize: 11,
+    fontWeight: '700',
   },
   proofCtaWrap: {
-    paddingHorizontal: 24,
-    marginBottom: 18,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   proofCtaCard: {
+    minHeight: 112,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: '#EFFAF3',
+    borderWidth: 1,
+    borderColor: '#D4EFDE',
+    shadowColor: '#14532D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  revisionCtaCard: {
     backgroundColor: '#F0FDF4',
     gap: 14,
   },
   proofCtaIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   proofCtaTextWrap: {
+    flex: 1,
+    gap: 3,
+  },
+  proofCtaTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
+  },
+  proofCtaEyebrow: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: '#15803D',
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#22C55E',
+  },
+  proofCtaArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#16A34A',
   },
   proofCtaButton: {
     marginTop: 4,
   },
+  virtualIdPreview: { marginHorizontal: 20, marginBottom: 20, borderRadius: 18, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#CFE3D6', shadowColor: '#123D29', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  virtualIdTopRow: { height: 49, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F0FAF4' },
+  virtualIdBrand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  virtualIdLogo: { width: 29, height: 29, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#16834B' },
+  virtualIdBrandName: { fontSize: 12, fontWeight: '900', letterSpacing: 0.6, color: '#174C31' },
+  virtualIdBrandSub: { fontSize: 7, fontWeight: '700', letterSpacing: 1, color: '#628170' },
+  virtualIdVerified: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#DCFCE7', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 4 },
+  virtualIdVerifiedText: { fontSize: 8, fontWeight: '900', color: '#166534' },
+  virtualIdBody: { minHeight: 91, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, gap: 10 },
+  virtualIdPerson: { width: 52, height: 58, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E6F2EB' },
+  virtualIdCopy: { flex: 1 },
+  virtualIdLabel: { fontSize: 8, fontWeight: '800', letterSpacing: 0.8, color: '#789084' },
+  virtualIdName: { marginTop: 2, fontSize: 16, fontWeight: '800', color: '#18352A' },
+  virtualIdCode: { marginTop: 3, fontSize: 11, fontWeight: '700', color: '#16834B' },
+  virtualIdOpen: { width: 70, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#16834B' },
+  virtualIdOpenText: { marginTop: 3, fontSize: 8, fontWeight: '800', color: '#FFFFFF' },
 
   // Loading State
   loadingContainer: {
@@ -825,16 +1014,18 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    marginHorizontal: 24,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#E8ECE9',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
   },
   heroImageContainer: {
-    height: 200,
+    height: 176,
     overflow: 'hidden',
   },
   heroImage: {
@@ -889,6 +1080,11 @@ const styles = StyleSheet.create({
   heroInfoSection: {
     padding: 24,
   },
+  heroActions: { marginTop: 9, flexDirection: 'row', gap: 9 },
+  detailsAction: { flex: 1, height: 45, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#BBD8C6', backgroundColor: '#F1F8F4' },
+  detailsActionText: { color: '#166534', fontSize: 13, fontWeight: '700' },
+  idAction: { flex: 1, height: 45, borderRadius: 12, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#16834B' },
+  idActionText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1115,47 +1311,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.xxl,
+    minHeight: 58,
+    paddingTop: 7,
+    paddingBottom: 4,
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
   },
-  navItemPlaceholder: {
-    width: 64,
-  },
   navText: {
-    fontSize: 10,
+    fontSize: 11,
     color: theme.colors.textMuted,
-    marginTop: theme.spacing.xs,
+    marginTop: 2,
     fontWeight: '600',
-    letterSpacing: 0.5,
   },
   navTextActive: {
     color: theme.colors.primary,
-  },
-  floatingQrButton: {
-    position: 'absolute',
-    top: -28,
-    left: '50%',
-    marginLeft: -32,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: theme.colors.surface,
-  },
-  floatingQrButtonDisabled: {
-    backgroundColor: theme.colors.textMuted,
   },
 });

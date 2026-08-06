@@ -33,6 +33,7 @@ export type Barangay = typeof BARANGAY_OPTIONS[number];
 export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed';
 
 export interface IDistribution extends Document {
+  disasterEventId?: mongoose.Types.ObjectId | null;
   barangay: Barangay;
   assignedBarangays: Barangay[];
   assignedStaffIds: mongoose.Types.ObjectId[];
@@ -48,6 +49,12 @@ export interface IDistribution extends Document {
 
 const distributionSchema = new Schema<IDistribution>(
   {
+    disasterEventId: {
+      type: Schema.Types.ObjectId,
+      ref: 'DisasterEvent',
+      default: null,
+      index: true,
+    },
     barangay: {
       type: String,
       required: [true, 'Barangay is required'],
@@ -119,6 +126,7 @@ distributionSchema.index({ barangay: 1, createdAt: -1 });
 distributionSchema.index({ status: 1, createdAt: -1 });
 distributionSchema.index({ assignedStaffIds: 1, createdAt: -1 });
 distributionSchema.index({ requiresBeneficiaryApproval: 1, status: 1, createdAt: -1 });
+distributionSchema.index({ disasterEventId: 1, status: 1, createdAt: -1 });
 
 const Distribution = mongoose.model<IDistribution>('Distribution', distributionSchema);
 
