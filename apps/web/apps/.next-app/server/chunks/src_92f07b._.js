@@ -1314,8 +1314,8 @@ function SmartInsights(props) {
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$future$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                        className: "text-emerald-600 dark:text-emerald-400 font-semibold",
-                        children: "Self-optimizing model"
+                        className: "font-semibold text-slate-500 dark:text-slate-400",
+                        children: "✨ Self-optimizing model"
                     }, void 0, false, {
                         fileName: "<[project]/src/components/dashboard/SmartInsights.tsx>",
                         lineNumber: 217,

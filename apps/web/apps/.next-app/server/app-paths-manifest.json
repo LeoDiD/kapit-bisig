@@ -10,5 +10,6 @@
   "/households/page": "app/households/page.js",
   "/reports/page": "app/reports/page.js",
   "/code-generation/page": "app/code-generation/page.js",
-  "/settings/page": "app/settings/page.js"
+  "/settings/page": "app/settings/page.js",
+  "/audit-logs/page": "app/audit-logs/page.js"
 }

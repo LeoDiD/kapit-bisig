@@ -214,7 +214,7 @@ export default function SmartInsights(props: SmartInsightsProps) {
       {/* Footer Ribbon */}
       <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
         <span>Updated continuously</span>
-        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Self-optimizing model</span>
+        <span className="font-semibold text-slate-500 dark:text-slate-400">✨ Self-optimizing model</span>
       </div>
     </div>
   )

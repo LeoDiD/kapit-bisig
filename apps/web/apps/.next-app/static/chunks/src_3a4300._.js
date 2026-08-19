@@ -278,35 +278,25 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                className: "flex items-center gap-2 w-full sm:w-auto",
-                                children: [
-                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("label", {
-                                        className: "text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap",
-                                        children: "Barangay:"
-                                    }, void 0, false, {
-                                        fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                        lineNumber: 143,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("select", {
-                                        value: selectedBarangay,
-                                        onChange: (e)=>setSelectedBarangay(e.target.value),
-                                        className: "rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 outline-none",
-                                        children: barangayOptions.map((b)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
-                                                value: b,
-                                                children: b === 'All' ? 'All Barangays' : b
-                                            }, b, false, {
-                                                fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                lineNumber: 152,
-                                                columnNumber: 19
-                                            }, this))
-                                    }, void 0, false, {
-                                        fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                        lineNumber: 146,
-                                        columnNumber: 15
-                                    }, this)
-                                ]
-                            }, void 0, true, {
+                                className: "w-full sm:w-auto",
+                                children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("select", {
+                                    value: selectedBarangay,
+                                    onChange: (e)=>setSelectedBarangay(e.target.value),
+                                    className: "w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 outline-none cursor-pointer",
+                                    children: barangayOptions.map((b)=>/*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("option", {
+                                            value: b,
+                                            children: b === 'All' ? 'All Barangays' : b
+                                        }, b, false, {
+                                            fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
+                                            lineNumber: 149,
+                                            columnNumber: 19
+                                        }, this))
+                                }, void 0, false, {
+                                    fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
+                                    lineNumber: 143,
+                                    columnNumber: 15
+                                }, this)
+                            }, void 0, false, {
                                 fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
                                 lineNumber: 142,
                                 columnNumber: 13
@@ -333,12 +323,12 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                     className: "h-6 w-6"
                                 }, void 0, false, {
                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                    lineNumber: 166,
+                                    lineNumber: 163,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                lineNumber: 165,
+                                lineNumber: 162,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -346,7 +336,7 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                 children: "No archived distributions found"
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                lineNumber: 168,
+                                lineNumber: 165,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -354,13 +344,13 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                 children: "Completed relief operations will automatically appear here once marked as Claimed."
                             }, void 0, false, {
                                 fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                lineNumber: 171,
+                                lineNumber: 168,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                        lineNumber: 164,
+                        lineNumber: 161,
                         columnNumber: 13
                     }, this) : /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                         className: "grid grid-cols-1 gap-3.5",
@@ -370,7 +360,7 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                     className: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4",
                                     children: [
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                            className: "space-y-1.5 flex-1",
+                                            className: "space-y-2 flex-1",
                                             children: [
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
                                                     className: "flex flex-wrap items-center gap-2.5",
@@ -380,24 +370,7 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                                             children: item.barangay
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                            lineNumber: 185,
-                                                            columnNumber: 25
-                                                        }, this),
-                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
-                                                            className: "inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400",
-                                                            children: [
-                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
-                                                                    className: "h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
-                                                                }, void 0, false, {
-                                                                    fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                                    lineNumber: 189,
-                                                                    columnNumber: 27
-                                                                }, this),
-                                                                "Completed"
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                            lineNumber: 188,
+                                                            lineNumber: 182,
                                                             columnNumber: 25
                                                         }, this),
                                                         item.requiresBeneficiaryApproval && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
@@ -405,65 +378,79 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                                             children: "Verified Beneficiaries"
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                            lineNumber: 193,
+                                                            lineNumber: 186,
                                                             columnNumber: 27
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                    lineNumber: 184,
+                                                    lineNumber: 181,
                                                     columnNumber: 23
                                                 }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                                    className: "flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400",
+                                                    className: "space-y-1.5 text-xs text-slate-500 dark:text-slate-400 pt-0.5",
                                                     children: [
-                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                                            className: "flex items-center gap-2",
                                                             children: [
-                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("strong", {
-                                                                    className: "text-slate-700 dark:text-slate-300",
+                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                                    className: "w-24 text-slate-400 dark:text-slate-400 font-semibold shrink-0",
                                                                     children: "Scheduled:"
                                                                 }, void 0, false, {
                                                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                                    lineNumber: 201,
+                                                                    lineNumber: 195,
                                                                     columnNumber: 27
                                                                 }, this),
-                                                                ' ',
-                                                                formatDate(item.scheduled)
+                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                                    className: "font-medium text-slate-700 dark:text-slate-200",
+                                                                    children: formatDate(item.scheduled)
+                                                                }, void 0, false, {
+                                                                    fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
+                                                                    lineNumber: 196,
+                                                                    columnNumber: 27
+                                                                }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                            lineNumber: 200,
+                                                            lineNumber: 194,
                                                             columnNumber: 25
                                                         }, this),
-                                                        item.claimedAt && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                        item.claimedAt && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                                            className: "flex items-center gap-2",
                                                             children: [
-                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("strong", {
-                                                                    className: "text-slate-700 dark:text-slate-300",
+                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                                    className: "w-24 text-slate-400 dark:text-slate-400 font-semibold shrink-0",
                                                                     children: "Completed:"
                                                                 }, void 0, false, {
                                                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                                    lineNumber: 206,
+                                                                    lineNumber: 200,
                                                                     columnNumber: 29
                                                                 }, this),
-                                                                ' ',
-                                                                formatDate(item.claimedAt)
+                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                                    className: "font-medium text-slate-700 dark:text-slate-200",
+                                                                    children: formatDate(item.claimedAt)
+                                                                }, void 0, false, {
+                                                                    fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
+                                                                    lineNumber: 201,
+                                                                    columnNumber: 29
+                                                                }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                            lineNumber: 205,
+                                                            lineNumber: 199,
                                                             columnNumber: 27
                                                         }, this),
-                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                                                            className: "flex items-center gap-2",
                                                             children: [
-                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("strong", {
-                                                                    className: "text-slate-700 dark:text-slate-300",
+                                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                                    className: "w-24 text-slate-400 dark:text-slate-400 font-semibold shrink-0",
                                                                     children: "Beneficiaries:"
                                                                 }, void 0, false, {
                                                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                                    lineNumber: 211,
+                                                                    lineNumber: 205,
                                                                     columnNumber: 27
                                                                 }, this),
-                                                                ' ',
                                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
                                                                     className: "text-emerald-600 dark:text-emerald-400 font-bold",
                                                                     children: [
@@ -474,19 +461,19 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                                    lineNumber: 212,
+                                                                    lineNumber: 206,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                            lineNumber: 210,
+                                                            lineNumber: 204,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                    lineNumber: 199,
+                                                    lineNumber: 193,
                                                     columnNumber: 23
                                                 }, this),
                                                 item.notes && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
@@ -498,28 +485,45 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                    lineNumber: 219,
+                                                    lineNumber: 213,
                                                     columnNumber: 25
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                            lineNumber: 183,
+                                            lineNumber: 180,
                                             columnNumber: 21
                                         }, this),
                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                                            className: "flex items-center gap-2 pt-2 sm:pt-0 shrink-0",
+                                            className: "flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 pt-2 sm:pt-0 shrink-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800",
                                             children: [
+                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("span", {
+                                                    className: "inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400",
+                                                    children: [
+                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](CheckIcon, {
+                                                            className: "h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                                                        }, void 0, false, {
+                                                            fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
+                                                            lineNumber: 222,
+                                                            columnNumber: 25
+                                                        }, this),
+                                                        "Completed"
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
+                                                    lineNumber: 221,
+                                                    columnNumber: 23
+                                                }, this),
                                                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
                                                     type: "button",
                                                     onClick: ()=>{
                                                         onSelectHouseholds(item);
                                                         onClose();
                                                     },
-                                                    className: "inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors",
+                                                    className: "inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-sm transition-all hover:scale-[1.02]",
                                                     children: [
                                                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](UsersIcon, {
-                                                            className: "h-3.5 w-3.5"
+                                                            className: "h-4 w-4 text-emerald-600 dark:text-emerald-400"
                                                         }, void 0, false, {
                                                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
                                                             lineNumber: 234,
@@ -531,54 +535,32 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
                                                     lineNumber: 226,
                                                     columnNumber: 23
-                                                }, this),
-                                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
-                                                    type: "button",
-                                                    onClick: ()=>{
-                                                        onSelectDetails(item);
-                                                        onClose();
-                                                    },
-                                                    className: "inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors",
-                                                    children: [
-                                                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](EyeIcon, {
-                                                            className: "h-3.5 w-3.5"
-                                                        }, void 0, false, {
-                                                            fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                            lineNumber: 245,
-                                                            columnNumber: 25
-                                                        }, this),
-                                                        "Details"
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                                    lineNumber: 237,
-                                                    columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                            lineNumber: 225,
+                                            lineNumber: 220,
                                             columnNumber: 21
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                    lineNumber: 182,
+                                    lineNumber: 179,
                                     columnNumber: 19
                                 }, this)
                             }, item.id, false, {
                                 fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                                lineNumber: 178,
+                                lineNumber: 175,
                                 columnNumber: 17
                             }, this))
                     }, void 0, false, {
                         fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                        lineNumber: 176,
+                        lineNumber: 173,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                    lineNumber: 162,
+                    lineNumber: 159,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
@@ -595,7 +577,7 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                             ]
                         }, void 0, true, {
                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                            lineNumber: 258,
+                            lineNumber: 247,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -605,13 +587,13 @@ function CompletedArchiveModal({ open, onClose, rows, onSelectDetails, onSelectH
                             children: "Close Archive"
                         }, void 0, false, {
                             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                            lineNumber: 261,
+                            lineNumber: 250,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                    lineNumber: 257,
+                    lineNumber: 246,
                     columnNumber: 9
                 }, this)
             ]
@@ -641,12 +623,12 @@ function ArchiveIcon({ className = 'h-5 w-5' }) {
             d: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-            lineNumber: 277,
+            lineNumber: 266,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-        lineNumber: 276,
+        lineNumber: 265,
         columnNumber: 5
     }, this);
 }
@@ -664,12 +646,12 @@ function SearchIcon({ className = 'h-4 w-4' }) {
             d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-            lineNumber: 285,
+            lineNumber: 274,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-        lineNumber: 284,
+        lineNumber: 273,
         columnNumber: 5
     }, this);
 }
@@ -687,12 +669,12 @@ function CheckIcon({ className = 'h-4 w-4' }) {
             d: "M5 13l4 4L19 7"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-            lineNumber: 293,
+            lineNumber: 282,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-        lineNumber: 292,
+        lineNumber: 281,
         columnNumber: 5
     }, this);
 }
@@ -710,12 +692,12 @@ function CloseIcon({ className = 'h-5 w-5' }) {
             d: "M6 18L18 6M6 6l12 12"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-            lineNumber: 301,
+            lineNumber: 290,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-        lineNumber: 300,
+        lineNumber: 289,
         columnNumber: 5
     }, this);
 }
@@ -733,12 +715,12 @@ function UsersIcon({ className = 'h-4 w-4' }) {
             d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
         }, void 0, false, {
             fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-            lineNumber: 309,
+            lineNumber: 298,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-        lineNumber: 308,
+        lineNumber: 297,
         columnNumber: 5
     }, this);
 }
@@ -757,7 +739,7 @@ function EyeIcon({ className = 'h-4 w-4' }) {
                 d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                lineNumber: 317,
+                lineNumber: 306,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("path", {
@@ -767,13 +749,13 @@ function EyeIcon({ className = 'h-4 w-4' }) {
                 d: "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
             }, void 0, false, {
                 fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-                lineNumber: 318,
+                lineNumber: 307,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "<[project]/src/components/distribution/CompletedArchiveModal.tsx>",
-        lineNumber: 316,
+        lineNumber: 305,
         columnNumber: 5
     }, this);
 }

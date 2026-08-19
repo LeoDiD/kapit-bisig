@@ -410,14 +410,29 @@ export default function NewDistributionModal({
       <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={isCreating ? undefined : onClose} />
 
       <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-2xl">
+        {/* Top Animated Progress Bar */}
+        <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 overflow-hidden shrink-0">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-[#0F533A] transition-all duration-500 ease-out shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+            style={{ width: `${(step / 3) * 100}%` }}
+          />
+        </div>
+
         {/* Header */}
-        <div className="border-b border-gray-100 dark:border-slate-800 px-6 py-5">
+        <div className="border-b border-gray-100 dark:border-slate-800 px-6 pt-5 pb-4 shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0F533A] dark:text-emerald-400">Create Distribution</p>
-              <h3 className="mt-1 text-xl font-black text-gray-900 dark:text-slate-100">Schedule a Barangay Relief Distribution</h3>
-              <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-                Create a dedicated relief distribution for an affected barangay.
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-[#0F533A] dark:text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-200/60 dark:border-emerald-800/40">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Step {step} of 3 • {Math.round((step / 3) * 100)}% Complete
+                </span>
+              </div>
+              <h3 className="mt-1.5 text-xl font-black text-gray-900 dark:text-slate-100 tracking-tight">
+                Schedule a Barangay Relief Distribution
+              </h3>
+              <p className="mt-0.5 text-xs sm:text-sm text-gray-500 dark:text-slate-400">
+                Setup and dispatch relief aid operations with live verification telemetry.
               </p>
             </div>
 
@@ -425,49 +440,110 @@ export default function NewDistributionModal({
               type="button"
               onClick={onClose}
               disabled={isCreating}
-              className="rounded-full border border-gray-200 dark:border-slate-700 p-2 text-gray-500 dark:text-slate-400 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-300 disabled:opacity-50"
+              className="rounded-xl border border-gray-200 dark:border-slate-700 p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
               aria-label="Close"
             >
               <XIcon />
             </button>
           </div>
 
-          {/* Step Pills */}
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            {[1, 2, 3].map((s) => (
-              <div
-                key={s}
-                className={`rounded-2xl border px-4 py-3 transition-colors ${
-                  s === step
-                    ? 'border-[#0F533A] bg-[#0F533A]/6 dark:border-[#0F533A]/50 dark:bg-[#0F533A]/30'
-                    : s < step
-                    ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/30'
-                    : 'border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800'
-                }`}
-              >
-                <p className={`text-[11px] font-bold uppercase tracking-[0.16em] ${
-                  s === step
-                    ? 'text-[#0F533A] dark:text-emerald-400'
-                    : s < step
-                    ? 'text-emerald-700 dark:text-emerald-500'
-                    : 'text-gray-500 dark:text-slate-400'
-                }`}>
-                  Step {s}
-                </p>
-                <p className="mt-1 text-sm font-bold text-gray-900 dark:text-slate-100">
-                  {s === 1 ? '1. Barangay' : s === 2 ? '2. Schedule' : '3. Team'}
-                </p>
+          {/* Dedicated Horizontal Progress Stepper */}
+          <div className="mt-6 mb-2 px-2 sm:px-6">
+            <div className="relative flex items-center justify-between">
+              {/* Connecting Progress Track Line */}
+              <div className="absolute left-6 right-6 top-4 -translate-y-1/2 h-1 bg-slate-200 dark:bg-slate-700 rounded-full z-0">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-[#0F533A] rounded-full transition-all duration-500 ease-out"
+                  style={{
+                    width: step === 1 ? '0%' : step === 2 ? '50%' : '100%',
+                  }}
+                />
               </div>
-            ))}
+
+              {[
+                {
+                  stepNum: 1,
+                  title: 'Location',
+                  subtitle: barangay ? barangay : 'Select Barangay',
+                  isDone: !!barangay && step > 1,
+                },
+                {
+                  stepNum: 2,
+                  title: 'Schedule',
+                  subtitle: scheduled ? 'Date & Time Set' : 'Set Timing',
+                  isDone: !!scheduled && step > 2,
+                },
+                {
+                  stepNum: 3,
+                  title: 'Assign Team',
+                  subtitle: assignedStaffIds.length > 0 ? `${assignedStaffIds.length} Selected` : 'Allocate Staff',
+                  isDone: assignedStaffIds.length > 0 && isCurrentStepValid,
+                },
+              ].map(({ stepNum, title, subtitle, isDone }) => {
+                const isActive = step === stepNum
+                const isPast = step > stepNum || isDone
+                const canClick = stepNum < step || (stepNum === 2 && !!barangay) || (stepNum === 3 && !!barangay && !!scheduled)
+
+                return (
+                  <button
+                    key={stepNum}
+                    type="button"
+                    onClick={() => {
+                      if (canClick && !isCreating) {
+                        setErrors({})
+                        setStep(stepNum)
+                      }
+                    }}
+                    disabled={!canClick || isCreating}
+                    className={`relative z-10 flex flex-col items-center group transition-all ${
+                      canClick && !isActive ? 'cursor-pointer' : ''
+                    }`}
+                  >
+                    {/* Stepper Node Circle */}
+                    <div
+                      className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-xs font-bold transition-all duration-300 ${
+                        isPast && !isActive
+                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                          : isActive
+                          ? 'bg-[#0F533A] dark:bg-emerald-600 text-white ring-4 ring-emerald-500/20 dark:ring-emerald-400/30 shadow-md shadow-[#0F533A]/40 scale-105'
+                          : 'border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500'
+                      }`}
+                    >
+                      {isPast && !isActive ? <CheckIcon /> : stepNum}
+                    </div>
+
+                    {/* Step Labels */}
+                    <div className="mt-2 text-center max-w-[90px] sm:max-w-[120px]">
+                      <p
+                        className={`text-xs font-bold tracking-tight transition-colors leading-tight ${
+                          isActive
+                            ? 'text-[#0F533A] dark:text-emerald-400 font-extrabold'
+                            : isPast
+                            ? 'text-slate-900 dark:text-slate-100'
+                            : 'text-slate-400 dark:text-slate-500'
+                        }`}
+                      >
+                        {title}
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">
+                        {subtitle}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
 
         {/* Content Body */}
-        <div className="space-y-4 overflow-y-auto px-6 py-5 flex-1 min-h-0" style={{ maxHeight: 'calc(92vh - 220px)' }}>
-          <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/50 px-5 py-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400">{currentStepDetails.eyebrow}</p>
-            <h4 className="mt-1 text-lg font-black text-gray-900 dark:text-slate-100">{currentStepDetails.title}</h4>
-            <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">{currentStepDetails.description}</p>
+        <div className="space-y-4 overflow-y-auto px-6 py-5 flex-1 min-h-0" style={{ maxHeight: 'calc(92vh - 230px)' }}>
+          <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-800/50 px-5 py-3.5 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">{currentStepDetails.eyebrow}</p>
+              <h4 className="mt-0.5 text-base font-extrabold text-gray-900 dark:text-slate-100">{currentStepDetails.title}</h4>
+              <p className="mt-0.5 text-xs text-gray-600 dark:text-slate-300">{currentStepDetails.description}</p>
+            </div>
           </div>
 
           <div className="min-h-[260px]">
@@ -480,7 +556,7 @@ export default function NewDistributionModal({
                     <p className="text-xs text-gray-500 dark:text-slate-400">Choose the affected barangay where this relief release will be conducted.</p>
                   </div>
                   <span className="rounded-full border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-gray-600 dark:text-slate-300">
-                    {barangay ? '1 selected' : 'Pick 1'}
+                    {barangay ? '1 selected' : 'Select 1'}
                   </span>
                 </div>
 
@@ -562,6 +638,36 @@ export default function NewDistributionModal({
             {/* STEP 3: Assign Staff / Volunteers */}
             {step === 3 && (
               <div className="space-y-4">
+                {/* Visual Overview Recap */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/40 text-xs">
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">Target Location:</span>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5 flex items-center gap-1.5">
+                      📍 {barangay}
+                      <button
+                        type="button"
+                        onClick={() => setStep(1)}
+                        className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+                      >
+                        (Change)
+                      </button>
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">Scheduled Timeline:</span>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5 flex items-center gap-1.5">
+                      🕒 {scheduled ? new Date(scheduled).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : '--'}
+                      <button
+                        type="button"
+                        onClick={() => setStep(2)}
+                        className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+                      >
+                        (Change)
+                      </button>
+                    </p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200">
                     Assign Staff / Volunteers for {barangay}
