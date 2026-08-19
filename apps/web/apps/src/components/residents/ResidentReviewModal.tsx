@@ -81,7 +81,16 @@ function getAddressCompleteness(record: ResidentRecord): string {
 }
 
 function getProofCount(record: ResidentRecord): number {
-  return [record.frontIdImage, record.backIdImage, record.faceImage].filter(Boolean).length
+  const imageReferences = [record.frontIdImage, record.backIdImage, record.faceImage]
+  if (imageReferences.some((value) => value !== undefined)) {
+    return imageReferences.filter(Boolean).length
+  }
+
+  return [
+    record.proofUploads?.frontId,
+    record.proofUploads?.backId,
+    record.proofUploads?.face,
+  ].filter(Boolean).length
 }
 
 function ScreeningLog({ resident }: { resident: ResidentRecord }) {

@@ -5,7 +5,9 @@ import crypto from 'crypto';
 export const VERIFICATION_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 export const VERIFICATION_IMAGE_PUBLIC_BASE_PATH = '/uploads/resident-verification';
 
-const UPLOAD_DIR = path.resolve(__dirname, '../../public', VERIFICATION_IMAGE_PUBLIC_BASE_PATH.replace(/^\/uploads\//, 'uploads/'));
+const UPLOAD_DIR = process.env.VERIFICATION_IMAGE_UPLOAD_DIR
+  ? path.resolve(process.env.VERIFICATION_IMAGE_UPLOAD_DIR)
+  : path.resolve(__dirname, '../../public', VERIFICATION_IMAGE_PUBLIC_BASE_PATH.replace(/^\/uploads\//, 'uploads/'));
 
 function ensureUploadDir(): void {
   if (!fs.existsSync(UPLOAD_DIR)) {
@@ -27,6 +29,19 @@ function getExtFromMime(mime: string): string {
       return '.webp';
     default:
       return '.jpg';
+  }
+}
+
+function getMimeFromFileName(fileName: string): string {
+  switch (path.extname(fileName).toLowerCase()) {
+    case '.png':
+      return 'image/png';
+    case '.webp':
+      return 'image/webp';
+    case '.jpeg':
+    case '.jpg':
+    default:
+      return 'image/jpeg';
   }
 }
 
@@ -53,4 +68,29 @@ export function persistVerificationImage(value: string, prefix: string): string 
   fs.writeFileSync(absPath, buffer);
 
   return `${VERIFICATION_IMAGE_PUBLIC_BASE_PATH}/${fileName}`;
+}
+
+/**
+ * Resolve a stored verification-image reference for an authenticated API
+ * response. File-backed images are returned as data URLs so sensitive IDs do
+ * not need a separate public static-file route.
+ */
+export function readVerificationImageAsDataUrl(value: string | undefined): string {
+  const raw = String(value || '').trim();
+  if (!raw || raw.startsWith('data:image')) {
+    return raw;
+  }
+
+  if (!raw.startsWith(`${VERIFICATION_IMAGE_PUBLIC_BASE_PATH}/`)) {
+    return raw;
+  }
+
+  const fileName = path.basename(raw);
+  const absolutePath = path.join(UPLOAD_DIR, fileName);
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+    return '';
+  }
+
+  const base64 = fs.readFileSync(absolutePath).toString('base64');
+  return `data:${getMimeFromFileName(fileName)};base64,${base64}`;
 }

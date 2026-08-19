@@ -408,6 +408,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     backIdImage: false,
   });
   const [step3ValidationMessage, setStep3ValidationMessage] = useState<string | null>(null);
+  const [step3IdNumberError, setStep3IdNumberError] = useState<string | null>(null);
   const [step3ValidationWarnings, setStep3ValidationWarnings] = useState<string[]>([]);
   const [isStep3Validating, setIsStep3Validating] = useState(false);
   const [step3ValidationStatus, setStep3ValidationStatus] = useState<Step3ValidationState>('neutral');
@@ -781,6 +782,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const resetStep3ScreeningState = () => {
     setStep3ScreeningResult(null);
     setStep3ValidationMessage(null);
+    setStep3IdNumberError(null);
     setStep3ValidationWarnings([]);
     setStep3ValidationStatus('neutral');
   };
@@ -951,12 +953,14 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setStep3ValidationWarnings(screening.warnings || []);
 
     if (screening.decision === 'PASS') {
+      setStep3IdNumberError(null);
       setStep3ValidationStatus('success');
       setStep3ValidationMessage('ID passed automated screening.');
       return;
     }
 
     if (screening.decision === 'REVIEW') {
+      setStep3IdNumberError(null);
       setStep3ValidationStatus('warning');
       setStep3ValidationMessage(
         screening.reasons[0] || 'ID needs manual review, but you can continue with registration.',
@@ -964,10 +968,14 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       return;
     }
 
+    const message = screening.reasons[0] || 'ID failed automated screening. Please retake the photos.';
     setStep3ValidationStatus('error');
-    setStep3ValidationMessage(
-      screening.reasons[0] || 'ID failed automated screening. Please retake the photos.',
-    );
+    setStep3ValidationMessage(message);
+
+    if (screening.reviewFlags.includes('ID_NUMBER_MISMATCH')) {
+      setStep3IdNumberError(message);
+      setStep3Errors((prev) => ({ ...prev, idNumber: true }));
+    }
   };
 
   const validateStep3 = async () => {
@@ -980,10 +988,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setStep3Errors(errors);
 
     if (errors.idType) {
+      setStep3IdNumberError(null);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
       return false;
     }
     if (errors.idNumber) {
+      setStep3IdNumberError('ID number is required.');
       scrollViewRef.current?.scrollTo({ y: 100, animated: true });
       return false;
     }
@@ -1021,6 +1031,11 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       applyStep3ScreeningFeedback(screening);
 
       if (screening.decision === 'BLOCK') {
+        Alert.alert(
+          'ID Verification Failed',
+          screening.reasons[0] || 'The ID details do not match the uploaded document.',
+          [{ text: 'Review ID' }],
+        );
         scrollViewRef.current?.scrollTo({ y: 100, animated: true });
         return false;
       }
@@ -1040,6 +1055,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       setStep3ValidationWarnings([]);
       setStep3ValidationStatus('error');
       setStep3ValidationMessage(message);
+      Alert.alert('ID Check Unavailable', message, [{ text: 'Try Again' }]);
       return false;
     } finally {
       setIsStep3Validating(false);
@@ -1321,8 +1337,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   /** Minimum dimensions for an ID image to produce reliable OCR results. */
   const ID_IMAGE_MIN_WIDTH = 800;
   const ID_IMAGE_MIN_HEIGHT = 500;
-  /** Maximum file size in bytes before we reject the image (too compressed = no detail). */
+  /** Minimum file size in bytes before we reject the image (too compressed = no detail). */
   const ID_IMAGE_MIN_FILE_BYTES = 30 * 1024; // 30 KB
+  /** Maximum original file size accepted by the mobile ID uploader. */
+  const ID_IMAGE_MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
   /** Target width for pre-processed ID images sent to the server. */
   const ID_IMAGE_TARGET_WIDTH = 1600;
 
@@ -1346,7 +1364,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
       const fileSize = (fileInfo as any).size || 0;
       if (fileSize > 0 && fileSize < ID_IMAGE_MIN_FILE_BYTES) {
         return {
-          error: `Image file is too small (${Math.round(fileSize / 1024)}KB). Please capture a clearer, higher resolution photo of your ID.`,
+          error: 'Image file is too small (' + Math.round(fileSize / 1024) + 'KB). Please capture a clearer, higher resolution photo of your ID.',
+        };
+      }
+
+      if (fileSize > ID_IMAGE_MAX_FILE_BYTES) {
+        return {
+          error: 'Image file is too large (' + (fileSize / (1024 * 1024)).toFixed(1) + 'MB). Maximum allowed size is 5MB.',
         };
       }
 
@@ -1954,20 +1978,33 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     }
   };
 
+  const returnToRegistrationStep = (step: 1 | 2 | 3 | 4) => {
+    // Clear only the verification attempt. All registration fields and images
+    // remain in their existing state so the resident can review or edit them.
+    setDuplicateCheckResult(null);
+    setVerificationResult(null);
+    setIsSubmitting(false);
+    setVerificationProgress(0);
+    setVerificationStep('');
+    setSubmissionComplete(false);
+    setSubmissionErrorMessage(null);
+    setShowErrors(false);
+    setCurrentStep(step);
+  };
+
   const handleBack = () => {
     if (currentStep === 5) {
-      if (submissionComplete || duplicateCheckResult?.decision === 'BLOCK') {
+      if (submissionComplete) {
         onCancel();
+        return;
+      }
+      if (duplicateCheckResult?.decision === 'BLOCK') {
+        returnToRegistrationStep(4);
         return;
       }
       // Allow going back from Step 5 if verification flow is not completed yet.
       if (duplicateCheckResult?.decision === 'ERROR' || !submissionComplete) {
-        // Reset verification state and go back to face capture
-        setDuplicateCheckResult(null);
-        setVerificationResult(null);
-        setIsSubmitting(false);
-        setVerificationProgress(0);
-        setCurrentStep(4);
+        returnToRegistrationStep(4);
         return;
       }
       // If submission is complete, don't allow going back
@@ -2764,8 +2801,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               Format: {getIdFormatInfo(idType).hint} ({idNumber.length}/{getIdFormatInfo(idType).maxLength})
             </Text>
           )}
-          {showErrors && step3Errors.idNumber && !idNumber.trim() && (
-            <Text style={styles.errorText}>ID number is required.</Text>
+          {showErrors && step3Errors.idNumber && (
+            <Text style={styles.errorText}>
+              {step3IdNumberError || (!idNumber.trim() ? 'ID number is required.' : 'Enter a valid ' + idType + ' number.')}
+            </Text>
           )}
         </View>
 
@@ -3018,6 +3057,12 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   // Step 5: Verification Result with Duplicate Check Display
   const renderStep5 = () => {
     const status = getVerificationStatus();
+    const duplicateEditSteps = [
+      { step: 1, label: 'Personal', icon: 'person-outline' },
+      { step: 2, label: 'Household', icon: 'home-outline' },
+      { step: 3, label: 'ID', icon: 'card-outline' },
+      { step: 4, label: 'Face', icon: 'camera-outline' },
+    ] as const;
 
     // Show loading state while verifying
     if (isSubmitting) {
@@ -3110,6 +3155,30 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
             )}
           </View>
 
+          {duplicateCheckResult?.decision === 'BLOCK' && (
+            <View style={styles.duplicateEditContainer}>
+              <Text style={styles.duplicateEditTitle}>Review your registration</Text>
+              <Text style={styles.duplicateEditDescription}>
+                Your information is still saved. Choose any step to review or update it.
+              </Text>
+              <View style={styles.duplicateEditStepsRow}>
+                {duplicateEditSteps.map((item) => (
+                  <TouchableOpacity
+                    key={`duplicate-edit-step-${item.step}`}
+                    style={styles.duplicateEditStepButton}
+                    onPress={() => returnToRegistrationStep(item.step)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Go back to step ${item.step}: ${item.label}`}
+                  >
+                    <Ionicons name={item.icon} size={20} color="#B3261E" />
+                    <Text style={styles.duplicateEditStepNumber}>Step {item.step}</Text>
+                    <Text style={styles.duplicateEditStepLabel}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Complete, Retry, or Go Back Button */}
           {(submissionComplete || !!submissionErrorMessage || duplicateCheckResult?.decision === 'BLOCK' || duplicateCheckResult?.decision === 'ERROR') && (
             <TouchableOpacity
@@ -3120,7 +3189,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               ]}
               onPress={() => {
                 if (duplicateCheckResult?.decision === 'BLOCK') {
-                  onCancel();
+                  returnToRegistrationStep(1);
                 } else if (submissionErrorMessage) {
                   setDuplicateCheckResult(null);
                   setVerificationResult(null);
@@ -3145,10 +3214,16 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <Text style={styles.completeButtonText}>
                 {duplicateCheckResult?.decision === 'ERROR' || submissionErrorMessage
                   ? 'Retry Photo'
-                  : 'Back to Splash'}
+                  : duplicateCheckResult?.decision === 'BLOCK'
+                    ? 'Review Registration'
+                    : 'Back to Splash'}
               </Text>
               <Ionicons
-                name={duplicateCheckResult?.decision === 'ERROR' || submissionErrorMessage ? "refresh" : "home"}
+                name={duplicateCheckResult?.decision === 'ERROR' || submissionErrorMessage
+                  ? "refresh"
+                  : duplicateCheckResult?.decision === 'BLOCK'
+                    ? "create-outline"
+                    : "home"}
                 size={22}
                 color="#FFF"
               />
@@ -3257,10 +3332,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <TouchableOpacity
                 style={[
                   styles.nextButton,
-                  (isStep1Validating || isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')) && styles.nextButtonDisabled,
+                  (isStep1Validating || isStep3Validating) && styles.nextButtonDisabled,
                 ]}
                 onPress={handleNextStep}
-                disabled={isStep1Validating || isStep3Validating || (currentStep === 3 && step3ValidationStatus === 'error')}
+                disabled={isStep1Validating || isStep3Validating}
               >
                 <Text style={styles.nextButtonText}>
                   {isStep1Validating
@@ -3268,7 +3343,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                     : isStep3Validating
                       ? 'Checking ID...'
                       : currentStep === 3 && step3ValidationStatus === 'error'
-                        ? 'Fix ID Upload'
+                        ? 'Check ID Again'
                         : currentStep === 4
                           ? 'Verify & Submit'
                           : currentStep === 3
@@ -5335,6 +5410,56 @@ const styles = StyleSheet.create({
     color: '#333',
     marginLeft: 12,
     lineHeight: 20,
+  },
+  duplicateEditContainer: {
+    width: '100%',
+    backgroundColor: '#FFF4F2',
+    borderWidth: 1,
+    borderColor: '#F2B8B5',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  duplicateEditTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#7D2A24',
+    textAlign: 'center',
+  },
+  duplicateEditDescription: {
+    fontSize: 13,
+    color: '#6F4B47',
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 14,
+  },
+  duplicateEditStepsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  duplicateEditStepButton: {
+    flex: 1,
+    minHeight: 82,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E9C7C4',
+    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+  },
+  duplicateEditStepNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7D2A24',
+    marginTop: 4,
+  },
+  duplicateEditStepLabel: {
+    fontSize: 10,
+    color: '#6F4B47',
+    marginTop: 2,
   },
   completeButton: {
     flexDirection: 'row',

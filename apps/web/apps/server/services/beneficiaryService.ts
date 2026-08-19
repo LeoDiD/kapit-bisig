@@ -20,6 +20,8 @@ import {
   buildResidentQrToken as buildSignedResidentQrToken,
   parseResidentQrToken,
 } from './residentQrService';
+import { deriveDistributionLifecycle } from '../utils/distributionLifecycle';
+import { formatResidentFullName } from '../utils/residentName';
 
 type ResidentApprovalStatus = 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
 
@@ -140,9 +142,7 @@ function generateClaimId(): string {
 }
 
 function getResidentDisplayName(input: { firstName?: string; lastName?: string; fullName?: string }): string {
-  const full = String(input.fullName || '').trim();
-  if (full) return full;
-  return `${String(input.firstName || '').trim()} ${String(input.lastName || '').trim()}`.trim();
+  return formatResidentFullName(input);
 }
 
 export function deriveEligibilityStatus(
@@ -311,20 +311,11 @@ function assertDistributionAcceptingSubmissions(distribution: IDistribution): vo
     );
   }
 
-  if (distribution.status === 'Claimed') {
+  if (distribution.status === 'Claimed' || deriveDistributionLifecycle(distribution) !== 'Upcoming') {
     throw new BeneficiaryServiceError(
       409,
       'DISTRIBUTION_CLOSED',
-      'This distribution is already closed for beneficiary applications.',
-    );
-  }
-
-  const scheduledAt = new Date(distribution.scheduled);
-  if (!Number.isNaN(scheduledAt.getTime()) && scheduledAt.getTime() <= Date.now()) {
-    throw new BeneficiaryServiceError(
-      409,
-      'SUBMISSION_WINDOW_CLOSED',
-      'This distribution is already in progress or closed for new beneficiary applications.',
+      'This distribution is not open for beneficiary applications.',
     );
   }
 }
@@ -983,6 +974,8 @@ export async function upsertOfflineSyncLog(params: {
   payload: Record<string, unknown>;
   syncStatus: OfflineSyncStatus;
   errorMessage?: string;
+  errorCode?: string;
+  retryable?: boolean;
   proofSubmissionId?: string;
   claimMongoId?: string;
   claimId?: string;
@@ -1022,6 +1015,8 @@ export async function upsertOfflineSyncLog(params: {
         deviceId: String(params.deviceId || '').trim(),
         payload: params.payload,
         errorMessage: params.errorMessage || '',
+        errorCode: params.errorCode || '',
+        retryable: Boolean(params.retryable),
         syncedAt: params.syncStatus === 'Synced' ? new Date() : null,
       },
       $setOnInsert: {

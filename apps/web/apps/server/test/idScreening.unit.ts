@@ -38,6 +38,26 @@ function run(): void {
   assert.strictEqual(typeMismatchResult.detectedIdType, 'Passport');
   assert.ok(typeMismatchResult.reviewFlags.includes('TYPE_MISMATCH'));
 
+  // A lower-confidence type mismatch must not PASS just because the number matches.
+  const uncertainTypeMismatchResult = analyzeIdScreeningFromOcr({
+    enteredIdType: 'Passport',
+    enteredIdNumber: 'P1234567',
+    frontText: 'DRIVER LICENSE LTO P1234567',
+    backText: '',
+    frontOcrConfidence: 0.82,
+    backOcrConfidence: 0.55,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  assert.strictEqual(uncertainTypeMismatchResult.typeMatch, false);
+  assert.strictEqual(
+    uncertainTypeMismatchResult.decision,
+    'REVIEW',
+    'A document-type mismatch must never receive PASS',
+  );
+
   const idMismatchResult = analyzeIdScreeningFromOcr({
     enteredIdType: 'Passport',
     enteredIdNumber: 'P1234567',
@@ -143,6 +163,26 @@ function run(): void {
   assert.strictEqual(wrongIdResult.decision, 'BLOCK', 'Completely wrong ID number should BLOCK');
   assert.strictEqual(wrongIdResult.idNumberMatch, false);
   console.log('  ✓ Wrong ID number still blocked');
+
+  // A moderate-confidence OCR mismatch must not reject a resident. The same
+  // valid ID can produce a noisier read depending on OCR and image quality,
+  // so this is routed to the admin review queue instead.
+  const noisyReadResult = analyzeIdScreeningFromOcr({
+    enteredIdType: 'PhilSys ID',
+    enteredIdNumber: '1234-5678-9012',
+    frontText: 'PHILIPPINE IDENTIFICATION PHILSYS PCN 1234 6688 9912',
+    backText: 'REPUBLIC OF THE PHILIPPINES',
+    frontOcrConfidence: 0.62,
+    backOcrConfidence: 0.48,
+    frontWidth: 1280,
+    frontHeight: 820,
+    backWidth: 1280,
+    backHeight: 820,
+  });
+  assert.strictEqual(noisyReadResult.idNumberMatch, false);
+  assert.strictEqual(noisyReadResult.decision, 'REVIEW');
+  assert.ok(noisyReadResult.reviewFlags.includes('ID_NUMBER_UNCERTAIN'));
+  console.log('  ✓ Moderate-confidence OCR mismatch routed to review');
 
   // ==================================================
   // NEW: Fuzzy keyword matching (OCR misread tolerance)

@@ -1,16 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleProp, View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface PendingAccessBannerProps {
   message?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 export default function PendingAccessBanner({
   message = 'Your account is pending admin review. Only Home and Profile are available right now.',
+  style,
 }: PendingAccessBannerProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <Ionicons name="time-outline" size={18} color="#92400E" />
       <Text style={styles.text}>{message}</Text>
     </View>
@@ -39,4 +41,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

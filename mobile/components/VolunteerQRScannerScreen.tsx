@@ -166,6 +166,7 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
           status?: string;
           registeredHouseholds?: number;
           claimedHouseholds?: number;
+          lifecycleStatus?: 'Upcoming' | 'Active' | 'Completed' | 'Archived';
         }>;
       }>('/distributions', { method: 'GET' });
 
@@ -173,7 +174,7 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
         return;
       }
 
-      const firstActive = response.data.data.find((d) => d.status !== 'Claimed');
+      const firstActive = response.data.data.find((d) => d.status !== 'Claimed' && d.lifecycleStatus === 'Active');
       if (!firstActive) return;
 
       setActiveDistribution({

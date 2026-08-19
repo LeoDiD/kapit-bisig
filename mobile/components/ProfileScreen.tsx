@@ -1,36 +1,39 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  Alert,
   ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getResidentToken,
   ResidentProfile,
-  uploadResidentAvatar,
   updateResidentProfile,
+  uploadResidentAvatar,
 } from '../services/api/ResidentQrService';
 import {
   mobileAuthService,
   User as VolunteerUser,
 } from '../services/auth/MobileAuthService';
-import * as ImagePicker from 'expo-image-picker';
+import { residentTheme, theme } from '../theme';
+import { formatResidentFullName } from '../utils/residentName';
 import PendingAccessBanner from './PendingAccessBanner';
+import BottomNavigation from './ui/BottomNavigation';
 import { Typography } from './ui/Typography';
-import { Card } from './ui/Card';
-import { triggerTestNotification } from '../services/notifications/TestNotificationService';
 
 interface ProfileScreenProps {
-  onNavigate?: (screen: 'home' | 'qr' | 'profile' | 'registration-revision') => void;
+  onNavigate?: (screen: 'home' | 'distributions' | 'qr' | 'profile' | 'registration-revision') => void;
   onLogout?: () => void;
   accountType?: 'resident' | 'volunteer';
   residentStatus?: string;
@@ -41,38 +44,182 @@ interface ProfileScreenProps {
   onVolunteerProfileUpdated?: (user: VolunteerUser | null) => void;
 }
 
-interface SettingsItemProps {
+interface DetailItem {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  onPress?: () => void;
-  disabled?: boolean;
-}
-
-const SettingsItem = ({ icon, label, onPress, disabled = false }: SettingsItemProps) => (
-  <TouchableOpacity style={[styles.settingsItem, disabled && styles.settingsItemDisabled]} onPress={onPress} disabled={disabled}>
-    <View style={styles.settingsIconWrapper}>
-      <Ionicons name={icon} size={20} color="#6B7280" />
-    </View>
-    <Typography variant="body" weight="medium" style={{ flex: 1, marginLeft: 14 }}>{label}</Typography>
-    <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
-  </TouchableOpacity>
-);
-
-interface InfoRowProps {
-  label: string;
   value: string;
-  showDivider?: boolean;
 }
 
-const InfoRow = ({ label, value, showDivider = true }: InfoRowProps) => (
-  <>
-    <View style={styles.infoRow}>
-      <Typography variant="body" color="#9CA3AF">{label}</Typography>
-      <Typography variant="body" weight="medium" style={[styles.infoValue, { flex: 1, textAlign: 'right' }]}>{value}</Typography>
+interface DetailRowProps extends DetailItem {
+  showDivider?: boolean;
+  isResident?: boolean;
+}
+
+interface ActionItemProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  description?: string;
+  onPress: () => void;
+  isResident?: boolean;
+}
+
+const residentColors = residentTheme.colors;
+
+interface StatusPresentation {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  foreground: string;
+  background: string;
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'KB';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function formatRole(role?: string): string {
+  if (!role) return 'Volunteer';
+  return role
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function joinUniqueParts(parts: Array<string | null | undefined>): string {
+  const seen = new Set<string>();
+  return parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .filter((part) => {
+      const key = part.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(', ');
+}
+
+function resolveStatusPresentation(
+  isVolunteer: boolean,
+  residentStatus?: string,
+  volunteerStatus?: string,
+): StatusPresentation {
+  if (isVolunteer) {
+    if (volunteerStatus === 'Active') {
+      return {
+        label: 'Active staff',
+        icon: 'checkmark-circle',
+        foreground: '#15803D',
+        background: '#ECFDF3',
+      };
+    }
+
+    if (volunteerStatus === 'Suspended') {
+      return {
+        label: 'Suspended',
+        icon: 'alert-circle',
+        foreground: '#B91C1C',
+        background: '#FEF2F2',
+      };
+    }
+
+    return {
+      label: volunteerStatus || 'Status unavailable',
+      icon: 'information-circle',
+      foreground: '#4B5563',
+      background: '#F3F4F6',
+    };
+  }
+
+  switch (residentStatus) {
+    case 'Approved':
+      return {
+        label: 'Verified household',
+        icon: 'checkmark-circle',
+        foreground: '#15803D',
+        background: '#ECFDF3',
+      };
+    case 'Pending':
+      return {
+        label: 'Pending verification',
+        icon: 'time',
+        foreground: '#A16207',
+        background: '#FFFBEB',
+      };
+    case 'Needs Revision':
+      return {
+        label: 'Needs revision',
+        icon: 'alert-circle',
+        foreground: '#B45309',
+        background: '#FFF7ED',
+      };
+    case 'Rejected':
+      return {
+        label: 'Registration rejected',
+        icon: 'close-circle',
+        foreground: '#B91C1C',
+        background: '#FEF2F2',
+      };
+    default:
+      return {
+        label: 'Status unavailable',
+        icon: 'information-circle',
+        foreground: '#4B5563',
+        background: '#F3F4F6',
+      };
+  }
+}
+
+function DetailRow({ icon, label, value, showDivider = true, isResident = false }: DetailRowProps) {
+  const iconColor = isResident ? '#374151' : theme.colors.textSecondary;
+  return (
+    <View>
+      <View style={styles.detailRow}>
+        <View style={[styles.detailIcon, isResident && styles.residentIconSurface]}>
+          <Ionicons name={icon} size={19} color={iconColor} />
+        </View>
+        <View style={styles.detailCopy}>
+          <Typography variant="caption" color={theme.colors.textSecondary}>
+            {label}
+          </Typography>
+          <Typography variant="body" weight="medium" style={styles.detailValue}>
+            {value}
+          </Typography>
+        </View>
+      </View>
+      {showDivider ? <View style={styles.divider} /> : null}
     </View>
-    {showDivider && <View style={styles.infoDivider} />}
-  </>
-);
+  );
+}
+
+function ActionItem({ icon, label, description, onPress, isResident = false }: ActionItemProps) {
+  const iconColor = isResident ? '#374151' : theme.colors.textSecondary;
+  return (
+    <TouchableOpacity
+      style={styles.actionItem}
+      onPress={onPress}
+      activeOpacity={0.72}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={[styles.actionIcon, isResident && styles.residentIconSurface]}>
+        <Ionicons name={icon} size={20} color={iconColor} />
+      </View>
+      <View style={styles.actionCopy}>
+        <Typography variant="body" weight="medium">{label}</Typography>
+        {description ? (
+          <Typography variant="caption" color={theme.colors.textSecondary} style={styles.actionDescription}>
+            {description}
+          </Typography>
+        ) : null}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={isResident ? '#6B7280' : theme.colors.textMuted} />
+    </TouchableOpacity>
+  );
+}
 
 export default function ProfileScreen({
   onNavigate,
@@ -89,84 +236,78 @@ export default function ProfileScreen({
   const isVolunteer = accountType === 'volunteer';
   const needsRevisionResident = !isVolunteer && residentStatus === 'Needs Revision';
   const isPendingResident = !isVolunteer && (residentStatus === 'Pending' || needsRevisionResident);
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [firstNameInput, setFirstNameInput] = useState('');
   const [lastNameInput, setLastNameInput] = useState('');
   const [mobileInput, setMobileInput] = useState('');
   const [streetAddressInput, setStreetAddressInput] = useState('');
   const [cityInput, setCityInput] = useState('');
-  const [avatarUri, setAvatarUri] = useState(
-    residentProfile?.avatarUrl || 'https://randomuser.me/api/portraits/men/32.jpg'
+  const [avatarUri, setAvatarUri] = useState<string | null>(
+    residentProfile?.avatarUrl?.trim() || null,
   );
 
-  const sanitizeResidentFullName = (rawName?: string): string => {
-    const noiseWords = new Set([
-      'APPROVED',
-      'PENDING',
-      'REJECTED',
-      'VERIFIED',
-      'ACTIVE',
-      'INACTIVE',
-      'HOUSEHOLD',
-      'RESIDENT',
-    ]);
+  const residentName = useMemo(() => {
+    return formatResidentFullName({
+      firstName: residentProfile?.firstName,
+      lastName: residentProfile?.lastName,
+      fullName: residentProfile?.fullName,
+    });
+  }, [residentProfile?.firstName, residentProfile?.fullName, residentProfile?.lastName]);
 
-    const parts = String(rawName || '')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .filter((part) => !noiseWords.has(part.toUpperCase()));
-    if (parts.length === 0) return '';
-
-    return parts.join(' ');
-  };
-
-  const residentRawName = useMemo(() => {
-    const cleanedFirst = sanitizeResidentFullName(residentProfile?.firstName || '');
-    const cleanedLast = sanitizeResidentFullName(residentProfile?.lastName || '');
-    const cleanedFull = sanitizeResidentFullName(residentProfile?.fullName || '');
-
-    if (cleanedFirst && cleanedLast) return `${cleanedFirst} ${cleanedLast}`.trim();
-    if (!cleanedFirst && !cleanedLast) return cleanedFull;
-
-    const fullParts = cleanedFull.split(/\s+/).filter(Boolean);
-    if (cleanedFirst && fullParts.length > 1) {
-      return `${cleanedFirst} ${fullParts[fullParts.length - 1]}`.trim();
-    }
-    if (cleanedLast && fullParts.length > 0) {
-      return `${fullParts[0]} ${cleanedLast}`.trim();
-    }
-    return `${cleanedFirst} ${cleanedLast}`.trim() || cleanedFull;
-  }, [residentProfile?.firstName, residentProfile?.lastName, residentProfile?.fullName]);
+  const volunteerName = useMemo(
+    () => joinUniqueParts([volunteerUser?.firstName, volunteerUser?.lastName]).replace(', ', ' '),
+    [volunteerUser?.firstName, volunteerUser?.lastName],
+  );
 
   const displayName = isVolunteer
-    ? `${volunteerUser?.firstName || ''} ${volunteerUser?.lastName || ''}`.trim() || 'Staff'
-    : residentRawName || 'Juan Dela Cruz';
-  const isVerified = isVolunteer ? true : residentProfile?.status === 'Approved';
-  const residentCode = residentProfile?.residentCode || 'SJ-10293';
-  const lguTown = 'Labrador';
-  const volunteerAddress = volunteerUser?.barangay
-    ? `${volunteerUser.barangay}, ${lguTown}`
-    : `No address, ${lguTown}`;
-  const residentAddressParts = [
-    residentProfile?.barangay || 'San Jose',
-    lguTown,
-  ].filter(Boolean);
-  const fullAddress = isVolunteer
-    ? volunteerAddress
-    : residentAddressParts.join(', ');
-  const householdSize = residentProfile?.householdSize || 4;
-  const coverageArea = isVolunteer
-    ? volunteerUser?.assignedBarangays?.join(', ') || volunteerUser?.barangay || 'No assigned area'
-    : 'Sector 7-B';
+    ? volunteerName || 'Volunteer'
+    : residentName || 'Resident';
+  const initials = getInitials(displayName);
+  const statusPresentation = resolveStatusPresentation(
+    isVolunteer,
+    residentStatus,
+    volunteerUser?.status,
+  );
 
-  useEffect(() => {
-    if (residentProfile?.avatarUrl) {
-      setAvatarUri(residentProfile.avatarUrl);
+  const residentAddress = joinUniqueParts([
+    residentProfile?.streetAddress,
+    residentProfile?.barangay,
+    residentProfile?.city,
+  ]);
+
+  const detailItems = useMemo<DetailItem[]>(() => {
+    if (isVolunteer) {
+      return [
+        { icon: 'briefcase-outline', label: 'Role', value: formatRole(volunteerUser?.role) },
+        { icon: 'location-outline', label: 'Barangay', value: volunteerUser?.barangay?.trim() || 'Not provided' },
+        {
+          icon: 'map-outline',
+          label: 'Assigned areas',
+          value: volunteerUser?.assignedBarangays?.filter(Boolean).join(', ') || 'Not assigned',
+        },
+        { icon: 'call-outline', label: 'Phone number', value: volunteerUser?.phoneNumber?.trim() || 'Not provided' },
+        { icon: 'mail-outline', label: 'Email', value: volunteerUser?.email?.trim() || 'Not provided' },
+      ];
     }
-  }, [residentProfile?.avatarUrl]);
+
+    const residentItems: DetailItem[] = [
+      { icon: 'home-outline', label: 'Full address', value: residentAddress || 'Not provided' },
+      { icon: 'call-outline', label: 'Mobile number', value: residentProfile?.mobileNumber?.trim() || 'Not provided' },
+      {
+        icon: 'people-outline',
+        label: 'Household size',
+        value: residentProfile?.householdSize && residentProfile.householdSize > 0
+          ? `${residentProfile.householdSize} ${residentProfile.householdSize === 1 ? 'member' : 'members'}`
+          : 'Not provided',
+      },
+    ];
+
+    return residentItems;
+  }, [isVolunteer, residentAddress, residentProfile, volunteerUser]);
 
   const initialFields = useMemo(() => {
     if (isVolunteer) {
@@ -188,6 +329,10 @@ export default function ProfileScreen({
     };
   }, [isVolunteer, residentProfile, volunteerUser]);
 
+  useEffect(() => {
+    setAvatarUri(isVolunteer ? null : residentProfile?.avatarUrl?.trim() || null);
+  }, [isVolunteer, residentProfile?.avatarUrl]);
+
   const openEditModal = () => {
     setFirstNameInput(initialFields.firstName);
     setLastNameInput(initialFields.lastName);
@@ -197,7 +342,13 @@ export default function ProfileScreen({
     setIsEditOpen(true);
   };
 
+  const closeEditModal = () => {
+    if (!isSaving) setIsEditOpen(false);
+  };
+
   const handleResidentAvatarPick = async () => {
+    if (isVolunteer || isUploadingAvatar) return;
+
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('Permission needed', 'Please allow photo library access to update your profile photo.');
@@ -211,27 +362,36 @@ export default function ProfileScreen({
       quality: 0.85,
     });
 
-    if (result.canceled || !result.assets?.length) {
-      return;
-    }
+    if (result.canceled || !result.assets?.length) return;
 
+    const previousAvatarUri = avatarUri;
     const selectedUri = result.assets[0].uri;
     setAvatarUri(selectedUri);
+    setIsUploadingAvatar(true);
 
-    const token = await getResidentToken();
-    if (!token) {
-      Alert.alert('Session expired', 'Please log in again.');
-      return;
+    try {
+      const token = await getResidentToken();
+      if (!token) {
+        setAvatarUri(previousAvatarUri);
+        Alert.alert('Session expired', 'Please log in again.');
+        return;
+      }
+
+      const uploadResult = await uploadResidentAvatar(token, selectedUri);
+      if (!uploadResult.success || !uploadResult.avatarUrl) {
+        setAvatarUri(previousAvatarUri);
+        Alert.alert('Upload failed', uploadResult.message || 'Unable to save profile photo.');
+        return;
+      }
+
+      setAvatarUri(uploadResult.avatarUrl);
+      if (residentProfile) {
+        onResidentProfileUpdated?.({ ...residentProfile, avatarUrl: uploadResult.avatarUrl });
+      }
+      Alert.alert('Photo updated', 'Your profile photo was saved successfully.');
+    } finally {
+      setIsUploadingAvatar(false);
     }
-
-    const uploadResult = await uploadResidentAvatar(token, selectedUri);
-    if (!uploadResult.success || !uploadResult.avatarUrl) {
-      Alert.alert('Upload failed', uploadResult.message || 'Unable to save profile photo.');
-      return;
-    }
-
-    setAvatarUri(uploadResult.avatarUrl);
-    Alert.alert('Saved', 'Profile photo updated successfully.');
   };
 
   const handleSaveProfile = async () => {
@@ -259,12 +419,11 @@ export default function ProfileScreen({
         }
 
         onVolunteerProfileUpdated?.(result.data);
-        Alert.alert('Saved', 'Profile updated successfully.');
         setIsEditOpen(false);
+        Alert.alert('Profile updated', 'Your changes were saved successfully.');
         return;
       }
 
-      // Resident profile update
       const token = await getResidentToken();
       if (!token) {
         Alert.alert('Session expired', 'Please log in again.');
@@ -285,8 +444,8 @@ export default function ProfileScreen({
       }
 
       onResidentProfileUpdated?.(result.data);
-      Alert.alert('Saved', 'Profile updated successfully.');
       setIsEditOpen(false);
+      Alert.alert('Profile updated', 'Your changes were saved successfully.');
     } finally {
       setIsSaving(false);
     }
@@ -297,270 +456,285 @@ export default function ProfileScreen({
     onLogout?.();
   };
 
-  const handleTestNotification = async () => {
-    try {
-      await triggerTestNotification();
-      Alert.alert('Notification Sent', 'A test notification was scheduled. Check your notification tray now.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to send a test notification.';
-      Alert.alert('Notification Failed', message);
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {isVolunteer && (
-        <View style={styles.topNav}>
-          <TouchableOpacity style={styles.navButton} onPress={() => onNavigate?.('home')}>
-            <Ionicons name="chevron-back" size={24} color="#374151" />
-          </TouchableOpacity>
-          <Text style={styles.topNavTitle}>Profile</Text>
-          <TouchableOpacity style={styles.navButton} onPress={openEditModal}>
-            <Ionicons name="settings-outline" size={22} color="#374151" />
-          </TouchableOpacity>
-        </View>
-      )}
+    <SafeAreaView style={[styles.container, !isVolunteer && styles.residentContainer]} edges={['top']}>
+      <View style={styles.header}>
+        <Typography variant="h2" weight="semiBold" color={!isVolunteer ? residentColors.ink : theme.colors.textPrimary}>Profile</Typography>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 104 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Profile Identity Section */}
-        <View style={styles.identitySection}>
-          {/* Avatar */}
+        <View style={[styles.profileCard, !isVolunteer && styles.residentCard]}>
+          {!isVolunteer ? <View style={styles.identityAccent} /> : null}
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: avatarUri }}
-              style={styles.avatar}
-            />
-            <TouchableOpacity style={styles.editAvatarButton} onPress={openEditModal}>
-              <Ionicons name="pencil" size={14} color="#FFFFFF" />
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={[styles.avatar, !isVolunteer && styles.residentAvatar]} accessibilityLabel={`${displayName}'s profile photo`} />
+            ) : (
+              <View style={[styles.avatarFallback, !isVolunteer && styles.residentAvatarFallback]} accessibilityLabel={`${displayName}'s initials`}>
+                <Typography variant="h2" weight="bold" color={!isVolunteer ? residentColors.ink : '#166534'}>{initials}</Typography>
+              </View>
+            )}
+
+            {!isVolunteer ? (
+              <TouchableOpacity
+                style={[styles.cameraButton, styles.residentCameraButton]}
+                onPress={handleResidentAvatarPick}
+                disabled={isUploadingAvatar}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile photo"
+              >
+                {isUploadingAvatar ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="camera" size={15} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <View style={styles.identityCopy}>
+            <Typography variant="h3" weight="semiBold" numberOfLines={2}>{displayName}</Typography>
+            {!isVolunteer && residentProfile?.residentCode?.trim() ? (
+              <Typography variant="caption" weight="semiBold" color="#6B7280" style={styles.residentCode}>
+                {residentProfile.residentCode.trim()}
+              </Typography>
+            ) : null}
+            <View style={[styles.statusBadge, { backgroundColor: statusPresentation.background }]}>
+              <Ionicons name={statusPresentation.icon} size={15} color={statusPresentation.foreground} />
+              <Typography
+                variant="caption"
+                weight="semiBold"
+                color={statusPresentation.foreground}
+                style={styles.statusText}
+              >
+                {statusPresentation.label}
+              </Typography>
+            </View>
+            <TouchableOpacity
+              style={[styles.editProfileButton, !isVolunteer && styles.residentEditProfileButton]}
+              onPress={openEditModal}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+            >
+              <Ionicons name="create-outline" size={17} color={!isVolunteer ? residentColors.icon : theme.colors.primaryDark} />
+              <Typography variant="caption" weight="semiBold" color={!isVolunteer ? residentColors.icon : theme.colors.primaryDark}>
+                Edit profile
+              </Typography>
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Name */}
-          <Typography variant="h2" weight="semiBold" style={{ marginTop: 12 }}>{displayName}</Typography>
+        {isPendingResident ? (
+          <PendingAccessBanner
+            style={styles.pendingBanner}
+            message={
+              needsRevisionResident
+                ? 'Your registration needs revision. Review the admin note below. QR and announcements will unlock after approval.'
+                : 'Your account is pending admin review. QR and announcements will unlock after approval.'
+            }
+          />
+        ) : null}
 
-          {/* Verified Badge */}
-          <View style={styles.verifiedBadge}>
-            <Ionicons 
-              name={isVerified ? 'checkmark-circle' : 'time-outline'} 
-              size={16} 
-              color={isVerified ? '#16A34A' : '#F59E0B'} 
-            />
-            <Typography variant="caption" weight="medium" color={isVerified ? '#16A34A' : '#F59E0B'} style={{ marginLeft: 4 }}>
-              {isVolunteer ? 'Active Staff' : isVerified ? 'Verified Household' : needsRevisionResident ? 'Needs Revision' : 'Pending Verification'}
+        {needsRevisionResident && residentNote?.trim() ? (
+          <View style={styles.adminNoteCard}>
+            <View style={styles.adminNoteHeader}>
+              <Ionicons name="document-text-outline" size={18} color="#B45309" />
+              <Typography variant="caption" weight="bold" color="#B45309">Admin note</Typography>
+            </View>
+            <Typography variant="body" color="#92400E" style={styles.adminNoteText}>
+              {residentNote.trim()}
             </Typography>
           </View>
+        ) : null}
 
-          {isVolunteer && <Typography variant="caption" color="#9CA3AF" style={{ marginTop: 8 }}>Resident Code: {residentCode}</Typography>}
+        {needsRevisionResident ? (
+          <TouchableOpacity
+            style={[styles.revisionCard, styles.residentRevisionCard]}
+            onPress={() => onNavigate?.('registration-revision')}
+            activeOpacity={0.72}
+            accessibilityRole="button"
+            accessibilityLabel="Upload corrected files"
+          >
+            <View style={[styles.revisionIcon, styles.residentRevisionIcon]}>
+              <Ionicons name="cloud-upload-outline" size={21} color={residentColors.icon} />
+            </View>
+            <View style={styles.revisionCopy}>
+              <Typography variant="body" weight="semiBold">Upload corrected files</Typography>
+              <Typography variant="caption" color={theme.colors.textSecondary} style={styles.actionDescription}>
+                Send updated ID images and selfie for admin review.
+              </Typography>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={residentColors.icon} />
+          </TouchableOpacity>
+        ) : null}
+
+        <Typography variant="label" weight="semiBold" color={!isVolunteer ? residentColors.inkSoft : theme.colors.textSecondary} style={styles.sectionLabel}>
+          Account details
+        </Typography>
+        <View style={[styles.card, !isVolunteer && styles.residentDetailCard]}>
+          {detailItems.map((item, index) => (
+            <DetailRow
+              key={item.label}
+              {...item}
+              showDivider={index < detailItems.length - 1}
+              isResident={!isVolunteer}
+            />
+          ))}
         </View>
 
-        {isVolunteer ? (
-          <View style={styles.infoCard}>
-            <InfoRow label="Full Address" value={fullAddress} />
-            <InfoRow label="Household Size" value={`${householdSize} members`} />
-            <InfoRow label="Coverage Area" value={coverageArea} showDivider={false} />
-          </View>
-        ) : (
-          <>
-            {isPendingResident && (
-              <PendingAccessBanner
-                message={
-                  needsRevisionResident
-                    ? 'Your registration needs revision. Review the admin note below. QR and announcements will unlock after approval.'
-                    : 'Your account is pending admin review. QR and announcements will unlock after approval.'
-                }
-              />
-            )}
-            {needsRevisionResident && residentNote?.trim() ? (
-              <View style={[styles.infoCard, { borderColor: '#FCD34D', backgroundColor: '#FFFBEB' }]}>
-                <Typography variant="caption" weight="semiBold" color="#B45309">
-                  ADMIN NOTE
-                </Typography>
-                <Typography variant="body" style={{ marginTop: 8, color: '#92400E' }}>
-                  {residentNote.trim()}
-                </Typography>
-              </View>
-            ) : null}
-            {needsRevisionResident ? (
-              <View style={styles.infoCard}>
-                <TouchableOpacity style={styles.actionTile} onPress={() => onNavigate?.('registration-revision')}>
-                  <View style={styles.actionTileIcon}>
-                    <Ionicons name="cloud-upload-outline" size={20} color="#111827" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Typography variant="body" weight="semiBold">Upload corrected files</Typography>
-                    <Typography variant="caption" color="#6B7280">
-                      Send updated ID images and selfie for admin review.
-                    </Typography>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                </TouchableOpacity>
-              </View>
-            ) : null}
-            <View style={styles.infoCard}>
-              <InfoRow label="Full Name" value={displayName} />
-              <InfoRow label="Home Address" value={fullAddress} showDivider={false} />
-            </View>
-          </>
-        )}
-
-        {/* Settings Section Card */}
-        <View style={styles.settingsCard}>
-          {!isVolunteer && (
-            <>
-              <SettingsItem
-                icon={isPendingResident ? 'lock-closed-outline' : 'card-outline'}
-                label={isPendingResident ? 'Virtual ID (available after approval)' : 'My Virtual Resident ID'}
-                onPress={() => {
-                  if (isPendingResident) {
-                    Alert.alert('Virtual ID locked', 'Your ID becomes available automatically when the admin approves your registration.');
-                  } else {
-                    onNavigate?.('qr');
-                  }
-                }}
-              />
-              <View style={styles.settingsDivider} />
-              <SettingsItem
-                icon="person-outline"
-                label="Edit Profile"
-                onPress={openEditModal}
-              />
-              <View style={styles.settingsDivider} />
-            </>
-          )}
-          <SettingsItem
-            icon="notifications-outline"
-            label="Notifications"
-            onPress={() => {
-              onNavigate?.('home');
-            }}
-          />
-          <View style={styles.settingsDivider} />
-          <SettingsItem
-            icon="paper-plane-outline"
-            label="Test Notification"
-            onPress={handleTestNotification}
-          />
-          <View style={styles.settingsDivider} />
-          <SettingsItem
-            icon="shield-checkmark-outline"
-            label="Privacy & Security"
-            onPress={() => Alert.alert('Privacy & Security', 'Security settings are available on the web admin panel.')}
-          />
-          <View style={styles.settingsDivider} />
-          <SettingsItem
+        <Typography variant="label" weight="semiBold" color={!isVolunteer ? residentColors.inkSoft : theme.colors.textSecondary} style={styles.sectionLabel}>
+          Support
+        </Typography>
+        <View style={[styles.card, !isVolunteer && styles.residentDetailCard]}>
+          <ActionItem
             icon="help-circle-outline"
             label="Help & Support"
+            description="Contact your barangay office for account assistance."
             onPress={() => Alert.alert('Help & Support', 'Please contact your barangay office for support.')}
+            isResident={!isVolunteer}
           />
         </View>
 
-        {/* Logout Card */}
-        <View style={styles.logoutCard}>
-          <TouchableOpacity style={styles.logoutButton} onPress={() => setIsLogoutConfirmOpen(true)}>
-            <View style={styles.logoutIconWrapper}>
-              <Ionicons name="log-out-outline" size={20} color="#DC2626" />
-            </View>
-            <Typography variant="body" weight="semiBold" color="#DC2626" style={{ flex: 1, marginLeft: 14 }}>Log Out</Typography>
-            <Ionicons name="chevron-forward" size={18} color="#FCA5A5" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => setIsLogoutConfirmOpen(true)}
+          activeOpacity={0.72}
+          accessibilityRole="button"
+          accessibilityLabel="Log out"
+        >
+          <View style={styles.logoutIcon}>
+            <Ionicons name="log-out-outline" size={20} color="#B91C1C" />
+          </View>
+          <Typography variant="body" weight="semiBold" color="#B91C1C" style={styles.logoutText}>
+            Log out
+          </Typography>
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      <View style={[styles.bottomNavContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.bottomNavItem} onPress={() => onNavigate?.('home')}>
-            <Ionicons name="home-outline" size={22} color="#9CA3AF" />
-            <Text style={styles.bottomNavText}>HOME</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.bottomNavItem}>
-            <Ionicons name="person" size={22} color="#16A34A" />
-            <Text style={[styles.bottomNavText, styles.bottomNavTextActive]}>PROFILE</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <BottomNavigation
+        activeTab="profile"
+        onNavigate={onNavigate}
+        showDistributions={!isVolunteer}
+        appearance={!isVolunteer ? 'resident' : 'default'}
+      />
 
       <Modal
         visible={isEditOpen}
         transparent
-        animationType="fade"
-        onRequestClose={() => setIsEditOpen(false)}
+        animationType="slide"
+        onRequestClose={closeEditModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-
-            <Text style={styles.inputLabel}>First Name</Text>
-            <TextInput
-              style={styles.input}
-              value={firstNameInput}
-              onChangeText={setFirstNameInput}
-              editable={!isSaving}
-            />
-
-            <Text style={styles.inputLabel}>Last Name</Text>
-            <TextInput
-              style={styles.input}
-              value={lastNameInput}
-              onChangeText={setLastNameInput}
-              editable={!isSaving}
-            />
-
-            <Text style={styles.inputLabel}>{isVolunteer ? 'Phone Number' : 'Mobile Number'}</Text>
-            <TextInput
-              style={styles.input}
-              value={mobileInput}
-              onChangeText={setMobileInput}
-              keyboardType="phone-pad"
-              editable={!isSaving}
-            />
-
-            {!isVolunteer && (
-              <>
-                <Text style={styles.inputLabel}>Street Address</Text>
-                <TextInput
-                  style={styles.input}
-                  value={streetAddressInput}
-                  onChangeText={setStreetAddressInput}
-                  editable={!isSaving}
-                />
-
-                <Text style={styles.inputLabel}>City</Text>
-                <TextInput
-                  style={styles.input}
-                  value={cityInput}
-                  onChangeText={setCityInput}
-                  editable={!isSaving}
-                />
-              </>
-            )}
-
-            <View style={styles.modalActions}>
+        <KeyboardAvoidingView
+          style={styles.sheetOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.editSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View>
+                <Typography variant="h3" weight="semiBold">Edit profile</Typography>
+                <Typography variant="caption" color={theme.colors.textSecondary}>
+                  Keep your account information up to date.
+                </Typography>
+              </View>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setIsEditOpen(false)}
+                style={styles.closeButton}
+                onPress={closeEditModal}
+                disabled={isSaving}
+                accessibilityRole="button"
+                accessibilityLabel="Close edit profile"
+              >
+                <Ionicons name="close" size={21} color={!isVolunteer ? residentColors.icon : theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.formScroll}
+              contentContainerStyle={styles.formContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.inputLabel}>First name</Text>
+              <TextInput
+                style={styles.input}
+                value={firstNameInput}
+                onChangeText={setFirstNameInput}
+                editable={!isSaving}
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+
+              <Text style={styles.inputLabel}>Last name</Text>
+              <TextInput
+                style={styles.input}
+                value={lastNameInput}
+                onChangeText={setLastNameInput}
+                editable={!isSaving}
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+
+              <Text style={styles.inputLabel}>{isVolunteer ? 'Phone number' : 'Mobile number'}</Text>
+              <TextInput
+                style={styles.input}
+                value={mobileInput}
+                onChangeText={setMobileInput}
+                keyboardType="phone-pad"
+                editable={!isSaving}
+                returnKeyType="next"
+              />
+
+              {!isVolunteer ? (
+                <>
+                  <Text style={styles.inputLabel}>Street address</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={streetAddressInput}
+                    onChangeText={setStreetAddressInput}
+                    editable={!isSaving}
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                  />
+
+                  <Text style={styles.inputLabel}>City / Municipality</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={cityInput}
+                    onChangeText={setCityInput}
+                    editable={!isSaving}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                  />
+                </>
+              ) : null}
+            </ScrollView>
+
+            <View style={styles.formActions}>
+              <TouchableOpacity
+                style={[styles.formButton, styles.cancelButton]}
+                onPress={closeEditModal}
                 disabled={isSaving}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Typography variant="body" weight="semiBold" color={theme.colors.textSecondary}>Cancel</Typography>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton, isSaving && styles.saveButtonDisabled]}
+                style={[styles.formButton, styles.saveButton, !isVolunteer && styles.residentSaveButton, isSaving && styles.disabledButton]}
                 onPress={handleSaveProfile}
                 disabled={isSaving}
               >
                 {isSaving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={theme.colors.textInverse} />
                 ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
+                  <Typography variant="body" weight="bold" color={theme.colors.textInverse}>Save changes</Typography>
                 )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
@@ -569,24 +743,27 @@ export default function ProfileScreen({
         animationType="fade"
         onRequestClose={() => setIsLogoutConfirmOpen(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Confirm Logout</Text>
-            <Text style={styles.logoutModalMessage}>
-              Are you sure you want to log out of your account?
-            </Text>
-            <View style={styles.modalActions}>
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogCard}>
+            <View style={styles.dialogIcon}>
+              <Ionicons name="log-out-outline" size={24} color="#B91C1C" />
+            </View>
+            <Typography variant="h3" weight="semiBold" align="center">Log out?</Typography>
+            <Typography variant="body" color={theme.colors.textSecondary} align="center" style={styles.dialogMessage}>
+              You’ll need to sign in again to access your account.
+            </Typography>
+            <View style={styles.dialogActions}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.formButton, styles.cancelButton]}
                 onPress={() => setIsLogoutConfirmOpen(false)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Typography variant="body" weight="semiBold" color={theme.colors.textSecondary}>Cancel</Typography>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.confirmLogoutButton]}
+                style={[styles.formButton, styles.confirmLogoutButton]}
                 onPress={handleConfirmLogout}
               >
-                <Text style={styles.confirmLogoutButtonText}>Log Out</Text>
+                <Typography variant="body" weight="bold" color={theme.colors.textInverse}>Log out</Typography>
               </TouchableOpacity>
             </View>
           </View>
@@ -597,330 +774,407 @@ export default function ProfileScreen({
 }
 
 const styles = StyleSheet.create({
-  // Main Container
   container: {
     flex: 1,
-    backgroundColor: '#F8FAF9',
+    backgroundColor: theme.colors.background,
   },
-
-  // Top Navigation
-  topNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    backgroundColor: 'transparent',
+  residentContainer: {
+    backgroundColor: '#F7F7F5',
   },
-  navButton: {
-    width: 44,
-    height: 44,
+  header: {
+    minHeight: 64,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  topNavTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1F2937',
-    letterSpacing: -0.3,
-  },
-
-  // Scroll Content
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 120,
-  },
-
-  // Profile Identity Section
-  identitySection: {
-    alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 32,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 24,
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#BBF7D0',
-  },
-  editAvatarButton: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#16A34A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#F8FAF9',
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: '500',
-    color: '#1F2937',
-    marginBottom: 12,
-    letterSpacing: -0.5,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 12,
-  },
-  verifiedText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#16A34A',
-    marginLeft: 6,
-  },
-  residentCode: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    fontWeight: '400',
-  },
-
-  // Information Card
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 24,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  infoLabel: {
-    fontSize: 15,
-    color: '#9CA3AF',
-    fontWeight: '400',
-  },
-  infoValue: {
-    fontSize: 15,
-    color: '#1F2937',
-    fontWeight: '500',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 16,
-  },
-  infoDivider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  actionTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  actionTileIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E5E7EB',
-  },
-
-  // Settings Card
-  settingsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
     paddingHorizontal: 20,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 24,
-    elevation: 2,
   },
-  settingsItem: {
+  profileCard: {
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 18,
-    minHeight: 56,
   },
-  settingsIconWrapper: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  settingsLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-    fontWeight: '400',
-  },
-  settingsDivider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-  },
-
-  // Logout Card
-  logoutCard: {
-    marginTop: 12,
-    marginBottom: 24,
+  residentCard: {
+    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 2,
     overflow: 'hidden',
   },
-  settingsItemDisabled: {
-    opacity: 0.5,
+  identityAccent: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    left: 0,
+    height: 3,
+    backgroundColor: '#C9A86A',
   },
-  logoutIconWrapper: {
+  avatarContainer: {
+    width: 92,
+    height: 92,
+    marginRight: 16,
+    position: 'relative',
+  },
+  avatar: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 2,
+    borderColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.divider,
+  },
+  residentAvatar: {
+    borderColor: '#C9A86A',
+  },
+  avatarFallback: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 2,
+    borderColor: '#BBF7D0',
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  residentAvatarFallback: {
+    borderColor: '#C9A86A',
+    backgroundColor: '#F3F4F6',
+  },
+  cameraButton: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#FEE2E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoutButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFF1F2',
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#EF4444',
-    flex: 1,
-    marginLeft: 10,
-  },
-
-  // Bottom Navigation
-  bottomNavContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    minHeight: 58,
-    paddingTop: 7,
-    paddingBottom: 4,
-  },
-  bottomNavItem: {
+    borderWidth: 3,
+    borderColor: theme.colors.surface,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
   },
-  bottomNavText: {
-    fontSize: 10,
-    color: '#9CA3AF',
+  residentCameraButton: {
+    borderColor: '#FFFFFF',
+    backgroundColor: '#0F2E22',
+  },
+  identityCopy: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  residentCode: {
     marginTop: 4,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 0.55,
   },
-  bottomNavTextActive: {
-    color: '#16A34A',
+  statusBadge: {
+    minHeight: 28,
+    marginTop: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
+  statusText: {
+    marginLeft: 4,
+    fontSize: 12,
+    lineHeight: 16,
   },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 13,
-    color: '#6B7280',
+  editProfileButton: {
+    minHeight: 36,
     marginTop: 8,
-    marginBottom: 6,
+    paddingHorizontal: 10,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: '#F0FDF4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
-  input: {
+  residentEditProfileButton: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#1F2937',
-    backgroundColor: '#FFFFFF',
   },
-  modalActions: {
+  pendingBanner: {
+    marginHorizontal: 0,
+    marginBottom: 16,
+  },
+  adminNoteCard: {
+    padding: 14,
+    marginBottom: 12,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    backgroundColor: '#FFFBEB',
+  },
+  adminNoteHeader: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 16,
+    alignItems: 'center',
+    gap: 7,
   },
-  modalButton: {
-    minWidth: 88,
-    height: 40,
-    borderRadius: 10,
+  adminNoteText: {
+    marginTop: 8,
+  },
+  revisionCard: {
+    minHeight: 72,
+    padding: 14,
+    marginBottom: 16,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    backgroundColor: '#F0FDF4',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  revisionIcon: {
+    width: 42,
+    height: 42,
+    marginRight: 12,
+    borderRadius: 21,
+    backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
   },
-  cancelButton: {
+  residentRevisionCard: {
+    borderColor: residentColors.borderAccent,
+    backgroundColor: residentColors.surface,
+  },
+  residentRevisionIcon: {
+    backgroundColor: residentColors.iconSurface,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
+  },
+  revisionCopy: {
+    flex: 1,
+    marginRight: 8,
+  },
+  sectionLabel: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  card: {
+    marginBottom: 20,
+    paddingHorizontal: 14,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    overflow: 'hidden',
+  },
+  residentDetailCard: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.035,
+    shadowRadius: 9,
+    elevation: 1,
+  },
+  detailRow: {
+    minHeight: 64,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailIcon: {
+    width: 36,
+    height: 36,
+    marginRight: 12,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  residentIconSurface: {
     backgroundColor: '#F3F4F6',
   },
+  detailCopy: {
+    flex: 1,
+  },
+  detailValue: {
+    marginTop: 1,
+  },
+  divider: {
+    height: 1,
+    marginLeft: 48,
+    backgroundColor: theme.colors.divider,
+  },
+  actionItem: {
+    minHeight: 68,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    marginRight: 12,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionCopy: {
+    flex: 1,
+    marginRight: 8,
+  },
+  actionDescription: {
+    marginTop: 2,
+  },
+  logoutButton: {
+    minHeight: 58,
+    paddingHorizontal: 14,
+    marginBottom: 24,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    backgroundColor: '#FFF7F7',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoutIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(17, 24, 39, 0.45)',
+  },
+  editSheet: {
+    maxHeight: '90%',
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: theme.colors.surface,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    marginBottom: 14,
+    borderRadius: 2,
+    backgroundColor: '#D1D5DB',
+    alignSelf: 'center',
+  },
+  sheetHeader: {
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    marginTop: -6,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formScroll: {
+    flexGrow: 0,
+  },
+  formContent: {
+    paddingBottom: 8,
+  },
+  inputLabel: {
+    marginTop: 10,
+    marginBottom: 6,
+    color: theme.colors.textSecondary,
+    fontFamily: theme.typography.fontFamily.medium,
+    fontSize: 13,
+  },
+  input: {
+    minHeight: 48,
+    paddingHorizontal: 13,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: theme.colors.surface,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 15,
+  },
+  formActions: {
+    paddingTop: 16,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  formButton: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.md,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
   saveButton: {
-    backgroundColor: '#16A34A',
+    backgroundColor: theme.colors.primary,
   },
-  confirmLogoutButton: {
-    backgroundColor: '#DC2626',
+  residentSaveButton: {
+    backgroundColor: residentColors.ink,
   },
-  saveButtonDisabled: {
+  disabledButton: {
     opacity: 0.7,
   },
-  logoutModalMessage: {
-    color: '#4B5563',
-    fontSize: 14,
-    lineHeight: 20,
+  dialogOverlay: {
+    flex: 1,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(17, 24, 39, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  cancelButtonText: {
-    color: '#374151',
-    fontWeight: '600',
+  dialogCard: {
+    width: '100%',
+    maxWidth: 360,
+    padding: 20,
+    borderRadius: theme.borderRadius.xl,
+    backgroundColor: theme.colors.surface,
   },
-  confirmLogoutButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  dialogIcon: {
+    width: 48,
+    height: 48,
+    marginBottom: 12,
+    borderRadius: 24,
+    backgroundColor: '#FEE2E2',
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  dialogMessage: {
+    marginTop: 6,
+  },
+  dialogActions: {
+    marginTop: 20,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  confirmLogoutButton: {
+    backgroundColor: '#B91C1C',
   },
 });

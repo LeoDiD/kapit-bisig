@@ -109,6 +109,7 @@ export interface DistributionData {
   assignedBarangays?: string[];
   assignedStaffIds?: string[];
   scheduled: string;
+  endsAt: string | null;
   households: number;
   notes?: string;
   requiresBeneficiaryApproval?: boolean;
@@ -116,6 +117,9 @@ export interface DistributionData {
   claimedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
+  lifecycleStatus?: 'Upcoming' | 'Active' | 'Completed' | 'Archived';
   registeredHouseholds?: number;
   claimedHouseholds?: number;
 }
@@ -165,6 +169,12 @@ export interface ScanEligibleUser {
   scopesSummary: string[];
   coveredBarangays?: string[];
   inScope: boolean;
+  isAvailable?: boolean;
+  conflict?: {
+    distributionId: string;
+    barangay: string;
+    scheduled: string;
+  } | null;
 }
 
 export interface ScanEligibleResponse {
@@ -238,6 +248,11 @@ export interface ResidentRecord {
   frontIdImage?: string;
   backIdImage?: string;
   faceImage?: string;
+  proofUploads?: {
+    frontId: boolean;
+    backId: boolean;
+    face: boolean;
+  };
   status: 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
   rejectionReason?: string;
   verifiedBy?: string;
@@ -291,6 +306,7 @@ export interface BeneficiaryProofSubmissionRecord {
   photoProofUrls?: string[];
   status: 'Pending Verification' | 'Approved' | 'Rejected';
   submissionVersion: number;
+  syncSource?: 'ONLINE' | 'OFFLINE_SYNC';
   rejectionReason?: string;
   reviewedBy?: string;
   reviewedAt?: string | null;
@@ -505,8 +521,11 @@ export const api = {
   /**
    * Get all distributions
    */
-  async getDistributions(): Promise<ApiResponse<DistributionData[]>> {
-    const response = await fetch(`${API_URL}/distributions`, {
+  async getDistributions(params?: {
+    view?: 'current' | 'upcoming' | 'active' | 'completed' | 'archived' | 'all';
+  }): Promise<ApiResponse<DistributionData[]>> {
+    const query = params?.view ? `?view=${encodeURIComponent(params.view)}` : '';
+    const response = await fetch(`${API_URL}/distributions${query}`, {
       headers: createHeaders(),
       credentials: 'include',
     });
@@ -517,11 +536,12 @@ export const api = {
    * Create a new distribution
    */
   async createDistribution(data: {
-    disasterEventId: string;
+    disasterEventId?: string;
     barangay: string;
-    assignedBarangays: string[];
+    assignedBarangays?: string[];
     assignedStaffIds: string[];
     scheduled: string;
+    endsAt: string;
     notes?: string;
   }, options?: { idempotencyKey?: string }): Promise<ApiResponse<DistributionData>> {
     const headers = createHeaders('POST') as Record<string, string>;
@@ -532,7 +552,10 @@ export const api = {
       method: 'POST',
       headers,
       credentials: 'include',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        assignedBarangays: data.assignedBarangays ?? [],
+      }),
     });
     return handleResponse<ApiResponse<DistributionData>>(response);
   },
@@ -541,17 +564,23 @@ export const api = {
    * Search eligible scanner staff for a distribution scope.
    */
   async getScanEligibleUsers(params: {
-    hostBarangayId: string;
-    assignedBarangayIds: string[];
+    barangay?: string;
+    hostBarangayId?: string;
+    assignedBarangayIds?: string[];
+    scheduled?: string;
     q?: string;
     cursor?: number;
     limit?: number;
   }): Promise<ApiResponse<ScanEligibleResponse>> {
     const sp = new URLSearchParams();
-    sp.append('hostBarangayId', params.hostBarangayId);
-    for (const barangay of params.assignedBarangayIds) {
-      sp.append('assignedBarangayIds', barangay);
+    if (params.barangay) sp.append('barangay', params.barangay);
+    if (params.hostBarangayId) sp.append('hostBarangayId', params.hostBarangayId);
+    if (Array.isArray(params.assignedBarangayIds)) {
+      for (const b of params.assignedBarangayIds) {
+        sp.append('assignedBarangayIds', b);
+      }
     }
+    if (params.scheduled) sp.append('scheduled', params.scheduled);
     if (params.q) sp.append('q', params.q);
     if (typeof params.cursor === 'number') sp.append('cursor', String(params.cursor));
     if (typeof params.limit === 'number') sp.append('limit', String(params.limit));
@@ -561,6 +590,22 @@ export const api = {
       credentials: 'include',
     });
     return handleResponse<ApiResponse<ScanEligibleResponse>>(response);
+  },
+
+  /**
+   * Reschedule an active distribution
+   */
+  async rescheduleDistribution(
+    id: string,
+    data: { scheduled: string; reason?: string },
+  ): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions/${id}/reschedule`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
   },
 
   /**
@@ -664,6 +709,24 @@ export const api = {
       credentials: 'include',
     });
     return handleResponse<ApiResponse<ResidentRecord[]>>(response);
+  },
+
+  async archiveDistribution(id: string): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions/${id}/archive`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
+  },
+
+  async restoreDistribution(id: string): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions/${id}/restore`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
   },
 
   /**

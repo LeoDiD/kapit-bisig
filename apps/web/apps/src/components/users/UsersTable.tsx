@@ -187,6 +187,24 @@ export default function UsersTable() {
     }
   }, [users])
 
+  const PAGE_SIZE = 5
+  const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, filterStatus, filterBarangay])
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(users.length / PAGE_SIZE)),
+    [users.length, PAGE_SIZE],
+  )
+  const pagedUsers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return users.slice(start, start + PAGE_SIZE)
+  }, [users, currentPage, PAGE_SIZE])
+  const rangeStart = users.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, users.length)
+
   const selectedStatusLabel = STATUS_OPTIONS.find((o) => o.value === filterStatus)?.label ?? 'All Status'
   const selectedBarangayLabel = barangayOptions.find((o) => o.value === filterBarangay)?.label ?? 'All Barangays'
 
@@ -380,8 +398,8 @@ export default function UsersTable() {
               </thead>
 
               <tbody className="divide-y divide-gray-100 bg-white text-sm dark:divide-slate-800 dark:bg-transparent">
-                {users.length > 0 ? (
-                  users.map((u) => (
+                {pagedUsers.length > 0 ? (
+                  pagedUsers.map((u) => (
                     <tr key={u.id} className="group transition-colors hover:bg-gray-50/70 dark:hover:bg-slate-800/50">
                       <td className="px-6 py-4 text-gray-900 dark:text-slate-100 font-bold whitespace-normal break-words">
                         <div className="flex items-center gap-4">
@@ -429,6 +447,38 @@ export default function UsersTable() {
             </table>
           )}
         </div>
+
+        {!isLoading && !error && users.length > 0 && (
+          <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <p className="text-xs font-medium text-gray-500 dark:text-slate-400">
+              Showing {rangeStart}-{rangeEnd} of {users.length}
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage <= 1}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Previous
+              </button>
+
+              <span className="min-w-[88px] text-center text-xs font-semibold text-gray-600 dark:text-slate-300">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage >= totalPages}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {activeDropdown !== null && dropdownPosition && (

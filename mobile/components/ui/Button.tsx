@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View, Animated, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Typography } from './Typography';
-import { theme } from '../../theme';
+import { residentTheme, theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ButtonProps {
@@ -14,6 +14,7 @@ interface ButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   hapticFeedback?: boolean;
+  appearance?: 'default' | 'resident';
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -27,6 +28,7 @@ export function Button({
   disabled = false,
   style,
   hapticFeedback = true,
+  appearance = 'default',
 }: ButtonProps) {
   const scale = React.useRef(new Animated.Value(1)).current;
 
@@ -54,6 +56,15 @@ export function Button({
 
   const getBackgroundColor = () => {
     if (disabled) return theme.colors.divider;
+    if (appearance === 'resident') {
+      switch (variant) {
+        case 'primary': return residentTheme.colors.brand;
+        case 'secondary': return residentTheme.colors.surfaceMuted;
+        case 'outline':
+        case 'ghost': return 'transparent';
+        default: return residentTheme.colors.brand;
+      }
+    }
     switch (variant) {
       case 'primary': return theme.colors.primary;
       case 'secondary': return theme.colors.primaryLight;
@@ -65,6 +76,9 @@ export function Button({
 
   const getTextColor = () => {
     if (disabled) return theme.colors.textMuted;
+    if (appearance === 'resident') {
+      return variant === 'primary' ? residentTheme.colors.inverse : residentTheme.colors.icon;
+    }
     switch (variant) {
       case 'primary': return theme.colors.textInverse;
       case 'secondary': return theme.colors.primaryDark;
@@ -94,8 +108,12 @@ export function Button({
         {
           backgroundColor: getBackgroundColor(),
           height: getHeight(),
-          borderColor: variant === 'outline' ? theme.colors.primary : 'transparent',
-          borderWidth: variant === 'outline' ? 1 : 0,
+          borderColor: appearance === 'resident' && (variant === 'outline' || variant === 'secondary')
+            ? residentTheme.colors.borderAccent
+            : variant === 'outline'
+              ? theme.colors.primary
+              : 'transparent',
+          borderWidth: variant === 'outline' || (appearance === 'resident' && variant === 'secondary') ? 1 : 0,
         },
         style,
         { transform: [{ scale }] },

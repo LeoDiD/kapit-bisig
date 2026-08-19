@@ -1,81 +1,49 @@
-# Wi-Fi IP Change Checklist
+# Local Network Setup
 
-Use this every time you connect your laptop to a different Wi-Fi.
+The project now detects the laptop's active Wi-Fi or Ethernet IPv4 address automatically.
 
-## 1. Get your current laptop IP
+## Normal startup
 
-Run in PowerShell:
+From the project root, run:
 
 ```powershell
-ipconfig
+npm run dev
 ```
 
-Copy the `IPv4 Address` under your active Wi-Fi adapter (example: `192.168.1.4`).
+Before starting the web, API, and mobile apps, this command updates:
 
-## 2. Update mobile app URLs (required)
+- `mobile/.env`
+- `apps/web/apps/.env.local`
+- `backend/.env`
 
-File: `mobile/.env`
+Starting Expo directly from `mobile` also performs the same update automatically.
+The normal `npm start` command explicitly targets Expo Go, even though the project also includes development-build tooling.
 
-```env
-EXPO_PUBLIC_API_URL=http://192.168.1.4:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://192.168.1.4:8000
+## After changing Wi-Fi
+
+Stop the running services and start them again. You no longer need to run `ipconfig` or edit IP addresses manually.
+
+To update the settings without starting the apps, run:
+
+```powershell
+npm run network:sync
 ```
 
-Example:
+## Optional manual override
 
-```env
-EXPO_PUBLIC_API_URL=http://192.168.1.4:3001/api
-EXPO_PUBLIC_FACE_API_URL=http://192.168.1.4:8000
+If Windows selects the wrong network adapter because the laptop has multiple active adapters, run:
+
+```powershell
+$env:KAPIT_BISIG_LAN_IP="192.168.1.4"
+npm run network:sync
 ```
 
-## 3. Update web frontend URL (only if opening web from another device)
+Replace `192.168.1.4` with the correct private IPv4 address.
 
-File: `apps/web/apps/.env.local`
+## Phone connection requirements
 
-```env
-NEXT_PUBLIC_API_URL=http://192.168.1.4:3001/api
-```
+- The phone and laptop must be on the same Wi-Fi network.
+- Windows Firewall must allow Node.js on private networks and ports `3001`, `8000`, and `8082`.
+- Restart Expo after changing networks so its QR code uses the new LAN address.
 
-If using web only on the same laptop browser, you can keep:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001/api
-```
-
-## 4. CORS setting for cross-device access
-
-File: `apps/web/apps/.env.local`
-
-Use one:
-
-```env
-CORS_ORIGIN=*
-```
-
-or a specific origin:
-
-```env
-CORS_ORIGIN=http://192.168.1.4:3000
-```
-
-
-
-
-## 5. No IP edit needed here
-
-- `backend/main.py` already binds to `0.0.0.0:8000` (LAN accessible).
-
-## 6. Restart services
-
-1. Restart web backend (`apps/web/apps`).
-2. Restart Python backend (`backend`).
-3. Restart Expo (`mobile`), then reload the app.
-
-## 7. Quick test
-
-From phone browser (same Wi-Fi), open:
-
-- `http://192.168.1.4:3001/api/health`
-- `http://192.168.1.4:8000/docs`
-
-If both open, your mobile app should connect.
+The configuration command prints the detected address and the mobile API URLs so they can be checked immediately.

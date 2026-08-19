@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, StyleSheet, Alert, Platform, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import type { EventSubscription } from 'expo-modules-core';
-const isExpoGo = Constants.executionEnvironment === 'storeClient';
+const isExpoGo = Boolean(Constants.expoGoConfig);
 
 // Lazy-load notifications only outside Expo Go to prevent SDK 56 startup crash
 const Notifications = !isExpoGo ? require('expo-notifications') : null;
@@ -72,13 +72,29 @@ const AndroidImportance = Notifications ? Notifications.AndroidImportance : {
   MAX: 5
 };
 import SplashScreen from './components/SplashScreen';
-import HomeScreen from './components/HomeScreen';
+import HomeScreen from './components/ResidentHomeDashboardScreen';
 import ProfileScreen from './components/ProfileScreen';
 import ResidentProofRequestScreen from './components/ResidentProofRequestScreen';
 import { registerBackgroundProofSync, unregisterBackgroundProofSync } from './services/sync/BackgroundSyncService';
+import {
+  refreshProofSyncSnapshot,
+  startProofSyncCoordinator,
+  syncCurrentResidentProofs,
+} from './services/sync/ProofSyncCoordinator';
+import {
+  clearResidentOfflineCache,
+  isOfflineCacheWithinGrace,
+  listOfflineProofRecords,
+  loadResidentOfflineCache,
+  quarantineLegacyOwnerlessQueue,
+  saveResidentOfflineCache,
+  updateResidentOfflineCache,
+} from './services/sync/ResidentOfflineStore';
+import { shouldInvalidateVirtualId } from './services/sync/VirtualIdPolicy';
 import ResidentRegistrationRevisionScreen from './components/ResidentRegistrationRevisionScreen';
 import VolunteerDashboardScreen from './components/VolunteerDashboardScreen';
 import QRReceiptScreen from './components/QRReceiptScreen';
+import DistributionScreen from './components/DistributionScreen';
 import VolunteerQRScannerScreen from './components/VolunteerQRScannerScreen';
 import {
   useFonts,
@@ -91,13 +107,18 @@ import { mobileAuthService, User as VolunteerUser } from './services/auth/Mobile
 import {
   clearResidentSession,
   fetchResidentProfile,
+  fetchResidentQr,
+  getResidentSession,
   getResidentToken,
   ResidentProfile,
+  ResidentQrData,
+  saveResidentSession,
 } from './services/api/ResidentQrService';
 
-type Screen = 'home' | 'qr' | 'profile' | 'proof-request' | 'registration-revision';
+type Screen = 'home' | 'distributions' | 'qr' | 'profile' | 'proof-request' | 'registration-revision';
 type AccountType = 'resident' | 'volunteer' | null;
 type SplashInitialView = 'landing' | 'login';
+const CONFIRMED_AUTH_FAILURE_CODES = new Set(['TOKEN_EXPIRED', 'TOKEN_REVOKED', 'INVALID_TOKEN']);
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -202,33 +223,218 @@ export default function App() {
   const [splashInitialView, setSplashInitialView] = useState<SplashInitialView>('landing');
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [residentProfile, setResidentProfile] = useState<ResidentProfile | null>(null);
+  const [residentVirtualId, setResidentVirtualId] = useState<ResidentQrData | null>(null);
+  const [isVirtualIdLoading, setIsVirtualIdLoading] = useState(false);
+  const [virtualIdError, setVirtualIdError] = useState<string | null>(null);
+  const [virtualIdWarning, setVirtualIdWarning] = useState<string | null>(null);
   const [volunteerUser, setVolunteerUser] = useState<VolunteerUser | null>(null);
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const notificationReceivedListener = useRef<EventSubscription | null>(null);
   const notificationResponseListener = useRef<EventSubscription | null>(null);
   const pushTokenRef = useRef<string | null>(null);
+  const residentVirtualIdRef = useRef<ResidentQrData | null>(null);
+  const residentVirtualIdFetchedAtRef = useRef<string | null>(null);
+  const virtualIdRefreshPromiseRef = useRef<Promise<void> | null>(null);
+  const virtualIdGenerationRef = useRef(0);
   const isResidentPending = accountType === 'resident'
     && (residentProfile?.status === 'Pending' || residentProfile?.status === 'Needs Revision');
 
+  const setVirtualIdSnapshot = useCallback((data: ResidentQrData | null, fetchedAt: string | null) => {
+    residentVirtualIdRef.current = data;
+    residentVirtualIdFetchedAtRef.current = fetchedAt;
+    setResidentVirtualId(data);
+  }, []);
+
+  const clearVirtualIdSnapshot = useCallback(async (residentId?: string) => {
+    virtualIdGenerationRef.current += 1;
+    virtualIdRefreshPromiseRef.current = null;
+    setVirtualIdSnapshot(null, null);
+    setIsVirtualIdLoading(false);
+    setVirtualIdWarning(null);
+    if (residentId) {
+      await updateResidentOfflineCache(residentId, {
+        virtualId: null,
+        virtualIdFetchedAt: null,
+      });
+    }
+  }, [setVirtualIdSnapshot]);
+
+  const refreshResidentVirtualId = useCallback((_force = false): Promise<void> => {
+    if (virtualIdRefreshPromiseRef.current) return virtualIdRefreshPromiseRef.current;
+    const refreshGeneration = virtualIdGenerationRef.current;
+
+    const refreshPromise = (async () => {
+      const [session, cache] = await Promise.all([
+        getResidentSession(),
+        loadResidentOfflineCache(),
+      ]);
+      if (!session) {
+        setVirtualIdSnapshot(null, null);
+        setVirtualIdError('Please sign in again to load your virtual ID.');
+        return;
+      }
+
+      const cachedForResident = cache?.residentId === session.residentId ? cache : null;
+      const cachedId = cachedForResident?.virtualId?.residentId === session.residentId
+        ? cachedForResident.virtualId
+        : null;
+      const cachedFetchedAt = cachedId ? cachedForResident?.virtualIdFetchedAt || null : null;
+      const currentId = residentVirtualIdRef.current?.residentId === session.residentId
+        ? residentVirtualIdRef.current
+        : cachedId;
+      const currentFetchedAt = residentVirtualIdRef.current?.residentId === session.residentId
+        ? residentVirtualIdFetchedAtRef.current
+        : cachedFetchedAt;
+
+      if (currentId !== residentVirtualIdRef.current || currentFetchedAt !== residentVirtualIdFetchedAtRef.current) {
+        setVirtualIdSnapshot(currentId, currentFetchedAt);
+      }
+
+      // A saved ID stays on screen while launch/resume performs a silent check.
+      // Only residents without a saved ID should ever see the initial loader.
+      setIsVirtualIdLoading(!currentId);
+      setVirtualIdError(null);
+      setVirtualIdWarning(null);
+
+      const result = await fetchResidentQr(session.token);
+      if (refreshGeneration !== virtualIdGenerationRef.current) return;
+      if (result.success && result.data) {
+        const fetchedAt = new Date().toISOString();
+        setVirtualIdSnapshot(result.data, fetchedAt);
+        setVirtualIdError(null);
+        setVirtualIdWarning(null);
+        await updateResidentOfflineCache(session.residentId, {
+          virtualId: result.data,
+          virtualIdFetchedAt: fetchedAt,
+        });
+        return;
+      }
+
+      const invalidatesId = shouldInvalidateVirtualId(result.status, result.code);
+      if (invalidatesId) {
+        await clearVirtualIdSnapshot(session.residentId);
+        setVirtualIdError(result.message || 'Your virtual ID is currently unavailable.');
+        return;
+      }
+
+      const message = result.message || 'Unable to refresh your virtual ID.';
+      if (currentId) {
+        setVirtualIdWarning(message);
+      } else {
+        setVirtualIdError(message);
+      }
+    })()
+      .catch(() => {
+        if (residentVirtualIdRef.current) {
+          setVirtualIdWarning('Unable to refresh your virtual ID.');
+        } else {
+          setVirtualIdError('Unable to load your virtual ID.');
+        }
+      })
+      .finally(() => {
+        if (virtualIdRefreshPromiseRef.current === refreshPromise) {
+          setIsVirtualIdLoading(false);
+          virtualIdRefreshPromiseRef.current = null;
+        }
+      });
+
+    virtualIdRefreshPromiseRef.current = refreshPromise;
+    return refreshPromise;
+  }, [clearVirtualIdSnapshot, setVirtualIdSnapshot]);
+
   const loadResidentProfile = async (preserveSessionOnFailure = false): Promise<boolean> => {
     try {
-      const token = await getResidentToken();
-      if (!token) {
+      const [token, session, cache] = await Promise.all([
+        getResidentToken(),
+        getResidentSession(),
+        loadResidentOfflineCache(),
+      ]);
+      if (!token || !session) {
         setResidentProfile(null);
+        await clearVirtualIdSnapshot();
         return false;
+      }
+
+      const residentCache = cache?.residentId === session.residentId ? cache : null;
+      const usableCache = residentCache && isOfflineCacheWithinGrace(residentCache)
+        ? residentCache
+        : null;
+
+      if (usableCache) {
+        setResidentProfile(usableCache.profile);
+        if (usableCache.virtualId?.residentId === session.residentId) {
+          setVirtualIdSnapshot(usableCache.virtualId, usableCache.virtualIdFetchedAt || null);
+        } else {
+          if (usableCache.profile.status !== 'Approved') virtualIdGenerationRef.current += 1;
+          setVirtualIdSnapshot(null, null);
+          setIsVirtualIdLoading(usableCache.profile.status === 'Approved');
+        }
+        setAccountType('resident');
       }
 
       const response = await fetchResidentProfile(token);
       if (!response.success || !response.data) {
-        if (!preserveSessionOnFailure) {
-          await clearResidentSession();
-          setResidentProfile(null);
+        if (response.failureKind === 'AUTH' && response.code === 'TOKEN_EXPIRED' && usableCache) {
+          // The server token may expire before the seven-day offline account cache.
+          // Keep read/draft access, while proof syncing will request reauthentication.
+          return true;
         }
-        return false;
+
+        if (response.failureKind === 'AUTH' && response.code && CONFIRMED_AUTH_FAILURE_CODES.has(response.code)) {
+          await clearResidentSession();
+          await clearResidentOfflineCache();
+          setResidentProfile(null);
+          await clearVirtualIdSnapshot();
+          setAccountType(null);
+          return false;
+        }
+
+        // Network and server failures must not destroy a recently validated offline session.
+        return Boolean(usableCache || (preserveSessionOnFailure && residentProfile));
       }
 
+      const nextSession = {
+        ...session,
+        residentId: response.data.id,
+        residentCode: response.data.residentCode,
+        fullName: response.data.fullName,
+        mobileNumber: response.data.mobileNumber,
+        barangay: response.data.barangay,
+        status: response.data.status,
+      };
+      const canUseVirtualId = response.data.status === 'Approved';
+      if (!canUseVirtualId) virtualIdGenerationRef.current += 1;
+      const liveVirtualId = residentVirtualIdRef.current?.residentId === response.data.id
+        ? residentVirtualIdRef.current
+        : null;
+      const preservedVirtualId = canUseVirtualId
+        ? liveVirtualId || (
+          residentCache?.virtualId?.residentId === response.data.id
+            ? residentCache.virtualId
+            : null
+        )
+        : null;
+      const preservedVirtualIdFetchedAt = preservedVirtualId
+        ? (liveVirtualId ? residentVirtualIdFetchedAtRef.current : residentCache?.virtualIdFetchedAt) || null
+        : null;
+      await saveResidentSession(nextSession);
+      await saveResidentOfflineCache({
+        residentId: response.data.id,
+        session: nextSession,
+        profile: response.data,
+        virtualId: preservedVirtualId,
+        virtualIdFetchedAt: preservedVirtualIdFetchedAt,
+        activeEvent: usableCache?.activeEvent ?? null,
+        activeEventFetchedAt: usableCache?.activeEventFetchedAt ?? null,
+        proofStatus: usableCache?.proofStatus ?? null,
+        lastOnlineValidatedAt: new Date().toISOString(),
+      });
       setResidentProfile(response.data);
+      setVirtualIdSnapshot(preservedVirtualId, preservedVirtualIdFetchedAt);
+      setIsVirtualIdLoading(canUseVirtualId && !preservedVirtualId);
+      setVirtualIdError(null);
+      setVirtualIdWarning(null);
       setAccountType('resident');
       return true;
     } catch {
@@ -244,8 +450,12 @@ export default function App() {
   const handleVolunteerLoginSuccess = (user: VolunteerUser) => {
     // Ensure volunteer login is the only active session type.
     clearResidentSession().catch(() => undefined);
+    clearResidentOfflineCache().catch(() => undefined);
     setVolunteerUser(user);
     setResidentProfile(null);
+    clearVirtualIdSnapshot().catch(() => undefined);
+    setVirtualIdError(null);
+    setVirtualIdWarning(null);
     setAccountType('volunteer');
     setCurrentScreen('home');
     setSplashInitialView('landing');
@@ -253,14 +463,28 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    getResidentSession().then(async (session) => {
+      if (!session) return;
+      const queue = await listOfflineProofRecords(session.residentId);
+      if (queue.length > 0) {
+        Alert.alert(
+          'Saved proofs kept on this device',
+          `${queue.length} unsynced proof request${queue.length === 1 ? '' : 's'} will be hidden and will only sync after this resident signs in again.`,
+        );
+      }
+    }).catch(() => undefined);
     if (accountType === 'volunteer') {
       mobileAuthService.logout().catch(() => undefined);
       setVolunteerUser(null);
     }
 
     clearResidentSession().catch(() => undefined);
+    clearResidentOfflineCache().catch(() => undefined);
 
     setResidentProfile(null);
+    clearVirtualIdSnapshot().catch(() => undefined);
+    setVirtualIdError(null);
+    setVirtualIdWarning(null);
     setAccountType(null);
     setSplashInitialView('login');
     setShowSplash(true);
@@ -271,17 +495,45 @@ export default function App() {
   };
 
   const handleNavigate = (screen: Screen) => {
-    if (isResidentPending && screen === 'qr') {
+    if (isResidentPending && (screen === 'qr' || screen === 'distributions')) {
       Alert.alert(
         residentProfile?.status === 'Needs Revision' ? 'Needs Revision' : 'Pending Approval',
         residentProfile?.status === 'Needs Revision'
-          ? 'QR access is disabled while your registration needs corrections from admin review.'
-          : 'QR access is disabled while your account is pending admin review.',
+          ? 'Distribution and QR access are disabled while your registration needs corrections from admin review.'
+          : 'Distribution and QR access are disabled while your account is pending admin review.',
       );
       return;
     }
     setCurrentScreen(screen);
   };
+
+  const handleResidentProfileUpdated = (profile: ResidentProfile) => {
+    setResidentProfile(profile);
+    getResidentSession()
+      .then(async (session) => {
+        if (!session) return;
+        await updateResidentOfflineCache(session.residentId, { profile });
+        if (profile.status === 'Approved') {
+          await refreshResidentVirtualId(true);
+        } else {
+          await clearVirtualIdSnapshot(session.residentId);
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  useEffect(() => {
+    quarantineLegacyOwnerlessQueue().catch(() => undefined);
+    const stopCoordinator = startProofSyncCoordinator();
+    Promise.all([getResidentSession(), loadResidentOfflineCache()])
+      .then(([session, cache]) => {
+        if (session && cache?.residentId === session.residentId && isOfflineCacheWithinGrace(cache)) {
+          setShowSplash(false);
+        }
+      })
+      .catch(() => undefined);
+    return stopCoordinator;
+  }, []);
 
   useEffect(() => {
     if (!showSplash) {
@@ -311,18 +563,30 @@ export default function App() {
 
       // Register background proof sync after session is resolved
       registerBackgroundProofSync().catch(() => undefined);
+      syncCurrentResidentProofs().catch(() => undefined);
     }
   }, [showSplash]);
+
+  useEffect(() => {
+    if (accountType === 'resident' && residentProfile?.status === 'Approved') {
+      refreshResidentVirtualId(false).catch(() => undefined);
+    }
+  }, [accountType, refreshResidentVirtualId, residentProfile?.status]);
 
   useEffect(() => {
     if (accountType !== 'resident') return;
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
-        loadResidentProfile(true).catch(() => undefined);
+        loadResidentProfile(true)
+          .then(() => refreshResidentVirtualId(false))
+          .catch(() => undefined);
+        refreshProofSyncSnapshot()
+          .then(() => syncCurrentResidentProofs())
+          .catch(() => undefined);
       }
     });
     return () => subscription.remove();
-  }, [accountType]);
+  }, [accountType, refreshResidentVirtualId]);
 
   useEffect(() => {
     const registerForPushNotificationsAsync = async () => {
@@ -397,7 +661,7 @@ export default function App() {
       const data = (response.notification.request.content.data || {}) as { screen?: Screen };
       const targetScreen = data.screen;
 
-      if (targetScreen === 'home' || targetScreen === 'qr' || targetScreen === 'profile' || targetScreen === 'proof-request') {
+      if (targetScreen === 'home' || targetScreen === 'distributions' || targetScreen === 'qr' || targetScreen === 'profile' || targetScreen === 'proof-request') {
         handleNavigate(targetScreen);
       } else {
         handleNavigate('home');
@@ -438,6 +702,23 @@ export default function App() {
 
   const renderScreen = () => {
     switch (currentScreen) {
+      case 'distributions':
+        if (accountType === 'volunteer') {
+          return (
+            <VolunteerDashboardScreen
+              volunteerUser={volunteerUser}
+              onNavigate={handleNavigate}
+              onLogout={handleLogout}
+            />
+          );
+        }
+        if (accountType !== 'resident') return null;
+        return (
+          <DistributionScreen
+            barangayName={residentProfile?.barangay ? `Barangay ${residentProfile.barangay}` : undefined}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'profile':
         return (
           <ProfileScreen
@@ -448,19 +729,24 @@ export default function App() {
             residentNote={residentProfile?.rejectionReason}
             residentProfile={residentProfile}
             volunteerUser={volunteerUser}
-            onResidentProfileUpdated={setResidentProfile}
+            onResidentProfileUpdated={handleResidentProfileUpdated}
             onVolunteerProfileUpdated={setVolunteerUser}
           />
         );
       case 'proof-request':
-        return <ResidentProofRequestScreen onBack={() => handleNavigate('home')} />;
+        return (
+          <ResidentProofRequestScreen
+            onBack={() => handleNavigate('home')}
+            onSignInRequired={handleLogout}
+          />
+        );
       case 'registration-revision':
         return (
           <ResidentRegistrationRevisionScreen
             residentNote={residentProfile?.rejectionReason}
             onBack={() => handleNavigate('profile')}
             onSubmitted={(profile) => {
-              setResidentProfile(profile);
+              handleResidentProfileUpdated(profile);
               handleNavigate('home');
             }}
           />
@@ -470,7 +756,17 @@ export default function App() {
           return <VolunteerQRScannerScreen onBack={() => handleNavigate('home')} onNavigate={handleNavigate} />;
         }
 
-        return <QRReceiptScreen onBack={() => handleNavigate('home')} onNavigate={handleNavigate} />;
+        return (
+          <QRReceiptScreen
+            onBack={() => handleNavigate('home')}
+            onNavigate={handleNavigate}
+            idData={residentVirtualId}
+            isLoading={isVirtualIdLoading}
+            error={virtualIdError}
+            warning={virtualIdWarning}
+            onRefresh={refreshResidentVirtualId}
+          />
+        );
       case 'home':
       default:
         // Show VolunteerDashboardScreen for volunteers, HomeScreen for residents
@@ -486,7 +782,6 @@ export default function App() {
         return (
           <HomeScreen
             onNavigate={handleNavigate}
-            accountType={accountType || undefined}
             residentStatus={residentProfile?.status}
             residentNote={residentProfile?.rejectionReason}
             userName={residentProfile?.firstName || residentProfile?.fullName}
@@ -495,10 +790,11 @@ export default function App() {
                 ? `Barangay ${residentProfile.barangay}`
                 : undefined
             }
-            isVerified={residentProfile?.status === 'Approved'}
-            claimStatus="not-claimed"
-            residentCode={residentProfile?.residentCode}
-            streetAddress={residentProfile?.streetAddress}
+            virtualIdData={residentVirtualId}
+            isVirtualIdLoading={isVirtualIdLoading}
+            virtualIdError={virtualIdError}
+            virtualIdWarning={virtualIdWarning}
+            onRefreshVirtualId={refreshResidentVirtualId}
           />
         );
     }

@@ -14,12 +14,13 @@ interface SmartInsightsProps {
 }
 
 interface Insight {
-  type: 'success' | 'warning' | 'info'
+  type: 'success' | 'warning' | 'info' | 'ai'
   title: string
   description: string
+  tag: string
 }
 
-/** AI-curated smart insights panel derived from distribution analytics. */
+/** AI-curated smart insights derived from distribution analytics with impact chips. */
 export default function SmartInsights(props: SmartInsightsProps) {
   const { loading } = props
 
@@ -28,17 +29,37 @@ export default function SmartInsights(props: SmartInsightsProps) {
     const { claimRate, totalUnclaimed, barangayBreakdown, verificationMethods, totalDistributions, totalClaimed } = props
 
     if (totalDistributions === 0) {
-      result.push({ type: 'info', title: 'No distributions yet', description: 'Create your first distribution to see smart insights here.' })
+      result.push({
+        type: 'info',
+        title: 'Initial Setup In Progress',
+        description: 'Create and dispatch your first relief distribution cycle to activate smart analytics.',
+        tag: 'Getting Started',
+      })
       return result
     }
 
     // Claim rate insight
     if (claimRate >= 80) {
-      result.push({ type: 'success', title: 'Strong claim rate', description: `${claimRate.toFixed(1)}% of registered households have claimed relief — excellent coverage.` })
+      result.push({
+        type: 'success',
+        title: 'High Community Turnout',
+        description: `${claimRate.toFixed(1)}% of registered households have claimed relief — top tier coverage efficiency.`,
+        tag: 'Efficiency',
+      })
     } else if (claimRate >= 50) {
-      result.push({ type: 'info', title: 'Moderate claim rate', description: `${claimRate.toFixed(1)}% claim rate. Consider follow-ups with ${totalUnclaimed} unclaimed households.` })
+      result.push({
+        type: 'info',
+        title: 'Steady Claim Momentum',
+        description: `${claimRate.toFixed(1)}% claim rate. Recommend SMS or barangay follow-up with ${totalUnclaimed.toLocaleString()} pending households.`,
+        tag: 'Opportunity',
+      })
     } else {
-      result.push({ type: 'warning', title: 'Low claim rate detected', description: `Only ${claimRate.toFixed(1)}% claim rate with ${totalUnclaimed} households unclaimed. Immediate action recommended.` })
+      result.push({
+        type: 'warning',
+        title: 'Turnout Lagging Threshold',
+        description: `Only ${claimRate.toFixed(1)}% turnout with ${totalUnclaimed.toLocaleString()} households unserved. Check distribution site scheduling.`,
+        tag: 'Action Needed',
+      })
     }
 
     // Low-performing barangay
@@ -53,8 +74,9 @@ export default function SmartInsights(props: SmartInsightsProps) {
       if (rate < 60) {
         result.push({
           type: 'warning',
-          title: `${lowest.barangay} needs attention`,
-          description: `Only ${rate.toFixed(0)}% claim rate with ${lowest.registeredHouseholds - lowest.claimedHouseholds} unclaimed households.`,
+          title: `Focus Sector: ${lowest.barangay}`,
+          description: `${rate.toFixed(0)}% claim rate. ${lowest.registeredHouseholds - lowest.claimedHouseholds} households remaining to be reached.`,
+          tag: 'Sector Alert',
         })
       }
     }
@@ -64,8 +86,9 @@ export default function SmartInsights(props: SmartInsightsProps) {
       const best = [...withReg].sort((a, b) => b.claimedHouseholds - a.claimedHouseholds)[0]
       result.push({
         type: 'success',
-        title: `${best.barangay} leading`,
-        description: `${best.claimedHouseholds} households claimed — highest across all barangays.`,
+        title: `${best.barangay} Turnout Leader`,
+        description: `${best.claimedHouseholds.toLocaleString()} households served — highest across all active sectors.`,
+        tag: 'Top Performer',
       })
     }
 
@@ -75,28 +98,37 @@ export default function SmartInsights(props: SmartInsightsProps) {
       if (totalVer > 0 && verificationMethods.face > 0) {
         const facePct = ((verificationMethods.face / totalVer) * 100).toFixed(0)
         result.push({
-          type: 'info',
-          title: 'Face verification active',
-          description: `${facePct}% of claims verified by face recognition, ${((verificationMethods.qr / totalVer) * 100).toFixed(0)}% by QR.`,
+          type: 'ai',
+          title: 'Biometric AI Security Active',
+          description: `${facePct}% claims validated via Face Recognition, reducing fraud risk significantly.`,
+          tag: 'Verification',
         })
       }
     }
 
     // Total claimed milestone
     if (totalClaimed >= 100) {
-      result.push({ type: 'success', title: 'Milestone reached', description: `${totalClaimed.toLocaleString()} households served across ${totalDistributions} distributions.` })
+      result.push({
+        type: 'success',
+        title: 'Key Milestone Achieved',
+        description: `${totalClaimed.toLocaleString()} total families supported across ${totalDistributions} scheduled batches.`,
+        tag: 'Milestone',
+      })
     }
 
-    return result.slice(0, 4)
+    return result.slice(0, 3)
   }, [props])
 
   if (loading) {
     return (
-      <div className="bg-gray-50 rounded-2xl p-5">
-        <div className="h-4 w-32 bg-blue-200/50 rounded animate-pulse mb-4" />
-        <div className="space-y-3">
+      <div className="h-full rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center justify-between mb-4">
+          <div className="h-4 w-32 bg-slate-200 rounded-lg animate-pulse dark:bg-slate-800" />
+          <div className="h-4 w-12 bg-slate-200 rounded-lg animate-pulse dark:bg-slate-800" />
+        </div>
+        <div className="space-y-2.5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-white/60 rounded-xl animate-pulse" />
+            <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse dark:bg-slate-800" />
           ))}
         </div>
       </div>
@@ -104,61 +136,87 @@ export default function SmartInsights(props: SmartInsightsProps) {
   }
 
   return (
-    <div className="bg-gray-50 rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-gray-800">Smart Insights</h3>
+    <div className="h-full flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] transition-all hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+      <div>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-xs">
+              ✨
+            </span>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Smart Insights</h3>
+          </div>
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            AI Digest
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          Real-time pattern analysis and recommendations
+        </p>
+
+        {/* Insights Cards */}
+        <div className="space-y-2.5">
+          {insights.map((insight, i) => {
+            const isSuccess = insight.type === 'success'
+            const isWarning = insight.type === 'warning'
+            const isAI = insight.type === 'ai'
+
+            const badgeBg = isSuccess
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
+              : isWarning
+              ? 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'
+              : isAI
+              ? 'bg-purple-50 text-purple-700 border-purple-200/60 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40'
+              : 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40'
+
+            const iconBg = isSuccess
+              ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/60 dark:text-emerald-300'
+              : isWarning
+              ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/60 dark:text-amber-300'
+              : isAI
+              ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/60 dark:text-purple-300'
+              : 'bg-blue-100 text-blue-600 dark:bg-blue-900/60 dark:text-blue-300'
+
+            return (
+              <div
+                key={i}
+                className="p-3 rounded-xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700/70 dark:hover:bg-slate-800 transition-all"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${iconBg}`}>
+                      {isSuccess ? '✓' : isWarning ? '!' : isAI ? '⚡' : 'ℹ'}
+                    </span>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                      {insight.title}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${badgeBg}`}>
+                    {insight.tag}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug pl-8">
+                  {insight.description}
+                </p>
+              </div>
+            )
+          })}
+
+          {insights.length === 0 && (
+            <div className="text-center py-6 text-xs text-slate-400">
+              No new insights at this time
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="space-y-2.5">
-        {insights.map((insight, i) => (
-          <div
-            key={i}
-            className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-white/60"
-          >
-            <div className="flex items-start gap-2.5">
-              <span className="mt-0.5 shrink-0">
-                {insight.type === 'success' && <SuccessIcon />}
-                {insight.type === 'warning' && <WarningIcon />}
-                {insight.type === 'info' && <InfoIcon />}
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800 leading-tight">{insight.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{insight.description}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {insights.length === 0 && (
-          <div className="text-center py-6 text-sm text-gray-400">
-            No insights available yet
-          </div>
-        )}
+      {/* Footer Ribbon */}
+      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+        <span>Updated continuously</span>
+        <span className="font-semibold text-slate-500 dark:text-slate-400">✨ Self-optimizing model</span>
       </div>
     </div>
   )
 }
 
-function SuccessIcon() {
-  return (
-    <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
-
-function WarningIcon() {
-  return (
-    <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-    </svg>
-  )
-}
-
-function InfoIcon() {
-  return (
-    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}

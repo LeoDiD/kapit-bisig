@@ -4,14 +4,18 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import DistributionDetailsModal from './DistributionDetailsModal'
 import ViewHouseholdsModal from './ViewHouseholdsModal'
+import RescheduleDistributionModal from './RescheduleDistributionModal'
+import CompletedArchiveModal from './CompletedArchiveModal'
 
 export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed'
+export type DistributionLifecycleStatus = 'Upcoming' | 'Active' | 'Completed' | 'Archived'
 
 export type DistributionRow = {
   id: string
   barangay: string
   assignedBarangays: string[]
   scheduled: string
+  endsAt?: string | null
   households: number
   registeredHouseholds: number
   claimedHouseholds: number
@@ -20,6 +24,9 @@ export type DistributionRow = {
   status: DistributionStatus
   claimedAt: string | null
   createdAt: string
+  archivedAt?: string | null
+  archivedBy?: string | null
+  lifecycleStatus?: DistributionLifecycleStatus
 }
 
 type BarangayFilter = 'All' | string
@@ -32,20 +39,57 @@ const statusOptions: { value: StatusFilter; label: string }[] = [
   { value: 'Unclaimed', label: 'Scheduled' },
 ]
 
+export function formatScheduledDate(value?: string | null): string {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  const hasTime = value.includes('T') || value.includes(':')
+  if (hasTime) {
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 export default function DistributionsTable({
   rows,
   onOpenCreate,
   onMarkClaimed,
+  onRefresh,
   canCreate = true,
+  lifecycleView,
+  canManageLifecycle,
+  onArchive,
+  onRestore,
 }: {
   rows: DistributionRow[]
   onOpenCreate: () => void
   onMarkClaimed: (id: string) => void
+  onRefresh?: () => void
   canCreate?: boolean
+  lifecycleView?: 'upcoming' | 'active' | 'completed' | 'archived' | 'current' | 'all'
+  canManageLifecycle?: boolean
+  onArchive?: (id: string) => Promise<void> | void
+  onRestore?: (id: string) => Promise<void> | void
 }) {
   const [query, setQuery] = useState('')
   const [barangay, setBarangay] = useState<BarangayFilter>('All')
   const [status, setStatus] = useState<StatusFilter>('All')
+
+  const PAGE_SIZE = 5
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [barangayOpen, setBarangayOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
@@ -61,6 +105,10 @@ export default function DistributionsTable({
 
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionRow | null>(null)
   const [householdsDistribution, setHouseholdsDistribution] = useState<DistributionRow | null>(null)
+  const [rescheduleDistribution, setRescheduleDistribution] = useState<DistributionRow | null>(null)
+  const [archiveOpen, setArchiveOpen] = useState(false)
+
+  const completedCount = useMemo(() => rows.filter((r) => r.status === 'Claimed').length, [rows])
 
   const barangayOptions = useMemo(() => {
     const unique = Array.from(new Set(rows.map((r) => r.barangay))).sort()
@@ -71,6 +119,34 @@ export default function DistributionsTable({
     setActiveMenu(null)
     setMenuPos(null)
   }, [])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [query, barangay, status])
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+
+    return rows.filter((r) => {
+      const matchesQuery = !q || r.barangay.toLowerCase().includes(q)
+      const matchesBarangay = barangay === 'All' || r.barangay === barangay
+      const matchesStatus = status === 'All' || r.status === status
+      return matchesQuery && matchesBarangay && matchesStatus
+    })
+  }, [rows, query, barangay, status])
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
+    [filtered.length, PAGE_SIZE],
+  )
+
+  const pagedRows = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filtered.slice(start, start + PAGE_SIZE)
+  }, [filtered, currentPage, PAGE_SIZE])
+
+  const rangeStart = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filtered.length)
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -104,16 +180,6 @@ export default function DistributionsTable({
     }
   }, [activeMenu, closeRowMenu])
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-
-    return rows.filter((r) => {
-      const matchesQuery = !q || r.barangay.toLowerCase().includes(q)
-      const matchesBarangay = barangay === 'All' || r.barangay === barangay
-      const matchesStatus = status === 'All' || r.status === status
-      return matchesQuery && matchesBarangay && matchesStatus
-    })
-  }, [rows, query, barangay, status])
 
   const toggleRowMenu = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -251,6 +317,20 @@ export default function DistributionsTable({
                 ) : null}
               </div>
 
+              <button
+                type="button"
+                onClick={() => setArchiveOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                <ArchiveIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <span>Archive</span>
+                {completedCount > 0 && (
+                  <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 text-xs font-bold">
+                    {completedCount}
+                  </span>
+                )}
+              </button>
+
               {canCreate ? (
                 <button
                   type="button"
@@ -281,8 +361,8 @@ export default function DistributionsTable({
             </thead>
 
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-transparent">
-              {filtered.length ? (
-                filtered.map((row) => (
+              {pagedRows.length ? (
+                pagedRows.map((row) => (
                   <tr key={row.id} className="group transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
@@ -316,7 +396,7 @@ export default function DistributionsTable({
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{row.scheduled}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{formatScheduledDate(row.scheduled)}</td>
 
                     <td className="px-6 py-4">
                       <StatusPill status={row.status} />
@@ -354,6 +434,38 @@ export default function DistributionsTable({
             </tbody>
           </table>
         </div>
+
+        {filtered.length > 0 && (
+          <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <p className="text-xs font-medium text-gray-500 dark:text-slate-400">
+              Showing {rangeStart}-{rangeEnd} of {filtered.length}
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage <= 1}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Previous
+              </button>
+
+              <span className="min-w-[88px] text-center text-xs font-semibold text-gray-600 dark:text-slate-300">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage >= totalPages}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {activeMenu && menuPos
@@ -394,6 +506,17 @@ export default function DistributionsTable({
                       />
                       {row.status !== 'Claimed' ? (
                         <MenuItem
+                          icon={<CalendarIcon />}
+                          label="Reschedule"
+                          tone="warning"
+                          onClick={() => {
+                            setRescheduleDistribution(row)
+                            closeRowMenu()
+                          }}
+                        />
+                      ) : null}
+                      {row.status !== 'Claimed' ? (
+                        <MenuItem
                           icon={<CheckGreenIcon />}
                           label="Mark as completed"
                           tone="success"
@@ -411,6 +534,45 @@ export default function DistributionsTable({
             document.body,
           )
         : null}
+
+      {selectedDistribution && (
+        <DistributionDetailsModal
+          open={Boolean(selectedDistribution)}
+          distribution={selectedDistribution}
+          onClose={() => setSelectedDistribution(null)}
+        />
+      )}
+
+      {householdsDistribution && (
+        <ViewHouseholdsModal
+          open={Boolean(householdsDistribution)}
+          distribution={householdsDistribution}
+          onClose={() => setHouseholdsDistribution(null)}
+        />
+      )}
+
+      {rescheduleDistribution && (
+        <RescheduleDistributionModal
+          open={Boolean(rescheduleDistribution)}
+          distribution={rescheduleDistribution}
+          onClose={() => setRescheduleDistribution(null)}
+          onSuccess={() => {
+            onRefresh?.()
+          }}
+        />
+      )}
+
+      <CompletedArchiveModal
+        open={archiveOpen}
+        onClose={() => setArchiveOpen(false)}
+        rows={rows}
+        onSelectDetails={(d) => {
+          setSelectedDistribution(d)
+        }}
+        onSelectHouseholds={(d) => {
+          setHouseholdsDistribution(d)
+        }}
+      />
     </>
   )
 }
@@ -493,10 +655,20 @@ function MenuItem({
   icon: React.ReactNode
   label: string
   onClick: () => void
-  tone?: 'default' | 'success'
+  tone?: 'default' | 'success' | 'warning'
 }) {
-  const classes = tone === 'success' ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700'
-  const iconClass = tone === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'
+  const classes =
+    tone === 'success'
+      ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
+      : tone === 'warning'
+        ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10'
+        : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700'
+  const iconClass =
+    tone === 'success'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'warning'
+        ? 'text-amber-600 dark:text-amber-400'
+        : 'text-slate-500 dark:text-slate-400'
 
   return (
     <button
@@ -507,6 +679,14 @@ function MenuItem({
       <span className={iconClass}>{icon}</span>
       {label}
     </button>
+  )
+}
+
+function CalendarIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
   )
 }
 
@@ -580,6 +760,14 @@ function HouseholdsIcon() {
   return (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  )
+}
+
+function ArchiveIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
     </svg>
   )
 }

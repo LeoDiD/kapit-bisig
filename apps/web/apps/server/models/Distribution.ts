@@ -38,11 +38,14 @@ export interface IDistribution extends Document {
   assignedBarangays: Barangay[];
   assignedStaffIds: mongoose.Types.ObjectId[];
   scheduled: string;
+  endsAt: Date | null;
   households: number;
   notes?: string;
   requiresBeneficiaryApproval: boolean;
   status: DistributionStatus;
   claimedAt: Date | null;
+  archivedAt: Date | null;
+  archivedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -89,6 +92,11 @@ const distributionSchema = new Schema<IDistribution>(
       type: String,
       default: '',
     },
+    endsAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     requiresBeneficiaryApproval: {
       type: Boolean,
       default: true,
@@ -102,6 +110,16 @@ const distributionSchema = new Schema<IDistribution>(
     claimedAt: {
       type: Date,
       default: null,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    archivedBy: {
+      type: String,
+      default: null,
+      trim: true,
     },
   },
   {
@@ -127,6 +145,7 @@ distributionSchema.index({ status: 1, createdAt: -1 });
 distributionSchema.index({ assignedStaffIds: 1, createdAt: -1 });
 distributionSchema.index({ requiresBeneficiaryApproval: 1, status: 1, createdAt: -1 });
 distributionSchema.index({ disasterEventId: 1, status: 1, createdAt: -1 });
+distributionSchema.index({ archivedAt: 1, endsAt: 1, scheduled: 1 });
 
 const Distribution = mongoose.model<IDistribution>('Distribution', distributionSchema);
 

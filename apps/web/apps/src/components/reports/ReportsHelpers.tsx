@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { type ReportDistributionRow } from '@/lib/api';
+'use client'
+
+import React, { useState, useRef, useEffect } from 'react'
+import { type ReportDistributionRow } from '@/lib/api'
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -44,7 +46,35 @@ export function downloadCSV(rows: ReportDistributionRow[], filename: string) {
   URL.revokeObjectURL(url)
 }
 
+/** Quick date preset range calculator */
+export function getDatePresetRange(preset: 'today' | '7d' | '30d' | 'month' | 'ytd' | 'all'): { start: string; end: string } {
+  const now = new Date()
+  const formatDateStr = (d: Date) => d.toISOString().split('T')[0]
 
+  if (preset === 'today') {
+    const todayStr = formatDateStr(now)
+    return { start: todayStr, end: todayStr }
+  }
+  if (preset === '7d') {
+    const start = new Date(now)
+    start.setDate(now.getDate() - 7)
+    return { start: formatDateStr(start), end: formatDateStr(now) }
+  }
+  if (preset === '30d') {
+    const start = new Date(now)
+    start.setDate(now.getDate() - 30)
+    return { start: formatDateStr(start), end: formatDateStr(now) }
+  }
+  if (preset === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    return { start: formatDateStr(start), end: formatDateStr(now) }
+  }
+  if (preset === 'ytd') {
+    const start = new Date(now.getFullYear(), 0, 1)
+    return { start: formatDateStr(start), end: formatDateStr(now) }
+  }
+  return { start: '', end: '' }
+}
 
 // ─── Components ─────────────────────────────────────────────
 
@@ -84,15 +114,15 @@ export function Dropdown({
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
+        className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-slate-700 shadow-sm transition-all hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
       >
-        <span className="text-sm">{selectedLabel}</span>
+        <span className="text-xs sm:text-sm truncate font-medium">{selectedLabel}</span>
         <ChevronDownIcon />
       </button>
       {open && (
         <div
           ref={menuRef}
-          className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+          className="absolute left-0 top-full z-50 mt-1.5 w-full max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800"
         >
           {items.map((opt) => {
             const isSelected = opt.value === value
@@ -101,12 +131,13 @@ export function Dropdown({
                 key={opt.value}
                 type="button"
                 onClick={() => { onChange(opt.value); setOpen(false) }}
-                className={[
-                  'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
-                  isSelected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700',
-                ].join(' ')}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs sm:text-sm text-left transition-colors ${
+                  isSelected
+                    ? 'bg-emerald-50 text-emerald-800 font-semibold dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60'
+                }`}
               >
-                <span className="w-5 flex items-center justify-center">
+                <span className="w-4 flex items-center justify-center">
                   {isSelected ? <CheckIcon /> : null}
                 </span>
                 <span className="truncate">{opt.label}</span>
@@ -120,40 +151,62 @@ export function Dropdown({
 }
 
 export function StatCard({
-  icon, title, value,
+  icon,
+  title,
+  value,
+  subtitle,
+  variant = 'emerald',
 }: {
-  icon: React.ReactNode; title: string; value: string
+  icon: React.ReactNode
+  title: string
+  value: string
+  subtitle?: string
+  variant?: 'emerald' | 'blue' | 'amber' | 'purple'
 }) {
+  const variantStyles = {
+    emerald: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/50',
+    blue: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200/60 dark:border-blue-900/50',
+    amber: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200/60 dark:border-amber-900/50',
+    purple: 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200/60 dark:border-purple-900/50',
+  }
+
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
-      <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+    <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] transition-all hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${variantStyles[variant]}`}>
         {icon}
       </div>
-      <div className="leading-tight">
-        <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{value}</div>
-        <div className="text-xs text-gray-500 dark:text-slate-400">{title}</div>
+      <div className="min-w-0">
+        <div className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
+          {value}
+        </div>
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
+          {title}
+        </div>
+        {subtitle && (
+          <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
+            {subtitle}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 export function StatusPill({ status }: { status: string }) {
-  const cls =
-    status === 'Claimed'
-      ? 'bg-green-600 text-white'
-      : status === 'Partially Claimed'
-        ? 'bg-[#EAB308] text-white'
-        : 'bg-gray-400 text-white'
-        
-  const label =
-    status === 'Claimed'
-      ? 'Completed'
-      : status === 'Partially Claimed'
-        ? 'Active'
-        : 'Scheduled'
-        
+  const isClaimed = status === 'Claimed' || status === 'Completed'
+  const isActive = status === 'Partially Claimed' || status === 'Active'
+
+  const cls = isClaimed
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
+    : isActive
+    ? 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'
+    : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+
+  const label = isClaimed ? 'Completed' : isActive ? 'Active' : 'Scheduled'
+
   return (
-    <span className={`inline-flex items-center justify-center h-6 px-3 rounded-full text-xs font-medium whitespace-nowrap ${cls}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${isClaimed ? 'bg-emerald-500' : isActive ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'}`} />
       {label}
     </span>
   )
@@ -161,13 +214,13 @@ export function StatusPill({ status }: { status: string }) {
 
 export function ClaimRateBar({ rate }: { rate: number }) {
   const color =
-    rate >= 80 ? 'bg-green-500' : rate >= 50 ? 'bg-[#EAB308]' : rate > 0 ? 'bg-orange-400' : 'bg-gray-300'
+    rate >= 80 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : rate >= 50 ? 'bg-gradient-to-r from-amber-500 to-yellow-400' : rate > 0 ? 'bg-gradient-to-r from-orange-500 to-rose-400' : 'bg-slate-300'
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${rate}%` }} />
+    <div className="flex items-center gap-2.5">
+      <div className="flex-1 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${Math.min(rate, 100)}%` }} />
       </div>
-      <span className="w-9 text-right text-xs font-medium text-gray-600 dark:text-slate-300">{rate}%</span>
+      <span className="w-10 text-right text-xs font-bold text-slate-700 dark:text-slate-300">{rate}%</span>
     </div>
   )
 }
@@ -178,85 +231,134 @@ export function Donut({
   segments: { label: string; value: number; stroke: string }[]
 }) {
   const total = segments.reduce((a, s) => a + s.value, 0) || 1
-  const radius = 44
+  const radius = 48
   const circumference = 2 * Math.PI * radius
   let offset = 0
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <svg width="128" height="128" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="currentColor" strokeWidth="12" className="text-gray-200 dark:text-slate-700" />
-        {segments.map((seg, idx) => {
-          const dash = (seg.value / total) * circumference
-          const gap = circumference - dash
-          const dashArray = `${dash} ${gap}`
-          const dashOffset = -offset
-          offset += dash
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-5 select-none">
+      <div className="relative w-32 h-32 shrink-0">
+        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r={radius} fill="none" stroke="currentColor" strokeWidth="12" className="text-slate-100 dark:text-slate-800" />
+          {segments.map((seg, idx) => {
+            const dash = (seg.value / total) * circumference
+            const gap = circumference - dash
+            const dashArray = `${dash} ${gap}`
+            const dashOffset = -offset
+            offset += dash
+            return (
+              <circle
+                key={idx}
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke={seg.stroke}
+                strokeWidth="12"
+                strokeLinecap="round"
+                strokeDasharray={dashArray}
+                strokeDashoffset={dashOffset}
+                className="transition-all duration-500"
+              />
+            )
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-base font-extrabold text-slate-900 dark:text-slate-100">{total}</span>
+          <span className="text-[9px] font-semibold text-slate-400 uppercase">Distributions</span>
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-2 max-h-36 overflow-y-auto pr-1 w-full">
+        {segments.map((s) => {
+          const pct = Math.round((s.value / total) * 100)
           return (
-            <circle
-              key={idx} cx="60" cy="60" r={radius} fill="none"
-              stroke={seg.stroke} strokeWidth="12" strokeLinecap="butt"
-              strokeDasharray={dashArray} strokeDashoffset={dashOffset}
-              transform="rotate(-90 60 60)"
-            />
+            <div key={s.label} className="flex items-center justify-between gap-2 text-xs p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.stroke }} />
+                <span className="text-slate-700 dark:text-slate-300 font-medium truncate">{s.label}</span>
+              </div>
+              <span className="text-slate-900 dark:text-slate-100 font-bold shrink-0">{pct}%</span>
+            </div>
           )
         })}
-        <circle cx="60" cy="60" r="28" fill="currentColor" className="text-white dark:text-slate-900" />
-      </svg>
-      <div className="flex flex-col gap-3">
-        {segments.map((s) => (
-          <div key={s.label} className="flex items-center gap-2 text-xs">
-            <span className="w-3 h-3 rounded-full" style={{ background: s.stroke }} />
-            <span className="text-gray-600 dark:text-slate-300">{s.label}</span>
-          </div>
-        ))}
       </div>
     </div>
   )
 }
 
 export function MiniBarChart({
-  labels, seriesA, seriesB, legendA, legendB,
+  labels,
+  seriesA,
+  seriesB,
+  legendA,
+  legendB,
 }: {
-  labels: string[]; seriesA: number[]; seriesB: number[]
-  legendA: string; legendB: string
+  labels: string[]
+  seriesA: number[]
+  seriesB: number[]
+  legendA: string
+  legendB: string
 }) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const max = Math.max(...seriesA, ...seriesB, 1)
+
   return (
-    <div className="w-full">
-      <div className="mb-3 flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-[#0F533A]" /> {legendA}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-[#9ACB3C]" /> {legendB}
-        </span>
+    <div className="w-full select-none">
+      {/* Legend & Hover Info */}
+      <div className="mb-3 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 font-medium">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> {legendA}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> {legendB}
+          </span>
+        </div>
+        {hoverIndex !== null && (
+          <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
+            {labels[hoverIndex]}: <span className="text-blue-500">{seriesA[hoverIndex]}</span> vs <span className="text-emerald-500">{seriesB[hoverIndex]}</span>
+          </div>
+        )}
       </div>
-      <div className="flex items-end gap-3 h-44">
+
+      <div className="flex items-end gap-2 sm:gap-3 h-36 pt-4 border-b border-slate-100 dark:border-slate-800">
         {labels.map((m, i) => {
           const a = (seriesA[i] / max) * 100
           const b = (seriesB[i] / max) * 100
+          const isHovered = hoverIndex === i
+
           return (
-            <div key={m} className="flex-1 flex flex-col items-center gap-1">
-              <div className="flex items-end justify-center gap-1 w-full h-36">
+            <div
+              key={m}
+              className="flex-1 flex flex-col items-center gap-1 cursor-pointer"
+              onMouseEnter={() => setHoverIndex(i)}
+              onMouseLeave={() => setHoverIndex(null)}
+            >
+              <div className="flex items-end justify-center gap-1 w-full h-28">
                 <div
-                  className="w-3 rounded-t-md bg-[#0F533A] transition-all duration-300"
+                  className={`w-2.5 sm:w-3.5 rounded-t-md bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-300 ${isHovered ? 'scale-105 brightness-110' : 'opacity-90'}`}
                   style={{ height: `${a}%`, minHeight: seriesA[i] > 0 ? '4px' : '0px' }}
-                  title={`${legendA}: ${seriesA[i]}`}
                 />
                 <div
-                  className="w-3 rounded-t-md bg-[#9ACB3C] transition-all duration-300"
+                  className={`w-2.5 sm:w-3.5 rounded-t-md bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-300 ${isHovered ? 'scale-105 brightness-110' : 'opacity-90'}`}
                   style={{ height: `${b}%`, minHeight: seriesB[i] > 0 ? '4px' : '0px' }}
-                  title={`${legendB}: ${seriesB[i]}`}
                 />
               </div>
             </div>
           )
         })}
       </div>
-      <div className="mt-2 flex justify-between text-[11px] text-gray-500 dark:text-slate-400">
-        {labels.map((m) => (
-          <span key={m} className="w-full text-center">{m}</span>
+
+      <div className="mt-2 flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        {labels.map((m, i) => (
+          <span
+            key={m}
+            className={`w-full text-center cursor-pointer transition-colors ${hoverIndex === i ? 'text-emerald-600 dark:text-emerald-400 font-bold' : ''}`}
+            onMouseEnter={() => setHoverIndex(i)}
+          >
+            {m}
+          </span>
         ))}
       </div>
     </div>
@@ -264,69 +366,73 @@ export function MiniBarChart({
 }
 
 export function SummaryCell({
-  label, value, valueClass = 'text-gray-900',
+  label,
+  value,
+  valueClass = 'text-slate-900 dark:text-slate-100',
 }: {
-  label: string; value: string; valueClass?: string
+  label: string
+  value: string
+  valueClass?: string
 }) {
   return (
-    <div className="flex items-center justify-between lg:block">
-      <div className="text-xs text-gray-500 dark:text-slate-400">{label}</div>
-      <div className={`text-sm font-semibold ${valueClass}`}>{value}</div>
+    <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-700/70">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</div>
+      <div className={`mt-1 text-lg font-extrabold tracking-tight ${valueClass}`}>{value}</div>
     </div>
   )
 }
 
 export function MenuItem({
-  icon, label, onClick,
+  icon,
+  label,
+  onClick,
 }: {
-  icon: React.ReactNode; label: string; onClick: () => void
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
 }) {
   return (
     <button
-      type="button" onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700"
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
     >
-      <span className="text-slate-500 dark:text-slate-400">{icon}</span>{label}
+      <span className="text-slate-500 dark:text-slate-400">{icon}</span>
+      {label}
     </button>
   )
 }
 
 export function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center py-12">
-      <div className="h-8 w-8 animate-spin rounded-full border-3 border-gray-200 border-t-[#0F533A] dark:border-slate-700 dark:border-t-[#ECC323]" />
+    <div className="flex flex-col items-center justify-center py-16">
+      <div className="h-9 w-9 animate-spin rounded-full border-3 border-slate-200 border-t-emerald-600 dark:border-slate-700 dark:border-t-emerald-400" />
+      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-3">Compiling report analytics...</span>
     </div>
   )
 }
 
 export function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-slate-500">
-      <DocIcon className="w-12 h-12 mb-3" />
-      <p className="text-sm">{message}</p>
+    <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
+      <DocIcon className="w-10 h-10 mb-2.5 text-slate-300 dark:text-slate-600" />
+      <p className="text-xs font-medium">{message}</p>
     </div>
   )
 }
 
-
-
-/* ═══════════════════════════════════════════════════════════
-   Icons
-   ═══════════════════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════════════════
-   Icons
-   ═══════════════════════════════════════════════════════════ */
+// ─── Icons ──────────────────────────────────────────────────
 
 export function ChevronDownIcon() {
   return (
-    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
   )
 }
 export function CheckIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
     </svg>
   )
@@ -410,14 +516,14 @@ export function UnclaimedIcon({ className }: { className?: string }) {
 }
 export function DotsIcon() {
   return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01" />
     </svg>
   )
 }
 export function EyeIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
     </svg>
@@ -450,3 +556,155 @@ export function QuestionIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+// ─── Pagination Component ───────────────────────────────────
+
+export interface PaginationProps {
+  currentPage: number
+  totalPages: number
+  pageSize: number
+  totalItems: number
+  onPageChange: (page: number) => void
+  onPageSizeChange: (size: number) => void
+  pageSizeOptions?: number[]
+}
+
+export function Pagination({
+  currentPage,
+  totalPages,
+  pageSize,
+  totalItems,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [5, 10, 20, 50],
+}: PaginationProps) {
+  if (totalItems <= 0) return null
+
+  const startItem = (currentPage - 1) * pageSize + 1
+  const endItem = Math.min(totalItems, currentPage * pageSize)
+
+  // Generate page numbers with ellipsis
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = []
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+      pages.push(1)
+      if (currentPage > 3) pages.push('...')
+      
+      const start = Math.max(2, currentPage - 1)
+      const end = Math.min(totalPages - 1, currentPage + 1)
+      
+      for (let i = start; i <= end; i++) {
+        if (!pages.includes(i)) pages.push(i)
+      }
+      
+      if (currentPage < totalPages - 2) pages.push('...')
+      if (!pages.includes(totalPages)) pages.push(totalPages)
+    }
+    return pages
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400">
+      {/* Left info & page size */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span>
+          Showing <strong className="font-semibold text-slate-700 dark:text-slate-200">{startItem}</strong> to{' '}
+          <strong className="font-semibold text-slate-700 dark:text-slate-200">{endItem}</strong> of{' '}
+          <strong className="font-semibold text-slate-700 dark:text-slate-200">{totalItems}</strong> entries
+        </span>
+
+        <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-700">
+          <span>Rows:</span>
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+          >
+            {pageSizeOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Right page navigation buttons */}
+      <div className="flex items-center gap-1">
+        {/* First */}
+        <button
+          type="button"
+          onClick={() => onPageChange(1)}
+          disabled={currentPage === 1}
+          title="First Page"
+          className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+        >
+          ««
+        </button>
+
+        {/* Previous */}
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors font-medium"
+        >
+          Prev
+        </button>
+
+        {/* Page numbers */}
+        <div className="flex items-center gap-1 mx-1">
+          {getPageNumbers().map((p, idx) => {
+            if (p === '...') {
+              return (
+                <span key={`ellipsis-${idx}`} className="px-1 text-slate-400">
+                  ...
+                </span>
+              )
+            }
+            const isCurrent = p === currentPage
+            return (
+              <button
+                key={`page-${p}`}
+                type="button"
+                onClick={() => onPageChange(Number(p))}
+                className={`min-w-[28px] h-7 px-2 rounded-lg text-xs font-bold transition-all ${
+                  isCurrent
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {p}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Next */}
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors font-medium"
+        >
+          Next
+        </button>
+
+        {/* Last */}
+        <button
+          type="button"
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          title="Last Page"
+          className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+        >
+          »»
+        </button>
+      </div>
+    </div>
+  )
+}
+
+

@@ -8,6 +8,9 @@ type SidebarContextValue = {
   open: boolean
   setOpen: (open: boolean) => void
   toggleSidebar: () => void
+  mobileOpen: boolean
+  setMobileOpen: (open: boolean) => void
+  toggleMobileSidebar: () => void
 }
 
 const SidebarContext = React.createContext<SidebarContextValue | null>(null)
@@ -28,11 +31,34 @@ export function SidebarProvider({
   defaultOpen?: boolean
 }) {
   const [open, setOpen] = React.useState(defaultOpen)
+  const [mobileOpen, setMobileOpen] = React.useState(false)
+
   const toggleSidebar = React.useCallback(() => setOpen((prev) => !prev), [])
+  const toggleMobileSidebar = React.useCallback(() => setMobileOpen((prev) => !prev), [])
+
+  // Close mobile sidebar on window resize to desktop
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setMobileOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   return (
-    <SidebarContext.Provider value={{ open, setOpen, toggleSidebar }}>
-      <div className="group/sidebar-wrapper flex min-h-screen w-full bg-background">{children}</div>
+    <SidebarContext.Provider
+      value={{
+        open,
+        setOpen,
+        toggleSidebar,
+        mobileOpen,
+        setMobileOpen,
+        toggleMobileSidebar,
+      }}
+    >
+      <div className="group/sidebar-wrapper flex min-h-screen w-full bg-background relative">{children}</div>
     </SidebarContext.Provider>
   )
 }
@@ -44,19 +70,43 @@ export function Sidebar({
   className?: string
   children: React.ReactNode
 }) {
-  const { open } = useSidebar()
+  const { open, mobileOpen, setMobileOpen } = useSidebar()
 
   return (
-    <aside
-      data-state={open ? 'expanded' : 'collapsed'}
-      className={cn(
-        'fixed inset-y-0 left-0 z-50 hidden overflow-visible border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-in-out md:flex md:flex-col',
-        open ? 'w-56' : 'w-16',
-        className
+    <>
+      {/* Mobile Drawer Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden animate-in fade-in duration-200"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
       )}
-    >
-      {children}
-    </aside>
+
+      {/* Mobile Slide-out Drawer */}
+      <aside
+        data-mobile-state={mobileOpen ? 'open' : 'closed'}
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex flex-col w-72 max-w-[85vw] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sidebar-foreground shadow-2xl transition-transform duration-300 ease-in-out md:hidden',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          className
+        )}
+      >
+        {children}
+      </aside>
+
+      {/* Desktop Persistent Sidebar */}
+      <aside
+        data-state={open ? 'expanded' : 'collapsed'}
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 hidden overflow-visible border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-in-out md:flex md:flex-col',
+          open ? 'w-56' : 'w-16',
+          className
+        )}
+      >
+        {children}
+      </aside>
+    </>
   )
 }
 

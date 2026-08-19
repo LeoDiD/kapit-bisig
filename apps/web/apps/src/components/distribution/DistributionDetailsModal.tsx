@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { DistributionRow } from './DistributionsTable'
+import { formatScheduledDate } from './DistributionsTable'
 
 export default function DistributionDetailsModal({
   open,
@@ -34,7 +35,7 @@ export default function DistributionDetailsModal({
                     {distribution.barangay}
                   </div>
                   <div className="text-xs text-gray-500">
-                    Host Barangay
+                    Distribution Location
                   </div>
                   {distribution.requiresBeneficiaryApproval ? (
                     <div className="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
@@ -65,8 +66,13 @@ export default function DistributionDetailsModal({
                   <span>Scheduled Date</span>
                 </div>
                 <div className="text-sm font-semibold text-gray-900">
-                  {distribution.scheduled}
+                  {formatScheduledDate(distribution.scheduled)}
                 </div>
+                {distribution.endsAt ? (
+                  <div className="mt-1 text-xs text-gray-500">
+                    Ends {new Date(distribution.endsAt).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </div>
+                ) : null}
               </div>
 
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
@@ -130,6 +136,16 @@ export default function DistributionDetailsModal({
                 </div>
               </div>
             )}
+
+            {distribution.archivedAt ? (
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="text-gray-500 text-xs mb-1">Archive details</div>
+                <div className="text-sm font-semibold text-gray-900">
+                  {new Date(distribution.archivedAt).toLocaleString('en-PH')}
+                </div>
+                <div className="mt-1 text-xs text-gray-500">Archived by {distribution.archivedBy || 'Super admin'}</div>
+              </div>
+            ) : null}
           </div>
 
           {/* Footer */}
@@ -141,7 +157,7 @@ export default function DistributionDetailsModal({
             >
               Close
             </button>
-            {distribution.status === 'Unclaimed' && onMarkClaimed && (
+            {distribution.status === 'Unclaimed' && distribution.lifecycleStatus === 'Active' && onMarkClaimed && (
               <button
                 type="button"
                 onClick={() => {

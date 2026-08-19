@@ -4,34 +4,28 @@
 
 import { z } from 'zod';
 import { barangayEnum, objectId } from './shared';
+import { manilaDateParts } from '../utils/distributionLifecycle';
 
 /* POST /api/distributions — create */
 export const createDistributionBody = z.object({
-  disasterEventId: objectId,
+  disasterEventId: objectId.optional(),
   barangay: barangayEnum,
-  assignedBarangays: z.array(barangayEnum)
-    .min(2, 'Select at least 2 assigned barangays')
-    .max(4, 'Select up to 4 assigned barangays'),
+  assignedBarangays: z.array(barangayEnum).optional().default([]),
   scheduled: z.string().min(1, 'Scheduled date is required').max(50),
+  endsAt: z.string().min(1, 'Distribution end time is required').max(50).optional(),
   assignedStaffIds: z.array(objectId)
     .min(1, 'Select at least 1 staff member'),
   notes: z.string().max(2000).optional().default(''),
 }).strict().superRefine((data, ctx) => {
-  const unique = new Set(data.assignedBarangays);
-  if (unique.size !== data.assignedBarangays.length) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['assignedBarangays'],
-      message: 'Assigned barangays must be unique',
-    });
-  }
-
-  if (data.assignedBarangays.includes(data.barangay)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['assignedBarangays'],
-      message: 'Host barangay cannot also be an assigned barangay',
-    });
+  if (data.assignedBarangays && data.assignedBarangays.length > 0) {
+    const unique = new Set(data.assignedBarangays);
+    if (unique.size !== data.assignedBarangays.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['assignedBarangays'],
+        message: 'Assigned barangays must be unique',
+      });
+    }
   }
 
   if (new Set(data.assignedStaffIds).size !== data.assignedStaffIds.length) {
@@ -42,6 +36,71 @@ export const createDistributionBody = z.object({
     });
   }
 
+  const scheduledAt = new Date(data.scheduled);
+  const minAllowed = Date.now() + 5 * 60 * 1000;
+  if (Number.isNaN(scheduledAt.getTime())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['scheduled'],
+      message: 'Scheduled date/time is invalid',
+    });
+  } else if (scheduledAt.getTime() < minAllowed) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['scheduled'],
+      message: 'Scheduled date/time must be at least 5 minutes from now',
+    });
+  } else {
+    const start = manilaDateParts(scheduledAt);
+    const startOutsideHours = start.hour < 6 || start.hour >= 20;
+    if (startOutsideHours) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduled'],
+        message: 'Scheduled time must start at or after 6:00 AM and before 8:00 PM Asia/Manila',
+      });
+    }
+  }
+
+  if (data.endsAt !== undefined) {
+    const endsAt = new Date(data.endsAt);
+    if (Number.isNaN(endsAt.getTime())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endsAt'],
+        message: 'Distribution end time is invalid',
+      });
+    } else if (!Number.isNaN(scheduledAt.getTime())) {
+      const start = manilaDateParts(scheduledAt);
+      const end = manilaDateParts(endsAt);
+      if (endsAt.getTime() <= scheduledAt.getTime()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['endsAt'],
+          message: 'Distribution end time must be after the start time',
+        });
+      } else if (start.year !== end.year || start.month !== end.month || start.day !== end.day) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['endsAt'],
+          message: 'Distribution must start and end on the same day',
+        });
+      } else if (end.hour > 20 || (end.hour === 20 && end.minute > 0)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['endsAt'],
+          message: 'Distribution must end by 8:00 PM Asia/Manila',
+        });
+      }
+    }
+  }
+});
+
+/* PATCH /api/distributions/:id/reschedule */
+export const rescheduleDistributionBody = z.object({
+  scheduled: z.string().min(1, 'Scheduled date is required').max(50),
+  reason: z.string().max(500, 'Reason must not exceed 500 characters').optional().default(''),
+}).strict().superRefine((data, ctx) => {
   const scheduledAt = new Date(data.scheduled);
   const minAllowed = Date.now() + 5 * 60 * 1000;
   if (Number.isNaN(scheduledAt.getTime())) {

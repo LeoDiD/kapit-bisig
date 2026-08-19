@@ -8,21 +8,28 @@ import {
 
 const validStaffId = '507f1f77bcf86cd799439011';
 const validDisasterEventId = '507f1f77bcf86cd799439012';
-const validSchedule = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+const validScheduleDate = new Date();
+validScheduleDate.setDate(validScheduleDate.getDate() + 1);
+validScheduleDate.setUTCHours(2, 0, 0, 0); // 10:00 AM Asia/Manila
+const validSchedule = validScheduleDate.toISOString();
 
 export function runDistributionFlowUnitTests(): void {
-  const target = getTargetBarangays('Bolo', ['Bongalon', 'Dulig', 'San Jose', 'Bolo']);
-  assert.deepStrictEqual(target, ['Bolo', 'Bongalon', 'Dulig', 'San Jose']);
+  // Single barangay target
+  const targetSingle = getTargetBarangays('Bolo');
+  assert.deepStrictEqual(targetSingle, ['Bolo']);
 
-  const eligible = isResidentEligibleForDistribution('Dulig', {
+  const targetWithAssigned = getTargetBarangays('Bolo', ['Bongalon', 'Dulig', 'San Jose']);
+  assert.deepStrictEqual(targetWithAssigned, ['Bolo', 'Bongalon', 'Dulig', 'San Jose']);
+
+  const eligible = isResidentEligibleForDistribution('Bolo', {
     barangay: 'Bolo',
-    assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
+    assignedBarangays: [],
   } as any);
   assert.strictEqual(eligible, true);
 
   const notEligible = isResidentEligibleForDistribution('Uyong', {
     barangay: 'Bolo',
-    assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
+    assignedBarangays: [],
   } as any);
   assert.strictEqual(notEligible, false);
 
@@ -30,43 +37,42 @@ export function runDistributionFlowUnitTests(): void {
   assert.strictEqual(deriveDistributionStatus(10, 3), 'Partially Claimed');
   assert.strictEqual(deriveDistributionStatus(10, 10), 'Claimed');
 
-  const validCreate = createDistributionBody.safeParse({
+  // Valid create without assignedBarangays (new 3-step per-barangay flow)
+  const validCreateSingle = createDistributionBody.safeParse({
     disasterEventId: validDisasterEventId,
     barangay: 'Bolo',
-    assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
     scheduled: validSchedule,
     assignedStaffIds: [validStaffId],
-    notes: 'test',
+    notes: 'Single barangay distribution',
   });
-  assert.strictEqual(validCreate.success, true);
+  assert.strictEqual(validCreateSingle.success, true);
 
-  const minAssigned = createDistributionBody.safeParse({
+  // Valid create with empty array
+  const validCreateEmptyAssigned = createDistributionBody.safeParse({
     disasterEventId: validDisasterEventId,
     barangay: 'Bolo',
-    assignedBarangays: ['Bongalon', 'Dulig'],
+    assignedBarangays: [],
     scheduled: validSchedule,
     assignedStaffIds: [validStaffId],
-    notes: 'test',
+    notes: 'Empty assigned array',
   });
-  assert.strictEqual(minAssigned.success, true);
+  assert.strictEqual(validCreateEmptyAssigned.success, true);
 
-  const tooFewAssigned = createDistributionBody.safeParse({
-    disasterEventId: validDisasterEventId,
+  // Valid create without disasterEventId
+  const validCreateWithoutEvent = createDistributionBody.safeParse({
     barangay: 'Bolo',
-    assignedBarangays: ['Bongalon'],
     scheduled: validSchedule,
     assignedStaffIds: [validStaffId],
-    notes: 'test',
+    notes: 'Single barangay distribution without event',
   });
-  assert.strictEqual(tooFewAssigned.success, false);
+  assert.strictEqual(validCreateWithoutEvent.success, true);
 
-  const includesHost = createDistributionBody.safeParse({
-    disasterEventId: validDisasterEventId,
+  // Invalid: missing assigned staff
+  const missingStaff = createDistributionBody.safeParse({
     barangay: 'Bolo',
-    assignedBarangays: ['Bolo', 'Dulig', 'San Jose'],
     scheduled: validSchedule,
-    assignedStaffIds: [validStaffId],
+    assignedStaffIds: [],
     notes: 'test',
   });
-  assert.strictEqual(includesHost.success, false);
+  assert.strictEqual(missingStaff.success, false);
 }

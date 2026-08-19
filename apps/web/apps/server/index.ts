@@ -100,7 +100,13 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 app.use(rejectNoSQLInjection);
 
-// Serve uploaded files (avatars, etc.)
+// Government ID uploads are returned only by the authenticated resident-detail
+// endpoint. Do not expose the backing files through the general static route.
+app.use('/uploads/resident-verification', (_req: Request, res: Response) => {
+  return res.status(404).json({ success: false, message: 'Not found' });
+});
+
+// Serve non-sensitive uploaded files (avatars, etc.)
 app.use('/uploads', express.static(path.resolve(__dirname, '..', 'public', 'uploads')));
 
 // NoSQL injection sanitizer — strip $ and . keys from body/query/params

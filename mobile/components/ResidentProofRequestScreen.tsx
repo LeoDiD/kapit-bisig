@@ -16,28 +16,42 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Typography } from './ui/Typography';
-import { theme } from '../theme';
+import { residentTheme, theme } from '../theme';
 import {
+  discardQueuedResidentProofSubmission,
   fetchActiveBeneficiaryEvent,
   fetchResidentProofSubmissionStatus,
   getQueuedResidentProofSubmissions,
   getResidentSession,
-  getResidentToken,
   ResidentDisasterEvent,
   ResidentProofSubmissionStatus,
+  retryQueuedResidentProofSubmission,
   submitResidentProofSubmission,
-  syncQueuedResidentProofSubmissions,
+  takeQueuedResidentProofSubmissionForEditing,
 } from '../services/api/ResidentQrService';
 import { saveProofDraft, loadProofDraft, clearProofDraft } from '../services/sync/ProofDraftService';
+import {
+  isCachedEventUsable,
+  listOfflineProofRecords,
+  loadResidentOfflineCache,
+  persistProofPhoto,
+  updateResidentOfflineCache,
+  type OfflineProofRecord,
+} from '../services/sync/ResidentOfflineStore';
+import {
+  subscribeToProofSync,
+  syncCurrentResidentProofs,
+} from '../services/sync/ProofSyncCoordinator';
 import {
   WatermarkOverlay,
   captureWatermarkedPhoto,
   buildWatermarkLabel,
 } from '../services/sync/photoWatermark';
+
+const residentColors = residentTheme.colors;
 
 type DamageType = 'Flood' | 'House Damage' | 'Storm Surge' | 'Landslide' | 'Livelihood Loss' | 'Other';
 type RequirementTone = 'ready' | 'pending' | 'warning';
@@ -88,21 +102,6 @@ function RequirementPill({ label, tone }: { label: string; tone: RequirementTone
   );
 }
 
-async function imageUriToDataUrl(uri: string): Promise<string> {
-  const extensionMatch = uri.match(/\.(png|webp)$/i);
-  const mimeType = extensionMatch?.[1]?.toLowerCase() === 'png'
-    ? 'image/png'
-    : extensionMatch?.[1]?.toLowerCase() === 'webp'
-      ? 'image/webp'
-      : 'image/jpeg';
-
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  return `data:${mimeType};base64,${base64}`;
-}
-
 function formatSchedule(value?: string): string {
   const trimmed = String(value || '').trim();
   if (!trimmed) {
@@ -125,9 +124,10 @@ function formatSchedule(value?: string): string {
 
 interface ResidentProofRequestScreenProps {
   onBack: () => void;
+  onSignInRequired: () => void;
 }
 
-export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequestScreenProps) {
+export default function ResidentProofRequestScreen({ onBack, onSignInRequired }: ResidentProofRequestScreenProps) {
   const insets = useSafeAreaInsets();
   const [activeEvent, setActiveEvent] = useState<ResidentDisasterEvent | null>(null);
   const [proofStatus, setProofStatus] = useState<ResidentProofSubmissionStatus | null>(null);
@@ -140,6 +140,10 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
   const [photos, setPhotos] = useState<ProofPhoto[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
+  const [queuedRecords, setQueuedRecords] = useState<OfflineProofRecord[]>([]);
+  const [isOnline, setIsOnline] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncAuthRequired, setSyncAuthRequired] = useState(false);
   const [draftRestoredBanner, setDraftRestoredBanner] = useState(false);
   const [residentBarangay, setResidentBarangay] = useState('');
   const [watermarkUri, setWatermarkUri] = useState<string | null>(null);
@@ -148,6 +152,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
   const watermarkViewRef = useRef<View | null>(null);
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const residentTokenRef = useRef<string | null>(null);
+  const residentIdRef = useRef<string | null>(null);
   const draftLoadedRef = useRef(false);
 
   const trimmedDescriptionLength = description.trim().length;
@@ -176,34 +181,54 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
   const loadScreenData = useCallback(async () => {
     setEventLoading(true);
     try {
-      const token = await getResidentToken();
-      if (!token) {
+      const session = await getResidentSession();
+      if (!session) {
         setActiveEvent(null);
         setQueuedCount(0);
         return;
       }
+      residentTokenRef.current = session.token;
+      residentIdRef.current = session.residentId;
 
-      const [eventResult, syncResult, queue] = await Promise.all([
-        fetchActiveBeneficiaryEvent(token),
-        syncQueuedResidentProofSubmissions(token),
-        getQueuedResidentProofSubmissions(),
-      ]);
-
-      setActiveEvent(eventResult.success ? eventResult.data ?? null : null);
-      setQueuedCount(queue.length);
-
-      const currentEvent = eventResult.success ? eventResult.data ?? null : null;
-      const currentEventId = currentEvent?.id || currentEvent?._id;
-      if (currentEventId) {
-        const statusResult = await fetchResidentProofSubmissionStatus(token, currentEventId);
-        setProofStatus(statusResult.success ? statusResult.data ?? null : null);
-      } else {
-        setProofStatus(null);
+      const cache = await loadResidentOfflineCache();
+      const cachedForResident = cache?.residentId === session.residentId ? cache : null;
+      const cachedEvent = cachedForResident && isCachedEventUsable(cachedForResident)
+        ? cachedForResident.activeEvent
+        : null;
+      if (cachedEvent) {
+        setActiveEvent(cachedEvent);
+        setProofStatus(cachedForResident?.proofStatus ?? null);
       }
 
-      if (syncResult.success && syncResult.syncedCount > 0) {
-        const refreshedQueue = await getQueuedResidentProofSubmissions();
-        setQueuedCount(refreshedQueue.length);
+      await syncCurrentResidentProofs();
+      const [eventResult, queue] = await Promise.all([
+        fetchActiveBeneficiaryEvent(session.token),
+        getQueuedResidentProofSubmissions(session.residentId),
+      ]);
+
+      const currentEvent = eventResult.success ? eventResult.data ?? null : cachedEvent;
+      setActiveEvent(currentEvent);
+      setQueuedCount(queue.length);
+      setQueuedRecords(queue);
+
+      if (eventResult.success) {
+        await updateResidentOfflineCache(session.residentId, {
+          activeEvent: eventResult.data ?? null,
+          activeEventFetchedAt: new Date().toISOString(),
+        });
+      }
+
+      const currentEventId = currentEvent?.id || currentEvent?._id;
+      if (currentEventId) {
+        const statusResult = await fetchResidentProofSubmissionStatus(session.token, currentEventId);
+        if (statusResult.success) {
+          setProofStatus(statusResult.data ?? null);
+          await updateResidentOfflineCache(session.residentId, { proofStatus: statusResult.data ?? null });
+        } else if (!cachedForResident) {
+          setProofStatus(null);
+        }
+      } else {
+        setProofStatus(null);
       }
     } finally {
       setEventLoading(false);
@@ -217,17 +242,16 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
 
     // Load resident session for barangay (watermark) and draft restore
     (async () => {
-      const token = await getResidentToken();
-      residentTokenRef.current = token;
-      if (!token) return;
-
       const session = await getResidentSession();
+      if (!session) return;
+      residentTokenRef.current = session.token;
+      residentIdRef.current = session.residentId;
       if (session?.barangay) {
         setResidentBarangay(session.barangay);
       }
 
       // Restore draft if one exists
-      const draft = await loadProofDraft(token);
+      const draft = await loadProofDraft(session.residentId, session.token);
       if (draft && !draftLoadedRef.current) {
         draftLoadedRef.current = true;
         setSelectedDamageType(draft.damageType as DamageType);
@@ -246,6 +270,14 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
     })().catch(() => undefined);
   }, [loadScreenData]);
 
+  useEffect(() => subscribeToProofSync((next) => {
+    setIsOnline(next.online);
+    setIsSyncing(next.syncing);
+    setSyncAuthRequired(next.authRequired);
+    setQueuedRecords(next.records);
+    setQueuedCount(next.records.length);
+  }), []);
+
   // Debounced draft auto-save
   useEffect(() => {
     if (!draftLoadedRef.current && !description && photos.length === 0) return;
@@ -255,10 +287,10 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
     }
 
     draftSaveTimerRef.current = setTimeout(() => {
-      const token = residentTokenRef.current;
-      if (!token) return;
+      const residentId = residentIdRef.current;
+      if (!residentId) return;
 
-      saveProofDraft(token, {
+      saveProofDraft(residentId, {
         damageType: selectedDamageType,
         description,
         supportingInfo,
@@ -304,6 +336,18 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
         }
       } catch {
         // Watermark failed — use original photo
+      }
+
+      const residentId = residentIdRef.current;
+      if (!residentId) {
+        Alert.alert('Login required', 'Please sign in again before adding proof photos.');
+        return;
+      }
+      try {
+        finalUri = (await persistProofPhoto(residentId, finalUri)).uri;
+      } catch {
+        Alert.alert('Photo not saved', 'The photo could not be stored safely on this device. Please try again.');
+        continue;
       }
 
       setPhotos((current) => {
@@ -392,22 +436,26 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
       return;
     }
 
-    const token = await getResidentToken();
-    if (!token) {
+    const session = await getResidentSession();
+    if (!session) {
       Alert.alert('Login required', 'Please log in again before submitting a proof request.');
       return;
     }
 
     setSubmitting(true);
     try {
-      const photoProofs = await Promise.all(photos.map((item) => imageUriToDataUrl(item.uri)));
-      const result = await submitResidentProofSubmission(token, {
+      const result = await submitResidentProofSubmission(session.token, session.residentId, {
         disasterEventId: activeEvent.id || activeEvent._id || '',
+        eventSnapshot: {
+          name: activeEvent.name,
+          disasterType: activeEvent.disasterType,
+          submissionDeadline: activeEvent.submissionDeadline,
+        },
         damageType: selectedDamageType,
         description: description.trim(),
         supportingInfo: supportingInfo.trim(),
         dateSubmitted: new Date().toISOString(),
-        photoProofs,
+        photoUris: photos.map((item) => item.uri),
         clientGeneratedId: buildClientId(),
       });
 
@@ -416,11 +464,12 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
         return;
       }
 
-      const updatedQueue = await getQueuedResidentProofSubmissions();
+      const updatedQueue = await getQueuedResidentProofSubmissions(session.residentId);
       setQueuedCount(updatedQueue.length);
+      setQueuedRecords(updatedQueue);
 
       Alert.alert(
-        result.queued ? 'Saved offline' : 'Submitted',
+        result.needsAttention ? 'Saved — attention needed' : result.queued ? 'Saved offline' : 'Submitted',
         result.message || (result.queued
           ? 'Your request was saved offline and will sync automatically.'
           : 'Your proof submission is now pending admin verification.'),
@@ -433,9 +482,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
       setSelectedDamageType('Flood');
 
       // Clear draft after successful submission
-      if (token) {
-        clearProofDraft(token).catch(() => undefined);
-      }
+      clearProofDraft(session.residentId).catch(() => undefined);
 
       if (!result.queued) {
         await loadScreenData();
@@ -446,6 +493,51 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
       setSubmitting(false);
     }
   }, [activeEvent, description, loadScreenData, photos, selectedDamageType, supportingInfo]);
+
+  const handleManualSync = useCallback(async () => {
+    await syncCurrentResidentProofs();
+    await loadScreenData();
+  }, [loadScreenData]);
+
+  const handleRetryQueued = useCallback(async (record: OfflineProofRecord) => {
+    await retryQueuedResidentProofSubmission(record.ownerResidentId, record.clientGeneratedId);
+    await handleManualSync();
+  }, [handleManualSync]);
+
+  const handleEditQueued = useCallback(async (record: OfflineProofRecord) => {
+    await takeQueuedResidentProofSubmissionForEditing(record.ownerResidentId, record.clientGeneratedId);
+    setSelectedDamageType(record.damageType);
+    setDescription(record.description);
+    setSupportingInfo(record.supportingInfo || '');
+    setShowSupportingInfo(Boolean(record.supportingInfo));
+    setPhotos(record.photos.map((photo, index) => ({
+      id: `queued-edit-${index}-${Date.now()}`,
+      uri: photo.uri,
+      watermarked: true,
+    })));
+    setProofStatus(null);
+    draftLoadedRef.current = true;
+    await loadScreenData();
+  }, [loadScreenData]);
+
+  const handleDiscardQueued = useCallback((record: OfflineProofRecord) => {
+    Alert.alert(
+      'Discard saved proof?',
+      'This permanently removes the saved request and its photos from this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            discardQueuedResidentProofSubmission(record.ownerResidentId, record.clientGeneratedId)
+              .then(loadScreenData)
+              .catch(() => Alert.alert('Unable to discard', 'Please try again.'));
+          },
+        },
+      ],
+    );
+  }, [loadScreenData]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -460,8 +552,8 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={theme.colors.primary}
-              colors={[theme.colors.primary]}
+              tintColor={residentColors.icon}
+              colors={[residentColors.icon]}
             />
           )}
           keyboardShouldPersistTaps="handled"
@@ -470,7 +562,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
         >
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={onBack}>
-              <Ionicons name="arrow-back" size={20} color={theme.colors.textPrimary} />
+              <Ionicons name="arrow-back" size={20} color={residentColors.icon} />
             </TouchableOpacity>
 
             <View style={styles.headerTextWrap}>
@@ -482,21 +574,90 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
             </View>
           </View>
 
+          {!isOnline ? (
+            <View style={styles.offlineBanner}>
+              <Ionicons name="cloud-offline-outline" size={17} color="#92400E" />
+              <Text style={styles.offlineBannerText}>Offline mode — drafts and proof photos stay on this device.</Text>
+            </View>
+          ) : null}
+
+          {syncAuthRequired ? (
+            <Pressable style={styles.authBanner} onPress={onSignInRequired}>
+              <Ionicons name="lock-closed-outline" size={17} color="#991B1B" />
+              <Text style={styles.authBannerText}>Sign in again before saved proofs can sync.</Text>
+              <Text style={styles.authBannerAction}>Sign in</Text>
+            </Pressable>
+          ) : null}
+
           {draftRestoredBanner ? (
             <Pressable
               style={styles.draftBanner}
               onPress={() => setDraftRestoredBanner(false)}
             >
-              <Ionicons name="document-text-outline" size={16} color="#166534" />
+              <Ionicons name="document-text-outline" size={16} color={residentColors.icon} />
               <Text style={styles.draftBannerText}>Draft restored from your last session</Text>
-              <Ionicons name="close-outline" size={16} color="#6B7280" />
+              <Ionicons name="close-outline" size={16} color={residentColors.icon} />
             </Pressable>
+          ) : null}
+
+          {queuedRecords.length > 0 ? (
+            <Card variant="outlined" padding="md" style={styles.savedProofsCard}>
+              <View style={styles.savedProofsHeader}>
+                <View>
+                  <Typography variant="body" weight="semiBold">Saved submissions</Typography>
+                  <Typography variant="caption" color={theme.colors.textSecondary}>
+                    These proofs remain on this device until the server confirms them.
+                  </Typography>
+                </View>
+                <Button
+                  title={isSyncing ? 'Syncing...' : 'Sync now'}
+                  size="sm"
+                  variant="outline"
+                  appearance="resident"
+                  disabled={!isOnline || isSyncing || syncAuthRequired}
+                  onPress={() => void handleManualSync()}
+                />
+              </View>
+
+              {queuedRecords.map((record) => (
+                <View key={record.clientGeneratedId} style={styles.savedProofRow}>
+                  <View style={styles.savedProofCopy}>
+                    <Text style={styles.savedProofTitle}>{record.eventSnapshot.name}</Text>
+                    <Text style={styles.savedProofMeta}>
+                      {record.status === 'SYNCING'
+                        ? 'Syncing now'
+                        : record.status === 'NEEDS_ATTENTION'
+                          ? 'Needs attention'
+                          : syncAuthRequired
+                            ? 'Sign in required'
+                            : 'Waiting to sync'} · {record.photos.length} photos
+                    </Text>
+                    {record.lastError ? <Text style={styles.savedProofError}>{record.lastError}</Text> : null}
+                  </View>
+                  <View style={styles.savedProofActions}>
+                    {record.status === 'NEEDS_ATTENTION' ? (
+                      <>
+                        <Pressable onPress={() => void handleRetryQueued(record)} style={styles.savedProofAction}>
+                          <Text style={styles.savedProofActionText}>Retry</Text>
+                        </Pressable>
+                        <Pressable onPress={() => void handleEditQueued(record)} style={styles.savedProofAction}>
+                          <Text style={styles.savedProofActionText}>Edit</Text>
+                        </Pressable>
+                      </>
+                    ) : null}
+                    <Pressable onPress={() => handleDiscardQueued(record)} style={styles.savedProofAction}>
+                      <Text style={[styles.savedProofActionText, styles.savedProofDiscardText]}>Discard</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </Card>
           ) : null}
 
           <Card variant="outlined" padding="md" style={styles.summaryCard}>
             <View style={styles.summaryTopRow}>
               <View style={styles.summaryIcon}>
-                <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.primaryDark} />
+                <Ionicons name="shield-checkmark-outline" size={18} color={residentColors.icon} />
               </View>
               <View style={styles.summaryCopy}>
                 <Typography variant="label" color={theme.colors.textMuted}>Target Beneficiary</Typography>
@@ -545,7 +706,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
                 </Typography>
               ) : !activeEvent ? (
                 <View style={styles.emptyState}>
-                  <Ionicons name="calendar-clear-outline" size={20} color={theme.colors.textMuted} />
+                  <Ionicons name="calendar-clear-outline" size={20} color={residentColors.icon} />
                   <Typography variant="caption" color={theme.colors.textSecondary} style={styles.emptyStateText}>
                     No active disaster event is accepting proof submissions right now.
                   </Typography>
@@ -554,7 +715,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
                 <View style={styles.selectedDistributionCard}>
                   <View style={styles.selectedDistributionHeader}>
                     <View style={styles.selectedDistributionIcon}>
-                      <Ionicons name="thunderstorm-outline" size={16} color={theme.colors.primaryDark} />
+                      <Ionicons name="thunderstorm-outline" size={16} color={residentColors.icon} />
                     </View>
                     <View style={styles.selectedDistributionCopy}>
                       <Typography variant="body" weight="semiBold">{activeEvent.name}</Typography>
@@ -660,7 +821,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
                   <Typography variant="caption" color={theme.colors.textSecondary}>Extra note</Typography>
                   {!hasSupportingInfo ? (
                     <Pressable onPress={() => setShowSupportingInfo(false)} style={styles.inlineAction}>
-                      <Ionicons name="close-outline" size={16} color={theme.colors.textMuted} />
+                      <Ionicons name="close-outline" size={16} color={residentColors.icon} />
                       <Text style={styles.inlineActionText}>Hide</Text>
                     </Pressable>
                   ) : null}
@@ -676,7 +837,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
               </View>
             ) : (
               <Pressable style={styles.optionalToggle} onPress={() => setShowSupportingInfo(true)}>
-                <Ionicons name="add-circle-outline" size={16} color={theme.colors.primary} />
+                <Ionicons name="add-circle-outline" size={16} color={residentColors.icon} />
                 <Text style={styles.optionalToggleText}>Add optional note</Text>
               </Pressable>
             )}
@@ -706,6 +867,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
                 title="Gallery"
                 icon="images-outline"
                 variant="secondary"
+                appearance="resident"
                 size="sm"
                 onPress={pickFromGallery}
                 style={styles.actionButton}
@@ -714,6 +876,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
                 title="Camera"
                 icon="camera-outline"
                 variant="outline"
+                appearance="resident"
                 size="sm"
                 onPress={takePhoto}
                 style={styles.actionButton}
@@ -738,7 +901,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
 
               {Array.from({ length: Math.max(0, MIN_PHOTOS - photos.length) }).map((_, index) => (
                 <View key={`placeholder-${index}`} style={styles.photoPlaceholder}>
-                  <Ionicons name="image-outline" size={18} color={theme.colors.textMuted} />
+                  <Ionicons name="image-outline" size={18} color={residentColors.icon} />
                   <Text style={styles.photoPlaceholderText}>Required</Text>
                 </View>
               ))}
@@ -764,6 +927,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
             }}
             disabled={submitDisabled}
             icon="send-outline"
+            appearance="resident"
             style={styles.submitButton}
           />
         </View> : null}
@@ -785,7 +949,7 @@ export default function ResidentProofRequestScreen({ onBack }: ResidentProofRequ
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F6F4',
+    backgroundColor: residentColors.background,
   },
   keyboardView: {
     flex: 1,
@@ -800,13 +964,13 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   statusCard: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: '#FFF8E7', borderWidth: 1, borderColor: '#F2D68A' },
-  statusCardApproved: { backgroundColor: '#ECFDF3', borderColor: '#BBE3C9' },
+  statusCardApproved: { backgroundColor: residentColors.surface, borderColor: residentColors.border },
   statusCardRejected: { backgroundColor: '#FFF1F2', borderColor: '#F4C2C7' },
   statusIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.72)', alignItems: 'center', justifyContent: 'center' },
   statusCopy: { flex: 1 },
-  statusEyebrow: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: '#718078' },
-  statusTitle: { marginTop: 2, fontSize: 16, fontWeight: '800', color: '#23382F' },
-  statusMessage: { marginTop: 5, fontSize: 12.5, lineHeight: 18, color: '#586A61' },
+  statusEyebrow: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: residentColors.secondary },
+  statusTitle: { marginTop: 2, fontSize: 16, fontWeight: '800', color: residentColors.ink },
+  statusMessage: { marginTop: 5, fontSize: 12.5, lineHeight: 18, color: residentColors.secondary },
   statusMetaRow: { marginTop: 9, flexDirection: 'row', gap: 8 },
   statusMeta: { fontSize: 10, fontWeight: '700', color: '#60736A', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 4 },
   header: {
@@ -820,9 +984,9 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: residentColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.08)',
+    borderColor: residentColors.border,
   },
   headerTextWrap: {
     flex: 1,
@@ -830,8 +994,8 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     gap: theme.spacing.md,
-    borderColor: 'rgba(22,163,74,0.14)',
-    backgroundColor: '#FCFEFC',
+    borderColor: residentColors.border,
+    backgroundColor: residentColors.surface,
   },
   summaryTopRow: {
     flexDirection: 'row',
@@ -842,7 +1006,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#E8F5EC',
+    backgroundColor: residentColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -856,12 +1022,14 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: theme.borderRadius.full,
     alignItems: 'center',
-    backgroundColor: '#E8F5EC',
+    backgroundColor: residentColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
   },
   progressBubbleText: {
     fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.primaryDark,
+    color: residentColors.ink,
   },
   queueInline: {
     flexDirection: 'row',
@@ -888,7 +1056,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   requirementPillReady: {
-    backgroundColor: '#E8F5EC',
+    backgroundColor: residentColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
   },
   requirementPillPending: {
     backgroundColor: '#F3F4F6',
@@ -901,7 +1071,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   requirementPillTextReady: {
-    color: theme.colors.primaryDark,
+    color: residentColors.ink,
   },
   requirementPillTextPending: {
     color: theme.colors.textSecondary,
@@ -931,8 +1101,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   distributionChipSelected: {
-    borderColor: 'rgba(21,128,61,0.16)',
-    backgroundColor: '#E8F5EC',
+    borderColor: residentColors.ink,
+    backgroundColor: residentColors.ink,
   },
   distributionChipText: {
     fontSize: 12,
@@ -940,15 +1110,15 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   distributionChipTextSelected: {
-    color: theme.colors.primaryDark,
+    color: residentColors.inverse,
   },
   selectedDistributionCard: {
     gap: theme.spacing.xs,
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: residentColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.06)',
+    borderColor: residentColors.border,
   },
   rejectionReasonBox: {
     marginTop: theme.spacing.sm,
@@ -973,7 +1143,9 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#E8F5EC',
+    backgroundColor: residentColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -989,15 +1161,15 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     backgroundColor: '#FAFAF9',
     borderWidth: 1,
-    borderColor: 'rgba(17,24,39,0.06)',
+    borderColor: residentColors.border,
   },
   emptyStateText: {
     flex: 1,
   },
   sectionCard: {
     gap: theme.spacing.md,
-    borderColor: 'rgba(17,24,39,0.08)',
-    backgroundColor: theme.colors.surface,
+    borderColor: residentColors.border,
+    backgroundColor: residentColors.surface,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1013,7 +1185,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: theme.borderRadius.full,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: residentColors.surface,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
   },
   sectionBadgeText: {
     fontSize: 12,
@@ -1037,14 +1211,14 @@ const styles = StyleSheet.create({
   chip: {
     borderRadius: theme.borderRadius.full,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: '#FAFAF9',
+    borderColor: residentColors.borderAccent,
+    backgroundColor: residentColors.surface,
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
   chipSelected: {
-    borderColor: 'rgba(21,128,61,0.18)',
-    backgroundColor: '#E8F5EC',
+    borderColor: residentColors.brand,
+    backgroundColor: residentColors.brand,
   },
   chipText: {
     fontSize: 13,
@@ -1052,14 +1226,14 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   chipTextSelected: {
-    color: theme.colors.primaryDark,
+    color: residentColors.inverse,
   },
   textArea: {
     minHeight: 92,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: '#FAFAF9',
+    borderColor: residentColors.borderAccent,
+    backgroundColor: residentColors.surface,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
@@ -1078,7 +1252,7 @@ const styles = StyleSheet.create({
   optionalToggleText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.primary,
+    color: residentColors.icon,
   },
   inlineAction: {
     flexDirection: 'row',
@@ -1130,12 +1304,12 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: residentColors.borderAccent,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#FAFAF9',
+    backgroundColor: residentColors.surface,
   },
   photoPlaceholderText: {
     fontSize: 11,
@@ -1145,7 +1319,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
-    backgroundColor: 'rgba(244,246,244,0.98)',
+    backgroundColor: 'rgba(247,247,245,0.98)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(17,24,39,0.08)',
     gap: theme.spacing.sm,
@@ -1156,6 +1330,49 @@ const styles = StyleSheet.create({
   submitButton: {
     width: '100%',
   },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  offlineBannerText: { flex: 1, fontSize: 12.5, lineHeight: 18, color: '#92400E', fontWeight: '600' },
+  authBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  authBannerText: { flex: 1, fontSize: 12.5, lineHeight: 18, color: '#991B1B', fontWeight: '600' },
+  authBannerAction: { fontSize: 12.5, color: '#991B1B', fontWeight: '800', textDecorationLine: 'underline' },
+  savedProofsCard: { gap: 12, backgroundColor: '#FFFFFF' },
+  savedProofsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  savedProofRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingTop: 11,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  savedProofCopy: { flex: 1 },
+  savedProofTitle: { fontSize: 13, fontWeight: '700', color: '#1F2937' },
+  savedProofMeta: { marginTop: 3, fontSize: 11, color: '#6B7280' },
+  savedProofError: { marginTop: 5, fontSize: 11, lineHeight: 16, color: '#B45309' },
+  savedProofActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 7 },
+  savedProofAction: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: '#F3F4F6' },
+  savedProofActionText: { fontSize: 10.5, fontWeight: '700', color: residentColors.ink },
+  savedProofDiscardText: { color: '#B91C1C' },
   draftBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1163,14 +1380,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: residentColors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(22,163,74,0.18)',
+    borderColor: residentColors.border,
   },
   draftBannerText: {
     flex: 1,
     fontSize: 13,
-    color: '#166534',
+    color: residentColors.ink,
     fontWeight: '500',
   },
   watermarkBadge: {
@@ -1183,7 +1400,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: 'rgba(22,163,74,0.85)',
+    backgroundColor: 'rgba(17,24,39,0.82)',
   },
   watermarkBadgeText: {
     fontSize: 9,

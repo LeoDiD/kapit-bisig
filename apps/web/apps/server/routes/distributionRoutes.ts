@@ -22,6 +22,7 @@ import { validateRequest } from '../validation/validateRequest';
 import {
   createDistributionBody,
   distributionIdParams,
+  rescheduleDistributionBody,
 } from '../validation/distribution.schema';
 import { logAudit } from '../utils/audit';
 import { broadcastResidentNotification, broadcastScopedNotification } from '../utils/createNotification';
@@ -32,6 +33,7 @@ import {
   getTargetBarangays,
   requiresBeneficiaryApproval,
 } from '../services/distributionFlowService';
+import { legacyDistributionEnd } from '../utils/distributionLifecycle';
 
 const router = Router();
 
@@ -63,8 +65,8 @@ function hasAnyCoverage(scopes: string[], targets: string[]): boolean {
   return scopes.some((scope) => targets.includes(scope));
 }
 
-function normalizeScope(targets: string[]): string[] {
-  return Array.from(new Set(targets.filter(Boolean)));
+function normalizeScope(targets: Array<string | undefined | null>): string[] {
+  return Array.from(new Set(targets.filter((t): t is string => Boolean(t))));
 }
 
 function getUncoveredTargets(teamScopes: string[][], targets: string[]): string[] {
@@ -142,7 +144,7 @@ router.post(
         });
       }
 
-      const { disasterEventId, barangay, assignedBarangays, assignedStaffIds, scheduled, notes } = parsed.data;
+      const { disasterEventId, barangay, assignedBarangays = [], assignedStaffIds, scheduled, notes } = parsed.data;
 
       cleanIdempotencyStore();
       const idempotencyKeyHeader = req.header('Idempotency-Key')?.trim();
@@ -171,7 +173,7 @@ router.post(
 
       const uniqueStaffIds = [...new Set(assignedStaffIds)];
       const activeStaffDocs = await StaffUser.find({ isActive: true })
-        .select('_id role assignedBarangays')
+        .select('_id role assignedBarangays firstName lastName')
         .lean();
 
       const requestedIdSet = new Set(uniqueStaffIds);
@@ -210,6 +212,36 @@ router.post(
         });
       }
 
+      // Check same-day distribution conflicts for assigned staff
+      const targetDate = new Date(scheduled);
+      if (!isNaN(targetDate.getTime())) {
+        const targetYMD = targetDate.toISOString().slice(0, 10);
+        const allDists = await Distribution.find({}).lean();
+        const existingActiveDists = allDists.filter((d) => d.status !== 'Claimed');
+
+        for (const dist of existingActiveDists) {
+          if (!dist.scheduled) continue;
+          const distDate = new Date(dist.scheduled);
+          if (isNaN(distDate.getTime())) continue;
+          const distYMD = distDate.toISOString().slice(0, 10);
+          if (distYMD === targetYMD) {
+            const existingStaffSet = new Set((dist.assignedStaffIds || []).map((id) => id.toString()));
+            const conflicting = staffDocs.filter((doc) => existingStaffSet.has(doc._id.toString()));
+            if (conflicting.length > 0) {
+              const names = conflicting
+                .map((doc: any) => `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || 'Staff')
+                .join(', ');
+              return res.status(409).json({
+                success: false,
+                code: 'STAFF_SCHEDULE_CONFLICT',
+                message: `Staff member (${names}) is already assigned to a distribution for Barangay ${dist.barangay} on this day.`,
+                conflictingStaffIds: conflicting.map((doc) => doc._id.toString()),
+              });
+            }
+          }
+        }
+      }
+
       const uncoveredTargets = getUncoveredTargets(
         staffDocs.map((doc) => normalizeScope(doc.assignedBarangays ?? [])),
         coverageScope,
@@ -241,43 +273,56 @@ router.post(
 
       const targetBarangays = getTargetBarangays(barangay, assignedBarangays);
 
-      const disasterEvent = await DisasterEvent.findById(disasterEventId)
-        .select('_id name status barangays')
-        .lean();
-      if (!disasterEvent) {
-        return res.status(404).json({
-          success: false,
-          code: 'DISASTER_EVENT_NOT_FOUND',
-          message: 'Disaster event not found.',
-        });
-      }
-      if (disasterEvent.status !== 'Active') {
-        return res.status(409).json({
-          success: false,
-          code: 'DISASTER_EVENT_NOT_ACTIVE',
-          message: 'Distributions can only be created for an active disaster event.',
-        });
-      }
+      let disasterEvent: {
+        _id: mongoose.Types.ObjectId;
+        name: string;
+        status: string;
+        barangays: string[];
+      } | null = null;
+      let requiresBeneficiaryApproval = false;
 
-      const uncoveredByEvent = targetBarangays.filter((target) => !disasterEvent.barangays.includes(target));
-      if (uncoveredByEvent.length > 0) {
-        return res.status(400).json({
-          success: false,
-          code: 'EVENT_BARANGAY_MISMATCH',
-          message: 'Every distribution barangay must be covered by the selected disaster event.',
-          uncoveredBarangays: uncoveredByEvent,
-        });
+      if (disasterEventId) {
+        const foundEvent = await DisasterEvent.findById(disasterEventId)
+          .select('_id name status barangays')
+          .lean();
+        if (!foundEvent) {
+          return res.status(404).json({
+            success: false,
+            code: 'DISASTER_EVENT_NOT_FOUND',
+            message: 'Disaster event not found.',
+          });
+        }
+        if (foundEvent.status !== 'Active') {
+          return res.status(409).json({
+            success: false,
+            code: 'DISASTER_EVENT_NOT_ACTIVE',
+            message: 'Distributions can only be created for an active disaster event.',
+          });
+        }
+
+        const uncoveredByEvent = targetBarangays.filter((target) => !foundEvent.barangays.includes(target));
+        if (uncoveredByEvent.length > 0) {
+          return res.status(400).json({
+            success: false,
+            code: 'EVENT_BARANGAY_MISMATCH',
+            message: 'Every distribution barangay must be covered by the selected disaster event.',
+            uncoveredBarangays: uncoveredByEvent,
+          });
+        }
+        disasterEvent = foundEvent;
+        requiresBeneficiaryApproval = true;
       }
 
       const distribution = new Distribution({
-        disasterEventId: disasterEvent._id,
+        disasterEventId: disasterEvent ? disasterEvent._id : null,
         barangay,
         assignedBarangays,
         assignedStaffIds: uniqueStaffIds,
         scheduled,
+        endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : legacyDistributionEnd(scheduled),
         households: 0,
         notes: notes || '',
-        requiresBeneficiaryApproval: true,
+        requiresBeneficiaryApproval,
         status: 'Unclaimed',
         claimedAt: null,
       });
@@ -290,12 +335,12 @@ router.post(
 
       await logAudit(req, 'DISTRIBUTION_CREATED', 'Distribution', distribution._id.toString(), {
         barangay,
-        disasterEventId: disasterEvent._id.toString(),
-        disasterEventName: disasterEvent.name,
+        disasterEventId: disasterEvent ? disasterEvent._id.toString() : null,
+        disasterEventName: disasterEvent ? disasterEvent.name : null,
         assignedBarangays,
         scheduled,
         householdsDerived: distribution.households,
-        requiresBeneficiaryApproval: true,
+        requiresBeneficiaryApproval,
         assignedStaffCount: uniqueStaffIds.length,
         automaticallyEnrolledResidents: enrollment.matchedResidents,
       });
@@ -443,6 +488,120 @@ router.get(
       res.status(500).json({ success: false, message });
     }
   }
+);
+
+/**
+ * PATCH /api/distributions/:id/reschedule
+ *
+ * Reschedule an active distribution to a new date/time with an optional delay reason.
+ * Admin and scoped LGU staff.
+ */
+router.patch(
+  '/:id/reschedule',
+  requireStaffOrSuperadmin,
+  validateRequest({ params: distributionIdParams, body: rescheduleDistributionBody }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const scopedBarangays = await getScopedBarangays(req.authUser);
+      const { id } = req.params;
+      const { scheduled, reason } = req.body;
+
+      const distribution = await Distribution.findById(id);
+
+      if (!distribution) {
+        return res.status(404).json({
+          success: false,
+          message: 'Distribution not found',
+        });
+      }
+
+      // Scope check
+      if (
+        isScopedRole(req.authUser?.role) && !hasDistributionAccess(scopedBarangays, distribution)
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to reschedule this distribution',
+        });
+      }
+
+      if (distribution.status === 'Claimed') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot reschedule a completed distribution',
+        });
+      }
+
+      // Check same-day staff schedule conflicts for assigned staff on the new date
+      const targetDate = new Date(scheduled);
+      if (!isNaN(targetDate.getTime())) {
+        const targetYMD = targetDate.toISOString().slice(0, 10);
+        const allDists = await Distribution.find({}).lean();
+        const otherActiveDists = allDists.filter(
+          (d) => d.status !== 'Claimed' && d._id.toString() !== distribution._id.toString(),
+        );
+
+        for (const dist of otherActiveDists) {
+          if (!dist.scheduled) continue;
+          const distDate = new Date(dist.scheduled);
+          if (isNaN(distDate.getTime())) continue;
+          const distYMD = distDate.toISOString().slice(0, 10);
+          if (distYMD === targetYMD) {
+            const otherStaffSet = new Set((dist.assignedStaffIds || []).map((id) => id.toString()));
+            const conflictingIds = (distribution.assignedStaffIds || [])
+              .map((id) => id.toString())
+              .filter((id) => otherStaffSet.has(id));
+
+            if (conflictingIds.length > 0) {
+              const conflictStaffDocs = await StaffUser.find({ _id: { $in: conflictingIds } })
+                .setOptions({ sanitizeFilter: false })
+                .select('firstName lastName')
+                .lean();
+              const names = conflictStaffDocs
+                .map((doc: any) => `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || 'Staff')
+                .join(', ');
+              return res.status(409).json({
+                success: false,
+                code: 'STAFF_SCHEDULE_CONFLICT',
+                message: `Assigned staff (${names}) is already assigned to a distribution for Barangay ${dist.barangay} on this day.`,
+                conflictingStaffIds: conflictingIds,
+              });
+            }
+          }
+        }
+      }
+
+      const previousScheduled = distribution.scheduled;
+      distribution.scheduled = scheduled;
+
+      if (reason && reason.trim()) {
+        const timestamp = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const rescheduleNote = `[Rescheduled on ${timestamp}]: ${reason.trim()}`;
+        distribution.notes = distribution.notes
+          ? `${distribution.notes}\n${rescheduleNote}`
+          : rescheduleNote;
+      }
+
+      await distribution.save();
+
+      await logAudit(req, 'DISTRIBUTION_RESCHEDULED', 'Distribution', distribution._id.toString(), {
+        barangay: distribution.barangay,
+        previousScheduled,
+        newScheduled: scheduled,
+        reason: reason?.trim() || null,
+      });
+
+      return res.json({
+        success: true,
+        message: 'Distribution rescheduled successfully',
+        data: distribution.toJSON(),
+      });
+    } catch (error: unknown) {
+      console.error('Error rescheduling distribution:', error);
+      const message = error instanceof Error ? error.message : 'Failed to reschedule distribution';
+      return res.status(500).json({ success: false, message });
+    }
+  },
 );
 
 /**
