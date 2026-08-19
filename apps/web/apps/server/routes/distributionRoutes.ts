@@ -32,6 +32,11 @@ import {
   getTargetBarangays,
   requiresBeneficiaryApproval,
 } from '../services/distributionFlowService';
+import {
+  deriveDistributionLifecycle,
+  isDistributionClaimable,
+  type DistributionLifecycleStatus,
+} from '../utils/distributionLifecycle';
 
 const router = Router();
 
@@ -59,19 +64,27 @@ function hasCoverage(scopes: string[], targets: string[]): boolean {
   return targets.every((target) => scopes.includes(target));
 }
 
-function hasAnyCoverage(scopes: string[], targets: string[]): boolean {
-  return scopes.some((scope) => targets.includes(scope));
-}
 
 function normalizeScope(targets: string[]): string[] {
   return Array.from(new Set(targets.filter(Boolean)));
 }
 
-function getUncoveredTargets(teamScopes: string[][], targets: string[]): string[] {
-  return targets.filter((target) => !teamScopes.some((scopes) => scopes.includes(target)));
-}
 
 const isScopedRole = (role?: string) => role === 'LGU_STAFF' || role === 'Volunteer';
+
+type DistributionView = 'current' | 'upcoming' | 'active' | 'completed' | 'archived' | 'all';
+
+function requestedDistributionView(value: unknown): DistributionView {
+  return ['current', 'upcoming', 'active', 'completed', 'archived', 'all'].includes(String(value))
+    ? String(value) as DistributionView
+    : 'current';
+}
+
+function lifecycleMatchesView(lifecycle: DistributionLifecycleStatus, view: DistributionView): boolean {
+  if (view === 'all') return true;
+  if (view === 'current') return lifecycle === 'Active' || lifecycle === 'Upcoming';
+  return lifecycle.toLowerCase() === view;
+}
 
 async function getScopedBarangays(user?: AuthRequest['authUser']): Promise<string[]> {
   if (!user || !isScopedRole(user.role)) return [];
@@ -142,7 +155,7 @@ router.post(
         });
       }
 
-      const { disasterEventId, barangay, assignedBarangays, assignedStaffIds, scheduled, notes } = parsed.data;
+      const { disasterEventId, barangay, assignedBarangays, assignedStaffIds, scheduled, endsAt, notes } = parsed.data;
 
       cleanIdempotencyStore();
       const idempotencyKeyHeader = req.header('Idempotency-Key')?.trim();
@@ -197,32 +210,6 @@ router.post(
         });
       }
 
-      const outOfScopeAssignees = staffDocs
-        .filter((doc) => !hasAnyCoverage(doc.assignedBarangays ?? [], coverageScope))
-        .map((doc) => doc._id.toString());
-
-      if (outOfScopeAssignees.length > 0) {
-        return res.status(403).json({
-          success: false,
-          code: 'OUT_OF_SCOPE_STAFF',
-          message: 'Some selected staff are not assigned to any barangay in this distribution.',
-          outOfScopeStaffIds: outOfScopeAssignees,
-        });
-      }
-
-      const uncoveredTargets = getUncoveredTargets(
-        staffDocs.map((doc) => normalizeScope(doc.assignedBarangays ?? [])),
-        coverageScope,
-      );
-
-      if (uncoveredTargets.length > 0) {
-        return res.status(400).json({
-          success: false,
-          code: 'INSUFFICIENT_SCOPE_COVERAGE',
-          message: 'Selected staff do not collectively cover every barangay in this distribution.',
-          uncoveredBarangays: uncoveredTargets,
-        });
-      }
 
       if (req.authUser?.role === 'LGU_STAFF') {
         const outOfScopeAssigneesForRequester = staffDocs
@@ -275,6 +262,7 @@ router.post(
         assignedBarangays,
         assignedStaffIds: uniqueStaffIds,
         scheduled,
+        endsAt: new Date(endsAt),
         households: 0,
         notes: notes || '',
         requiresBeneficiaryApproval: true,
@@ -294,6 +282,7 @@ router.post(
         disasterEventName: disasterEvent.name,
         assignedBarangays,
         scheduled,
+        endsAt,
         householdsDerived: distribution.households,
         requiresBeneficiaryApproval: true,
         assignedStaffCount: uniqueStaffIds.length,
@@ -328,7 +317,10 @@ router.post(
       res.status(201).json({
         success: true,
         message: `Distribution created successfully with ${enrollment.matchedResidents} automatically enrolled resident${enrollment.matchedResidents === 1 ? '' : 's'}.`,
-        data: distribution.toJSON(),
+        data: {
+          ...distribution.toJSON(),
+          lifecycleStatus: deriveDistributionLifecycle(distribution),
+        },
         enrollment,
       });
 
@@ -341,7 +333,10 @@ router.post(
           response: {
             success: true,
             message: `Distribution created successfully with ${enrollment.matchedResidents} automatically enrolled resident${enrollment.matchedResidents === 1 ? '' : 's'}.`,
-            data: distribution.toJSON(),
+            data: {
+              ...distribution.toJSON(),
+              lifecycleStatus: deriveDistributionLifecycle(distribution),
+            },
             enrollment,
           },
         });
@@ -363,9 +358,18 @@ router.get(
   '/',
   async (req: AuthRequest, res: Response) => {
     try {
+      const view = requestedDistributionView(req.query.view);
       let distributions = await Distribution.find({})
-        .sort({ createdAt: -1 })
+        .sort({ scheduled: 1, createdAt: -1 })
         .lean();
+
+      const now = new Date();
+      distributions = distributions.filter((distribution) => (
+        lifecycleMatchesView(deriveDistributionLifecycle(distribution), view)
+      ));
+      if (view === 'completed' || view === 'archived') {
+        distributions.reverse();
+      }
 
       if (isScopedRole(req.authUser?.role)) {
         const scopedBarangays = await getScopedBarangays(req.authUser);
@@ -433,6 +437,7 @@ router.get(
           status: derivedStatus,
           claimedAt: claimed > 0 ? (d.claimedAt || new Date().toISOString()) : d.claimedAt,
           requiresBeneficiaryApproval: requiresBeneficiaryApproval(d),
+          lifecycleStatus: deriveDistributionLifecycle(d, now),
         };
       });
 
@@ -443,6 +448,92 @@ router.get(
       res.status(500).json({ success: false, message });
     }
   }
+);
+
+/** Archive a completed distribution without deleting historical records. */
+router.patch(
+  '/:id/archive',
+  validateRequest({ params: distributionIdParams }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (req.authUser?.role !== 'SUPERADMIN') {
+        return res.status(403).json({ success: false, message: 'Forbidden - superadmin only' });
+      }
+
+      const distribution = await Distribution.findById(req.params.id);
+      if (!distribution) {
+        return res.status(404).json({ success: false, message: 'Distribution not found' });
+      }
+      if (distribution.archivedAt) {
+        return res.status(409).json({ success: false, code: 'DISTRIBUTION_ALREADY_ARCHIVED', message: 'Distribution is already archived.' });
+      }
+      if (deriveDistributionLifecycle(distribution) !== 'Completed') {
+        return res.status(409).json({ success: false, code: 'DISTRIBUTION_NOT_COMPLETED', message: 'Only completed distributions can be archived.' });
+      }
+
+      distribution.archivedAt = new Date();
+      distribution.archivedBy = req.authUser.sub || req.authUser.userId || 'SUPERADMIN';
+      await distribution.save({ validateModifiedOnly: true });
+      await logAudit(req, 'DISTRIBUTION_ARCHIVED', 'Distribution', distribution._id.toString(), {
+        barangay: distribution.barangay,
+        scheduled: distribution.scheduled,
+        endsAt: distribution.endsAt,
+      });
+
+      return res.json({
+        success: true,
+        message: 'Distribution archived. Historical claims and reports were preserved.',
+        data: { ...distribution.toJSON(), lifecycleStatus: 'Archived' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to archive distribution';
+      return res.status(500).json({ success: false, message });
+    }
+  },
+);
+
+/** Restore an archived record to the completed administration view. */
+router.patch(
+  '/:id/restore',
+  validateRequest({ params: distributionIdParams }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (req.authUser?.role !== 'SUPERADMIN') {
+        return res.status(403).json({ success: false, message: 'Forbidden - superadmin only' });
+      }
+
+      const distribution = await Distribution.findById(req.params.id);
+      if (!distribution) {
+        return res.status(404).json({ success: false, message: 'Distribution not found' });
+      }
+      if (!distribution.archivedAt) {
+        return res.status(409).json({ success: false, code: 'DISTRIBUTION_NOT_ARCHIVED', message: 'Distribution is not archived.' });
+      }
+
+      const archivedAt = distribution.archivedAt;
+      const archivedBy = distribution.archivedBy;
+      distribution.archivedAt = null;
+      distribution.archivedBy = null;
+      await distribution.save({ validateModifiedOnly: true });
+      await logAudit(req, 'DISTRIBUTION_RESTORED', 'Distribution', distribution._id.toString(), {
+        barangay: distribution.barangay,
+        previousArchivedAt: archivedAt,
+        previousArchivedBy: archivedBy,
+      });
+
+      return res.json({
+        success: true,
+        message: 'Distribution restored to completed history.',
+        data: {
+          ...distribution.toJSON(),
+          lifecycleStatus: deriveDistributionLifecycle(distribution),
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to restore distribution';
+      return res.status(500).json({ success: false, message });
+    }
+  },
 );
 
 /**
@@ -464,6 +555,14 @@ router.patch(
         return res.status(404).json({
           success: false,
           message: 'Distribution not found',
+        });
+      }
+
+      if (!isDistributionClaimable(distribution)) {
+        return res.status(409).json({
+          success: false,
+          code: 'DISTRIBUTION_NOT_ACTIVE',
+          message: 'Claims can only be recorded while the distribution is active.',
         });
       }
 

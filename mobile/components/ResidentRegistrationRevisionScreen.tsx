@@ -17,12 +17,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Typography } from './ui/Typography';
-import { theme } from '../theme';
+import { residentTheme, theme } from '../theme';
 import {
   getResidentToken,
   ResidentProfile,
   submitResidentRegistrationRevision,
 } from '../services/api/ResidentQrService';
+
+const residentColors = residentTheme.colors;
 
 type PickedImage = {
   uri: string;
@@ -161,11 +163,11 @@ export default function ResidentRegistrationRevisionScreen({
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Ionicons name="arrow-back" size={20} color={theme.colors.textPrimary} />
+            <Ionicons name="arrow-back" size={20} color={residentColors.icon} />
           </TouchableOpacity>
           <View style={styles.headerTextWrap}>
-            <Typography variant="h3" weight="semiBold">Registration Revision</Typography>
-            <Typography variant="body" color={theme.colors.textSecondary}>
+            <Typography variant="h3" weight="semiBold" color={residentColors.ink}>Registration Revision</Typography>
+            <Typography variant="body" color={residentColors.secondary}>
               Upload corrected ID files and selfie so the admin can review your registration again.
             </Typography>
           </View>
@@ -173,10 +175,10 @@ export default function ResidentRegistrationRevisionScreen({
 
         {residentNote?.trim() ? (
           <Card variant="outlined" style={styles.noteCard}>
-            <Ionicons name="document-text-outline" size={20} color="#0F172A" />
+            <Ionicons name="document-text-outline" size={20} color={residentColors.icon} />
             <View style={{ flex: 1 }}>
               <Typography variant="body" weight="semiBold">Admin note</Typography>
-              <Typography variant="body" color={theme.colors.textSecondary}>
+              <Typography variant="body" color={residentColors.secondary}>
                 {residentNote.trim()}
               </Typography>
             </View>
@@ -238,6 +240,7 @@ export default function ResidentRegistrationRevisionScreen({
           }}
           disabled={!canSubmit || submitting}
           icon="send-outline"
+          appearance="resident"
           style={styles.submitButton}
         />
       </ScrollView>
@@ -268,15 +271,15 @@ function UploadCard({
           <Image source={{ uri: image.uri }} style={styles.previewImage} />
         ) : (
           <View style={styles.previewPlaceholder}>
-            <Ionicons name="image-outline" size={24} color={theme.colors.textMuted} />
+            <Ionicons name="image-outline" size={24} color={residentColors.icon} />
             <Text style={styles.previewPlaceholderText}>No image selected</Text>
           </View>
         )}
       </View>
 
       <View style={styles.actionRow}>
-        <Button title="Gallery" icon="images-outline" variant="secondary" onPress={onPickGallery} style={styles.actionButton} />
-        <Button title="Camera" icon="camera-outline" variant="outline" onPress={onPickCamera} style={styles.actionButton} />
+        <Button title="Gallery" icon="images-outline" variant="secondary" appearance="resident" onPress={onPickGallery} style={styles.actionButton} />
+        <Button title="Camera" icon="camera-outline" variant="outline" appearance="resident" onPress={onPickCamera} style={styles.actionButton} />
       </View>
     </Card>
   );
@@ -285,7 +288,7 @@ function UploadCard({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: residentColors.background,
   },
   content: {
     padding: theme.spacing.lg,
@@ -303,9 +306,9 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: residentColors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: residentColors.border,
   },
   headerTextWrap: {
     flex: 1,
@@ -315,11 +318,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: theme.spacing.md,
-    backgroundColor: '#F8FAFC',
-    borderColor: '#CBD5E1',
+    backgroundColor: residentColors.surfaceMuted,
+    borderColor: residentColors.border,
   },
   sectionCard: {
     gap: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: residentColors.border,
+    shadowColor: residentTheme.shadow.shadowColor,
+    shadowOffset: residentTheme.shadow.shadowOffset,
+    shadowOpacity: residentTheme.shadow.shadowOpacity,
+    shadowRadius: residentTheme.shadow.shadowRadius,
+    elevation: residentTheme.shadow.elevation,
   },
   chipWrap: {
     flexDirection: 'row',
@@ -329,22 +339,22 @@ const styles = StyleSheet.create({
   chip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    borderColor: residentColors.border,
+    backgroundColor: residentColors.surface,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   chipSelected: {
-    borderColor: '#111827',
-    backgroundColor: '#E5E7EB',
+    borderColor: residentColors.brand,
+    backgroundColor: residentColors.brand,
   },
   chipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.textSecondary,
+    color: residentColors.secondary,
   },
   chipTextSelected: {
-    color: '#111827',
+    color: residentColors.inverse,
   },
   fieldLabel: {
     marginTop: 4,
@@ -352,12 +362,12 @@ const styles = StyleSheet.create({
   input: {
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    borderColor: residentColors.border,
+    backgroundColor: residentColors.surface,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: theme.colors.textPrimary,
+    color: residentColors.ink,
   },
   uploadHeader: {
     flexDirection: 'row',
@@ -367,16 +377,20 @@ const styles = StyleSheet.create({
   uploadStatus: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#111827',
-    backgroundColor: '#E5E7EB',
+    color: residentColors.ink,
+    backgroundColor: residentColors.surfaceMuted,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
   },
   previewWrap: {
     borderRadius: theme.borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: residentColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
     minHeight: 190,
   },
   previewImage: {
@@ -392,7 +406,7 @@ const styles = StyleSheet.create({
   },
   previewPlaceholderText: {
     fontSize: 13,
-    color: theme.colors.textMuted,
+    color: residentColors.muted,
     fontWeight: '600',
   },
   actionRow: {

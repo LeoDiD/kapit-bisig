@@ -33,6 +33,7 @@ import {
 import { logAudit } from '../utils/audit';
 import { escapeRegex } from '../validation/mongoSanitize';
 import { getTargetBarangays, requiresBeneficiaryApproval } from '../services/distributionFlowService';
+import { deriveDistributionLifecycle } from '../utils/distributionLifecycle';
 
 const router = Router();
 
@@ -160,11 +161,14 @@ router.get(
       const candidateDistributions = await Distribution.find({
         requiresBeneficiaryApproval: true,
         status: mongoose.trusted({ $ne: 'Claimed' }),
+        archivedAt: null,
+        endsAt: { $gte: new Date() },
       })
         .sort({ scheduled: 1, createdAt: -1 })
         .lean();
 
       const coveredDistributions = candidateDistributions.filter((distribution) => {
+        if (deriveDistributionLifecycle(distribution) !== 'Upcoming') return false;
         const targetBarangays = getTargetBarangays(distribution.barangay, distribution.assignedBarangays ?? []);
         return targetBarangays.includes(resident.barangay);
       });
@@ -201,6 +205,8 @@ router.get(
             assignedBarangays: distribution.assignedBarangays ?? [],
             targetBarangays,
             scheduled: distribution.scheduled,
+            endsAt: distribution.endsAt,
+            lifecycleStatus: deriveDistributionLifecycle(distribution),
             notes: distribution.notes || '',
             applicationRequired: requiresBeneficiaryApproval(distribution),
             applicationStatus: submission?.status || 'Not Submitted',
@@ -520,6 +526,7 @@ router.get(
             photoProofUrls: 1,
             status: 1,
             submissionVersion: 1,
+            syncSource: 1,
             rejectionReason: 1,
             reviewedBy: 1,
             reviewedAt: 1,
@@ -826,6 +833,8 @@ router.post(
             proofSubmissionId: result.submission._id.toString(),
             payload: item,
             syncStatus: 'Synced',
+            errorCode: '',
+            retryable: false,
           });
 
           await logAudit(req as unknown as Request, 'OFFLINE_SYNC_RECEIVED', 'OfflineSyncQueue', item.clientGeneratedId, {
@@ -840,9 +849,12 @@ router.post(
             syncStatus: 'Synced',
             proofSubmissionId: result.submission._id.toString(),
             serverStatus: result.submission.status,
+            retryable: false,
           });
         } catch (error) {
           const message = error instanceof BeneficiaryServiceError ? error.message : 'Unable to sync proof submission.';
+          const errorCode = error instanceof BeneficiaryServiceError ? error.code : 'SYNC_INTERNAL_ERROR';
+          const retryable = !(error instanceof BeneficiaryServiceError) || error.statusCode >= 500;
           await upsertOfflineSyncLog({
             actorId,
             actorRole: 'Resident',
@@ -855,12 +867,16 @@ router.post(
             payload: item,
             syncStatus: 'Failed',
             errorMessage: message,
+            errorCode,
+            retryable,
           });
 
           results.push({
             clientGeneratedId: item.clientGeneratedId,
             syncStatus: 'Failed',
             error: message,
+            errorCode,
+            retryable,
           });
         }
       }

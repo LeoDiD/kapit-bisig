@@ -42,6 +42,7 @@ import Claim from '../models/Claim';
 import Notification from '../models/Notification';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
 import { computeEventHash, computeHouseholdHash } from '../utils/hashHelpers';
+import { deriveDistributionLifecycle, isDistributionClaimable } from '../utils/distributionLifecycle';
 import {
   upsertDistributionClaimFromClaim,
   requiresBeneficiaryApproval,
@@ -87,6 +88,7 @@ import { validatePasswordStrength } from '../utils/passwordValidator';
 import { buildScreeningValidationIssues, buildVerificationPayload } from '../services/householdRegistrationService';
 import { screenSubmittedId } from '../services/idScreeningService';
 import { persistVerificationImage } from '../utils/imageStorage';
+import { formatResidentFullName, normalizeResidentName } from '../utils/residentName';
 import { broadcastScopedNotification } from '../utils/createNotification';
 import RegistrationOtp from '../models/RegistrationOtp';
 import { sendRegistrationOtpSms, isSmsConfigured } from '../utils/smsService';
@@ -238,49 +240,8 @@ function getMaskedName(fullName: string): string {
   return `${firstInitial}xxxx ${lastInitial}xxxx`;
 }
 
-const residentNameNoiseWords = new Set([
-  'APPROVED',
-  'PENDING',
-  'REJECTED',
-  'VERIFIED',
-  'ACTIVE',
-  'INACTIVE',
-  'RESIDENT',
-  'HOUSEHOLD',
-]);
-
-function normalizeResidentName(input: { firstName?: string; lastName?: string; fullName?: string }): {
-  firstName: string;
-  lastName: string;
-  fullName: string;
-} {
-  const cleanParts = (raw: string): string[] =>
-    String(raw || '')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .filter((part) => !residentNameNoiseWords.has(part.toUpperCase()));
-
-  let firstParts = cleanParts(input.firstName || '');
-  let lastParts = cleanParts(input.lastName || '');
-  const fullParts = cleanParts(input.fullName || '');
-
-  if (firstParts.length === 0 && fullParts.length > 0) {
-    firstParts = [fullParts[0]];
-  }
-  if (lastParts.length === 0 && fullParts.length > 1) {
-    lastParts = [fullParts[fullParts.length - 1]];
-  }
-
-  const firstName = firstParts.join(' ').trim();
-  const lastName = lastParts.join(' ').trim();
-  const fullName = `${firstName} ${lastName}`.trim() || fullParts.join(' ').trim();
-
-  return { firstName, lastName, fullName };
-}
-
 function getResidentDisplayName(input: { firstName?: string; lastName?: string; fullName?: string }): string {
-  return normalizeResidentName(input).fullName;
+  return formatResidentFullName(input);
 }
 
 function isAllowedScannerRole(role: string | undefined): boolean {
@@ -1271,7 +1232,7 @@ router.post(
  *
  * Returns distributions that cover the authenticated resident's barangay.
  */
-router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/distributions', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -1308,9 +1269,15 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
     }
 
     const residentBarangay = resident.barangay;
-    const allDistributions = await Distribution.find({})
-      .sort({ createdAt: -1 })
-      .limit(100)
+    const now = new Date();
+    const allDistributions = await Distribution.find({
+      archivedAt: null,
+      // sanitizeFilter is enabled globally. Mark this server-built operator as
+      // trusted so Mongoose does not wrap it in $eq and then fail Date casting.
+      endsAt: mongoose.trusted({ $gte: now }),
+    })
+      .sort({ scheduled: 1, createdAt: -1 })
+      .limit(50)
       .lean();
 
     const coveredDistributions = allDistributions
@@ -1320,9 +1287,11 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
         barangay: d.barangay,
         assignedBarangays: d.assignedBarangays ?? [],
         scheduled: d.scheduled,
+        endsAt: d.endsAt,
         notes: d.notes || '',
         status: d.status,
         createdAt: d.createdAt,
+        lifecycleStatus: deriveDistributionLifecycle(d, now),
       }));
 
     const residentClaims = await Claim.find({
@@ -1352,41 +1321,6 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
       };
     });
 
-    // Fallback: if no covered distributions are currently visible but resident already has
-    // claim records, return claimed cards so home screen doesn't appear empty.
-    if (data.length === 0 && residentClaims.length > 0) {
-      const claimedDistributionIds = Array.from(
-        new Set(residentClaims.map((c) => String(c.distributionId)).filter(Boolean)),
-      );
-
-      const claimedDistributions = claimedDistributionIds.length
-        ? await Distribution.find({
-            _id: mongoose.trusted({
-              $in: claimedDistributionIds.map((id) => new mongoose.Types.ObjectId(id)),
-            }),
-          })
-            .sort({ createdAt: -1 })
-            .lean()
-        : [];
-
-      const fallbackData = claimedDistributions.map((d) => ({
-        id: d._id.toString(),
-        barangay: d.barangay,
-        assignedBarangays: d.assignedBarangays ?? [],
-        scheduled: d.scheduled,
-        notes: d.notes || '',
-        status: d.status,
-        createdAt: d.createdAt,
-        residentClaimed: true,
-        residentClaimStatus: claimByDistribution.get(d._id.toString()) || 'CONFIRMED',
-      }));
-
-      return res.json({
-        success: true,
-        data: fallbackData,
-      });
-    }
-
     return res.json({
       success: true,
       data,
@@ -1407,7 +1341,7 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
  *
  * Returns notifications addressed to the authenticated resident.
  */
-router.get('/notifications', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/notifications', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -1742,7 +1676,7 @@ router.post(
  * Reserved endpoint for resident-facing announcements.
  * Pending residents are explicitly blocked until admin approval.
  */
-router.get('/announcements', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/announcements', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -1798,7 +1732,7 @@ router.get('/announcements', mobileLookupRateLimiter, authMiddleware, async (req
  *
  * Returns compact QR payload and resident metadata for display.
  */
-router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/qr/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -2080,7 +2014,7 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
 
     if (distributionId && typeof distributionId === 'string') {
       const distribution = await Distribution.findById(distributionId)
-        .select('_id barangay assignedBarangays requiresBeneficiaryApproval')
+        .select('_id barangay assignedBarangays requiresBeneficiaryApproval scheduled endsAt archivedAt')
         .lean();
 
       if (!distribution) {
@@ -2088,6 +2022,14 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
           success: false,
           message: 'Distribution not found',
           code: 'DISTRIBUTION_NOT_FOUND',
+        });
+      }
+
+      if (!isDistributionClaimable(distribution)) {
+        return res.status(409).json({
+          success: false,
+          message: 'This distribution is not currently active.',
+          code: 'DISTRIBUTION_NOT_ACTIVE',
         });
       }
 
@@ -2198,12 +2140,20 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     }
 
     const distribution = await Distribution.findById(distributionId)
-      .select('_id barangay assignedBarangays requiresBeneficiaryApproval')
+      .select('_id barangay assignedBarangays requiresBeneficiaryApproval scheduled endsAt archivedAt')
       .lean();
     if (!distribution) {
       return res.status(404).json({
         success: false,
         message: 'Distribution not found',
+      });
+    }
+
+    if (!isDistributionClaimable(distribution)) {
+      return res.status(409).json({
+        success: false,
+        code: 'DISTRIBUTION_NOT_ACTIVE',
+        message: 'Claims can only be recorded while the distribution is active.',
       });
     }
 

@@ -42,6 +42,7 @@ import { userLoginSchema } from '../schemas/authSchemas';
 import { revokeJWTByValue } from '../services/tokenRevocationService';
 import { logAudit } from '../utils/audit';
 import { sendLoginVerifyOtpEmail } from '../utils/mailer';
+import { deriveDistributionLifecycle } from '../utils/distributionLifecycle';
 
 const router = Router();
 
@@ -1078,16 +1079,20 @@ router.get('/dashboard-summary', authMiddleware, async (req: AuthenticatedReques
     ]);
 
     const scopedDistributions = await Distribution.find({
+      archivedAt: null,
+      endsAt: { $gte: new Date() },
       $or: mongoose.trusted([
         { barangay: { $in: scopedBarangays } },
         { assignedBarangays: { $in: scopedBarangays } },
       ]),
     })
-      .select('_id status')
+      .select('_id status scheduled endsAt archivedAt')
       .lean();
 
     const totalDistributions = scopedDistributions.length;
-    const activeDistributions = scopedDistributions.filter((d) => d.status !== 'Claimed').length;
+    const activeDistributions = scopedDistributions.filter((d) => (
+      d.status !== 'Claimed' && deriveDistributionLifecycle(d) === 'Active'
+    )).length;
 
     const now = new Date();
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());

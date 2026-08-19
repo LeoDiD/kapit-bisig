@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import {
   SUPPORTED_ID_TYPES,
   SupportedIdType,
@@ -167,6 +168,68 @@ const DEFAULT_LIMITATIONS = [
   'OCR can fail on glare, blur, crop, compression, or damaged IDs.',
   'Final acceptance still requires admin review.',
 ];
+
+interface CachedIdScreening {
+  expiresAt: number;
+  result: IdScreeningResult;
+}
+
+const ID_SCREENING_CACHE_TTL_MS = 30 * 60 * 1000;
+const ID_SCREENING_CACHE_MAX_ENTRIES = 250;
+const idScreeningCache = new Map<string, CachedIdScreening>();
+
+function cloneScreeningResult(result: IdScreeningResult): IdScreeningResult {
+  return {
+    ...result,
+    reasons: [...result.reasons],
+    warnings: [...result.warnings],
+    reviewFlags: [...result.reviewFlags],
+    limitations: [...result.limitations],
+  };
+}
+
+function buildScreeningCacheKey(input: {
+  idType: string;
+  idNumber: string;
+  frontIdImage: string;
+  backIdImage: string;
+}): string {
+  return createHash('sha256')
+    .update(input.idType)
+    .update('\0' + input.idNumber)
+    .update('\0' + input.frontIdImage)
+    .update('\0' + input.backIdImage)
+    .digest('hex');
+}
+
+function getCachedScreening(key: string): IdScreeningResult | null {
+  const cached = idScreeningCache.get(key);
+  if (!cached) {
+    return null;
+  }
+  if (cached.expiresAt <= Date.now()) {
+    idScreeningCache.delete(key);
+    return null;
+  }
+  return cloneScreeningResult(cached.result);
+}
+
+function cacheScreening(key: string, result: IdScreeningResult): void {
+  const now = Date.now();
+  for (const [cachedKey, value] of idScreeningCache) {
+    if (value.expiresAt <= now) idScreeningCache.delete(cachedKey);
+  }
+
+  if (idScreeningCache.size >= ID_SCREENING_CACHE_MAX_ENTRIES) {
+    const oldestKey = idScreeningCache.keys().next().value;
+    if (oldestKey) idScreeningCache.delete(oldestKey);
+  }
+
+  idScreeningCache.set(key, {
+    expiresAt: now + ID_SCREENING_CACHE_TTL_MS,
+    result: cloneScreeningResult(result),
+  });
+}
 
 const TYPE_RULES: Record<SupportedIdType, TypeRule> = {
   'PhilSys ID': {
@@ -394,10 +457,23 @@ function buildReasonsAndWarnings(params: {
     detectedIdType !== enteredIdType &&
     typeConfidence >= 0.78;
 
+  // A number mismatch is only safe to block when the OCR also identified the
+  // selected document type with strong confidence and the source image was
+  // clear. Otherwise a valid ID can be rejected because OCR selected another
+  // number printed on the card or misread several characters. Those cases are
+  // sent to the existing admin review queue instead.
   const strongIdMismatch =
+    detectedIdType === enteredIdType &&
+    typeConfidence >= 0.7 &&
     extractedCandidate?.isFormatValid === true &&
     idNumberMatch === false &&
-    ocrConfidence >= 0.45;
+    ocrConfidence >= 0.7 &&
+    qualityScore >= 0.65;
+
+  const uncertainIdMismatch =
+    extractedCandidate?.isFormatValid === true &&
+    idNumberMatch === false &&
+    !strongIdMismatch;
 
   if (strongTypeMismatch) {
     reviewFlags.push('TYPE_MISMATCH');
@@ -407,6 +483,11 @@ function buildReasonsAndWarnings(params: {
   if (strongIdMismatch) {
     reviewFlags.push('ID_NUMBER_MISMATCH');
     reasons.push('The ID number read from the uploaded ID does not match the ID number entered.');
+  }
+
+  if (uncertainIdMismatch) {
+    reviewFlags.push('ID_NUMBER_UNCERTAIN');
+    warnings.push('The ID number could not be matched reliably. Staff will compare the uploaded ID during review.');
   }
 
   if (ocrConfidence < 0.3) {
@@ -438,7 +519,13 @@ function buildReasonsAndWarnings(params: {
     };
   }
 
-  if (idNumberMatch === true && qualityScore >= 0.45 && ocrConfidence >= 0.25) {
+  if (
+    detectedIdType === enteredIdType &&
+    typeConfidence >= 0.45 &&
+    idNumberMatch === true &&
+    qualityScore >= 0.45 &&
+    ocrConfidence >= 0.25
+  ) {
     reasons.push('The uploaded ID passed automated screening.');
     return {
       decision: 'PASS',
@@ -616,6 +703,17 @@ export async function screenSubmittedId(input: {
     throw new Error('Entered ID number format is invalid for the selected ID type.');
   }
 
+  const cacheKey = buildScreeningCacheKey({
+    idType: input.idType,
+    idNumber: normalizedEnteredIdNumber,
+    frontIdImage: input.frontIdImage,
+    backIdImage: input.backIdImage,
+  });
+  const cachedScreening = getCachedScreening(cacheKey);
+  if (cachedScreening) {
+    return cachedScreening;
+  }
+
   const [frontValidation, backValidation] = await Promise.all([
     validateBase64Image(input.frontIdImage, {
       fieldName: 'Front ID image',
@@ -647,7 +745,7 @@ export async function screenSubmittedId(input: {
     performOCRFromBase64Image(input.backIdImage, 'eng+fil'),
   ]);
 
-  return analyzeIdScreeningFromOcr(
+  const screening = analyzeIdScreeningFromOcr(
     buildScreeningInputFromOcr({
       idType: input.idType,
       idNumber: normalizedEnteredIdNumber,
@@ -657,4 +755,7 @@ export async function screenSubmittedId(input: {
       backOcr,
     }),
   );
+
+  cacheScreening(cacheKey, screening);
+  return screening;
 }

@@ -66,12 +66,50 @@ function getExpoRuntimeHost(): string | null {
     return null;
   }
 
-  const host = hostUri.split(':')[0];
-  if (!host || DEV_HOST_ALLOWLIST.has(host)) {
+  // Expo reports LAN hosts as either `192.168.x.x:port` or as a URL.
+  // Extract only the hostname and ignore tunnel/public hosts because they do
+  // not expose the locally-running API server on ports 3001/8000.
+  let host = '';
+  try {
+    const normalizedHostUri = /^https?:\/\//i.test(hostUri) ? hostUri : `http://${hostUri}`;
+    host = new URL(normalizedHostUri).hostname;
+  } catch {
+    host = hostUri.split(':')[0];
+  }
+
+  if (!host || DEV_HOST_ALLOWLIST.has(host) || !isPrivateIPv4(host)) {
     return null;
   }
 
   return host;
+}
+
+function useExpoLanHostInDevelopment(baseUrl: string): string {
+  if (!__DEV__) {
+    return baseUrl;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    return baseUrl;
+  }
+
+  const configuredHost = parsed.hostname;
+  const isLocalDevelopmentHost =
+    DEV_HOST_ALLOWLIST.has(configuredHost) || isPrivateIPv4(configuredHost);
+  if (!isLocalDevelopmentHost) {
+    return baseUrl;
+  }
+
+  const runtimeHost = getExpoRuntimeHost();
+  if (!runtimeHost || runtimeHost === configuredHost) {
+    return baseUrl;
+  }
+
+  parsed.hostname = runtimeHost;
+  return parsed.toString().replace(/\/+$/, '');
 }
 
 export function resolveDevApiFallbackUrl(baseUrl: string): string | null {

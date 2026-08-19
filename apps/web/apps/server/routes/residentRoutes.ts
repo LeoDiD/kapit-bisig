@@ -26,7 +26,10 @@ import {
 } from '../utils/mobileNumber';
 import { validateBase64Image } from '../validation/imageValidation';
 import { normalizeIdNumber, validateIdType } from '../utils/idVerification';
-import { persistVerificationImage } from '../utils/imageStorage';
+import {
+  persistVerificationImage,
+  readVerificationImageAsDataUrl,
+} from '../utils/imageStorage';
 import { createNotification } from '../utils/createNotification';
 
 const router = Router();
@@ -354,11 +357,29 @@ router.get('/', requireAuth, requireStaffOrSuperadmin, validateRequest({ query: 
     const limit = Math.min(rawLimit, 50);   // hard cap
     const skip = (page - 1) * limit;
 
-    const residents = await Resident.find(query)
-      .select('-password -frontIdImage -backIdImage -faceImage')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const residents = await Resident.aggregate([
+      { $match: query },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $set: {
+          proofUploads: {
+            frontId: { $gt: [{ $strLenCP: { $ifNull: ['$frontIdImage', ''] } }, 0] },
+            backId: { $gt: [{ $strLenCP: { $ifNull: ['$backIdImage', ''] } }, 0] },
+            face: { $gt: [{ $strLenCP: { $ifNull: ['$faceImage', ''] } }, 0] },
+          },
+        },
+      },
+      {
+        $project: {
+          password: 0,
+          frontIdImage: 0,
+          backIdImage: 0,
+          faceImage: 0,
+        },
+      },
+    ]);
     
     res.json({
       success: true,
@@ -573,10 +594,16 @@ router.get('/:id', requireAuth, requireStaffOrSuperadmin, validateRequest({ para
         });
       }
     }
-    
+    const record = resident.toObject();
+
     res.json({
       success: true,
-      data: resident,
+      data: {
+        ...record,
+        frontIdImage: readVerificationImageAsDataUrl(record.frontIdImage),
+        backIdImage: readVerificationImageAsDataUrl(record.backIdImage),
+        faceImage: readVerificationImageAsDataUrl(record.faceImage),
+      },
     });
   } catch (error) {
     console.error('[ResidentRoutes] Get resident error:', error);

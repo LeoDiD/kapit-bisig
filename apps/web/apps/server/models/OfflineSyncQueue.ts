@@ -19,6 +19,8 @@ export interface IOfflineSyncQueue extends Document {
   deviceId: string;
   payload: Record<string, unknown>;
   errorMessage?: string;
+  errorCode?: string;
+  retryable?: boolean;
   syncedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -92,6 +94,15 @@ const OfflineSyncQueueSchema = new Schema<IOfflineSyncQueue>(
     errorMessage: {
       type: String,
       default: '',
+    },
+    errorCode: {
+      type: String,
+      default: '',
+      index: true,
+    },
+    retryable: {
+      type: Boolean,
+      default: false,
     },
     syncedAt: {
       type: Date,

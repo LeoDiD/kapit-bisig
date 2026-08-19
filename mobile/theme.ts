@@ -100,3 +100,39 @@ export const theme = {
     },
   },
 };
+
+/**
+ * Resident-only semantic palette.
+ *
+ * Keep this separate from the global theme so the volunteer and authentication
+ * experiences can retain their existing brand treatment. Resident screens use
+ * dark ink for content, brand green for icons, and a soft green accent border
+ * around white interactive surfaces.
+ */
+export const residentTheme = {
+  colors: {
+    ink: '#111827',
+    inkSoft: '#1F2937',
+    secondary: '#6B7280',
+    muted: '#9CA3AF',
+    background: '#F7F7F5',
+    surface: '#FFFFFF',
+    surfaceMuted: '#FFFFFF',
+    border: '#A7D7B8',
+    divider: '#ECEDEF',
+    brand: '#16834B',
+    brandSoft: '#EAF6EF',
+    icon: '#16834B',
+    iconSurface: '#FFFFFF',
+    borderAccent: '#A7D7B8',
+    inverse: '#FFFFFF',
+    overlay: 'rgba(17, 24, 39, 0.56)',
+  },
+  shadow: {
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+} as const;

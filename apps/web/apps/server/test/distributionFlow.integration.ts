@@ -29,6 +29,21 @@ async function waitFor<T>(
   throw new Error(`Timed out waiting for ${label}`);
 }
 
+function futureManilaWindow(
+  startHour: number,
+  durationHours = 2,
+): { scheduled: string; endsAt: string } {
+  const manilaNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  const year = manilaNow.getUTCFullYear();
+  const month = manilaNow.getUTCMonth();
+  const day = manilaNow.getUTCDate() + 1;
+
+  return {
+    scheduled: new Date(Date.UTC(year, month, day, startHour - 8, 0, 0)).toISOString(),
+    endsAt: new Date(Date.UTC(year, month, day, startHour - 8 + durationHours, 0, 0)).toISOString(),
+  };
+}
+
 function buildResidentPayload(index: number, barangay: string): Record<string, unknown> {
   return {
     firstName: `Resident${index}`,
@@ -76,6 +91,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const { default: DistributionClaim } = await import('../models/DistributionClaim');
     const { default: BeneficiaryEligibility } = await import('../models/BeneficiaryEligibility');
     const { default: DisasterEvent } = await import('../models/DisasterEvent');
+    const { default: AuditLog } = await import('../models/AuditLog');
     const { syncResidentEnrollmentsForEvent } = await import('../services/distributionFlowService');
 
     const staff = await StaffUser.create({
@@ -105,13 +121,23 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       isActive: true,
     });
 
+    const unassignedStaff = await StaffUser.create({
+      email: 'staff-unassigned@example.com',
+      firstName: 'Unassigned',
+      lastName: 'Staff',
+      role: 'LGU_STAFF',
+      assignedBarangays: [],
+      isActive: true,
+    });
+
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
+      const role = req.header('x-test-role') === 'SUPERADMIN' ? 'SUPERADMIN' : 'LGU_STAFF';
       (req as any).authUser = {
-        role: 'LGU_STAFF',
+        role,
         userId: String(staff._id),
-        sub: 'integration-staff',
+        sub: role === 'SUPERADMIN' ? 'integration-superadmin' : 'integration-staff',
         assignedBarangays: ['Bolo', 'Bongalon', 'Dulig', 'San Jose'],
       };
       next();
@@ -150,13 +176,19 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       },
     ]);
 
+    const firstWindow = futureManilaWindow(9);
+    const splitWindow = futureManilaWindow(12);
+    const insufficientWindow = futureManilaWindow(15);
+    const secondWindow = futureManilaWindow(17);
+
     const createResponse = await request(app)
       .post('/api/distributions')
       .send({
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
         assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
-        scheduled: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        scheduled: firstWindow.scheduled,
+        endsAt: firstWindow.endsAt,
         assignedStaffIds: [String(staff._id)],
         notes: 'integration test',
       });
@@ -200,24 +232,25 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
         assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
-        scheduled: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        scheduled: splitWindow.scheduled,
+        endsAt: splitWindow.endsAt,
         assignedStaffIds: [String(splitStaffA._id), String(splitStaffB._id)],
         notes: 'split coverage test',
       });
     assert.strictEqual(splitCoverageCreate.status, 201);
 
-    const insufficientCoverageCreate = await request(app)
+    const unassignedStaffCreate = await request(app)
       .post('/api/distributions')
       .send({
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
         assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
-        scheduled: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-        assignedStaffIds: [String(splitStaffA._id)],
-        notes: 'insufficient coverage test',
+        scheduled: insufficientWindow.scheduled,
+        endsAt: insufficientWindow.endsAt,
+        assignedStaffIds: [String(unassignedStaff._id)],
+        notes: 'staff barangay assignment is not required',
       });
-    assert.strictEqual(insufficientCoverageCreate.status, 400);
-    assert.strictEqual(insufficientCoverageCreate.body?.code, 'INSUFFICIENT_SCOPE_COVERAGE');
+    assert.strictEqual(unassignedStaffCreate.status, 201);
 
     async function createTokenForResident(plainToken: string, resident: any): Promise<void> {
       await HouseholdToken.create({
@@ -247,6 +280,21 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     await createTokenForResident('LATE-3333-DDDD', lateApprovedResident);
     await createTokenForResident('ZZZZ-1111-AAAA', resA);
     await createTokenForResident('BBBB-2222-CCCC', resA);
+
+    await Distribution.findByIdAndUpdate(distributionId, {
+      scheduled: new Date(Date.now() - 5 * 60 * 1000),
+      endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+    });
+
+    const activeList = await request(app).get('/api/distributions?view=active');
+    assert.strictEqual(activeList.status, 200);
+    assert.ok(activeList.body?.data?.some((item: any) => item.id === distributionId));
+
+    const archiveActive = await request(app)
+      .patch(`/api/distributions/${distributionId}/archive`)
+      .set('x-test-role', 'SUPERADMIN');
+    assert.strictEqual(archiveActive.status, 409);
+    assert.strictEqual(archiveActive.body?.code, 'DISTRIBUTION_NOT_COMPLETED');
 
     const householdsResponse = await request(app)
       .get(`/api/distributions/${distributionId}/households`);
@@ -298,13 +346,19 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
         assignedBarangays: ['Bongalon', 'Dulig', 'San Jose'],
-        scheduled: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        scheduled: secondWindow.scheduled,
+        endsAt: secondWindow.endsAt,
         assignedStaffIds: [String(staff._id)],
         notes: 'second distribution test',
       });
     assert.strictEqual(secondDistributionResponse.status, 201);
     const secondDistributionId = secondDistributionResponse.body?.data?.id as string;
     assert.ok(secondDistributionId);
+
+    await Distribution.findByIdAndUpdate(secondDistributionId, {
+      scheduled: new Date(Date.now() - 5 * 60 * 1000),
+      endsAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+    });
 
     const claimFromAutomaticEnrollment = await request(app)
       .post('/api/claims/record-claim')
@@ -338,6 +392,54 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         distributionSite: 'Bolo Covered Court',
       });
     assert.strictEqual(duplicateWithSameKey.status, 200);
+
+    await Distribution.findByIdAndUpdate(distributionId, {
+      scheduled: new Date(Date.now() - 3 * 60 * 60 * 1000),
+      endsAt: new Date(Date.now() - 60 * 60 * 1000),
+    });
+
+    const staffArchive = await request(app)
+      .patch(`/api/distributions/${distributionId}/archive`);
+    assert.strictEqual(staffArchive.status, 403);
+
+    const archiveCompleted = await request(app)
+      .patch(`/api/distributions/${distributionId}/archive`)
+      .set('x-test-role', 'SUPERADMIN');
+    assert.strictEqual(archiveCompleted.status, 200);
+    assert.strictEqual(archiveCompleted.body?.data?.lifecycleStatus, 'Archived');
+
+    const archivedList = await request(app).get('/api/distributions?view=archived');
+    assert.strictEqual(archivedList.status, 200);
+    assert.ok(archivedList.body?.data?.some((item: any) => item.id === distributionId));
+
+    const currentListAfterArchive = await request(app).get('/api/distributions?view=current');
+    assert.strictEqual(currentListAfterArchive.status, 200);
+    assert.ok(!currentListAfterArchive.body?.data?.some((item: any) => item.id === distributionId));
+
+    const claimArchived = await request(app)
+      .post('/api/claims/record-claim')
+      .send({
+        claimToken: 'BBBB-2222-CCCC',
+        distributionId,
+        distributionSite: 'Bolo Covered Court',
+      });
+    assert.strictEqual(claimArchived.status, 409);
+    assert.strictEqual(
+      await DistributionClaim.countDocuments({ distributionId: new mongoose.Types.ObjectId(distributionId) }),
+      3,
+    );
+    assert.ok(await AuditLog.exists({ action: 'DISTRIBUTION_ARCHIVED', entityId: distributionId }));
+
+    const restoreArchived = await request(app)
+      .patch(`/api/distributions/${distributionId}/restore`)
+      .set('x-test-role', 'SUPERADMIN');
+    assert.strictEqual(restoreArchived.status, 200);
+    assert.strictEqual(restoreArchived.body?.data?.lifecycleStatus, 'Completed');
+    assert.ok(await AuditLog.exists({ action: 'DISTRIBUTION_RESTORED', entityId: distributionId }));
+
+    const completedList = await request(app).get('/api/distributions?view=completed');
+    assert.strictEqual(completedList.status, 200);
+    assert.ok(completedList.body?.data?.some((item: any) => item.id === distributionId));
 
   } finally {
     await mongoose.disconnect();

@@ -4,6 +4,7 @@
 
 import { z } from 'zod';
 import { barangayEnum, objectId } from './shared';
+import { manilaDateParts } from '../utils/distributionLifecycle';
 
 /* POST /api/distributions — create */
 export const createDistributionBody = z.object({
@@ -13,6 +14,7 @@ export const createDistributionBody = z.object({
     .min(2, 'Select at least 2 assigned barangays')
     .max(4, 'Select up to 4 assigned barangays'),
   scheduled: z.string().min(1, 'Scheduled date is required').max(50),
+  endsAt: z.string().min(1, 'Distribution end time is required').max(50),
   assignedStaffIds: z.array(objectId)
     .min(1, 'Select at least 1 staff member'),
   notes: z.string().max(2000).optional().default(''),
@@ -43,6 +45,7 @@ export const createDistributionBody = z.object({
   }
 
   const scheduledAt = new Date(data.scheduled);
+  const endsAt = new Date(data.endsAt);
   const minAllowed = Date.now() + 5 * 60 * 1000;
   if (Number.isNaN(scheduledAt.getTime())) {
     ctx.addIssue({
@@ -56,6 +59,46 @@ export const createDistributionBody = z.object({
       path: ['scheduled'],
       message: 'Scheduled date/time must be at least 5 minutes from now',
     });
+  } else {
+    const start = manilaDateParts(scheduledAt);
+    const startOutsideHours = start.hour < 6 || start.hour >= 20;
+    if (startOutsideHours) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduled'],
+        message: 'Scheduled time must start at or after 6:00 AM and before 8:00 PM Asia/Manila',
+      });
+    }
+  }
+
+  if (Number.isNaN(endsAt.getTime())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endsAt'],
+      message: 'Distribution end time is invalid',
+    });
+  } else if (!Number.isNaN(scheduledAt.getTime())) {
+    const start = manilaDateParts(scheduledAt);
+    const end = manilaDateParts(endsAt);
+    if (endsAt.getTime() <= scheduledAt.getTime()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endsAt'],
+        message: 'Distribution end time must be after the start time',
+      });
+    } else if (start.year !== end.year || start.month !== end.month || start.day !== end.day) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endsAt'],
+        message: 'Distribution must start and end on the same day',
+      });
+    } else if (end.hour > 20 || (end.hour === 20 && end.minute > 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['endsAt'],
+        message: 'Distribution must end by 8:00 PM Asia/Manila',
+      });
+    }
   }
 });
 

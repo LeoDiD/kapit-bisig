@@ -109,6 +109,7 @@ export interface DistributionData {
   assignedBarangays?: string[];
   assignedStaffIds?: string[];
   scheduled: string;
+  endsAt: string | null;
   households: number;
   notes?: string;
   requiresBeneficiaryApproval?: boolean;
@@ -116,6 +117,9 @@ export interface DistributionData {
   claimedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
+  lifecycleStatus?: 'Upcoming' | 'Active' | 'Completed' | 'Archived';
   registeredHouseholds?: number;
   claimedHouseholds?: number;
 }
@@ -236,6 +240,11 @@ export interface ResidentRecord {
   frontIdImage?: string;
   backIdImage?: string;
   faceImage?: string;
+  proofUploads?: {
+    frontId: boolean;
+    backId: boolean;
+    face: boolean;
+  };
   status: 'Pending' | 'Approved' | 'Needs Revision' | 'Rejected';
   rejectionReason?: string;
   verifiedBy?: string;
@@ -289,6 +298,7 @@ export interface BeneficiaryProofSubmissionRecord {
   photoProofUrls?: string[];
   status: 'Pending Verification' | 'Approved' | 'Rejected';
   submissionVersion: number;
+  syncSource?: 'ONLINE' | 'OFFLINE_SYNC';
   rejectionReason?: string;
   reviewedBy?: string;
   reviewedAt?: string | null;
@@ -479,8 +489,11 @@ export const api = {
   /**
    * Get all distributions
    */
-  async getDistributions(): Promise<ApiResponse<DistributionData[]>> {
-    const response = await fetch(`${API_URL}/distributions`, {
+  async getDistributions(params?: {
+    view?: 'current' | 'upcoming' | 'active' | 'completed' | 'archived' | 'all';
+  }): Promise<ApiResponse<DistributionData[]>> {
+    const query = params?.view ? `?view=${encodeURIComponent(params.view)}` : '';
+    const response = await fetch(`${API_URL}/distributions${query}`, {
       headers: createHeaders(),
       credentials: 'include',
     });
@@ -496,6 +509,7 @@ export const api = {
     assignedBarangays: string[];
     assignedStaffIds: string[];
     scheduled: string;
+    endsAt: string;
     notes?: string;
   }, options?: { idempotencyKey?: string }): Promise<ApiResponse<DistributionData>> {
     const headers = createHeaders('POST') as Record<string, string>;
@@ -638,6 +652,24 @@ export const api = {
       credentials: 'include',
     });
     return handleResponse<ApiResponse<ResidentRecord[]>>(response);
+  },
+
+  async archiveDistribution(id: string): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions/${id}/archive`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
+  },
+
+  async restoreDistribution(id: string): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions/${id}/restore`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
   },
 
   /**

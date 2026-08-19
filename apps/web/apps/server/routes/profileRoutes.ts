@@ -33,9 +33,6 @@ function hasCoverage(scopes: string[], targets: string[]): boolean {
   return targets.every((target) => scopes.includes(target));
 }
 
-function hasAnyCoverage(scopes: string[], targets: string[]): boolean {
-  return scopes.some((scope) => targets.includes(scope));
-}
 
 function normalizeScope(targets: string[]): string[] {
   return Array.from(new Set(targets.filter(Boolean)));
@@ -547,7 +544,7 @@ router.get(
             ? candidate.assignedBarangays
             : []);
           const coveredBarangays = requestedScope.filter((barangay) => scopes.includes(barangay));
-          const inScope = hasAnyCoverage(scopes, requestedScope);
+          const inScope = coveredBarangays.length > 0;
           return {
             id: candidate._id.toString(),
             fullName: `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim(),
@@ -558,9 +555,8 @@ router.get(
           };
         })
         .filter((candidate) =>
-          req.authUser?.role === 'LGU_STAFF'
-            ? candidate.inScope && hasCoverage(requesterScope, candidate.scopesSummary)
-            : candidate.inScope
+          req.authUser?.role !== 'LGU_STAFF' ||
+          hasCoverage(requesterScope, candidate.scopesSummary)
         );
 
       const paged = items.slice(cursor, cursor + limit);

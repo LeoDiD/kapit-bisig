@@ -1,6 +1,15 @@
 import { resolveApiBaseUrl } from '../config/apiSecurity';
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
+import {
+  getStableProofDeviceId,
+  listOfflineProofRecords,
+  persistProofPhoto,
+  putOfflineProofRecord,
+  removeOfflineProofRecord,
+  updateOfflineProofRecord,
+  type OfflineProofRecord,
+} from '../sync/ResidentOfflineStore';
 
 const API_BASE_URL = resolveApiBaseUrl(
   process.env.EXPO_PUBLIC_API_URL,
@@ -12,7 +21,6 @@ const STORAGE_KEYS = {
   RESIDENT_TOKEN: 'kapitbisigresidenttoken',
   RESIDENT_SESSION: 'kapitbisigresidentsession',
 } as const;
-const PROOF_QUEUE_FILE = `${FileSystem.documentDirectory || ''}resident-proof-sync-queue.json`;
 
 export interface ResidentSession {
   token: string;
@@ -74,11 +82,13 @@ export interface ResidentDistributionItem {
   barangay: string;
   assignedBarangays?: string[];
   scheduled?: string;
+  endsAt?: string;
   notes?: string;
   status?: string;
   createdAt?: string;
   residentClaimed?: boolean;
   residentClaimStatus?: string | null;
+  lifecycleStatus?: 'Upcoming' | 'Active' | 'Completed' | 'Archived';
 }
 
 export interface ResidentNotificationItem {
@@ -150,6 +160,23 @@ export type ResidentQueuedProofSubmission = ResidentProofSubmissionPayload & {
   lastError?: string;
 };
 
+export interface ResidentOfflineProofSubmissionInput {
+  disasterEventId: string;
+  eventSnapshot: {
+    name: string;
+    disasterType: string;
+    submissionDeadline?: string | null;
+  };
+  damageType: ResidentProofSubmissionPayload['damageType'];
+  description: string;
+  supportingInfo?: string;
+  dateSubmitted: string;
+  photoUris: string[];
+  clientGeneratedId: string;
+}
+
+export type ApiFailureKind = 'AUTH' | 'NETWORK' | 'RATE_LIMIT' | 'SERVER' | 'VALIDATION';
+
 export interface ResidentProofSubmissionStatus {
   id: string;
   status: 'Pending Sync' | 'Pending Verification' | 'Approved' | 'Rejected';
@@ -173,6 +200,7 @@ interface ApiResponse<T> {
   message?: string;
   code?: string;
   errorCode?: string;
+  retryAfter?: string | number;
   data?: T;
 }
 
@@ -295,7 +323,15 @@ export async function clearResidentSession(): Promise<void> {
   ]);
 }
 
-export async function fetchResidentQr(token: string): Promise<{ success: boolean; message?: string; data?: ResidentQrData }> {
+export async function fetchResidentQr(token: string): Promise<{
+  success: boolean;
+  message?: string;
+  data?: ResidentQrData;
+  status?: number;
+  code?: string;
+  failureKind?: ApiFailureKind;
+  retryAfter?: string;
+}> {
   try {
     const response = await fetch(`${API_BASE_URL}/household/qr/me`, {
       method: 'GET',
@@ -313,11 +349,24 @@ export async function fetchResidentQr(token: string): Promise<{ success: boolean
         return {
           success: false,
           message: 'Your registration is pending approval. QR generation is disabled until approved.',
+          status: response.status,
+          code: responseCode,
+          failureKind: 'VALIDATION',
         };
       }
       return {
         success: false,
         message: payload.message || 'Failed to load QR data.',
+        status: response.status,
+        code: responseCode,
+        failureKind: response.status === 401
+          ? 'AUTH'
+          : response.status === 429
+            ? 'RATE_LIMIT'
+            : response.status >= 500
+              ? 'SERVER'
+              : 'VALIDATION',
+        retryAfter: String(payload.retryAfter || response.headers.get('Retry-After') || '') || undefined,
       };
     }
 
@@ -335,13 +384,21 @@ export async function fetchResidentQr(token: string): Promise<{ success: boolean
     return {
       success: false,
       message: 'Network error while fetching QR.',
+      failureKind: 'NETWORK',
     };
   }
 }
 
 export async function fetchResidentProfile(
   token: string
-): Promise<{ success: boolean; message?: string; data?: ResidentProfile }> {
+): Promise<{
+  success: boolean;
+  message?: string;
+  data?: ResidentProfile;
+  status?: number;
+  code?: string;
+  failureKind?: ApiFailureKind;
+}> {
   try {
     const response = await fetch(`${API_BASE_URL}/household/auth/me`, {
       method: 'GET',
@@ -356,6 +413,13 @@ export async function fetchResidentProfile(
       return {
         success: false,
         message: payload.message || 'Failed to fetch resident profile.',
+        status: response.status,
+        code: payload.code || payload.errorCode,
+        failureKind: response.status === 401
+          ? 'AUTH'
+          : response.status >= 500
+            ? 'SERVER'
+            : 'VALIDATION',
       };
     }
 
@@ -370,6 +434,7 @@ export async function fetchResidentProfile(
     return {
       success: false,
       message: 'Network error while fetching profile.',
+      failureKind: 'NETWORK',
     };
   }
 }
@@ -486,9 +551,31 @@ export async function fetchResidentDistributions(
       };
     }
 
+    const now = Date.now();
+    const visible = payload.data
+      .filter((item) => {
+        if (item.lifecycleStatus === 'Archived' || item.lifecycleStatus === 'Completed') return false;
+        if (item.endsAt) {
+          const end = new Date(item.endsAt).getTime();
+          return !Number.isNaN(end) && end >= now;
+        }
+        if (!item.scheduled) return false;
+        const start = new Date(item.scheduled);
+        if (Number.isNaN(start.getTime())) return false;
+        const legacyEnd = new Date(start);
+        legacyEnd.setHours(20, 0, 0, 0);
+        return legacyEnd.getTime() >= now;
+      })
+      .sort((left, right) => {
+        const leftActive = left.lifecycleStatus === 'Active' ? 0 : 1;
+        const rightActive = right.lifecycleStatus === 'Active' ? 0 : 1;
+        if (leftActive !== rightActive) return leftActive - rightActive;
+        return new Date(left.scheduled || 0).getTime() - new Date(right.scheduled || 0).getTime();
+      });
+
     return {
       success: true,
-      data: payload.data,
+      data: visible,
     };
   } catch {
     return {
@@ -612,7 +699,14 @@ export async function markResidentNotificationRead(
 
 export async function fetchActiveBeneficiaryEvent(
   token: string
-): Promise<{ success: boolean; message?: string; data?: ResidentDisasterEvent | null }> {
+): Promise<{
+  success: boolean;
+  message?: string;
+  data?: ResidentDisasterEvent | null;
+  status?: number;
+  code?: string;
+  failureKind?: ApiFailureKind;
+}> {
   try {
     const response = await fetch(`${API_BASE_URL}/beneficiaries/events/active`, {
       method: 'GET',
@@ -627,6 +721,13 @@ export async function fetchActiveBeneficiaryEvent(
       return {
         success: false,
         message: payload.message || 'Failed to load the active disaster event.',
+        status: response.status,
+        code: payload.code || payload.errorCode,
+        failureKind: response.status === 401
+          ? 'AUTH'
+          : response.status >= 500
+            ? 'SERVER'
+            : 'VALIDATION',
       };
     }
 
@@ -638,6 +739,7 @@ export async function fetchActiveBeneficiaryEvent(
     return {
       success: false,
       message: 'Network error while loading the active disaster event.',
+      failureKind: 'NETWORK',
     };
   }
 }
@@ -645,7 +747,14 @@ export async function fetchActiveBeneficiaryEvent(
 export async function fetchResidentProofSubmissionStatus(
   token: string,
   disasterEventId: string,
-): Promise<{ success: boolean; message?: string; data?: ResidentProofSubmissionStatus | null }> {
+): Promise<{
+  success: boolean;
+  message?: string;
+  data?: ResidentProofSubmissionStatus | null;
+  status?: number;
+  code?: string;
+  failureKind?: ApiFailureKind;
+}> {
   try {
     const query = encodeURIComponent(disasterEventId);
     const response = await fetch(`${API_BASE_URL}/beneficiaries/proof-submissions/me?disasterEventId=${query}`, {
@@ -657,11 +766,21 @@ export async function fetchResidentProofSubmissionStatus(
     });
     const payload = await parseApiResponse<ResidentProofSubmissionStatus | null>(response);
     if (!response.ok || !payload.success) {
-      return { success: false, message: payload.message || 'Failed to load proof status.' };
+      return {
+        success: false,
+        message: payload.message || 'Failed to load proof status.',
+        status: response.status,
+        code: payload.code || payload.errorCode,
+        failureKind: response.status === 401
+          ? 'AUTH'
+          : response.status >= 500
+            ? 'SERVER'
+            : 'VALIDATION',
+      };
     }
     return { success: true, data: payload.data ?? null };
   } catch {
-    return { success: false, message: 'Network error while loading proof status.' };
+    return { success: false, message: 'Network error while loading proof status.', failureKind: 'NETWORK' };
   }
 }
 
@@ -697,69 +816,117 @@ export async function fetchOpenBeneficiaryDistributions(
   }
 }
 
-export async function submitResidentProofSubmission(
-  token: string,
-  payload: ResidentProofSubmissionPayload
-): Promise<{ success: boolean; message?: string; queued?: boolean }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/beneficiaries/proof-submissions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const parsed = await parseApiResponse<unknown>(response);
-    if (!response.ok || !parsed.success) {
-      return {
-        success: false,
-        message: parsed.message || 'Failed to submit disaster proof.',
-      };
-    }
-
-    return {
-      success: true,
-      queued: false,
-      message: parsed.message || 'Disaster proof submitted successfully.',
-    };
-  } catch {
-    const queue = await readProofQueue();
-    queue.push({
-      ...payload,
-      deviceId: payload.deviceId || buildProofDeviceId(),
-      queuedAt: new Date().toISOString(),
-      syncStatus: 'Pending Sync',
-    });
-    await writeProofQueue(queue);
-
-    return {
-      success: true,
-      queued: true,
-      message: 'No internet connection. The request was saved and will sync automatically.',
-    };
-  }
+async function proofPhotoToDataUrl(uri: string, mimeType: string): Promise<string> {
+  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+  return `data:${mimeType};base64,${base64}`;
 }
 
-export async function getQueuedResidentProofSubmissions(): Promise<ResidentQueuedProofSubmission[]> {
-  return readProofQueue();
+export async function submitResidentProofSubmission(
+  token: string,
+  residentId: string,
+  input: ResidentOfflineProofSubmissionInput,
+): Promise<{ success: boolean; message?: string; queued: boolean; needsAttention?: boolean }> {
+  const deviceId = await getStableProofDeviceId();
+  const photos = await Promise.all(input.photoUris.map((uri) => persistProofPhoto(residentId, uri)));
+  const record: OfflineProofRecord = {
+    schemaVersion: 1,
+    ownerResidentId: residentId,
+    clientGeneratedId: input.clientGeneratedId,
+    deviceId,
+    disasterEventId: input.disasterEventId,
+    eventSnapshot: input.eventSnapshot,
+    damageType: input.damageType,
+    description: input.description,
+    supportingInfo: input.supportingInfo,
+    dateSubmitted: input.dateSubmitted,
+    photos,
+    queuedAt: new Date().toISOString(),
+    attemptCount: 0,
+    status: 'PENDING_SYNC',
+  };
+
+  // Durable first: a process interruption or lost server response cannot lose the proof.
+  await putOfflineProofRecord(record);
+  const result = await syncQueuedResidentProofSubmissions(token, residentId);
+  const remaining = await listOfflineProofRecords(residentId);
+  const saved = remaining.find((item) => item.clientGeneratedId === input.clientGeneratedId);
+
+  if (!saved) {
+    return { success: true, queued: false, message: 'Disaster proof submitted successfully.' };
+  }
+
+  return {
+    success: true,
+    queued: true,
+    needsAttention: saved.status === 'NEEDS_ATTENTION',
+    message: saved.status === 'NEEDS_ATTENTION'
+      ? saved.lastError || 'The proof was saved, but it needs your attention before it can sync.'
+      : result.authRequired
+        ? 'Your proof is safe on this device. Sign in again to sync it.'
+        : 'The proof was saved on this device and will sync when a connection is available.',
+  };
+}
+
+export async function getQueuedResidentProofSubmissions(residentId: string): Promise<OfflineProofRecord[]> {
+  return listOfflineProofRecords(residentId);
+}
+
+export async function discardQueuedResidentProofSubmission(
+  residentId: string,
+  clientGeneratedId: string,
+): Promise<void> {
+  await removeOfflineProofRecord(residentId, clientGeneratedId, true);
+}
+
+export async function takeQueuedResidentProofSubmissionForEditing(
+  residentId: string,
+  clientGeneratedId: string,
+): Promise<void> {
+  await removeOfflineProofRecord(residentId, clientGeneratedId, false);
+}
+
+export async function retryQueuedResidentProofSubmission(
+  residentId: string,
+  clientGeneratedId: string,
+): Promise<void> {
+  await updateOfflineProofRecord(residentId, clientGeneratedId, {
+    status: 'PENDING_SYNC',
+    lastError: undefined,
+    errorCode: undefined,
+  });
 }
 
 export async function syncQueuedResidentProofSubmissions(
-  token: string
-): Promise<{ success: boolean; syncedCount: number; failedCount: number; message?: string }> {
-  const queue = await readProofQueue();
-  if (queue.length === 0) {
-    return { success: true, syncedCount: 0, failedCount: 0 };
-  }
+  token: string,
+  residentId: string,
+): Promise<{
+  success: boolean;
+  syncedCount: number;
+  failedCount: number;
+  authRequired?: boolean;
+  message?: string;
+}> {
+  const queue = await listOfflineProofRecords(residentId);
+  if (queue.length === 0) return { success: true, syncedCount: 0, failedCount: 0 };
 
   let syncedCount = 0;
   let failedCount = 0;
-  const remainingQueue: ResidentQueuedProofSubmission[] = [];
+  let authRequired = false;
 
   for (const item of queue) {
+    if (item.ownerResidentId !== residentId || item.status === 'NEEDS_ATTENTION') continue;
+
+    const attemptAt = new Date().toISOString();
+    await updateOfflineProofRecord(residentId, item.clientGeneratedId, {
+      status: 'SYNCING',
+      lastAttemptAt: attemptAt,
+      attemptCount: item.attemptCount + 1,
+    });
+
     try {
+      const photoProofs = await Promise.all(
+        item.photos.map((photo) => proofPhotoToDataUrl(photo.uri, photo.mimeType)),
+      );
       const response = await fetch(`${API_BASE_URL}/beneficiaries/sync/proof-submissions`, {
         method: 'POST',
         headers: {
@@ -767,99 +934,75 @@ export async function syncQueuedResidentProofSubmissions(
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          deviceId: item.deviceId || buildProofDeviceId(),
+          deviceId: item.deviceId,
           submissions: [{
             clientGeneratedId: item.clientGeneratedId,
-            distributionId: item.distributionId,
             disasterEventId: item.disasterEventId,
             damageType: item.damageType,
             description: item.description,
             supportingInfo: item.supportingInfo,
             dateSubmitted: item.dateSubmitted,
-            photoProofs: item.photoProofs,
+            photoProofs,
           }],
         }),
       });
-
       const parsed = await parseApiResponse<{
-        synced?: Array<{ clientGeneratedId: string; syncStatus: 'Synced' | 'Failed'; error?: string }>;
+        synced?: Array<{
+          clientGeneratedId: string;
+          syncStatus: 'Synced' | 'Failed';
+          error?: string;
+          errorCode?: string;
+          retryable?: boolean;
+        }>;
       }>(response);
 
-      const syncResult = parsed.data?.synced?.[0];
-
-      if (response.ok && parsed.success && syncResult?.syncStatus === 'Synced') {
-        syncedCount++;
-        // Successfully synced -> removed from queue
-      } else {
-        const errorMsg = syncResult?.error || parsed.message || 'Sync failed.';
-        const status = response.status;
-
-        // Determine if this is a permanent validation/business-logic failure
-        const isPermanent =
-          status === 400 || // Validation error (Zod schema validation)
-          status === 403 || // Forbidden (e.g. REGISTRATION_NOT_APPROVED, RESIDENT_OUT_OF_SCOPE)
-          status === 409 || // Conflict (e.g. PROOF_ALREADY_APPROVED, SUBMISSION_WINDOW_CLOSED, EVENT_NOT_ACTIVE)
-          errorMsg.includes('APPROVED') ||
-          errorMsg.includes('ACTIVE') ||
-          errorMsg.includes('OUT_OF_SCOPE') ||
-          errorMsg.includes('LIMIT');
-
-        if (isPermanent) {
-          console.warn(`[Sync] Discarding invalid submission ${item.clientGeneratedId} due to permanent error:`, errorMsg);
-          failedCount++;
-          // Removed from queue to prevent head-of-line blocking (not added to remainingQueue)
-        } else {
-          remainingQueue.push({
-            ...item,
-            syncStatus: 'Failed' as const,
-            lastError: errorMsg,
-          });
-          failedCount++;
-        }
+      if (response.status === 401) {
+        authRequired = true;
+        failedCount++;
+        await updateOfflineProofRecord(residentId, item.clientGeneratedId, {
+          status: 'PENDING_SYNC',
+          lastError: parsed.message || 'Sign in again to sync this proof.',
+          errorCode: parsed.code || 'AUTH_REQUIRED',
+        });
+        continue;
       }
-    } catch (error) {
-      console.warn(`[Sync] Network error syncing submission ${item.clientGeneratedId}:`, error);
-      remainingQueue.push({
-        ...item,
-        syncStatus: 'Failed' as const,
-        lastError: 'Network connection failed.',
-      });
+
+      const syncResult = parsed.data?.synced?.[0];
+      if (response.ok && parsed.success && syncResult?.syncStatus === 'Synced') {
+        await removeOfflineProofRecord(residentId, item.clientGeneratedId, true);
+        syncedCount++;
+        continue;
+      }
+
+      const retryableHttp = response.status === 408 || response.status === 429 || response.status >= 500;
+      const retryable = syncResult?.retryable ?? retryableHttp;
       failedCount++;
+      await updateOfflineProofRecord(residentId, item.clientGeneratedId, {
+        status: retryable ? 'PENDING_SYNC' : 'NEEDS_ATTENTION',
+        lastError: syncResult?.error || parsed.message || 'Unable to sync this proof.',
+        errorCode: syncResult?.errorCode || parsed.code || `HTTP_${response.status}`,
+      });
+    } catch (error) {
+      failedCount++;
+      await updateOfflineProofRecord(residentId, item.clientGeneratedId, {
+        status: 'PENDING_SYNC',
+        lastError: error instanceof Error ? error.message : 'Network connection failed.',
+        errorCode: 'NETWORK_ERROR',
+      });
     }
   }
 
-  await writeProofQueue(remainingQueue);
-
   return {
-    success: true,
+    success: !authRequired,
     syncedCount,
     failedCount,
-    message: remainingQueue.length > 0
-      ? 'Some saved proof requests still need connection to sync.'
-      : 'Queued proof requests synced successfully.',
+    authRequired,
+    message: syncedCount > 0
+      ? `${syncedCount} saved proof request${syncedCount === 1 ? '' : 's'} synced.`
+      : failedCount > 0
+        ? 'Saved proof requests remain safely on this device.'
+        : undefined,
   };
-}
-
-async function readProofQueue(): Promise<ResidentQueuedProofSubmission[]> {
-  try {
-    const file = await FileSystem.readAsStringAsync(PROOF_QUEUE_FILE, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-    const parsed = JSON.parse(file);
-    return Array.isArray(parsed) ? (parsed as ResidentQueuedProofSubmission[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function writeProofQueue(queue: ResidentQueuedProofSubmission[]): Promise<void> {
-  await FileSystem.writeAsStringAsync(PROOF_QUEUE_FILE, JSON.stringify(queue), {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
-}
-
-function buildProofDeviceId(): string {
-  return `resident-proof-device-${Date.now()}`;
 }
 
 export async function residentForgotPasswordSendOtp(

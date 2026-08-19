@@ -9,6 +9,7 @@ import { submitResidentProof } from '../services/beneficiaryService';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kapit-bisig';
 const DEMO_BARANGAY = 'Bolo';
+const DEMO_EVENT_BARANGAYS = ['Bolo', 'Bongalon', 'Dulig', 'San Jose'];
 const DEMO_EVENT_NAME = 'Target Beneficiary UI Demo Event';
 const DEMO_IMAGE =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WnPZXcAAAAASUVORK5CYII=';
@@ -21,11 +22,12 @@ function buildDemoMobile(seed: number): string {
 async function ensureDemoEvent(): Promise<IDisasterEvent> {
   const existing = await DisasterEvent.findOne({ name: DEMO_EVENT_NAME });
   if (existing) {
+    existing.barangays = [...DEMO_EVENT_BARANGAYS];
     if (existing.status !== 'Active') {
       existing.status = 'Active';
       existing.submissionDeadline = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
-      await existing.save();
     }
+    await existing.save();
     return existing;
   }
 
@@ -33,7 +35,7 @@ async function ensureDemoEvent(): Promise<IDisasterEvent> {
     name: DEMO_EVENT_NAME,
     disasterType: 'Typhoon',
     description: 'Demo event seeded for Target Beneficiaries UI review.',
-    barangays: [DEMO_BARANGAY],
+    barangays: [...DEMO_EVENT_BARANGAYS],
     eventDate: new Date(),
     submissionDeadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
     status: 'Active',

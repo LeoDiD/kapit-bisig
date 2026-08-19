@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, DisasterEventRecord, ScanEligibleUser } from '../../lib/api'
-import { useAuth } from '@/lib/AuthContext'
+
 
 export type CreateDistributionPayload = {
   disasterEventId: string
@@ -11,6 +11,7 @@ export type CreateDistributionPayload = {
   assignedBarangays: string[]
   assignedStaffIds: string[]
   scheduled: string
+  endsAt: string
   notes?: string
 }
 
@@ -19,6 +20,7 @@ type StepFieldErrors = {
   barangay?: string
   assignedBarangays?: string
   scheduled?: string
+  endsAt?: string
   notes?: string
   assignedStaffIds?: string
   global?: string
@@ -56,7 +58,7 @@ const STEP_DETAILS = {
   4: {
     eyebrow: 'Step 4 of 4',
     title: 'Assign staff and volunteers',
-    description: 'Pick a team whose combined coverage matches the host and all beneficiary barangays for this distribution.',
+    description: 'Pick one or more active staff members. They do not need to cover the selected distribution barangays.',
   },
 } as const
 
@@ -80,8 +82,6 @@ export default function NewDistributionModal({
   onCreate: (payload: CreateDistributionPayload) => void | Promise<void>
   barangayOptions: string[]
 }) {
-  const { user } = useAuth()
-  const isLguStaff = user?.role === 'LGU_STAFF'
 
   const [step, setStep] = useState(1)
   const [disasterEventId, setDisasterEventId] = useState('')
@@ -93,6 +93,7 @@ export default function NewDistributionModal({
   const [isCreating, setIsCreating] = useState(false)
 
   const [scheduled, setScheduled] = useState('')
+  const [endsAt, setEndsAt] = useState('')
   const [notes, setNotes] = useState('')
 
   const [errors, setErrors] = useState<StepFieldErrors>({})
@@ -113,6 +114,7 @@ export default function NewDistributionModal({
     setAssignedBarangays([])
     setAssignedStaffIds([])
     setScheduled('')
+    setEndsAt('')
     setNotes('')
     setErrors({})
     setStaffQuery('')
@@ -132,7 +134,6 @@ export default function NewDistributionModal({
     return () => clearTimeout(timer)
   }, [staffQuery])
 
-  const targetScope = useMemo(() => [barangay, ...assignedBarangays], [barangay, assignedBarangays])
   const scheduleMinLocal = useMemo(() => {
     const minDate = new Date(Date.now() + SCHEDULE_MIN_LEAD_MINUTES * 60 * 1000)
     return formatDateTimeLocal(minDate)
@@ -150,11 +151,21 @@ export default function NewDistributionModal({
     () => activeEvents.find((event) => (event.id || event._id) === disasterEventId) ?? null,
     [activeEvents, disasterEventId],
   )
-  const availableBarangays = useMemo(
+  const availableHostBarangays = useMemo(
     () => selectedEvent
       ? barangayOptions.filter((option) => selectedEvent.barangays.includes(option))
       : [],
     [barangayOptions, selectedEvent],
+  )
+  const availableCoverageBarangays = useMemo(
+    () => selectedEvent
+      ? Array.from(new Set(selectedEvent.barangays.filter(Boolean)))
+      : [],
+    [selectedEvent],
+  )
+  const additionalBarangayOptions = useMemo(
+    () => availableCoverageBarangays.filter((option) => option !== barangay),
+    [availableCoverageBarangays, barangay],
   )
   const scheduleMaxLocal = useMemo(() => {
     const now = new Date()
@@ -162,24 +173,6 @@ export default function NewDistributionModal({
     return formatDateTimeLocal(endOfMonth)
   }, [open])
 
-  const normalizedTargetScope = useMemo(
-    () => Array.from(new Set(targetScope.filter(Boolean))),
-    [targetScope],
-  )
-
-  const getCoveredTargets = (scopes: string[]) => {
-    return normalizedTargetScope.filter((target) => scopes.includes(target))
-  }
-
-  const hasAnyScopeCoverage = (scopes: string[]) => {
-    return getCoveredTargets(scopes).length > 0
-  }
-
-  const getUncoveredTargets = (staffIds: string[]) => {
-    return normalizedTargetScope.filter((target) =>
-      !staffIds.some((id) => selectedStaffRef.current.get(id)?.scopesSummary.includes(target)),
-    )
-  }
 
   const validateStep1 = (): StepFieldErrors => {
     const out: StepFieldErrors = {}
@@ -207,6 +200,7 @@ export default function NewDistributionModal({
   const validateStep3 = (): StepFieldErrors => {
     const out: StepFieldErrors = {}
     const date = new Date(scheduled)
+    const endDate = new Date(endsAt)
     const now = new Date()
     const minAllowed = Date.now() + SCHEDULE_MIN_LEAD_MINUTES * 60 * 1000
     if (!scheduled.trim()) {
@@ -220,11 +214,24 @@ export default function NewDistributionModal({
       out.scheduled = `Schedule must stay within ${monthLabel}. Next month is not allowed.`
     } else {
       const hour = date.getHours()
-      const minute = date.getMinutes()
       const isBeforeStart = hour < DISTRIBUTION_START_HOUR
-      const isAfterEnd = hour > DISTRIBUTION_END_HOUR || (hour === DISTRIBUTION_END_HOUR && minute > 0)
+      const isAfterEnd = hour >= DISTRIBUTION_END_HOUR
       if (isBeforeStart || isAfterEnd) {
-        out.scheduled = `Schedule must be between ${DISTRIBUTION_START_HOUR}:00 and ${DISTRIBUTION_END_HOUR}:00 only.`
+        out.scheduled = `Start time must be at or after ${DISTRIBUTION_START_HOUR}:00 and before ${DISTRIBUTION_END_HOUR}:00.`
+      }
+    }
+
+    if (!endsAt.trim()) {
+      out.endsAt = 'End date/time is required.'
+    } else if (Number.isNaN(endDate.getTime())) {
+      out.endsAt = 'End date/time is invalid.'
+    } else if (!Number.isNaN(date.getTime())) {
+      if (endDate.getTime() <= date.getTime()) {
+        out.endsAt = 'End time must be after the start time.'
+      } else if (endDate.toDateString() !== date.toDateString()) {
+        out.endsAt = 'Distribution must start and end on the same day.'
+      } else if (endDate.getHours() > DISTRIBUTION_END_HOUR || (endDate.getHours() === DISTRIBUTION_END_HOUR && endDate.getMinutes() > 0)) {
+        out.endsAt = `Distribution must end by ${DISTRIBUTION_END_HOUR}:00.`
       }
     }
 
@@ -244,38 +251,11 @@ export default function NewDistributionModal({
 
     const unknownIds = assignedStaffIds.filter((id) => !selectedStaffRef.current.has(id))
     if (unknownIds.length > 0) {
-      out.assignedStaffIds = 'Some selected staff are out of scope for this distribution.'
+      out.assignedStaffIds = 'Some selected staff are no longer available.'
       return out
     }
 
-    const outOfScope = assignedStaffIds.some((id) => {
-      const candidate = selectedStaffRef.current.get(id)
-      if (!candidate) return true
-      return !hasAnyScopeCoverage(candidate.scopesSummary)
-    })
 
-    if (outOfScope) {
-      out.assignedStaffIds = 'Some selected staff do not cover any barangay in this distribution.'
-      return out
-    }
-
-    const uncoveredTargets = getUncoveredTargets(assignedStaffIds)
-    if (uncoveredTargets.length > 0) {
-      out.assignedStaffIds = `Selected staff still need coverage for: ${uncoveredTargets.join(', ')}.`
-      return out
-    }
-
-    if (isLguStaff) {
-      const outOfRequesterScope = assignedStaffIds.some((id) => {
-        const candidate = selectedStaffRef.current.get(id)
-        if (!candidate) return true
-        return candidate.scopesSummary.some((scope) => !user?.assignedBarangays?.includes(scope))
-      })
-
-      if (outOfRequesterScope) {
-        out.assignedStaffIds = 'Some selected staff are outside your barangay scope.'
-      }
-    }
 
     return out
   }
@@ -291,10 +271,10 @@ export default function NewDistributionModal({
     barangay,
     assignedBarangays,
     scheduled,
+    endsAt,
     notes,
     assignedStaffIds,
-    isLguStaff,
-    targetScope,
+
   ])
 
   const isCurrentStepValid = Object.keys(stepErrors).length === 0
@@ -383,7 +363,7 @@ export default function NewDistributionModal({
   }
 
   const toggleStaff = (staff: ScanEligibleUser) => {
-    const allowedRoles = new Set(['VOLUNTEER', 'LGU_STAFF', 'SUPERADMIN'])
+    const allowedRoles = new Set(['LGU_STAFF'])
     if (!allowedRoles.has(staff.role)) return
 
     selectedStaffRef.current.set(staff.id, staff)
@@ -442,6 +422,10 @@ export default function NewDistributionModal({
         nextErrors.scheduled = issue.message || 'Scheduled date/time is invalid.'
         setStep(3)
       }
+      if (path.includes('endsAt')) {
+        nextErrors.endsAt = issue.message || 'End date/time is invalid.'
+        setStep(3)
+      }
       if (path.includes('notes')) {
         nextErrors.notes = issue.message || `Notes must be ${NOTES_MAX} characters or fewer.`
         setStep(3)
@@ -476,6 +460,7 @@ export default function NewDistributionModal({
         assignedBarangays,
         assignedStaffIds,
         scheduled: new Date(scheduled).toISOString(),
+        endsAt: new Date(endsAt).toISOString(),
         notes: notes.trim() ? notes.trim() : undefined,
       })
     } catch (error: unknown) {
@@ -582,7 +567,7 @@ export default function NewDistributionModal({
                 </div>
 
                 <div className="mt-3 grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                  {availableBarangays.map((b) => {
+                  {availableHostBarangays.map((b) => {
                     const selected = b === barangay
                     return (
                       <button
@@ -627,9 +612,7 @@ export default function NewDistributionModal({
                   </span>
                 </div>
                 <div className="mt-3 grid max-h-72 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-                  {availableBarangays
-                    .filter((b) => b !== barangay)
-                    .map((b) => {
+                  {additionalBarangayOptions.map((b) => {
                       const selected = assignedBarangays.includes(b)
                       const disableSelect = !selected && assignedBarangays.length >= MAX_ASSIGN
                       return (
@@ -657,6 +640,16 @@ export default function NewDistributionModal({
                       )
                     })}
                 </div>
+                {additionalBarangayOptions.length === 0 && (
+                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    This disaster event has no additional barangays beyond the selected host.
+                  </p>
+                )}
+                {additionalBarangayOptions.length > 0 && additionalBarangayOptions.length < MIN_ASSIGN && (
+                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    This event needs at least {MIN_ASSIGN + 1} covered barangays to satisfy the current distribution rule.
+                  </p>
+                )}
                 <div className="mt-2 text-xs text-gray-500">
                   Selected: {assignedBarangays.length}/{MAX_ASSIGN} (minimum {MIN_ASSIGN})
                 </div>
@@ -674,15 +667,42 @@ export default function NewDistributionModal({
                     min={scheduleMinLocal}
                     max={scheduleMaxLocal}
                     onChange={(e) => {
-                      setScheduled(e.target.value)
+                      const value = e.target.value
+                      setScheduled(value)
+                      const start = new Date(value)
+                      if (!Number.isNaN(start.getTime())) {
+                        const suggestedEnd = new Date(start.getTime() + 2 * 60 * 60 * 1000)
+                        if (suggestedEnd.getDate() !== start.getDate() || suggestedEnd.getHours() > DISTRIBUTION_END_HOUR) {
+                          suggestedEnd.setFullYear(start.getFullYear(), start.getMonth(), start.getDate())
+                          suggestedEnd.setHours(DISTRIBUTION_END_HOUR, 0, 0, 0)
+                        }
+                        setEndsAt(formatDateTimeLocal(suggestedEnd))
+                      }
                       setErrors({})
                     }}
                     className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
                   />
                   <p className="mt-1.5 text-xs text-gray-500">
-                    Allowed: current month only, {DISTRIBUTION_START_HOUR}:00-{DISTRIBUTION_END_HOUR}:00, at least {SCHEDULE_MIN_LEAD_MINUTES} minutes ahead.
+                    Current month only. Start from {DISTRIBUTION_START_HOUR}:00 AM until before {DISTRIBUTION_END_HOUR}:00, at least {SCHEDULE_MIN_LEAD_MINUTES} minutes ahead.
                   </p>
                   {errors.scheduled && <p className="mt-2 text-sm text-red-600">{errors.scheduled}</p>}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">End Date/Time</label>
+                  <input
+                    type="datetime-local"
+                    value={endsAt}
+                    min={scheduled || scheduleMinLocal}
+                    max={scheduleMaxLocal}
+                    onChange={(e) => {
+                      setEndsAt(e.target.value)
+                      setErrors({})
+                    }}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors focus:border-gray-400"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500">Must be later than the start time, on the same day, and no later than 8:00 PM.</p>
+                  {errors.endsAt && <p className="mt-2 text-sm text-red-600">{errors.endsAt}</p>}
                 </div>
 
                 <div>
@@ -729,9 +749,7 @@ export default function NewDistributionModal({
                   ) : (
                     staffData.items.map((staff) => {
                       const selected = assignedStaffIds.includes(staff.id)
-                      const coveredTargets = staff.coveredBarangays?.length
-                        ? staff.coveredBarangays
-                        : getCoveredTargets(staff.scopesSummary)
+                      const assignedScopes = staff.scopesSummary
                       return (
                         <label key={staff.id} className={`px-4 py-3 flex items-center justify-between gap-3 cursor-pointer transition-colors ${selected ? 'bg-[#0F533A]/4' : 'hover:bg-gray-50'}`}>
                           <div className="flex items-center gap-3 min-w-0">
@@ -744,7 +762,7 @@ export default function NewDistributionModal({
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-gray-900 truncate">{staff.fullName}</div>
                               <div className="text-[11px] text-gray-500 truncate">
-                                Covers {coveredTargets.join(', ') || 'No target barangay'}
+                                Assigned to {assignedScopes.join(', ') || 'no barangay'}
                               </div>
                             </div>
                           </div>
@@ -754,7 +772,7 @@ export default function NewDistributionModal({
                               {staff.role}
                             </span>
                             <span className="px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-[11px] font-medium text-slate-600">
-                              {coveredTargets.length} barangay{coveredTargets.length === 1 ? '' : 's'}
+                              {assignedScopes.length} barangay{assignedScopes.length === 1 ? '' : 's'}
                             </span>
                           </div>
                         </label>
@@ -774,7 +792,7 @@ export default function NewDistributionModal({
                 )}
 
                 <div className="text-xs font-medium text-gray-600">
-                  Assigned: {assignedStaffIds.length} • Covered: {normalizedTargetScope.length - getUncoveredTargets(assignedStaffIds).length}/{normalizedTargetScope.length}
+                  Assigned: {assignedStaffIds.length}
                 </div>
 
                 {assignedStaffIds.length > 0 && (

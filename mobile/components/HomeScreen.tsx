@@ -22,16 +22,25 @@ import {
   fetchResidentNotifications,
   fetchActiveBeneficiaryEvent,
   fetchResidentProofSubmissionStatus,
+  getResidentSession,
   getResidentToken,
   markResidentNotificationRead,
   type ResidentDisasterEvent,
   type ResidentNotificationItem,
   type ResidentProofSubmissionStatus,
+  type ResidentQrData,
 } from '../services/api/ResidentQrService';
+import {
+  isCachedEventUsable,
+  loadResidentOfflineCache,
+  updateResidentOfflineCache,
+} from '../services/sync/ResidentOfflineStore';
 import PendingAccessBanner from './PendingAccessBanner';
+import VirtualResidentIdCard from './VirtualResidentIdCard';
 import { Typography } from './ui/Typography';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
+import BottomNavigation from './ui/BottomNavigation';
 import { theme } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -43,10 +52,15 @@ interface HomeScreenProps {
   claimStatus?: 'claimed' | 'not-claimed';
   residentCode?: string;
   streetAddress?: string;
-  onNavigate?: (screen: 'home' | 'qr' | 'profile' | 'proof-request' | 'registration-revision') => void;
+  onNavigate?: (screen: 'home' | 'distributions' | 'qr' | 'profile' | 'proof-request' | 'registration-revision') => void;
   accountType?: 'resident' | 'volunteer';
   residentStatus?: string;
   residentNote?: string;
+  virtualIdData?: ResidentQrData | null;
+  isVirtualIdLoading?: boolean;
+  virtualIdError?: string | null;
+  virtualIdWarning?: string | null;
+  onRefreshVirtualId?: (force?: boolean) => Promise<void>;
 }
 
 interface DistributionItem {
@@ -165,6 +179,11 @@ export default function HomeScreen({
   accountType = 'resident',
   residentStatus,
   residentNote,
+  virtualIdData = null,
+  isVirtualIdLoading = false,
+  virtualIdError = null,
+  virtualIdWarning = null,
+  onRefreshVirtualId,
 }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const [distributions, setDistributions] = useState<DistributionItem[]>([]);
@@ -257,20 +276,42 @@ export default function HomeScreen({
       setActiveDisasterEvent(null);
       return;
     }
-    const residentToken = await getResidentToken();
-    if (!residentToken) {
+    const session = await getResidentSession();
+    if (!session) {
       setActiveDisasterEvent(null);
       return;
     }
-    const result = await fetchActiveBeneficiaryEvent(residentToken);
-    const event = result.success ? result.data ?? null : null;
+
+    const cache = await loadResidentOfflineCache();
+    const cachedForResident = cache?.residentId === session.residentId ? cache : null;
+    const cachedEvent = cachedForResident && isCachedEventUsable(cachedForResident)
+      ? cachedForResident.activeEvent
+      : null;
+    if (cachedEvent) {
+      setActiveDisasterEvent(cachedEvent);
+      setProofStatus(cachedForResident?.proofStatus ?? null);
+    }
+
+    const result = await fetchActiveBeneficiaryEvent(session.token);
+    if (!result.success) return;
+
+    const event = result.data ?? null;
     setActiveDisasterEvent(event);
+    await updateResidentOfflineCache(session.residentId, {
+      activeEvent: event,
+      activeEventFetchedAt: new Date().toISOString(),
+    });
     const eventId = event?.id || event?._id;
     if (eventId) {
-      const statusResult = await fetchResidentProofSubmissionStatus(residentToken, eventId);
-      setProofStatus(statusResult.success ? statusResult.data ?? null : null);
+      const statusResult = await fetchResidentProofSubmissionStatus(session.token, eventId);
+      if (statusResult.success) {
+        const nextProofStatus = statusResult.data ?? null;
+        setProofStatus(nextProofStatus);
+        await updateResidentOfflineCache(session.residentId, { proofStatus: nextProofStatus });
+      }
     } else {
       setProofStatus(null);
+      await updateResidentOfflineCache(session.residentId, { proofStatus: null });
     }
   }, [isPendingResident, isVolunteer]);
 
@@ -287,11 +328,12 @@ export default function HomeScreen({
         loadDistributions(),
         loadResidentNotifications(),
         loadActiveDisasterEvent(),
+        onRefreshVirtualId?.(true),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadActiveDisasterEvent, loadDistributions, loadResidentNotifications]);
+  }, [loadActiveDisasterEvent, loadDistributions, loadResidentNotifications, onRefreshVirtualId]);
 
   // Get the featured distribution (first one) for the hero card
   const featuredDistribution = distributions[0];
@@ -383,6 +425,16 @@ export default function HomeScreen({
           </TouchableOpacity>
         </View>
 
+        {!isVolunteer && !isPendingResident && (
+          <VirtualResidentIdCard
+            idData={virtualIdData}
+            isLoading={isVirtualIdLoading}
+            error={virtualIdError}
+            warning={virtualIdWarning}
+            onRefresh={onRefreshVirtualId}
+          />
+        )}
+
         {/* Section Label - only show when loading or has distributions */}
         {isPendingResident && (
           <PendingAccessBanner
@@ -461,42 +513,6 @@ export default function HomeScreen({
               </View>
             </TouchableOpacity>
           </View>
-        )}
-
-        {!isVolunteer && !isPendingResident && !loading && distributions.length === 0 && (
-          <TouchableOpacity
-            style={styles.virtualIdPreview}
-            activeOpacity={0.86}
-            onPress={() => onNavigate?.('qr')}
-            accessibilityRole="button"
-            accessibilityLabel="Open my virtual resident ID"
-          >
-            <View style={styles.virtualIdTopRow}>
-              <View style={styles.virtualIdBrand}>
-                <View style={styles.virtualIdLogo}><Ionicons name="people" size={17} color="#FFFFFF" /></View>
-                <View>
-                  <Text style={styles.virtualIdBrandName}>KAPIT-BISIG</Text>
-                  <Text style={styles.virtualIdBrandSub}>VIRTUAL RESIDENT ID</Text>
-                </View>
-              </View>
-              <View style={styles.virtualIdVerified}>
-                <Ionicons name="checkmark-circle" size={14} color="#166534" />
-                <Text style={styles.virtualIdVerifiedText}>VERIFIED</Text>
-              </View>
-            </View>
-            <View style={styles.virtualIdBody}>
-              <View style={styles.virtualIdPerson}><Ionicons name="person" size={30} color="#5F8D76" /></View>
-              <View style={styles.virtualIdCopy}>
-                <Text style={styles.virtualIdLabel}>RESIDENT</Text>
-                <Text style={styles.virtualIdName} numberOfLines={1}>{userName}</Text>
-                <Text style={styles.virtualIdCode}>{residentCode}</Text>
-              </View>
-              <View style={styles.virtualIdOpen}>
-                <Ionicons name="qr-code-outline" size={23} color="#FFFFFF" />
-                <Text style={styles.virtualIdOpenText}>OPEN ID</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
         )}
 
         {!isPendingResident && (loading || distributions.length > 0) && (
@@ -591,12 +607,6 @@ export default function HomeScreen({
                 <TouchableOpacity style={styles.detailsAction} onPress={() => setSelectedDistribution(featuredDistribution)}>
                   <Text style={styles.detailsActionText}>{featuredDistribution.residentClaimed ? 'Claim details' : 'View details'}</Text>
                 </TouchableOpacity>
-                {!isVolunteer && (
-                  <TouchableOpacity style={styles.idAction} onPress={() => onNavigate?.('qr')}>
-                    <Ionicons name="card-outline" size={18} color="#FFFFFF" />
-                    <Text style={styles.idActionText}>Show my ID</Text>
-                  </TouchableOpacity>
-                )}
               </View>
             </View>
           </View>
@@ -747,19 +757,7 @@ export default function HomeScreen({
         </Pressable>
       </Modal>
 
-      {/* Bottom Navigation */}
-      <View style={[styles.bottomNavContainer, { paddingBottom: Math.max(insets.bottom, 6) }]}>
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="home" size={22} color={theme.colors.primary} />
-            <Typography variant="body" style={[styles.navText, styles.navTextActive]}>Home</Typography>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem} onPress={() => onNavigate?.('profile')}>
-            <Ionicons name="person-outline" size={22} color={theme.colors.textMuted} />
-            <Typography variant="body" style={styles.navText}>Profile</Typography>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <BottomNavigation activeTab="home" onNavigate={onNavigate} />
     </SafeAreaView>
   );
 }
@@ -952,23 +950,6 @@ const styles = StyleSheet.create({
   proofCtaButton: {
     marginTop: 4,
   },
-  virtualIdPreview: { marginHorizontal: 20, marginBottom: 20, borderRadius: 18, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#CFE3D6', shadowColor: '#123D29', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  virtualIdTopRow: { height: 49, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F0FAF4' },
-  virtualIdBrand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  virtualIdLogo: { width: 29, height: 29, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#16834B' },
-  virtualIdBrandName: { fontSize: 12, fontWeight: '900', letterSpacing: 0.6, color: '#174C31' },
-  virtualIdBrandSub: { fontSize: 7, fontWeight: '700', letterSpacing: 1, color: '#628170' },
-  virtualIdVerified: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#DCFCE7', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 4 },
-  virtualIdVerifiedText: { fontSize: 8, fontWeight: '900', color: '#166534' },
-  virtualIdBody: { minHeight: 91, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, gap: 10 },
-  virtualIdPerson: { width: 52, height: 58, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E6F2EB' },
-  virtualIdCopy: { flex: 1 },
-  virtualIdLabel: { fontSize: 8, fontWeight: '800', letterSpacing: 0.8, color: '#789084' },
-  virtualIdName: { marginTop: 2, fontSize: 16, fontWeight: '800', color: '#18352A' },
-  virtualIdCode: { marginTop: 3, fontSize: 11, fontWeight: '700', color: '#16834B' },
-  virtualIdOpen: { width: 70, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#16834B' },
-  virtualIdOpenText: { marginTop: 3, fontSize: 8, fontWeight: '800', color: '#FFFFFF' },
-
   // Loading State
   loadingContainer: {
     alignItems: 'center',
@@ -1083,8 +1064,6 @@ const styles = StyleSheet.create({
   heroActions: { marginTop: 9, flexDirection: 'row', gap: 9 },
   detailsAction: { flex: 1, height: 45, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#BBD8C6', backgroundColor: '#F1F8F4' },
   detailsActionText: { color: '#166534', fontSize: 13, fontWeight: '700' },
-  idAction: { flex: 1, height: 45, borderRadius: 12, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#16834B' },
-  idActionText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1297,36 +1276,4 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
 
-  // Bottom Navigation
-  bottomNavContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.divider,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    minHeight: 58,
-    paddingTop: 7,
-    paddingBottom: 4,
-  },
-  navItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  navText: {
-    fontSize: 11,
-    color: theme.colors.textMuted,
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  navTextActive: {
-    color: theme.colors.primary,
-  },
 });

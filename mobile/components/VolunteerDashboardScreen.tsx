@@ -109,6 +109,7 @@ export default function VolunteerDashboardScreen({
             notes?: string;
             registeredHouseholds?: number;
             claimedHouseholds?: number;
+            lifecycleStatus?: 'Upcoming' | 'Active' | 'Completed' | 'Archived';
           }>;
         }>('/distributions', { method: 'GET' }),
         mobileAuthService.getDashboardSummary(),
@@ -142,7 +143,7 @@ export default function VolunteerDashboardScreen({
             coverage: item.assignedBarangays || [item.barangay],
             schedule: item.scheduled || '09:00 AM - 12:30 PM',
             startTime: '08:30 AM',
-            isLive: idx === 0,
+            isLive: item.lifecycleStatus === 'Active',
             isUrgent: idx === 0,
             registeredHouseholds: Number(item.registeredHouseholds || 0),
             claimedHouseholds: Number(item.claimedHouseholds || 0),

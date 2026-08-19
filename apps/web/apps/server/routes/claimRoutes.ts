@@ -28,6 +28,7 @@ import {
 } from '../validation/claim.schema';
 import { logAudit } from '../utils/audit';
 import { broadcastScopedNotification } from '../utils/createNotification';
+import { isDistributionClaimable } from '../utils/distributionLifecycle';
 
 const router = Router();
 const IDEMPOTENCY_TTL_MS = 10 * 60 * 1000;
@@ -283,13 +284,21 @@ async function prepareClaimDraft(
   }
 
   const distribution = await Distribution.findById(distributionId)
-    .select('_id barangay assignedBarangays status requiresBeneficiaryApproval')
+    .select('_id barangay assignedBarangays status requiresBeneficiaryApproval scheduled endsAt archivedAt')
     .lean();
   if (!distribution) {
     return {
       ok: false,
       status: 404,
       message: 'Distribution not found',
+    };
+  }
+
+  if (!isDistributionClaimable(distribution)) {
+    return {
+      ok: false,
+      status: 409,
+      message: 'Claims can only be recorded while the distribution is active',
     };
   }
 
@@ -579,7 +588,7 @@ router.post(
 
       const distributionDoc = await Distribution.findById(distributionId)
         .setOptions({ sanitizeFilter: false })
-        .select('_id barangay')
+        .select('_id barangay scheduled endsAt archivedAt')
         .lean();
       if (!distributionDoc) {
         logHeader('RECORD CLAIM BATCH END');
@@ -716,6 +725,14 @@ router.post(
             failed: failures.length,
           },
           results: failures,
+        });
+      }
+      if (!isDistributionClaimable(distributionDoc)) {
+        logHeader('RECORD CLAIM BATCH END');
+        return res.status(409).json({
+          success: false,
+          code: 'DISTRIBUTION_NOT_ACTIVE',
+          message: 'Claims can only be recorded while the distribution is active',
         });
       }
 

@@ -6,12 +6,14 @@ import DistributionDetailsModal from './DistributionDetailsModal'
 import ViewHouseholdsModal from './ViewHouseholdsModal'
 
 export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed'
+export type DistributionLifecycleStatus = 'Upcoming' | 'Active' | 'Completed' | 'Archived'
 
 export type DistributionRow = {
   id: string
   barangay: string
   assignedBarangays: string[]
   scheduled: string
+  endsAt: string | null
   households: number
   registeredHouseholds: number
   claimedHouseholds: number
@@ -20,6 +22,9 @@ export type DistributionRow = {
   status: DistributionStatus
   claimedAt: string | null
   createdAt: string
+  archivedAt: string | null
+  archivedBy: string | null
+  lifecycleStatus: DistributionLifecycleStatus
 }
 
 type BarangayFilter = 'All' | string
@@ -37,11 +42,19 @@ export default function DistributionsTable({
   onOpenCreate,
   onMarkClaimed,
   canCreate = true,
+  lifecycleView,
+  canManageLifecycle = false,
+  onArchive,
+  onRestore,
 }: {
   rows: DistributionRow[]
   onOpenCreate: () => void
   onMarkClaimed: (id: string) => void
   canCreate?: boolean
+  lifecycleView: 'upcoming' | 'active' | 'completed' | 'archived'
+  canManageLifecycle?: boolean
+  onArchive?: (id: string) => void
+  onRestore?: (id: string) => void
 }) {
   const [query, setQuery] = useState('')
   const [barangay, setBarangay] = useState<BarangayFilter>('All')
@@ -160,7 +173,7 @@ export default function DistributionsTable({
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Distribution Directory</p>
               <h3 className="mt-2 text-xl font-bold tracking-[-0.03em] text-slate-950">
-                Scheduled and claimed distributions
+                {lifecycleView === 'archived' ? 'Archived distribution history' : `${lifecycleView.charAt(0).toUpperCase()}${lifecycleView.slice(1)} distributions`}
               </h3>
               <p className="mt-1 text-sm text-slate-500">
                 {filtered.length} visible distribution{filtered.length === 1 ? '' : 's'}
@@ -273,7 +286,7 @@ export default function DistributionsTable({
                 <th className="px-6 py-4">Claims</th>
                 <th className="px-6 py-4">Scheduled For</th>
                 <th className="px-6 py-4">Current Status</th>
-                <th className="px-6 py-4">Claimed On</th>
+                <th className="px-6 py-4">Claimed / Archived</th>
                 <th className="px-6 py-4 text-right pr-6">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -316,14 +329,29 @@ export default function DistributionsTable({
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-sm font-medium text-slate-700">{row.scheduled}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-slate-700">
+                      <div>{new Date(row.scheduled).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+                      {row.endsAt ? (
+                        <div className="mt-1 text-xs font-normal text-slate-400">
+                          Ends {new Date(row.endsAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}
+                        </div>
+                      ) : null}
+                    </td>
 
                     <td className="px-6 py-4">
-                      <StatusPill status={row.status} />
+                      <div className="space-y-1.5">
+                        <LifecyclePill status={row.lifecycleStatus} />
+                        <div><StatusPill status={row.status} /></div>
+                      </div>
                     </td>
 
                     <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                      {row.claimedAt
+                      {row.archivedAt
+                        ? <>
+                            <div>{new Date(row.archivedAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
+                            <div className="mt-1 text-xs text-slate-400">Archived by {row.archivedBy || 'Super admin'}</div>
+                          </>
+                        : row.claimedAt
                         ? new Date(row.claimedAt).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'short',
@@ -392,13 +420,33 @@ export default function DistributionsTable({
                           closeRowMenu()
                         }}
                       />
-                      {row.status !== 'Claimed' ? (
+                      {row.status !== 'Claimed' && row.lifecycleStatus === 'Active' ? (
                         <MenuItem
                           icon={<CheckGreenIcon />}
                           label="Mark as claimed"
                           tone="success"
                           onClick={() => {
                             onMarkClaimed(row.id)
+                            closeRowMenu()
+                          }}
+                        />
+                      ) : null}
+                      {canManageLifecycle && row.lifecycleStatus === 'Completed' && onArchive ? (
+                        <MenuItem
+                          icon={<ArchiveIcon />}
+                          label="Archive"
+                          onClick={() => {
+                            onArchive(row.id)
+                            closeRowMenu()
+                          }}
+                        />
+                      ) : null}
+                      {canManageLifecycle && row.lifecycleStatus === 'Archived' && onRestore ? (
+                        <MenuItem
+                          icon={<RestoreIcon />}
+                          label="Restore"
+                          onClick={() => {
+                            onRestore(row.id)
                             closeRowMenu()
                           }}
                         />
@@ -475,6 +523,17 @@ function StatusPill({ status }: { status: DistributionStatus }) {
       {status}
     </span>
   )
+}
+
+function LifecyclePill({ status }: { status: DistributionLifecycleStatus }) {
+  const classes = status === 'Active'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : status === 'Upcoming'
+      ? 'border-blue-200 bg-blue-50 text-blue-700'
+      : status === 'Archived'
+        ? 'border-slate-300 bg-slate-100 text-slate-600'
+        : 'border-violet-200 bg-violet-50 text-violet-700'
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${classes}`}>{status}</span>
 }
 
 function MenuItem({
@@ -573,6 +632,22 @@ function HouseholdsIcon() {
   return (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  )
+}
+
+function ArchiveIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14v11H5V8zm-1-4h16v4H4V4zm5 8h6" />
+    </svg>
+  )
+}
+
+function RestoreIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12a9 9 0 109-9 9.2 9.2 0 00-6.4 2.6L3 8m0-5v5h5" />
     </svg>
   )
 }

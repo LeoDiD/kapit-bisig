@@ -4,6 +4,7 @@ import DistributionClaim from '../models/DistributionClaim';
 import Resident from '../models/Resident';
 import BeneficiaryEligibility, { RegistrationSnapshotStatus } from '../models/BeneficiaryEligibility';
 import { ProofSubmissionStatus } from '../models/ProofSubmission';
+import { isDistributionVisibleToResidents } from '../utils/distributionLifecycle';
 
 type DistributionCoverage = Pick<
   IDistribution,
@@ -249,9 +250,12 @@ export async function syncResidentEnrollmentsForEvent(params: {
     disasterEventId: params.disasterEventId,
     status: mongoose.trusted({ $ne: 'Claimed' }),
     requiresBeneficiaryApproval: true,
+    archivedAt: null,
+    endsAt: { $gte: new Date() },
   });
   const matching = candidates.filter((distribution) =>
-    isResidentEligibleForDistribution(String(resident.barangay || ''), distribution));
+    isDistributionVisibleToResidents(distribution)
+    && isResidentEligibleForDistribution(String(resident.barangay || ''), distribution));
   if (matching.length === 0) return 0;
 
   const eligible = params.registrationStatus === 'Approved'

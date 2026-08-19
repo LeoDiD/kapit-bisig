@@ -2,4 +2,13 @@ backend/venv/
 backend/__pycache__/
 backend/.env
 mobile/.env
+mobile/.test-dist/
+apps/web/apps/.next-app/
+apps/web/apps/NUL
+apps/web/apps/public/uploads/resident-verification/
+backend/*-err.log
+backend/*-out.log
+mobile/*-err.log
+mobile/*-out.log
+node_modules/
 *.pyc

@@ -475,6 +475,11 @@ export default function TargetBeneficiariesPageClient() {
                                 <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                   {row.damageType}
                                 </span>
+                                {row.syncSource === 'OFFLINE_SYNC' ? (
+                                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300">
+                                    Offline sync
+                                  </span>
+                                ) : null}
                               </div>
                               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500 dark:text-slate-400">
                                 <span className="font-semibold uppercase tracking-[0.12em]">{row.resident.residentCode}</span>
@@ -484,7 +489,8 @@ export default function TargetBeneficiariesPageClient() {
                                 </span>
                                 <span className="truncate">{row.event.name}</span>
                                 <span>{row.event.disasterType}</span>
-                                <span>Submitted {formatDateTime(row.dateSubmitted)}</span>
+                                <span>{row.syncSource === 'OFFLINE_SYNC' ? 'Captured' : 'Submitted'} {formatDateTime(row.dateSubmitted)}</span>
+                                {row.syncSource === 'OFFLINE_SYNC' ? <span>Synced {formatDateTime(row.createdAt)}</span> : null}
                                 <span>Version {row.submissionVersion}</span>
                               </div>
                             </div>

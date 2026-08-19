@@ -22,17 +22,19 @@ export default function DistributionPageClient() {
   const [createOpen, setCreateOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lifecycleView, setLifecycleView] = useState<'upcoming' | 'active' | 'completed' | 'archived'>('upcoming')
 
   const fetchDistributions = useCallback(async () => {
     try {
       setError(null)
-      const res = await api.getDistributions()
+      const res = await api.getDistributions({ view: lifecycleView })
       if (res.success && res.data) {
         const mapped: DistributionRow[] = res.data.map((d) => ({
           id: d.id || d._id,
           barangay: d.barangay,
           assignedBarangays: d.assignedBarangays ?? [],
           scheduled: d.scheduled,
+          endsAt: d.endsAt,
           households: d.households,
           registeredHouseholds: d.registeredHouseholds ?? 0,
           claimedHouseholds: d.claimedHouseholds ?? 0,
@@ -41,6 +43,9 @@ export default function DistributionPageClient() {
           status: d.status as 'Unclaimed' | 'Partially Claimed' | 'Claimed',
           claimedAt: d.claimedAt,
           createdAt: d.createdAt,
+          archivedAt: d.archivedAt ?? null,
+          archivedBy: d.archivedBy ?? null,
+          lifecycleStatus: d.lifecycleStatus ?? 'Completed',
         }))
         setRows(mapped)
       }
@@ -50,7 +55,7 @@ export default function DistributionPageClient() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [lifecycleView])
 
   useEffect(() => {
     // Don't fetch if not authenticated
@@ -88,6 +93,7 @@ export default function DistributionPageClient() {
         assignedBarangays: payload.assignedBarangays,
         assignedStaffIds: payload.assignedStaffIds,
         scheduled: payload.scheduled,
+        endsAt: payload.endsAt,
         notes: payload.notes,
       }, {
         idempotencyKey: crypto.randomUUID(),
@@ -100,6 +106,29 @@ export default function DistributionPageClient() {
       setError(message)
       showToast.error(message)
       throw err
+    }
+  }
+
+  const archiveDistribution = async (id: string) => {
+    if (!window.confirm('Archive this completed distribution? Residents and scanners will not see it, but claims and reports will be preserved.')) return
+    try {
+      await api.archiveDistribution(id)
+      showToast.success('Distribution archived. Historical records were preserved.')
+      await fetchDistributions()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to archive distribution'
+      showToast.error(message)
+    }
+  }
+
+  const restoreDistribution = async (id: string) => {
+    try {
+      await api.restoreDistribution(id)
+      showToast.success('Distribution restored to completed history.')
+      await fetchDistributions()
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to restore distribution'
+      showToast.error(message)
     }
   }
 
@@ -150,11 +179,35 @@ export default function DistributionPageClient() {
         </div>
       )}
 
+      <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Distribution lifecycle">
+        {(['upcoming', 'active', 'completed', 'archived'] as const).map((view) => (
+          <button
+            key={view}
+            type="button"
+            role="tab"
+            aria-selected={lifecycleView === view}
+            onClick={() => setLifecycleView(view)}
+            className={[
+              'rounded-full border px-4 py-2 text-sm font-semibold capitalize transition-colors',
+              lifecycleView === view
+                ? 'border-slate-950 bg-slate-950 text-white'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-950',
+            ].join(' ')}
+          >
+            {view}
+          </button>
+        ))}
+      </div>
+
       <DistributionsTable
         rows={rows}
         onOpenCreate={() => setCreateOpen(true)}
         onMarkClaimed={markClaimed}
         canCreate={isSuperadmin}
+        lifecycleView={lifecycleView}
+        canManageLifecycle={isSuperadmin}
+        onArchive={archiveDistribution}
+        onRestore={restoreDistribution}
       />
 
       {isSuperadmin && (
