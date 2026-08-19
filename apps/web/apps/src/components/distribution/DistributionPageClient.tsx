@@ -156,6 +156,7 @@ export default function DistributionPageClient() {
         rows={rows}
         onOpenCreate={() => setCreateOpen(true)}
         onMarkClaimed={markClaimed}
+        onRefresh={fetchDistributions}
         canCreate={isSuperadmin}
       />
 

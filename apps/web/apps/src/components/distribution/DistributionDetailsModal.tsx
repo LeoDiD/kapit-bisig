@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { DistributionRow } from './DistributionsTable'
+import { formatScheduledDate } from './DistributionsTable'
 
 export default function DistributionDetailsModal({
   open,
@@ -34,7 +35,7 @@ export default function DistributionDetailsModal({
                     {distribution.barangay}
                   </div>
                   <div className="text-xs text-gray-500">
-                    Host Barangay
+                    Distribution Location
                   </div>
                   {distribution.requiresBeneficiaryApproval ? (
                     <div className="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
@@ -65,7 +66,7 @@ export default function DistributionDetailsModal({
                   <span>Scheduled Date</span>
                 </div>
                 <div className="text-sm font-semibold text-gray-900">
-                  {distribution.scheduled}
+                  {formatScheduledDate(distribution.scheduled)}
                 </div>
               </div>
 

@@ -117,56 +117,91 @@ export default function DashboardPage() {
         subtitle="Overview of relief distribution activities"
       />
 
-      <section className="mb-8 rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-700 sm:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                Executive Summary
-              </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-100 sm:text-4xl">
-                Relief distribution overview
-              </h2>
+      {/* ── High-Impact Executive Command Deck ── */}
+      <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] transition-all dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+        {/* Top Header Bar */}
+        <div className="border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50/80 via-white to-slate-50/80 px-5 py-3.5 dark:from-slate-900/90 dark:via-slate-900 dark:to-slate-900/90 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 animate-pulse" />
+              <div>
+                <h2 className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-base">
+                  Executive Relief Distribution Command
+                </h2>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Real-time municipal distribution monitoring & telemetry
+                </p>
+              </div>
             </div>
-            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">{currentPeriod}</div>
+
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+                <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                {currentPeriod}
+              </div>
+              <button
+                type="button"
+                onClick={fetchDashboardStats}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 transition-colors"
+                title="Refresh metrics"
+              >
+                <RefreshIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 divide-y divide-slate-200 dark:divide-slate-700 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+        {/* 4-KPI Grid with Rich Sub-metrics */}
+        <div className="grid grid-cols-1 divide-y divide-slate-100 dark:divide-slate-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
           <DeckMetricCell
-            title="Households"
+            title="Registered Households"
             value={loading ? '...' : stats.totalHouseholds.toLocaleString()}
-            subtitle="Registered"
+            subtitle="Verified Community Base"
+            tag="Database"
+            tagColor="blue"
             icon={<HouseholdIcon className="h-5 w-5" />}
+            footerText={`${stats.totalRegistered.toLocaleString()} mapped in active batches`}
           />
           <DeckMetricCell
-            title="Pending"
+            title="Open Distributions"
             value={loading ? '...' : stats.pendingDistributions.toLocaleString()}
-            subtitle="Distributions"
+            subtitle="Awaiting Full Claims"
+            tag={stats.pendingDistributions > 0 ? 'Active' : 'Standby'}
+            tagColor={stats.pendingDistributions > 0 ? 'amber' : 'emerald'}
             icon={<PendingIcon className="h-5 w-5" />}
+            footerText={`${stats.totalDistributions} overall distribution events`}
           />
           <DeckMetricCell
-            title="Completed"
+            title="Claims Completed Today"
             value={loading ? '...' : stats.completedToday.toLocaleString()}
-            subtitle="Today"
+            subtitle="Daily Beneficiary Flow"
+            tag="Live"
+            tagColor="emerald"
             icon={<CompletedIcon className="h-5 w-5" />}
+            footerText={`${stats.totalClaimed.toLocaleString()} total families served to date`}
           />
           <DeckMetricCell
-            title="Claim Rate"
+            title="Municipal Claim Rate"
             value={loading ? '...' : `${coverageRate}%`}
-            subtitle={`${stats.totalClaimed} of ${stats.totalRegistered}`}
+            subtitle="Claim Success Ratio"
+            tag={`${stats.totalClaimed} / ${stats.totalRegistered}`}
+            tagColor="purple"
             icon={<ChartIcon className="h-5 w-5" />}
+            progress={coverageRate}
+            footerText={`${stats.totalUnclaimed.toLocaleString()} unserved households remaining`}
           />
         </div>
       </section>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-8">
+      {/* ── Main Charts Row ── */}
+      <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-8 flex flex-col">
           <DistributionTrendsChart data={monthlyTrends} loading={loading} />
         </div>
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 flex flex-col">
           <LowStockAlert
-
             pendingDistributions={stats.pendingDistributions}
             unclaimedHouseholds={stats.totalUnclaimed}
             loading={loading}
@@ -174,17 +209,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-4">
+      {/* ── Secondary Charts Row ── */}
+      <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-4 flex flex-col">
           <WeeklyClaimChart data={weeklyData} loading={loading} />
         </div>
-        <div className="lg:col-span-8">
+        <div className="lg:col-span-8 flex flex-col">
           <BarangayDistributionChart data={barangayBreakdown} loading={loading} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-4">
+      {/* ── Tactical Operations & Activity Row ── */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-4 flex flex-col">
           <SmartInsights
             totalDistributions={stats.totalDistributions}
             claimRate={stats.claimRate}
@@ -196,10 +233,10 @@ export default function DashboardPage() {
             loading={loading}
           />
         </div>
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 flex flex-col">
           <QuickActions />
         </div>
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 flex flex-col">
           <RecentDistributions />
         </div>
       </div>
@@ -239,29 +276,97 @@ function ChartIcon({ className }: { className?: string }) {
   )
 }
 
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  )
+}
+
 function DeckMetricCell({
   title,
   value,
   subtitle,
   icon,
+  tag,
+  tagColor = 'blue',
+  progress,
+  footerText,
 }: {
   title: string
   value: string
   subtitle: string
   icon: React.ReactNode
+  tag?: string
+  tagColor?: 'blue' | 'emerald' | 'amber' | 'purple'
+  progress?: number
+  footerText?: string
 }) {
+  const tagColorStyles = {
+    blue: 'bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800/50',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/50',
+    amber: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50',
+    purple: 'bg-purple-50 text-purple-700 border-purple-200/60 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800/50',
+  }
+
+  const iconBgStyles = {
+    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/70 dark:text-blue-300 border-blue-100 dark:border-blue-900/50',
+    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-100 dark:border-emerald-900/50',
+    amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/70 dark:text-amber-300 border-amber-100 dark:border-amber-900/50',
+    purple: 'bg-purple-50 text-purple-600 dark:bg-purple-950/70 dark:text-purple-300 border-purple-100 dark:border-purple-900/50',
+  }
+
   return (
-    <div className="min-w-0 px-6 py-5 sm:px-7 sm:py-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{title}</p>
-          <h3 className="mt-3 text-3xl font-bold tracking-[-0.04em] text-slate-950 dark:text-slate-100">{value}</h3>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+    <div className="flex flex-col justify-between p-4 sm:p-5 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+      <div>
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${iconBgStyles[tagColor]}`}>
+            {icon}
+          </div>
+          {tag && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${tagColorStyles[tagColor]}`}>
+              {tag}
+            </span>
+          )}
         </div>
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-          {icon}
-        </div>
+
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          {title}
+        </p>
+        <h3 className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          {value}
+        </h3>
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+          {subtitle}
+        </p>
       </div>
+
+      {progress !== undefined && (
+        <div className="mt-3">
+          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-700"
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {footerText && (
+        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 truncate">
+          {footerText}
+        </div>
+      )}
     </div>
   )
 }
+

@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <ProtectedRoute>
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset className="bg-slate-50 dark:bg-slate-900 p-6">
+        <SidebarInset className="bg-slate-50 dark:bg-slate-900 p-4 sm:p-6">
           {children}
         </SidebarInset>
       </SidebarProvider>

@@ -190,7 +190,10 @@ const api = {
             method: 'POST',
             headers,
             credentials: 'include',
-            body: JSON.stringify(data)
+            body: JSON.stringify({
+                ...data,
+                assignedBarangays: data.assignedBarangays ?? []
+            })
         });
         return handleResponse(response);
     },
@@ -198,16 +201,31 @@ const api = {
    * Search eligible scanner staff for a distribution scope.
    */ async getScanEligibleUsers (params) {
         const sp = new URLSearchParams();
-        sp.append('hostBarangayId', params.hostBarangayId);
-        for (const barangay of params.assignedBarangayIds){
-            sp.append('assignedBarangayIds', barangay);
+        if (params.barangay) sp.append('barangay', params.barangay);
+        if (params.hostBarangayId) sp.append('hostBarangayId', params.hostBarangayId);
+        if (Array.isArray(params.assignedBarangayIds)) {
+            for (const b of params.assignedBarangayIds){
+                sp.append('assignedBarangayIds', b);
+            }
         }
+        if (params.scheduled) sp.append('scheduled', params.scheduled);
         if (params.q) sp.append('q', params.q);
         if (typeof params.cursor === 'number') sp.append('cursor', String(params.cursor));
         if (typeof params.limit === 'number') sp.append('limit', String(params.limit));
         const response = await fetch(`${API_URL}/users/scan-eligible?${sp.toString()}`, {
             headers: createHeaders(),
             credentials: 'include'
+        });
+        return handleResponse(response);
+    },
+    /**
+   * Reschedule an active distribution
+   */ async rescheduleDistribution (id, data) {
+        const response = await fetch(`${API_URL}/distributions/${id}/reschedule`, {
+            method: 'PATCH',
+            headers: createHeaders('PATCH'),
+            credentials: 'include',
+            body: JSON.stringify(data)
         });
         return handleResponse(response);
     },
@@ -2650,7 +2668,9 @@ __turbopack_esm__({
     "default": ()=>Header
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$menu$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$7b$export__default__as__Menu$7d$__ = __turbopack_import__("[project]/node_modules/lucide-react/dist/esm/icons/menu.js [app-client] (ecmascript) {export default as Menu}");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$AuthContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/src/lib/AuthContext.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/src/components/ui/sidebar.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$HeaderWidgets$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/src/components/layout/HeaderWidgets.tsx [app-client] (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
@@ -2658,73 +2678,103 @@ var _s = __turbopack_refresh__.signature();
 'use client';
 ;
 ;
+;
+;
 function Header({ title, subtitle }) {
     _s();
     __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$AuthContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuth"]();
+    const { toggleMobileSidebar } = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useSidebar"]();
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("header", {
-        className: "sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pb-5 -mt-6 -mx-6 px-6 pt-10 sm:px-10 mb-8 border-b border-gray-200/75 dark:border-slate-800 transition-all",
+        className: "sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pb-4 -mt-4 -mx-4 px-4 pt-4 sm:-mt-6 sm:-mx-6 sm:px-8 sm:pt-6 sm:pb-5 mb-6 sm:mb-8 border-b border-gray-200/75 dark:border-slate-800 transition-all",
         children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-            className: "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+            className: "flex items-center justify-between gap-3",
             children: [
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "pl-2 md:pl-5",
+                    className: "flex items-center gap-2.5 min-w-0",
                     children: [
-                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h1", {
-                            className: "text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight",
-                            children: title
+                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
+                            type: "button",
+                            onClick: toggleMobileSidebar,
+                            "aria-label": "Open navigation menu",
+                            className: "md:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 active:scale-95",
+                            children: /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$menu$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$7b$export__default__as__Menu$7d$__["Menu"], {
+                                className: "h-5 w-5"
+                            }, void 0, false, {
+                                fileName: "<[project]/src/components/layout/Header.tsx>",
+                                lineNumber: 30,
+                                columnNumber: 13
+                            }, this)
                         }, void 0, false, {
                             fileName: "<[project]/src/components/layout/Header.tsx>",
-                            lineNumber: 20,
+                            lineNumber: 24,
                             columnNumber: 11
                         }, this),
-                        subtitle && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
-                            className: "hidden md:block text-[13px] font-bold tracking-wide text-gray-500 dark:text-gray-400 uppercase mt-1.5",
-                            children: subtitle
-                        }, void 0, false, {
+                        /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
+                            className: "min-w-0",
+                            children: [
+                                /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("h1", {
+                                    className: "text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight truncate",
+                                    children: title
+                                }, void 0, false, {
+                                    fileName: "<[project]/src/components/layout/Header.tsx>",
+                                    lineNumber: 34,
+                                    columnNumber: 13
+                                }, this),
+                                subtitle && /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("p", {
+                                    className: "hidden md:block text-[12px] font-bold tracking-wide text-gray-500 dark:text-gray-400 uppercase mt-0.5",
+                                    children: subtitle
+                                }, void 0, false, {
+                                    fileName: "<[project]/src/components/layout/Header.tsx>",
+                                    lineNumber: 38,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
                             fileName: "<[project]/src/components/layout/Header.tsx>",
-                            lineNumber: 21,
-                            columnNumber: 24
+                            lineNumber: 33,
+                            columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "<[project]/src/components/layout/Header.tsx>",
-                    lineNumber: 19,
+                    lineNumber: 22,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"]("div", {
-                    className: "flex items-center justify-between sm:justify-end gap-3 sm:gap-4",
+                    className: "flex items-center justify-end gap-2.5 sm:gap-3 shrink-0",
                     children: [
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$HeaderWidgets$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["NotificationBell"], {}, void 0, false, {
                             fileName: "<[project]/src/components/layout/Header.tsx>",
-                            lineNumber: 27,
+                            lineNumber: 48,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"](__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$HeaderWidgets$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ProfileDropdown"], {}, void 0, false, {
                             fileName: "<[project]/src/components/layout/Header.tsx>",
-                            lineNumber: 30,
+                            lineNumber: 51,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "<[project]/src/components/layout/Header.tsx>",
-                    lineNumber: 25,
+                    lineNumber: 46,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "<[project]/src/components/layout/Header.tsx>",
-            lineNumber: 17,
+            lineNumber: 20,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "<[project]/src/components/layout/Header.tsx>",
-        lineNumber: 16,
+        lineNumber: 19,
         columnNumber: 5
     }, this);
 }
-_s(Header, "aXa0DhOnbpb+WuJfaBQuXhXHp4U=", false, function() {
+_s(Header, "T4CovpmaFOrZDkwQiXUIwmzl3Bk=", false, function() {
     return [
-        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$AuthContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuth"]
+        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$AuthContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuth"],
+        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useSidebar"]
     ];
 });
 _c = Header;

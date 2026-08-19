@@ -840,7 +840,10 @@ const api = {
             method: 'POST',
             headers,
             credentials: 'include',
-            body: JSON.stringify(data)
+            body: JSON.stringify({
+                ...data,
+                assignedBarangays: data.assignedBarangays ?? []
+            })
         });
         return handleResponse(response);
     },
@@ -848,16 +851,31 @@ const api = {
    * Search eligible scanner staff for a distribution scope.
    */ async getScanEligibleUsers (params) {
         const sp = new URLSearchParams();
-        sp.append('hostBarangayId', params.hostBarangayId);
-        for (const barangay of params.assignedBarangayIds){
-            sp.append('assignedBarangayIds', barangay);
+        if (params.barangay) sp.append('barangay', params.barangay);
+        if (params.hostBarangayId) sp.append('hostBarangayId', params.hostBarangayId);
+        if (Array.isArray(params.assignedBarangayIds)) {
+            for (const b of params.assignedBarangayIds){
+                sp.append('assignedBarangayIds', b);
+            }
         }
+        if (params.scheduled) sp.append('scheduled', params.scheduled);
         if (params.q) sp.append('q', params.q);
         if (typeof params.cursor === 'number') sp.append('cursor', String(params.cursor));
         if (typeof params.limit === 'number') sp.append('limit', String(params.limit));
         const response = await fetch(`${API_URL}/users/scan-eligible?${sp.toString()}`, {
             headers: createHeaders(),
             credentials: 'include'
+        });
+        return handleResponse(response);
+    },
+    /**
+   * Reschedule an active distribution
+   */ async rescheduleDistribution (id, data) {
+        const response = await fetch(`${API_URL}/distributions/${id}/reschedule`, {
+            method: 'PATCH',
+            headers: createHeaders('PATCH'),
+            credentials: 'include',
+            body: JSON.stringify(data)
         });
         return handleResponse(response);
     },

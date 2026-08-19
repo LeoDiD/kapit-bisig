@@ -1,30 +1,27 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import api, { getScopedBarangays, type ReportSummaryData, type ReportDistributionRow } from '@/lib/api';
-import { useAuth } from '@/lib/AuthContext';
-import { DetailModal } from './DetailModal';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import api, { getScopedBarangays, type ReportSummaryData, type ReportDistributionRow } from '@/lib/api'
+import { useAuth } from '@/lib/AuthContext'
+import { DetailModal } from './DetailModal'
 import { 
   formatDate, Dropdown, StatCard, StatusPill, ClaimRateBar, 
   Donut, MiniBarChart, SummaryCell, MenuItem, LoadingSpinner, EmptyState,
-  FilterIcon, BoltIcon, DownloadIcon, ClearIcon, DocIcon, CubeIcon, UsersIcon, TrendIcon, UnclaimedIcon, DotsIcon, EyeIcon, QRIcon, FaceIcon, QuestionIcon, ChevronDownIcon, CheckIcon, downloadCSV, DropdownItem, AlertIcon
-} from './ReportsHelpers';
+  FilterIcon, BoltIcon, DownloadIcon, ClearIcon, DocIcon, CubeIcon, UsersIcon, TrendIcon, UnclaimedIcon, DotsIcon, EyeIcon, QRIcon, FaceIcon, QuestionIcon, downloadCSV, DropdownItem, AlertIcon,
+  getDatePresetRange, Pagination
+} from './ReportsHelpers'
 
-type ReportType = 'distribution' | 'barangay';
+type ReportType = 'distribution' | 'barangay'
 
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: 'distribution', label: 'Distribution Summary' },
   { value: 'barangay', label: 'Barangay Summary' },
-];
+]
 
 const DONUT_COLORS = [
-  '#0F533A', '#EAB308', '#22C55E', '#9ACB3C', '#3B82F6',
-  '#8B5CF6', '#EC4899', '#F97316', '#14B8A6', '#6366F1',
-];
-
-
-
-
+  '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#06B6D4',
+  '#EC4899', '#F97316', '#14B8A6', '#6366F1', '#84CC16',
+]
 
 // ─── Main Component ─────────────────────────────────────────
 
@@ -39,6 +36,13 @@ export default function ReportsPageClient() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [barangay, setBarangay] = useState('All')
+  const [activePreset, setActivePreset] = useState<string>('all')
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [brgyCurrentPage, setBrgyCurrentPage] = useState(1)
+  const [brgyPageSize, setBrgyPageSize] = useState(10)
 
   const [data, setData] = useState<ReportSummaryData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -99,6 +103,24 @@ export default function ReportsPageClient() {
   const barangayBreakdown = data?.barangayBreakdown ?? []
   const verification = data?.verificationMethods
 
+  // Pagination for Distribution Activity Log
+  const totalPages = Math.max(1, Math.ceil(distributions.length / pageSize))
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages)
+  const distStartIndex = (safeCurrentPage - 1) * pageSize
+  const distEndIndex = Math.min(distributions.length, distStartIndex + pageSize)
+  const paginatedDistributions = useMemo(() => {
+    return distributions.slice(distStartIndex, distEndIndex)
+  }, [distributions, distStartIndex, distEndIndex])
+
+  const applyDatePreset = (preset: 'today' | '7d' | '30d' | 'month' | 'ytd' | 'all') => {
+    setActivePreset(preset)
+    const { start, end } = getDatePresetRange(preset)
+    setStartDate(start)
+    setEndDate(end)
+    setCurrentPage(1)
+    setBrgyCurrentPage(1)
+  }
+
   // Barangay summary aggregation (for barangay report type)
   const barangaySummaryRows = useMemo(() => {
     if (reportType !== 'barangay' || !distributions.length) return []
@@ -125,6 +147,15 @@ export default function ReportsPageClient() {
     }
     return Array.from(map.values()).sort((a, b) => b.distributions - a.distributions)
   }, [reportType, distributions])
+
+  // Pagination for Barangay Summary
+  const brgyTotalPages = Math.max(1, Math.ceil(barangaySummaryRows.length / brgyPageSize))
+  const brgySafeCurrentPage = Math.min(Math.max(1, brgyCurrentPage), brgyTotalPages)
+  const brgyStartIndex = (brgySafeCurrentPage - 1) * brgyPageSize
+  const brgyEndIndex = Math.min(barangaySummaryRows.length, brgyStartIndex + brgyPageSize)
+  const paginatedBarangayRows = useMemo(() => {
+    return barangaySummaryRows.slice(brgyStartIndex, brgyEndIndex)
+  }, [barangaySummaryRows, brgyStartIndex, brgyEndIndex])
 
   const barangayItems: DropdownItem[] = useMemo(() => [
     { value: 'All', label: 'All Barangays' },
@@ -162,16 +193,48 @@ export default function ReportsPageClient() {
 
   return (
     <div className="space-y-6">
-      {/* ── Filters Card ──────────────────────────────────── */}
-      <div className="print:hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
-        <div className="mb-4 flex items-center gap-2 font-semibold text-gray-800 dark:text-slate-100">
-          <FilterIcon className="h-5 w-5 text-gray-700 dark:text-slate-300" />
-          <span>Report Filters</span>
+      {/* ── High-Density Filter Toolbar ──────────────────── */}
+      <div className="print:hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+        <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-sm">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+              <FilterIcon className="h-4 w-4" />
+            </div>
+            <span>Report Parameters & Filters</span>
+          </div>
+
+          {/* Quick Date Presets */}
+          <div className="flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800 text-xs font-semibold">
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'today', label: 'Today' },
+              { id: '7d', label: '7 Days' },
+              { id: '30d', label: '30 Days' },
+              { id: 'month', label: 'This Month' },
+              { id: 'ytd', label: 'YTD' },
+            ].map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => applyDatePreset(p.id as any)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  activePreset === p.id
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Inputs Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           <div>
-            <div className="mb-2 text-xs text-gray-500 dark:text-slate-400">Report Type</div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+              Report Type
+            </label>
             <Dropdown
               value={reportType}
               buttonLabel="Distribution Summary"
@@ -182,27 +245,33 @@ export default function ReportsPageClient() {
           </div>
 
           <div>
-            <div className="mb-2 text-xs text-gray-500 dark:text-slate-400">Start Date</div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+              Start Date
+            </label>
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
+              onChange={(e) => { setStartDate(e.target.value); setActivePreset('custom') }}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm text-slate-700 shadow-sm transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             />
           </div>
 
           <div>
-            <div className="mb-2 text-xs text-gray-500 dark:text-slate-400">End Date</div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+              End Date
+            </label>
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] focus:outline-none focus:ring-1 focus:ring-green-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
+              onChange={(e) => { setEndDate(e.target.value); setActivePreset('custom') }}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm text-slate-700 shadow-sm transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             />
           </div>
 
           <div>
-            <div className="mb-2 text-xs text-gray-500 dark:text-slate-400">Barangay</div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+              Sector / Barangay
+            </label>
             <Dropdown
               value={barangay}
               buttonLabel="All Barangays"
@@ -213,163 +282,189 @@ export default function ReportsPageClient() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={fetchReport}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] disabled:opacity-60 text-white text-sm font-medium shadow-[0_2px_10px_rgba(0,0,0,0.10)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_4px_14px_rgba(0,0,0,0.15)]"
-          >
-            {loading ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <BoltIcon className="w-4 h-4" />
-            )}
-            {loading ? 'Generating...' : 'Generate Report'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] hover:scale-[1.02] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800/80 dark:hover:text-[#ECC323] print:hidden"
-          >
-            <DocIcon className="h-4 w-4 text-gray-500 dark:text-slate-400" />
-            Print Report
-          </button>
-          
-          <button type="button" onClick={handleExportCSV}
-            disabled={!distributions.length}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] hover:scale-[1.02] disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800/80 dark:hover:text-[#ECC323]"
-          >
-            <DownloadIcon className="h-4 w-4 text-gray-500 dark:text-slate-400" />
-            Export CSV
-          </button>
-
-          {(startDate || endDate || barangay !== 'All') && (
+        {/* Action Buttons Toolbar */}
+        <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => { setStartDate(''); setEndDate(''); setBarangay('All'); setReportType('distribution') }}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] hover:scale-[1.02] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:shadow-[0_2px_10px_rgba(0,0,0,0.22)] dark:hover:bg-slate-800/80 dark:hover:text-[#ECC323]"
+              onClick={fetchReport}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition-all duration-200 hover:shadow-md"
             >
-              <ClearIcon className="h-4 w-4 text-gray-500 dark:text-slate-400" />
-              Clear Filters
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <BoltIcon className="w-4 h-4" />
+              )}
+              {loading ? 'Compiling...' : 'Generate Report'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <DocIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              Print
+            </button>
+            
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              disabled={!distributions.length}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <DownloadIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              Export CSV
+            </button>
+          </div>
+
+          {(startDate || endDate || barangay !== 'All' || activePreset !== 'all') && (
+            <button
+              type="button"
+              onClick={() => { setStartDate(''); setEndDate(''); setBarangay('All'); setReportType('distribution'); setActivePreset('all') }}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 px-2.5 py-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+            >
+              <ClearIcon className="h-3.5 w-3.5" />
+              Reset Filters
             </button>
           )}
         </div>
       </div>
 
-      {/* ── Error banner ──────────────────────────────────── */}
+      {/* ── Error Banner ──────────────────────────────────── */}
       {error && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
           <AlertIcon className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
           <div>
-            <div className="font-medium text-red-800 dark:text-red-300">Error generating report</div>
-            <div className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</div>
+            <div className="font-semibold text-red-800 dark:text-red-300">Error generating report</div>
+            <div className="mt-0.5 text-xs text-red-600 dark:text-red-400">{error}</div>
           </div>
         </div>
       )}
 
-      {/* ── Stats ─────────────────────────────────────────── */}
+      {/* ── Stats Deck ────────────────────────────────────── */}
       {generated && overview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             icon={<CubeIcon className="w-5 h-5" />}
             title="Total Distributions"
-            value={`${overview.totalDistributions}`}
+            value={`${overview.totalDistributions.toLocaleString()}`}
+            subtitle="Scheduled cycles"
+            variant="blue"
           />
           <StatCard
             icon={<UsersIcon className="w-5 h-5" />}
             title="Households Served"
-            value={`${overview.totalClaimedHouseholds}`}
+            value={`${overview.totalClaimedHouseholds.toLocaleString()}`}
+            subtitle="Verified recipients"
+            variant="emerald"
           />
           <StatCard
             icon={<TrendIcon className="w-5 h-5" />}
-            title="Claim Rate"
+            title="Overall Claim Rate"
             value={`${overview.claimRate}%`}
+            subtitle="Distribution coverage"
+            variant="purple"
           />
           <StatCard
             icon={<UnclaimedIcon className="w-5 h-5" />}
-            title="Unclaimed Households"
-            value={`${overview.totalUnclaimedHouseholds}`}
+            title="Unclaimed Packages"
+            value={`${overview.totalUnclaimedHouseholds.toLocaleString()}`}
+            subtitle="Pending follow-up"
+            variant="amber"
           />
         </div>
       )}
 
-      {/* ── Loading state ─────────────────────────────────── */}
+      {/* ── Loading Spinner ───────────────────────────────── */}
       {loading && <LoadingSpinner />}
 
       {/* ── Distribution Summary Table ────────────────────── */}
       {generated && !loading && reportType === 'distribution' && (
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
-          <div className="border-b border-gray-100 p-5 dark:border-slate-800">
-            <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-slate-100">
-              <DocIcon className="h-5 w-5 text-gray-700 dark:text-slate-300" />
-              <span>Distribution Report — {dateRangeLabel}</span>
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+          <div className="border-b border-slate-100 p-4 sm:p-5 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
+                <DocIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <span>Distribution Activity Log</span>
+              </div>
+              <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Filtered period: <strong className="text-slate-700 dark:text-slate-300">{dateRangeLabel}</strong>
+              </div>
             </div>
-            <div className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-              Summary of relief distributions by barangay for the selected period
-            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              {distributions.length} records found
+            </span>
           </div>
 
           {distributions.length === 0 ? (
-            <EmptyState message="No distributions found for the selected filters." />
+            <EmptyState message="No distributions found matching the selected filter criteria." />
           ) : (
             <>
               <div className="overflow-x-auto w-full">
-                <table className="w-full text-left border-collapse table-fixed min-w-[900px] lg:min-w-0">
-                  <thead className="bg-gray-50 text-sm text-gray-500 dark:bg-slate-800/80 dark:text-slate-400">
+                <table className="w-full text-left border-collapse table-fixed min-w-[900px]">
+                  <thead className="bg-slate-50/80 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/80 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
                     <tr>
-                      <th className="px-4 py-4 font-medium w-[12%]">Date</th>
-                      <th className="px-4 py-4 font-medium w-[14%]">Barangay</th>
-                      <th className="px-4 py-4 font-medium w-[12%]">Registered</th>
-                      <th className="px-4 py-4 font-medium w-[10%]">Claimed</th>
-                      <th className="px-4 py-4 font-medium w-[10%]">Unclaimed</th>
-                      <th className="px-4 py-4 font-medium w-[18%]">Claim Rate</th>
-                      <th className="px-4 py-4 font-medium w-[14%]">Status</th>
-                      <th className="px-4 py-4 font-medium w-[5%]"></th>
+                      <th className="px-4 py-3.5 w-[14%]">Scheduled Date</th>
+                      <th className="px-4 py-3.5 w-[16%]">Barangay Sector</th>
+                      <th className="px-4 py-3.5 w-[12%] text-right">Registered</th>
+                      <th className="px-4 py-3.5 w-[12%] text-right">Claimed</th>
+                      <th className="px-4 py-3.5 w-[12%] text-right">Unclaimed</th>
+                      <th className="px-4 py-3.5 w-[18%]">Turnout Rate</th>
+                      <th className="px-4 py-3.5 w-[11%] text-center">Status</th>
+                      <th className="px-4 py-3.5 w-[5%]"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 text-sm dark:divide-slate-800">
-                    {distributions.map((r) => (
-                      <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/70">
-                        <td className="px-4 py-4 text-gray-600 dark:text-slate-300">{formatDate(r.scheduled || r.createdAt)}</td>
-                        <td className="px-4 py-4 font-medium text-gray-700 dark:text-slate-100">{r.barangay}</td>
-                        <td className="px-4 py-4 text-gray-700 dark:text-slate-200">{r.registeredHouseholds}</td>
-                        <td className="px-4 py-4 text-green-700 font-medium">{r.claimedHouseholds}</td>
-                        <td className="px-4 py-4 text-amber-600 font-medium">{r.unclaimedHouseholds}</td>
-                        <td className="px-4 py-4">
+                  <tbody className="divide-y divide-slate-100 text-xs sm:text-sm dark:divide-slate-800">
+                    {paginatedDistributions.map((r, idx) => (
+                      <tr key={r.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/30 dark:bg-slate-800/20' : ''}`}>
+                        <td className="px-4 py-3.5 font-medium text-slate-600 dark:text-slate-300">
+                          {formatDate(r.scheduled || r.createdAt)}
+                        </td>
+                        <td className="px-4 py-3.5 font-bold text-slate-900 dark:text-slate-100">
+                          {r.barangay}
+                        </td>
+                        <td className="px-4 py-3.5 text-right font-medium text-slate-700 dark:text-slate-300">
+                          {r.registeredHouseholds.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                          {r.claimedHouseholds.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3.5 text-right font-semibold text-amber-600 dark:text-amber-400">
+                          {r.unclaimedHouseholds.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3.5">
                           <ClaimRateBar rate={r.claimRate} />
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-3.5 text-center">
                           <StatusPill status={r.status} />
                         </td>
-                        <td className="px-4 py-4 text-right relative">
+                        <td className="px-4 py-3.5 text-right relative">
                           <div className="relative inline-block" ref={activeMenu === r.id ? rowMenuWrapRef : undefined}>
                             <button
                               onClick={(e) => onToggleMenu(r.id, e)}
-                              className="rounded-full p-1 text-gray-400 transition-all duration-300 hover:bg-slate-50 hover:text-[#004A1C] dark:text-slate-500 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]"
+                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
                             >
                               <DotsIcon />
                             </button>
                             {activeMenu === r.id && (
                               <div
                                 className={[
-                                  'absolute right-0 z-50 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_20px_45px_rgba(0,0,0,0.35)]',
+                                  'absolute right-0 z-50 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900',
                                   menuOpensUp ? 'bottom-full mb-2' : 'top-full mt-2',
                                 ].join(' ')}
                               >
-                                <div className="py-2">
-                                  <MenuItem
-                                    icon={<EyeIcon />}
-                                    label="View Details"
-                                    onClick={() => { setDetailRow(r); setActiveMenu(null) }}
-                                  />
-                                  <MenuItem
-                                    icon={<DownloadIcon className="w-5 h-5" />}
-                                    label="Export Row CSV"
-                                    onClick={() => handleExportRowCSV(r)}
-                                  />
-                                </div>
+                                <MenuItem
+                                  icon={<EyeIcon />}
+                                  label="View Details"
+                                  onClick={() => { setDetailRow(r); setActiveMenu(null) }}
+                                />
+                                <MenuItem
+                                  icon={<DownloadIcon className="w-4 h-4" />}
+                                  label="Export Row CSV"
+                                  onClick={() => handleExportRowCSV(r)}
+                                />
                               </div>
                             )}
                           </div>
@@ -380,17 +475,27 @@ export default function ReportsPageClient() {
                 </table>
               </div>
 
-              {/* Summary strip */}
-              <div className="border-t border-gray-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800/80">
-                  <div className="mb-2 font-semibold text-gray-800 dark:text-slate-100">Report Summary</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-                    <SummaryCell label="Total Distributions" value={`${overview?.totalDistributions ?? 0}`} />
-                    <SummaryCell label="Registered Households" value={`${overview?.totalRegisteredHouseholds ?? 0}`} />
-                    <SummaryCell label="Households Claimed" value={`${overview?.totalClaimedHouseholds ?? 0}`} valueClass="text-green-700" />
-                    <SummaryCell label="Households Unclaimed" value={`${overview?.totalUnclaimedHouseholds ?? 0}`} valueClass="text-[#D97706]" />
-                    <SummaryCell label="Claim Rate" value={`${overview?.claimRate ?? 0}%`} />
-                  </div>
+              {/* Pagination Controls */}
+              <Pagination
+                currentPage={safeCurrentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={distributions.length}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize)
+                  setCurrentPage(1)
+                }}
+              />
+
+              {/* High-density summary strip */}
+              <div className="border-t border-slate-100 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/80">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <SummaryCell label="Total Batches" value={`${overview?.totalDistributions ?? 0}`} />
+                  <SummaryCell label="Mapped Households" value={`${overview?.totalRegisteredHouseholds?.toLocaleString() ?? 0}`} />
+                  <SummaryCell label="Claimed Packages" value={`${overview?.totalClaimedHouseholds?.toLocaleString() ?? 0}`} valueClass="text-emerald-600 dark:text-emerald-400" />
+                  <SummaryCell label="Unclaimed Packages" value={`${overview?.totalUnclaimedHouseholds?.toLocaleString() ?? 0}`} valueClass="text-amber-600 dark:text-amber-400" />
+                  <SummaryCell label="Average Turnout" value={`${overview?.claimRate ?? 0}%`} valueClass="text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </>
@@ -400,60 +505,82 @@ export default function ReportsPageClient() {
 
       {/* ── Barangay Summary Table ────────────────────────── */}
       {generated && !loading && reportType === 'barangay' && (
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
-          <div className="border-b border-gray-100 p-5 dark:border-slate-800">
-            <div className="flex items-center gap-2 font-semibold text-gray-900 dark:text-slate-100">
-              <DocIcon className="h-5 w-5 text-gray-700 dark:text-slate-300" />
-              <span>Barangay Summary — {dateRangeLabel}</span>
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+          <div className="border-b border-slate-100 p-4 sm:p-5 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
+                <DocIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <span>Sector / Barangay Aggregated Summary</span>
+              </div>
+              <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Performance grouped across barangay jurisdictions
+              </div>
             </div>
-            <div className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-              Aggregated relief distribution statistics grouped by barangay
-            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              {barangaySummaryRows.length} sectors active
+            </span>
           </div>
 
           {barangaySummaryRows.length === 0 ? (
             <EmptyState message="No data found for the selected filters." />
           ) : (
-            <div className="overflow-x-auto w-full">
-              <table className="w-full text-left border-collapse table-fixed min-w-[700px] lg:min-w-0">
-                <thead className="bg-gray-50 text-sm text-gray-500 dark:bg-slate-800/80 dark:text-slate-400">
-                  <tr>
-                    <th className="px-4 py-4 font-medium w-[20%]">Barangay</th>
-                    <th className="px-4 py-4 font-medium w-[15%]">Distributions</th>
-                    <th className="px-4 py-4 font-medium w-[15%]">Registered</th>
-                    <th className="px-4 py-4 font-medium w-[15%]">Claimed</th>
-                    <th className="px-4 py-4 font-medium w-[15%]">Unclaimed</th>
-                    <th className="px-4 py-4 font-medium w-[20%]">Claim Rate</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-sm dark:divide-slate-800">
-                  {barangaySummaryRows.map((r) => {
-                    const rate = r.registered > 0 ? Math.round((r.claimed / r.registered) * 100) : 0
-                    return (
-                      <tr key={r.barangay} className="hover:bg-gray-50 dark:hover:bg-slate-800/70">
-                        <td className="px-4 py-4 font-medium text-gray-700 dark:text-slate-100">{r.barangay}</td>
-                        <td className="px-4 py-4 text-gray-700 dark:text-slate-200">{r.distributions}</td>
-                        <td className="px-4 py-4 text-gray-700 dark:text-slate-200">{r.registered}</td>
-                        <td className="px-4 py-4 text-green-700 font-medium">{r.claimed}</td>
-                        <td className="px-4 py-4 text-amber-600 font-medium">{r.unclaimed}</td>
-                        <td className="px-4 py-4"><ClaimRateBar rate={rate} /></td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse table-fixed min-w-[700px]">
+                  <thead className="bg-slate-50/80 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/80 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3.5 w-[22%]">Barangay Sector</th>
+                      <th className="px-4 py-3.5 w-[14%] text-right">Distributions</th>
+                      <th className="px-4 py-3.5 w-[16%] text-right">Registered</th>
+                      <th className="px-4 py-3.5 w-[16%] text-right">Claimed</th>
+                      <th className="px-4 py-3.5 w-[14%] text-right">Unclaimed</th>
+                      <th className="px-4 py-3.5 w-[18%]">Turnout Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs sm:text-sm dark:divide-slate-800">
+                    {paginatedBarangayRows.map((r, idx) => {
+                      const rate = r.registered > 0 ? Math.round((r.claimed / r.registered) * 100) : 0
+                      return (
+                        <tr key={r.barangay} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/30 dark:bg-slate-800/20' : ''}`}>
+                          <td className="px-4 py-3.5 font-bold text-slate-900 dark:text-slate-100">{r.barangay}</td>
+                          <td className="px-4 py-3.5 text-right font-medium text-slate-700 dark:text-slate-300">{r.distributions}</td>
+                          <td className="px-4 py-3.5 text-right font-medium text-slate-700 dark:text-slate-300">{r.registered.toLocaleString()}</td>
+                          <td className="px-4 py-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">{r.claimed.toLocaleString()}</td>
+                          <td className="px-4 py-3.5 text-right font-semibold text-amber-600 dark:text-amber-400">{r.unclaimed.toLocaleString()}</td>
+                          <td className="px-4 py-3.5"><ClaimRateBar rate={rate} /></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls for Barangay Table */}
+              <Pagination
+                currentPage={brgySafeCurrentPage}
+                totalPages={brgyTotalPages}
+                pageSize={brgyPageSize}
+                totalItems={barangaySummaryRows.length}
+                onPageChange={setBrgyCurrentPage}
+                onPageSizeChange={(newSize) => {
+                  setBrgyPageSize(newSize)
+                  setBrgyCurrentPage(1)
+                }}
+              />
+            </>
           )}
         </div>
       )}
 
-      {/* ── Charts ────────────────────────────────────────── */}
+      {/* ── Visual Analytics Row ──────────────────────────── */}
       {generated && !loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Monthly Trend */}
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
-            <div className="font-semibold text-gray-900 dark:text-slate-100">Distribution Trends</div>
-            <div className="mb-4 text-sm text-gray-500 dark:text-slate-400">Monthly distributions vs. claims (last 6 months)</div>
+          <div className="lg:col-span-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)] flex flex-col justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Monthly Volume Comparison</h3>
+              <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">Distributions planned vs actual claims fulfilled</p>
+            </div>
             {monthlyTrends.length > 0 ? (
               <MiniBarChart
                 labels={monthlyTrends.map((t) => t.month.split(' ')[0])}
@@ -463,61 +590,73 @@ export default function ReportsPageClient() {
                 legendB="Claims"
               />
             ) : (
-              <div className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">No trend data available</div>
+              <div className="py-10 text-center text-xs text-slate-400">No trend data available</div>
             )}
           </div>
 
           {/* Barangay Donut */}
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
-            <div className="font-semibold text-gray-900 dark:text-slate-100">Distribution by Barangay</div>
-            <div className="mb-4 text-sm text-gray-500 dark:text-slate-400">Number of distributions per barangay</div>
+          <div className="lg:col-span-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)] flex flex-col justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Sector Allocation Share</h3>
+              <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">Distribution events share by barangay</p>
+            </div>
             {barangayBreakdown.length > 0 ? (
               <Donut
                 segments={barangayBreakdown.map((b, i) => ({
-                  label: `${b.barangay}: ${b.distributions}`,
+                  label: b.barangay,
                   value: b.distributions,
                   stroke: DONUT_COLORS[i % DONUT_COLORS.length],
                 }))}
               />
             ) : (
-              <div className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">No barangay data available</div>
+              <div className="py-10 text-center text-xs text-slate-400">No sector data available</div>
             )}
           </div>
         </div>
       )}
 
-      {/* ── Verification Methods Card ─────────────────────── */}
+      {/* ── Verification Methods Analytics Card ───────────── */}
       {generated && !loading && verification && (verification.qr > 0 || verification.face > 0) && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
-          <div className="mb-1 font-semibold text-gray-900 dark:text-slate-100">Verification Methods</div>
-          <div className="mb-4 text-sm text-gray-500 dark:text-slate-400">How households verified their claims</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-3 bg-blue-50 rounded-xl p-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <QRIcon className="w-5 h-5 text-blue-700" />
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Verification Method Distribution</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Breakdown of authentication modalities employed for claims</p>
+            </div>
+            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40">
+              Multi-factor Enabled
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3.5 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 rounded-xl p-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
+                <QRIcon className="w-5 h-5" />
               </div>
-              <div>
-                <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{verification.qr}</div>
-                <div className="text-xs text-gray-500 dark:text-slate-400">QR Code Scans</div>
+              <div className="min-w-0">
+                <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100">{verification.qr.toLocaleString()}</div>
+                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">QR Code Scans</div>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-purple-50 rounded-xl p-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                <FaceIcon className="w-5 h-5 text-purple-700" />
+
+            <div className="flex items-center gap-3.5 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40 rounded-xl p-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
+                <FaceIcon className="w-5 h-5" />
               </div>
-              <div>
-                <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{verification.face}</div>
-                <div className="text-xs text-gray-500 dark:text-slate-400">Face Recognition</div>
+              <div className="min-w-0">
+                <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100">{verification.face.toLocaleString()}</div>
+                <div className="text-xs font-semibold text-purple-700 dark:text-purple-300">Biometric Face Recognition</div>
               </div>
             </div>
+
             {verification.unknown > 0 && (
-              <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-slate-800/80">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-slate-700">
-                  <QuestionIcon className="w-5 h-5 text-gray-600 dark:text-slate-300" />
+              <div className="flex items-center gap-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-4">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                  <QuestionIcon className="w-5 h-5" />
                 </div>
-                <div>
-                  <div className="text-lg font-bold text-gray-900 dark:text-slate-100">{verification.unknown}</div>
-                  <div className="text-xs text-gray-500 dark:text-slate-400">Other / Manual</div>
+                <div className="min-w-0">
+                  <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100">{verification.unknown.toLocaleString()}</div>
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">Manual / Override Claims</div>
                 </div>
               </div>
             )}
@@ -525,10 +664,10 @@ export default function ReportsPageClient() {
         </div>
       )}
 
-      {/* ── Not generated state ───────────────────────────── */}
+      {/* ── Uninitialized / Empty Filter State ───────────── */}
       {!generated && !loading && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-12 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_4px_12px_rgba(0,0,0,0.16)]">
-          <EmptyState message="Click Generate Report to view distribution data." />
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <EmptyState message="Select desired filters and click Generate Report to compile analytics." />
         </div>
       )}
 
@@ -537,4 +676,5 @@ export default function ReportsPageClient() {
     </div>
   )
 }
+
 
