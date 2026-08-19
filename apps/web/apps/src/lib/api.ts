@@ -169,6 +169,12 @@ export interface ScanEligibleUser {
   scopesSummary: string[];
   coveredBarangays?: string[];
   inScope: boolean;
+  isAvailable?: boolean;
+  conflict?: {
+    distributionId: string;
+    barangay: string;
+    scheduled: string;
+  } | null;
 }
 
 export interface ScanEligibleResponse {
@@ -203,6 +209,8 @@ export interface ReportSummaryData {
     totalClaimedHouseholds: number;
     totalUnclaimedHouseholds: number;
     claimRate: number;
+    completedToday: number;
+
   };
   distributions: ReportDistributionRow[];
   monthlyTrends: { month: string; distributions: number; claimed: number }[];
@@ -330,6 +338,20 @@ export interface BeneficiaryProofSubmissionListResponse extends PaginatedApiResp
   summary?: BeneficiaryProofQueueSummary;
 }
 
+export interface AuditLogRecord {
+  _id: string;
+  actorId: string | null;
+  actorRole: string;
+  actorName?: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown>;
+  ip: string;
+  userAgent: string;
+  createdAt: string;
+}
+
 // ========================== HELPERS ==========================
 
 /**
@@ -363,7 +385,12 @@ const createHeaders = (method: string = 'GET'): HeadersInit => {
 };
 
 /**
- * Handle API response
+ * Handle API response.
+ *
+ * Security: raw server text, HTTP status codes, and non-JSON responses are
+ * logged to the console for developer debugging only.  Error.message uses
+ * only the server's intentional JSON message or a generic fallback so that
+ * downstream UI code can safely display it without leaking system details.
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') || '';
@@ -380,13 +407,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    const fallbackMessage =
-      rawText && !isJson
-        ? rawText.slice(0, 180)
-        : `Request failed with status ${response.status}`;
-    const error = new Error(data?.message || fallbackMessage || 'An error occurred');
+    // Log raw details for developer debugging — never expose to UI
+    console.error(
+      `[API] ${response.status} ${response.url}`,
+      isJson ? data : rawText?.slice(0, 300),
+    );
+
+    // User-safe message: prefer server's intentional JSON message, else generic
+    const userMessage = data?.message || 'Something went wrong. Please try again.';
+
+    const error = new Error(userMessage);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (error as any).response = data ?? { message: fallbackMessage };
+    (error as any).response = data ?? { message: userMessage };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (error as any).status = response.status;
     throw error;
@@ -504,9 +536,9 @@ export const api = {
    * Create a new distribution
    */
   async createDistribution(data: {
-    disasterEventId: string;
+    disasterEventId?: string;
     barangay: string;
-    assignedBarangays: string[];
+    assignedBarangays?: string[];
     assignedStaffIds: string[];
     scheduled: string;
     endsAt: string;
@@ -520,7 +552,10 @@ export const api = {
       method: 'POST',
       headers,
       credentials: 'include',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        assignedBarangays: data.assignedBarangays ?? [],
+      }),
     });
     return handleResponse<ApiResponse<DistributionData>>(response);
   },
@@ -529,17 +564,23 @@ export const api = {
    * Search eligible scanner staff for a distribution scope.
    */
   async getScanEligibleUsers(params: {
-    hostBarangayId: string;
-    assignedBarangayIds: string[];
+    barangay?: string;
+    hostBarangayId?: string;
+    assignedBarangayIds?: string[];
+    scheduled?: string;
     q?: string;
     cursor?: number;
     limit?: number;
   }): Promise<ApiResponse<ScanEligibleResponse>> {
     const sp = new URLSearchParams();
-    sp.append('hostBarangayId', params.hostBarangayId);
-    for (const barangay of params.assignedBarangayIds) {
-      sp.append('assignedBarangayIds', barangay);
+    if (params.barangay) sp.append('barangay', params.barangay);
+    if (params.hostBarangayId) sp.append('hostBarangayId', params.hostBarangayId);
+    if (Array.isArray(params.assignedBarangayIds)) {
+      for (const b of params.assignedBarangayIds) {
+        sp.append('assignedBarangayIds', b);
+      }
     }
+    if (params.scheduled) sp.append('scheduled', params.scheduled);
     if (params.q) sp.append('q', params.q);
     if (typeof params.cursor === 'number') sp.append('cursor', String(params.cursor));
     if (typeof params.limit === 'number') sp.append('limit', String(params.limit));
@@ -549,6 +590,22 @@ export const api = {
       credentials: 'include',
     });
     return handleResponse<ApiResponse<ScanEligibleResponse>>(response);
+  },
+
+  /**
+   * Reschedule an active distribution
+   */
+  async rescheduleDistribution(
+    id: string,
+    data: { scheduled: string; reason?: string },
+  ): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions/${id}/reschedule`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
   },
 
   /**
@@ -880,6 +937,34 @@ export const api = {
       credentials: 'include',
     });
     return handleResponse<ApiResponse<ReportSummaryData>>(response);
+  },
+
+  // ==================== AUDIT LOGS ====================
+
+  /**
+   * Get audit logs
+   */
+  async getAuditLogs(params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    entityType?: string;
+    actorRole?: string;
+  }): Promise<PaginatedApiResponse<AuditLogRecord[]>> {
+    const sp = new URLSearchParams();
+    if (typeof params?.page === 'number') sp.append('page', String(params.page));
+    if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
+    if (params?.action) sp.append('action', params.action);
+    if (params?.entityType) sp.append('entityType', params.entityType);
+    if (params?.actorRole) sp.append('actorRole', params.actorRole);
+
+    const qs = sp.toString();
+    const url = `${API_URL}/audit-logs${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, {
+      headers: createHeaders(),
+      credentials: 'include',
+    });
+    return handleResponse<PaginatedApiResponse<AuditLogRecord[]>>(response);
   },
 };
 

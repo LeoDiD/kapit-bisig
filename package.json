@@ -4,8 +4,7 @@
   "private": true,
   "description": "Kapit-Bisig Monorepo - Web, Backend, and Mobile",
   "scripts": {
-    "network:sync": "node scripts/configure-local-network.js",
-    "dev": "npm run network:sync && concurrently -n \"web,server,mobile\" -c \"blue,green,magenta\" \"npm run dev:web\" \"npm run dev:server\" \"npm run dev:mobile\"",
+    "dev": "concurrently -n \"web,server,mobile\" -c \"blue,green,magenta\" \"npm run dev:web\" \"npm run dev:server\" \"npm run dev:mobile\"",
     "dev:web": "cd apps/web/apps && npm run dev:clean",
     "dev:server": "cd apps/web/apps && npm run server:dev",
     "dev:mobile": "cd mobile && npm run start",
@@ -14,12 +13,15 @@
     "build:web": "cd apps/web/apps && npm run build",
     "test:auth:newman": "npx newman run docs/postman/KapitBisig_Auth_Security.postman_collection.json -e docs/postman/KapitBisig_Local.postman_environment.json --reporters cli",
     "test:auth:newman:insecure": "npx newman run docs/postman/KapitBisig_Auth_Security.postman_collection.json -e docs/postman/KapitBisig_Local.postman_environment.json --reporters cli --insecure",
-    "server:dev": "npm run dev:server"
+    "test:api:phase3": "cd apps/web/apps/server && npx tsx test/runPhase3NewmanTests.ts"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
   "engines": {
     "node": ">=18 <23"
+  },
+  "dependencies": {
+    "mongodb": "^7.5.0"
   }
 }

@@ -85,8 +85,8 @@ export default function VerifiedResidentsPage() {
       setRows(response.data)
       setCurrentPage(1)
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to load verified residents.'
-      setError(message)
+      console.error('Failed to fetch verified residents:', e)
+      setError('Failed to load verified residents. Please try again.')
       setRows([])
     } finally {
       setFetching(false)
@@ -118,7 +118,8 @@ export default function VerifiedResidentsPage() {
       }
       setReviewResident(response.data)
     } catch (e) {
-      setReviewError(e instanceof Error ? e.message : 'Failed to load verified resident details.')
+      console.error('Failed to load verified resident details:', e)
+      setReviewError('Failed to load verified resident details. Please try again.')
     } finally {
       setReviewLoading(false)
     }
@@ -250,26 +251,26 @@ export default function VerifiedResidentsPage() {
             </div>
           ) : (
             <table className="w-full min-w-[560px] border-collapse text-left">
-              <thead className="bg-white border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <thead className="bg-white dark:bg-transparent border-b border-gray-200 dark:border-slate-700 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 <tr>
                   <th className="px-6 py-4">Name</th>
                   <th className="px-6 py-4">Barangay</th>
                   <th className="px-6 py-4 text-right pr-6">Record</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white text-sm">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-transparent text-sm">
                 {fetching ? (
                   <tr>
                     <td colSpan={3} className="px-6 py-16 text-center">
                       <div className="inline-flex flex-col items-center">
-                        <SpinnerIcon className="h-8 w-8 text-gray-700" />
-                        <span className="mt-2 text-xs font-medium text-gray-500">Fetching verified residents...</span>
+                        <SpinnerIcon className="h-8 w-8 text-gray-700 dark:text-slate-300" />
+                        <span className="mt-2 text-xs font-medium text-gray-500 dark:text-slate-400">Fetching verified residents...</span>
                       </div>
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td className="px-6 py-16 text-center text-gray-500 font-medium" colSpan={3}>
+                    <td className="px-6 py-16 text-center text-gray-500 dark:text-slate-400 font-medium" colSpan={3}>
                       No verified residents found filtering by {barangay}.
                     </td>
                   </tr>
@@ -278,26 +279,26 @@ export default function VerifiedResidentsPage() {
                     const id = r._id || r.id || ''
                     const verifiedTimestamp = getVerifiedTimestamp(r)
                     return (
-                      <tr key={id} className="hover:bg-gray-50/70 transition-colors group">
+                      <tr key={id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/50 transition-colors group">
                         <td className="px-6 py-4 whitespace-normal break-words">
                           <div className="flex items-center gap-3">
-                            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600">
+                            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
                               <RowCheckIcon className="h-4 w-4" />
                             </span>
                             <div className="min-w-0">
-                              <p className="truncate font-bold text-gray-900">{maskResidentName(r)}</p>
-                              <p className="mt-1 text-xs font-medium text-slate-500">
+                              <p className="truncate font-bold text-gray-900 dark:text-slate-100">{maskResidentName(r)}</p>
+                              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                                 Verified {formatVerifiedTimestamp(verifiedTimestamp)}
                               </p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-gray-600 font-medium">{r.barangay}</td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-slate-300 font-medium">{r.barangay}</td>
                         <td className="px-6 py-4 text-right pr-6">
                           <button
                             type="button"
                             onClick={() => id && openReview(id)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-colors hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
                           >
                             <EyeIcon className="h-4 w-4" />
                             View Record
@@ -313,16 +314,16 @@ export default function VerifiedResidentsPage() {
         </div>
 
         {rows.length > 0 && !fetching && !error && (
-          <div className="bg-gray-50/50 border-t border-gray-100 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs font-bold text-gray-500 tracking-wide uppercase">
-              Page {currentPage} of {totalPages} <span className="text-gray-400 mx-1">|</span> {rows.length} Total
+          <div className="bg-gray-50/50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-700 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs font-bold text-gray-500 dark:text-slate-400 tracking-wide uppercase">
+              Page {currentPage} of {totalPages} <span className="text-gray-400 dark:text-slate-500 mx-1">|</span> {rows.length} Total
             </p>
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Prev
               </button>
@@ -333,8 +334,8 @@ export default function VerifiedResidentsPage() {
                   onClick={() => setCurrentPage(page)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors ${
                     page === currentPage
-                      ? 'bg-gray-900 text-white border border-gray-900'
-                      : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-gray-900 text-white border border-gray-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100'
+                      : 'border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   {page}
@@ -344,7 +345,7 @@ export default function VerifiedResidentsPage() {
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next
               </button>

@@ -14,7 +14,7 @@ import HouseholdToken from '../models/HouseholdToken';
 import Resident from '../models/Resident';
 import Distribution from '../models/Distribution';
 import { AuthRequest } from '../middleware/unifiedAuth';
-import { computeHouseholdHash, computeEventHash } from '../utils/hashHelpers';
+
 import {
   isResidentEligibleForDistribution,
   isResidentApprovedBeneficiaryForDistribution,
@@ -138,8 +138,7 @@ interface PreparedClaimDraft {
   householdId: string;
   householdCode: string;
   barangay: string;
-  householdHash: string;
-  eventHash: string;
+
 }
 
 type ClaimPreparationResult =
@@ -358,22 +357,7 @@ async function prepareClaimDraft(
     };
   }
 
-  const householdHash = computeHouseholdHash(householdId);
-  const eventHash = computeEventHash(distributionId);
 
-  const existingHouseholdHashClaim = await Claim.findOne({
-    claimCategory: 'DISTRIBUTION',
-    distributionId,
-    'blockchain.householdHash': householdHash,
-  });
-  if (existingHouseholdHashClaim) {
-    // [RISK-5 MITIGATION] Off-chain guard mirrors one-claim-per-household-per-distribution policy.
-    return {
-      ok: false,
-      status: 409,
-      message: 'This household has already claimed for this distribution',
-    };
-  }
 
   return {
     ok: true,
@@ -384,8 +368,7 @@ async function prepareClaimDraft(
       householdId,
       householdCode,
       barangay,
-      householdHash,
-      eventHash,
+
     },
   };
 }
@@ -449,14 +432,11 @@ router.post(
         householdId,
         householdCode,
         barangay,
-        householdHash,
-        eventHash,
+
       } = prepared.data;
 
       console.log(`[2] Household found: ${householdCode} | ${barangay}`);
-      console.log(
-        `[3] Hashes computed: householdHash=${shortHex(householdHash)} eventHash=${shortHex(eventHash)}`,
-      );
+
 
       const claimId = generateClaimId();
       const staffUserId = req.authUser?.userId || req.authUser?.sub || 'unknown';
@@ -483,11 +463,7 @@ router.post(
           scannedBy: staffUserId,
           scannedAt: new Date(),
           source: 'ONLINE' as const,
-          status: 'PENDING_CHAIN' as const,
-          blockchain: {
-            householdHash,
-            eventHash,
-          },
+          status: 'CONFIRMED' as const,
         };
         let createdClaim;
         if (session) {
@@ -612,7 +588,6 @@ router.post(
       }
 
       const seenTokens = new Set<string>();
-      const seenHouseholdHashes = new Set<string>();
       const failures: BatchClaimResultItem[] = [];
       const preparedDrafts: PreparedClaimDraft[] = [];
 
@@ -640,16 +615,7 @@ router.post(
           continue;
         }
 
-        if (seenHouseholdHashes.has(prepared.data.householdHash)) {
-          failures.push({
-            token: maskToken(token),
-            status: 'FAILED',
-            message: 'Duplicate household detected in this batch payload',
-          });
-          continue;
-        }
 
-        seenHouseholdHashes.add(prepared.data.householdHash);
         preparedDrafts.push(prepared.data);
       }
 
@@ -674,11 +640,7 @@ router.post(
           scannedBy: staffUserId,
           scannedAt: new Date(),
           source: 'ONLINE',
-          status: 'PENDING_CHAIN',
-          blockchain: {
-            householdHash: draft.householdHash,
-            eventHash: draft.eventHash,
-          },
+          status: 'CONFIRMED',
         });
 
         try {

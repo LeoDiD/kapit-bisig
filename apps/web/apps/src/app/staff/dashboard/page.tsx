@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { StaffLayout } from '@/components/layout'
 import {
   MetricStrip,
@@ -9,46 +9,71 @@ import {
   QuickActionsTerminal,
 } from '@/components/staff-dashboard'
 import { showToast } from '@/lib/toast'
+import api from '@/lib/api'
 
 export default function StaffDashboardPage() {
   const [loading, setLoading] = useState(true)
+  const [metrics, setMetrics] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [distRes, reportRes, pendingResidentsRes, pendingProofsRes] = await Promise.all([
+        api.getDistributions(),
+        api.getReportSummary(),
+        api.getResidents({ status: 'Pending', limit: 5 }),
+        api.getBeneficiaryProofSubmissions({ status: 'Pending Verification', limit: 5 })
+      ]);
+
+      const distributions = Array.isArray(distRes.data) ? distRes.data : [];
+      const pendingDist = distributions.filter((d) => d.status !== 'Claimed').length;
+      const completedToday = reportRes.data?.overview?.completedToday || 0;
+      const totalRegistered = reportRes.data?.overview?.totalRegisteredHouseholds || 0;
+
+      setMetrics([
+        { id: '1', label: 'Pending Distributions', value: pendingDist },
+        { id: '2', label: 'Claims Completed Today', value: completedToday },
+        { id: '3', label: 'Total Registered Households', value: totalRegistered }
+      ]);
+
+      const residents = pendingResidentsRes.data || [];
+      const proofs = pendingProofsRes.data || [];
+
+      const residentTasks = residents.map(r => ({
+        id: `res-${r.id || r._id}`,
+        title: `Pending Registration: ${r.fullName}`,
+        description: `Needs review for Barangay ${r.barangay}.`,
+        priority: 'high' as const,
+        timestamp: new Date(r.createdAt || Date.now()).toLocaleDateString()
+      }));
+
+      const proofTasks = proofs.map(p => ({
+        id: `proof-${p.id || p._id}`,
+        title: `Proof Verification: ${p.resident?.fullName || 'Unknown'}`,
+        description: `Submitted proof for ${p.event?.name || p.damageType}.`,
+        priority: 'normal' as const,
+        timestamp: new Date(p.createdAt || Date.now()).toLocaleDateString()
+      }));
+
+      setTasks([...residentTasks, ...proofTasks].slice(0, 5));
+    } catch (err) {
+      console.error(err);
+      showToast.error('Failed to load dashboard data');
+      setMetrics([
+        { id: '1', label: 'Pending Distributions', value: 0 },
+        { id: '2', label: 'Claims Completed Today', value: 0 },
+        { id: '3', label: 'Total Registered', value: 0 }
+      ]);
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 1200)
-    return () => clearTimeout(timer)
-  }, [])
-
-  const mockMetrics = [
-    { id: '1', label: 'Pending Distributions', value: 342, trend: 'up' as const, trendValue: '12 added' },
-    { id: '2', label: 'Tasks Completed Today', value: 89 },
-    { id: '3', label: 'Active Volunteers', value: 24, trend: 'up' as const, trendValue: '2 online' }
-  ]
-
-  const mockTasks = [
-    {
-      id: 'task-1',
-      title: 'Missing Signature for Household #1042',
-      description: 'Distribution marked as claimed but missing digital acknowledgment.',
-      priority: 'high' as const,
-      timestamp: '10 mins ago'
-    },
-    {
-      id: 'task-2',
-      title: 'Review Inventory Shift: Brgy. San Jose',
-      description: 'Inventory drops below minimum threshold for next week\'s distribution.',
-      priority: 'normal' as const,
-      timestamp: '1 hour ago'
-    },
-    {
-      id: 'task-3',
-      title: 'Approve Volunteer Registration',
-      description: 'Pending review for new volunteer applications.',
-      priority: 'low' as const,
-      timestamp: 'Yesterday'
-    }
-  ]
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const quickActions = [
     {
@@ -102,7 +127,7 @@ export default function StaffDashboardPage() {
 
         {/* Top Metric Banner - Full Bleed */}
         <div className="w-full">
-          <MetricStrip metrics={mockMetrics} loading={loading} />
+          <MetricStrip metrics={metrics} loading={loading} />
         </div>
 
         {/* Main 2-column structural layout - No margin, edge-to-edge grid lines */}
@@ -112,7 +137,7 @@ export default function StaffDashboardPage() {
           <div className="w-full lg:w-2/3 border-r border-slate-300 dark:border-slate-800">
             <StructuralDivider label="Priority Action Queue" className="border-b-0">
               <ActionQueue 
-                tasks={mockTasks} 
+                tasks={tasks} 
                 onAction={handleTaskAction} 
                 loading={loading}
               />

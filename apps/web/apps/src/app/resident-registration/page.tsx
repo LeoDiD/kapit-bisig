@@ -11,6 +11,7 @@ import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 import ResidentReviewModal from '@/components/residents/ResidentReviewModal'
+import FilterDropdown from '@/components/ui/FilterDropdown'
 
 function getResidentId(record: ResidentRecord): string {
   return record._id || record.id || ''
@@ -347,8 +348,8 @@ export default function ResidentRegistrationPage() {
       setRows(response.data)
       setSelectedIds([])
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to load resident registrations.'
-      setError(message)
+      console.error('Failed to fetch resident registrations:', e)
+      setError('Failed to load resident registrations. Please try again.')
       setRows([])
     } finally {
       setFetching(false)
@@ -463,7 +464,8 @@ export default function ResidentRegistrationPage() {
       }
       setReviewResident(response.data)
     } catch (e) {
-      setReviewError(e instanceof Error ? e.message : 'Failed to load resident review details.')
+      console.error('Failed to load resident review details:', e)
+      setReviewError('Failed to load resident review details. Please try again.')
     } finally {
       setReviewLoading(false)
     }
@@ -513,12 +515,11 @@ export default function ResidentRegistrationPage() {
           )
         }
       } catch (e) {
+        console.error('Failed to approve registration:', e)
         showToast.error(
-          e instanceof Error
-            ? e.message
-            : isBulk
-              ? 'Failed to approve selected registrations.'
-              : 'Failed to approve registration.',
+          isBulk
+            ? 'Failed to approve selected registrations.'
+            : 'Failed to approve registration.',
         )
       } finally {
         setBusyId(null)
@@ -582,12 +583,11 @@ export default function ResidentRegistrationPage() {
           )
         }
       } catch (e) {
+        console.error('Failed to return registration for revision:', e)
         showToast.error(
-          e instanceof Error
-            ? e.message
-            : isBulk
-              ? 'Failed to return selected registrations.'
-              : 'Failed to return registration.',
+          isBulk
+            ? 'Failed to return selected registrations.'
+            : 'Failed to return registration.',
         )
       } finally {
         setBusyId(null)
@@ -712,15 +712,11 @@ export default function ResidentRegistrationPage() {
                     </button>
                   </div>
 
-                  <select
+                  <FilterDropdown
                     value={barangay}
-                    onChange={(event) => setBarangay(event.target.value)}
-                    className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-500"
-                  >
-                    {barangayOptions.map((item) => (
-                      <option key={item} value={item}>{item}</option>
-                    ))}
-                  </select>
+                    options={barangayOptions.map((item) => ({ value: item, label: item }))}
+                    onChange={(val) => setBarangay(val)}
+                  />
 
                   <button
                     type="button"

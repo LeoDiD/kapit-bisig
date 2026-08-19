@@ -42,7 +42,6 @@ import Claim from '../models/Claim';
 import Notification from '../models/Notification';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
 import { computeEventHash, computeHouseholdHash } from '../utils/hashHelpers';
-import { deriveDistributionLifecycle, isDistributionClaimable } from '../utils/distributionLifecycle';
 import {
   upsertDistributionClaimFromClaim,
   requiresBeneficiaryApproval,
@@ -88,7 +87,6 @@ import { validatePasswordStrength } from '../utils/passwordValidator';
 import { buildScreeningValidationIssues, buildVerificationPayload } from '../services/householdRegistrationService';
 import { screenSubmittedId } from '../services/idScreeningService';
 import { persistVerificationImage } from '../utils/imageStorage';
-import { formatResidentFullName, normalizeResidentName } from '../utils/residentName';
 import { broadcastScopedNotification } from '../utils/createNotification';
 import RegistrationOtp from '../models/RegistrationOtp';
 import { sendRegistrationOtpSms, isSmsConfigured } from '../utils/smsService';
@@ -240,8 +238,49 @@ function getMaskedName(fullName: string): string {
   return `${firstInitial}xxxx ${lastInitial}xxxx`;
 }
 
+const residentNameNoiseWords = new Set([
+  'APPROVED',
+  'PENDING',
+  'REJECTED',
+  'VERIFIED',
+  'ACTIVE',
+  'INACTIVE',
+  'RESIDENT',
+  'HOUSEHOLD',
+]);
+
+export function normalizeResidentName(input: { firstName?: string; lastName?: string; fullName?: string }): {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+} {
+  const cleanParts = (raw: string): string[] =>
+    String(raw || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter((part) => !residentNameNoiseWords.has(part.toUpperCase()));
+
+  let firstParts = cleanParts(input.firstName || '');
+  let lastParts = cleanParts(input.lastName || '');
+  const fullParts = cleanParts(input.fullName || '');
+
+  if (firstParts.length === 0 && fullParts.length > 0) {
+    firstParts = [fullParts[0]];
+  }
+  if (lastParts.length === 0 && fullParts.length > 1) {
+    lastParts = [fullParts[fullParts.length - 1]];
+  }
+
+  const firstName = firstParts.join(' ').trim();
+  const lastName = lastParts.join(' ').trim();
+  const fullName = `${firstName} ${lastName}`.trim() || fullParts.join(' ').trim();
+
+  return { firstName, lastName, fullName };
+}
+
 function getResidentDisplayName(input: { firstName?: string; lastName?: string; fullName?: string }): string {
-  return formatResidentFullName(input);
+  return normalizeResidentName(input).fullName;
 }
 
 function isAllowedScannerRole(role: string | undefined): boolean {
@@ -621,609 +660,6 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
   }
 });
 
-/**
- * Resident Login Endpoint
- *
- * POST /api/household/auth/login
- *
- * Authenticates a registered household resident using mobile number + password.
- * Pending and Needs Revision residents are allowed to sign in for limited access (home/profile only).
- * Rejected residents are blocked from sign-in.
- */
-router.post('/auth/login', loginRateLimiter, validateRequest({ body: householdLoginSchema }), async (req: Request, res: Response) => {
-  try {
-    const { mobileNumber, password } = req.body;
-
-    if (!mobileNumber || !password || typeof mobileNumber !== 'string' || typeof password !== 'string') {
-      return res.status(400).json({
-        success: false,
-        message: 'Mobile number and password are required',
-      });
-    }
-
-    const normalizedMobile = normalizePhilippineMobileNumber(mobileNumber.trim());
-    if (!isValidPhilippineMobileNumber(normalizedMobile)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid mobile number format',
-      });
-    }
-
-    const resident = await Resident.findOne({ mobileNumber: normalizedMobile }).select('+password');
-
-    if (!resident) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid mobile number or password',
-      });
-    }
-
-    const storedPassword = resident.password || '';
-    let passwordValid = false;
-
-    if (/^\$2[aby]\$\d{2}\$/.test(storedPassword)) {
-      passwordValid = await bcrypt.compare(password, storedPassword);
-    } else {
-      passwordValid = password === storedPassword;
-      if (passwordValid) {
-        resident.password = password;
-        await resident.save();
-      }
-    }
-
-    if (!passwordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid mobile number or password',
-      });
-    }
-
-    if (resident.status === 'Rejected') {
-      return res.status(403).json({
-        success: false,
-        message: 'Your registration was rejected. Please contact your barangay office.',
-        code: 'REGISTRATION_REJECTED',
-      });
-    }
-
-    const token = generateToken(resident._id.toString(), normalizedMobile, 'Resident');
-
-    return res.json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        user: {
-          id: resident._id,
-          firstName: resident.firstName,
-          lastName: resident.lastName,
-          fullName: resident.fullName,
-          mobileNumber: resident.mobileNumber,
-          barangay: resident.barangay,
-          status: resident.status,
-          role: 'Resident',
-        },
-        token,
-      },
-    });
-  } catch (error) {
-    console.error('[HouseholdRoutes] Resident login error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to process login.',
-    });
-  }
-});
-
-/**
- * Resident Logout Endpoint
- *
- * POST /api/household/auth/logout
- *
- * Invalidates the active bearer token server-side via JWT revocation list.
- */
-router.post('/auth/logout', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-    if (token) {
-      await revokeJWTByValue(token, 'access');
-    }
-    return res.json({
-      success: true,
-      message: 'Logged out.',
-    });
-  } catch (error) {
-    console.error('[HouseholdRoutes] Resident logout error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to process logout.',
-    });
-  }
-});
-
-/**
- * Resident Session Endpoint
- *
- * GET /api/household/auth/me
- *
- * Returns the authenticated resident profile.
- */
-router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user?.userId;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-      });
-    }
-
-    const resident = await Resident.findById(userId).select(
-      'residentCode avatarUrl firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status rejectionReason createdAt'
-    );
-
-    if (!resident) {
-      return res.status(404).json({
-        success: false,
-        message: 'Resident not found',
-      });
-    }
-
-    const normalizedName = normalizeResidentName({
-      firstName: resident.firstName,
-      lastName: resident.lastName,
-      fullName: resident.fullName,
-    });
-
-    return res.json({
-      success: true,
-      data: {
-        id: resident._id.toString(),
-        residentCode: resident.residentCode,
-        avatarUrl: resident.avatarUrl || null,
-        firstName: normalizedName.firstName || resident.firstName,
-        lastName: normalizedName.lastName || resident.lastName,
-        fullName: normalizedName.fullName || resident.fullName,
-        mobileNumber: resident.mobileNumber,
-        email: resident.email || '',
-        barangay: resident.barangay,
-        city: resident.city || '',
-        streetAddress: resident.streetAddress,
-        householdSize: resident.householdSize,
-        status: resident.status,
-        rejectionReason: resident.rejectionReason || '',
-      },
-    });
-  } catch (error) {
-    console.error('[HouseholdRoutes] Resident /auth/me error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to fetch resident profile.',
-    });
-  }
-});
-
-/**
- * Resident Profile Update Endpoint
- *
- * PATCH /api/household/auth/me
- *
- * Allows authenticated resident to update selected profile fields.
- */
-router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (req.user?.role !== 'Resident') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only resident accounts can update this profile.',
-      });
-    }
-
-    const userId = req.user?.userId;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-      });
-    }
-
-    const payload = req.body || {};
-    const updates: Record<string, any> = {};
-
-    const maybeSetTrimmed = (field: string) => {
-      const value = payload[field];
-      if (value === undefined) return;
-      if (typeof value !== 'string') {
-        throw new Error(`${field} must be a string`);
-      }
-      const trimmed = value.trim();
-      if (!trimmed) {
-        throw new Error(`${field} cannot be empty`);
-      }
-      updates[field] = trimmed;
-    };
-
-    maybeSetTrimmed('firstName');
-    maybeSetTrimmed('lastName');
-    maybeSetTrimmed('streetAddress');
-    maybeSetTrimmed('city');
-
-    if (payload.email !== undefined) {
-      if (typeof payload.email !== 'string') {
-        return res.status(400).json({
-          success: false,
-          message: 'email must be a string',
-        });
-      }
-
-      const normalizedEmail = payload.email.trim().toLowerCase();
-      if (normalizedEmail.length > 0 && !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid email format',
-        });
-      }
-
-      if (normalizedEmail) {
-        const existingEmailOwner = await Resident.findOne({
-          _id: { $ne: userId },
-          emailLower: normalizedEmail,
-        })
-          .select('_id')
-          .lean();
-        if (existingEmailOwner) {
-          return res.status(409).json({
-            success: false,
-            message: 'Email is already in use',
-          });
-        }
-      }
-
-      updates.email = normalizedEmail;
-    }
-
-    if (payload.mobileNumber !== undefined) {
-      if (typeof payload.mobileNumber !== 'string') {
-        return res.status(400).json({
-          success: false,
-          message: 'mobileNumber must be a string',
-        });
-      }
-      const normalizedMobile = normalizePhilippineMobileNumber(payload.mobileNumber.trim());
-      if (!isValidPhilippineMobileNumber(normalizedMobile)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid mobile number format',
-        });
-      }
-      const existing = await Resident.findOne({
-        _id: { $ne: userId },
-        mobileNumber: normalizedMobile,
-      })
-        .select('_id')
-        .lean();
-      if (existing) {
-        return res.status(409).json({
-          success: false,
-          message: 'Mobile number is already in use',
-        });
-      }
-      updates.mobileNumber = normalizedMobile;
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No valid fields to update',
-      });
-    }
-
-    const resident = await Resident.findById(userId).select(
-      'residentCode avatarUrl firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status rejectionReason'
-    );
-
-    if (!resident) {
-      return res.status(404).json({
-        success: false,
-        message: 'Resident not found',
-      });
-    }
-
-    Object.assign(resident, updates);
-    if (updates.firstName !== undefined || updates.lastName !== undefined) {
-      resident.fullName = `${resident.firstName} ${resident.lastName}`.trim();
-    }
-
-    await resident.save();
-
-    return res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: {
-        id: resident._id.toString(),
-        residentCode: resident.residentCode,
-        avatarUrl: resident.avatarUrl || null,
-        firstName: resident.firstName,
-        lastName: resident.lastName,
-        fullName: resident.fullName,
-        mobileNumber: resident.mobileNumber,
-        email: resident.email || '',
-        barangay: resident.barangay,
-        city: resident.city || '',
-        streetAddress: resident.streetAddress,
-        householdSize: resident.householdSize,
-        status: resident.status,
-        rejectionReason: resident.rejectionReason || '',
-      },
-    });
-  } catch (error) {
-    const message = (error as Error).message || '';
-    if (message.includes('must be a string') || message.includes('cannot be empty')) {
-      return res.status(400).json({
-        success: false,
-        message,
-      });
-    }
-    console.error('[HouseholdRoutes] Resident PATCH /auth/me error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Unable to update resident profile.',
-    });
-  }
-});
-
-/**
- * Resident Revision Resubmission Endpoint
- *
- * PATCH /api/household/auth/me/revision-submit
- *
- * Allows a resident whose registration needs revision to upload corrected
- * ID files and selfie, then return the account to Pending review.
- */
-router.patch(
-  '/auth/me/revision-submit',
-  mobileLookupRateLimiter,
-  authMiddleware,
-  validateRequest({ body: residentRevisionSubmitBody }),
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      if (req.user?.role !== 'Resident') {
-        return res.status(403).json({
-          success: false,
-          message: 'Only resident accounts can submit registration revisions.',
-        });
-      }
-
-      const userId = req.user?.userId;
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required',
-        });
-      }
-
-      const resident = await Resident.findById(userId).select(
-        'residentCode firstName lastName fullName mobileNumber email barangay city streetAddress householdSize status rejectionReason idType idNumber frontIdImage backIdImage faceImage verification verifiedAt verifiedBy',
-      );
-
-      if (!resident) {
-        return res.status(404).json({
-          success: false,
-          message: 'Resident not found',
-        });
-      }
-
-      if (resident.status !== 'Needs Revision') {
-        return res.status(409).json({
-          success: false,
-          message: 'This registration is not currently marked for revision.',
-        });
-      }
-
-      const { idType, idNumber, frontIdImage, backIdImage, faceImage } = req.body as {
-        idType: string;
-        idNumber: string;
-        frontIdImage: string;
-        backIdImage: string;
-        faceImage: string;
-      };
-
-      const normalizedIdNumber = normalizeIdNumber(idType, idNumber || '');
-
-      const [frontValidation, backValidation, faceValidation] = await Promise.all([
-        validateBase64Image(frontIdImage, {
-          fieldName: 'Front ID image',
-          maxBytes: 2 * 1024 * 1024,
-          minWidth: 200,
-          minHeight: 200,
-          maxWidth: 4096,
-          maxHeight: 4096,
-        }),
-        validateBase64Image(backIdImage, {
-          fieldName: 'Back ID image',
-          maxBytes: 2 * 1024 * 1024,
-          minWidth: 200,
-          minHeight: 200,
-          maxWidth: 4096,
-          maxHeight: 4096,
-        }),
-        validateBase64Image(faceImage, {
-          fieldName: 'Face image',
-          maxBytes: 2 * 1024 * 1024,
-          minWidth: 160,
-          minHeight: 160,
-          maxWidth: 4096,
-          maxHeight: 4096,
-        }),
-      ]);
-
-      const failedValidation = [frontValidation, backValidation, faceValidation].find((item) => !item.ok);
-      if (failedValidation && !failedValidation.ok) {
-        const field = failedValidation.message.toLowerCase().includes('front')
-          ? 'frontIdImage'
-          : failedValidation.message.toLowerCase().includes('back')
-            ? 'backIdImage'
-            : 'faceImage';
-        return res.status(400).json({
-          success: false,
-          message: failedValidation.message,
-          validationErrors: [{
-            field,
-            code: 'INVALID_IMAGE',
-            message: failedValidation.message,
-          }],
-        });
-      }
-
-      let idScreening;
-      try {
-        idScreening = await screenSubmittedId({
-          idType,
-          idNumber: normalizedIdNumber,
-          frontIdImage,
-          backIdImage,
-        });
-      } catch (screeningError) {
-        const message = screeningError instanceof Error
-          ? screeningError.message
-          : 'Unable to screen the corrected ID.';
-        return res.status(400).json({
-          success: false,
-          message,
-          validationErrors: [{
-            field: 'frontIdImage',
-            code: 'ID_SCREENING_FAILED',
-            message,
-          }],
-        });
-      }
-
-      if (idScreening.decision === 'BLOCK') {
-        return res.status(400).json({
-          success: false,
-          message: idScreening.reasons[0] || 'The corrected ID failed automated screening.',
-          validationErrors: buildScreeningValidationIssues(idScreening),
-        });
-      }
-
-      resident.idType = idType;
-      resident.idNumber = normalizedIdNumber;
-      resident.frontIdImage = persistVerificationImage(frontIdImage, 'revision-front-id');
-      resident.backIdImage = persistVerificationImage(backIdImage, 'revision-back-id');
-      resident.faceImage = persistVerificationImage(faceImage, 'revision-face');
-      resident.verification = buildVerificationPayload({
-        overallConfidence: Number(resident.verification?.overallConfidence || 0),
-        idConfidence: Number(resident.verification?.idConfidence || 0),
-        faceMatchConfidence: Number(resident.verification?.faceMatchConfidence || 0),
-        livenessConfidence: Number(resident.verification?.livenessConfidence || 0),
-        dataMatchScore: Number(resident.verification?.dataMatchScore || 0),
-        riskScore: Number(resident.verification?.riskScore || 0),
-        isVerified: Boolean(resident.verification?.isVerified),
-        aiVerificationStatus: resident.verification?.aiVerificationStatus || 'Low Match',
-        warnings: resident.verification?.warnings || [],
-        riskFactors: resident.verification?.riskFactors || [],
-      }, idScreening);
-      resident.status = 'Pending';
-      resident.rejectionReason = undefined;
-      resident.verifiedAt = undefined;
-      resident.verifiedBy = undefined;
-
-      await resident.save();
-
-      await broadcastScopedNotification({
-        title: 'Resident Resubmitted Registration',
-        message: `${resident.fullName || `${resident.firstName} ${resident.lastName}`.trim()} submitted corrected registration documents for review.`,
-        type: 'status_update',
-        targetBarangays: [resident.barangay],
-        meta: {
-          residentId: resident._id.toString(),
-          residentCode: resident.residentCode,
-        },
-      });
-
-      return res.json({
-        success: true,
-        message: 'Corrected documents submitted successfully. Your registration is back in the review queue.',
-        data: {
-          id: resident._id.toString(),
-          residentCode: resident.residentCode,
-          firstName: resident.firstName,
-          lastName: resident.lastName,
-          fullName: resident.fullName,
-          mobileNumber: resident.mobileNumber,
-          email: resident.email || '',
-          barangay: resident.barangay,
-          city: resident.city || '',
-          streetAddress: resident.streetAddress,
-          householdSize: resident.householdSize,
-          status: resident.status,
-          rejectionReason: resident.rejectionReason || '',
-        },
-      });
-    } catch (error) {
-      console.error('[HouseholdRoutes] Resident revision submit error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Unable to submit corrected registration files.',
-      });
-    }
-  },
-);
-
-/**
- * Resident Avatar Upload Endpoint
- *
- * POST /api/household/auth/me/avatar
- *
- * Stores resident profile photo and returns public avatar URL.
- */
-router.post(
-  '/auth/me/avatar',
-  mobileLookupRateLimiter,
-  authMiddleware,
-  residentAvatarUpload.single('avatar'),
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      if (req.user?.role !== 'Resident') {
-        return res.status(403).json({
-          success: false,
-          message: 'Only resident accounts can update this profile.',
-        });
-      }
-
-      const userId = req.user?.userId;
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required',
-        });
-      }
-
-      const uploadedFile = (req as Request & { file?: Express.Multer.File }).file;
-      if (!uploadedFile) {
-        return res.status(400).json({
-          success: false,
-          message: 'No file uploaded',
-        });
-      }
-
-      const avatarUrl = `/uploads/resident-avatars/${uploadedFile.filename}`;
-      await Resident.findByIdAndUpdate(userId, { avatarUrl });
-
-      return res.json({
-        success: true,
-        message: 'Profile photo updated successfully',
-        data: { avatarUrl },
-      });
-    } catch (error) {
-      console.error('[HouseholdRoutes] Resident avatar upload error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Unable to upload profile photo.',
-      });
-    }
-  }
-);
 
 /**
  * Resident Distribution Feed Endpoint
@@ -1232,7 +668,7 @@ router.post(
  *
  * Returns distributions that cover the authenticated resident's barangay.
  */
-router.get('/distributions', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -1269,15 +705,9 @@ router.get('/distributions', authMiddleware, async (req: AuthenticatedRequest, r
     }
 
     const residentBarangay = resident.barangay;
-    const now = new Date();
-    const allDistributions = await Distribution.find({
-      archivedAt: null,
-      // sanitizeFilter is enabled globally. Mark this server-built operator as
-      // trusted so Mongoose does not wrap it in $eq and then fail Date casting.
-      endsAt: mongoose.trusted({ $gte: now }),
-    })
-      .sort({ scheduled: 1, createdAt: -1 })
-      .limit(50)
+    const allDistributions = await Distribution.find({})
+      .sort({ createdAt: -1 })
+      .limit(100)
       .lean();
 
     const coveredDistributions = allDistributions
@@ -1287,11 +717,9 @@ router.get('/distributions', authMiddleware, async (req: AuthenticatedRequest, r
         barangay: d.barangay,
         assignedBarangays: d.assignedBarangays ?? [],
         scheduled: d.scheduled,
-        endsAt: d.endsAt,
         notes: d.notes || '',
         status: d.status,
         createdAt: d.createdAt,
-        lifecycleStatus: deriveDistributionLifecycle(d, now),
       }));
 
     const residentClaims = await Claim.find({
@@ -1321,6 +749,41 @@ router.get('/distributions', authMiddleware, async (req: AuthenticatedRequest, r
       };
     });
 
+    // Fallback: if no covered distributions are currently visible but resident already has
+    // claim records, return claimed cards so home screen doesn't appear empty.
+    if (data.length === 0 && residentClaims.length > 0) {
+      const claimedDistributionIds = Array.from(
+        new Set(residentClaims.map((c) => String(c.distributionId)).filter(Boolean)),
+      );
+
+      const claimedDistributions = claimedDistributionIds.length
+        ? await Distribution.find({
+            _id: mongoose.trusted({
+              $in: claimedDistributionIds.map((id) => new mongoose.Types.ObjectId(id)),
+            }),
+          })
+            .sort({ createdAt: -1 })
+            .lean()
+        : [];
+
+      const fallbackData = claimedDistributions.map((d) => ({
+        id: d._id.toString(),
+        barangay: d.barangay,
+        assignedBarangays: d.assignedBarangays ?? [],
+        scheduled: d.scheduled,
+        notes: d.notes || '',
+        status: d.status,
+        createdAt: d.createdAt,
+        residentClaimed: true,
+        residentClaimStatus: claimByDistribution.get(d._id.toString()) || 'CONFIRMED',
+      }));
+
+      return res.json({
+        success: true,
+        data: fallbackData,
+      });
+    }
+
     return res.json({
       success: true,
       data,
@@ -1341,7 +804,7 @@ router.get('/distributions', authMiddleware, async (req: AuthenticatedRequest, r
  *
  * Returns notifications addressed to the authenticated resident.
  */
-router.get('/notifications', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/notifications', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -1676,7 +1139,7 @@ router.post(
  * Reserved endpoint for resident-facing announcements.
  * Pending residents are explicitly blocked until admin approval.
  */
-router.get('/announcements', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/announcements', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -1732,7 +1195,7 @@ router.get('/announcements', authMiddleware, async (req: AuthenticatedRequest, r
  *
  * Returns compact QR payload and resident metadata for display.
  */
-router.get('/qr/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -2014,7 +1477,7 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
 
     if (distributionId && typeof distributionId === 'string') {
       const distribution = await Distribution.findById(distributionId)
-        .select('_id barangay assignedBarangays requiresBeneficiaryApproval scheduled endsAt archivedAt')
+        .select('_id barangay assignedBarangays requiresBeneficiaryApproval')
         .lean();
 
       if (!distribution) {
@@ -2022,14 +1485,6 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
           success: false,
           message: 'Distribution not found',
           code: 'DISTRIBUTION_NOT_FOUND',
-        });
-      }
-
-      if (!isDistributionClaimable(distribution)) {
-        return res.status(409).json({
-          success: false,
-          message: 'This distribution is not currently active.',
-          code: 'DISTRIBUTION_NOT_ACTIVE',
         });
       }
 
@@ -2140,20 +1595,12 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     }
 
     const distribution = await Distribution.findById(distributionId)
-      .select('_id barangay assignedBarangays requiresBeneficiaryApproval scheduled endsAt archivedAt')
+      .select('_id barangay assignedBarangays requiresBeneficiaryApproval')
       .lean();
     if (!distribution) {
       return res.status(404).json({
         success: false,
         message: 'Distribution not found',
-      });
-    }
-
-    if (!isDistributionClaimable(distribution)) {
-      return res.status(409).json({
-        success: false,
-        code: 'DISTRIBUTION_NOT_ACTIVE',
-        message: 'Claims can only be recorded while the distribution is active.',
       });
     }
 
@@ -2218,8 +1665,6 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     const householdCode =
       String(resident.residentCode || '').trim() ||
       `HH-${resident.barangay.slice(0, 2).toUpperCase()}-${residentId.slice(-4).toUpperCase()}`;
-    const householdHash = computeHouseholdHash(householdId);
-    const eventHash = computeEventHash(distributionId);
 
     const claimId = `CLM-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
     const staffUserId = req.user?.userId || req.user?.id || 'unknown';
@@ -2244,11 +1689,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
           scannedBy: staffUserId,
           scannedAt: new Date(),
           source: 'ONLINE',
-          status: 'PENDING_CHAIN',
-          blockchain: {
-            householdHash,
-            eventHash,
-          },
+          status: 'CONFIRMED',
           errorMessage: '',
         },
       },

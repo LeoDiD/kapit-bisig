@@ -46,7 +46,7 @@ export default function FilterDropdown({
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className={[
-          'w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.06)] text-gray-700',
+          'w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 shadow-sm transition-colors hover:border-[#004A1C]/30 hover:bg-slate-50 hover:text-[#004A1C] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50 dark:hover:text-[#ECC323]',
           buttonClassName,
         ].join(' ')}
       >
@@ -58,7 +58,7 @@ export default function FilterDropdown({
         <div
           ref={menuRef}
           className={[
-            'absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50 max-h-64 overflow-y-auto',
+            'absolute left-0 top-full mt-2 w-full rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] z-50 max-h-64 overflow-y-auto dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]',
             menuClassName,
           ].join(' ')}
         >
@@ -74,7 +74,7 @@ export default function FilterDropdown({
                 }}
                 className={[
                   'w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors',
-                  selected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70',
+                  selected ? 'bg-[#EAB308] text-gray-900' : 'text-slate-700 hover:bg-white/70 dark:text-slate-200 dark:hover:bg-slate-700',
                 ].join(' ')}
               >
                 <span className="w-5 flex items-center justify-center">

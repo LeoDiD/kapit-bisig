@@ -544,7 +544,7 @@ export function ProfileDropdown() {
         <div className="w-9 h-9 rounded-full bg-[#0F533A] flex items-center justify-center text-white font-bold text-sm">
           {initial}
         </div>
-        <div className="text-right max-w-[160px]">
+        <div className="text-left max-w-[160px]">
           <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate whitespace-nowrap">{displayName}</p>
           <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate whitespace-nowrap">{roleLabel}</p>
         </div>

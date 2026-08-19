@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { DistributionRow } from './DistributionsTable'
+import { formatScheduledDate } from './DistributionsTable'
 
 export default function DistributionDetailsModal({
   open,
@@ -34,7 +35,7 @@ export default function DistributionDetailsModal({
                     {distribution.barangay}
                   </div>
                   <div className="text-xs text-gray-500">
-                    Host Barangay
+                    Distribution Location
                   </div>
                   {distribution.requiresBeneficiaryApproval ? (
                     <div className="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
@@ -65,7 +66,7 @@ export default function DistributionDetailsModal({
                   <span>Scheduled Date</span>
                 </div>
                 <div className="text-sm font-semibold text-gray-900">
-                  {distribution.scheduled}
+                  {formatScheduledDate(distribution.scheduled)}
                 </div>
                 {distribution.endsAt ? (
                   <div className="mt-1 text-xs text-gray-500">
@@ -166,7 +167,7 @@ export default function DistributionDetailsModal({
                 className="flex-1 py-2.5 rounded-xl bg-[#0F533A] hover:bg-[#0a3f2c] text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircleIcon />
-                Mark as Claimed
+                Mark as Completed
               </button>
             )}
           </div>
@@ -182,6 +183,13 @@ function StatusPill({ status }: { status: 'Claimed' | 'Unclaimed' | 'Partially C
   const isUnclaimed = status === 'Unclaimed'
   const isPartial = status === 'Partially Claimed'
   
+  const label =
+    status === 'Claimed'
+      ? 'Completed'
+      : isPartial
+        ? 'Active'
+        : 'Scheduled'
+        
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
       isUnclaimed 
@@ -191,7 +199,7 @@ function StatusPill({ status }: { status: 'Claimed' | 'Unclaimed' | 'Partially C
         : 'bg-green-600 text-white'
     }`}>
       {isUnclaimed ? <ClockSmallIcon /> : <CheckSmallIcon />}
-      {status}
+      {label}
     </span>
   )
 }

@@ -847,10 +847,7 @@ export async function recordDisasterEventClaim(params: DisasterEventClaimInput):
         syncedAt: params.source === 'OFFLINE_SYNC' ? new Date() : null,
       },
       status: 'CONFIRMED',
-      blockchain: {
-        householdHash: '',
-        eventHash: '',
-      },
+
       errorMessage: '',
     });
 

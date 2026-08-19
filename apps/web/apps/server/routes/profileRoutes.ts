@@ -16,6 +16,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { z } from 'zod';
 import StaffUser from '../models/StaffUser';
+import Distribution from '../models/Distribution';
 import LoginVerifyOtp from '../models/LoginVerifyOtp';
 import { AuthRequest, requireAuth, requireStaffOrSuperadmin } from '../middleware/unifiedAuth';
 import { validatePassword } from '../utils/passwordValidator';
@@ -33,9 +34,12 @@ function hasCoverage(scopes: string[], targets: string[]): boolean {
   return targets.every((target) => scopes.includes(target));
 }
 
+function hasAnyCoverage(scopes: string[], targets: string[]): boolean {
+  return scopes.some((scope) => targets.includes(scope));
+}
 
-function normalizeScope(targets: string[]): string[] {
-  return Array.from(new Set(targets.filter(Boolean)));
+function normalizeScope(targets: Array<string | undefined | null>): string[] {
+  return Array.from(new Set(targets.filter((t): t is string => Boolean(t))));
 }
 
 /* ------------------------------------------------------------------ */
@@ -492,20 +496,25 @@ router.get(
   async (req: AuthRequest, res: Response) => {
     try {
       const {
+        barangay,
         hostBarangayId,
         assignedBarangayIds,
+        scheduled,
         q,
         limit,
         cursor,
       } = req.query as unknown as {
-        hostBarangayId: string;
-        assignedBarangayIds: string[];
+        barangay?: string;
+        hostBarangayId?: string;
+        assignedBarangayIds?: string[];
+        scheduled?: string;
         q: string;
         limit: number;
         cursor: number;
       };
 
-      const requestedScope = normalizeScope([hostBarangayId, ...assignedBarangayIds]);
+      const targetBarangay = barangay || hostBarangayId;
+      const requestedScope = normalizeScope([targetBarangay, ...(assignedBarangayIds ?? [])]);
       const requesterScope = normalizeScope(req.authUser?.assignedBarangays ?? []);
 
       if (req.authUser?.role === 'LGU_STAFF') {
@@ -516,6 +525,34 @@ router.get(
             code: 'OUT_OF_SCOPE_STAFF',
             message: `You do not have access to ${outOfScope}.`,
           });
+        }
+      }
+
+      // Check same-day distribution conflicts for staff if scheduled date is provided
+      const conflictMap = new Map<string, { distributionId: string; barangay: string; scheduled: string }>();
+
+      if (scheduled) {
+        const targetDate = new Date(scheduled);
+        if (!isNaN(targetDate.getTime())) {
+          const targetYMD = targetDate.toISOString().slice(0, 10);
+          const allDists = await Distribution.find({}).lean();
+          const activeDists = allDists.filter((d) => d.status !== 'Claimed');
+
+          for (const dist of activeDists) {
+            if (!dist.scheduled) continue;
+            const distDate = new Date(dist.scheduled);
+            if (isNaN(distDate.getTime())) continue;
+            const distYMD = distDate.toISOString().slice(0, 10);
+            if (distYMD === targetYMD) {
+              for (const staffId of (dist.assignedStaffIds || [])) {
+                conflictMap.set(staffId.toString(), {
+                  distributionId: dist._id.toString(),
+                  barangay: dist.barangay,
+                  scheduled: dist.scheduled,
+                });
+              }
+            }
+          }
         }
       }
 
@@ -533,6 +570,7 @@ router.get(
       }
 
       const candidates = await StaffUser.find(filter)
+        .setOptions({ sanitizeFilter: false })
         .select('_id firstName lastName role assignedBarangays')
         .sort({ firstName: 1, lastName: 1, _id: 1 })
         .limit(200)
@@ -544,7 +582,10 @@ router.get(
             ? candidate.assignedBarangays
             : []);
           const coveredBarangays = requestedScope.filter((barangay) => scopes.includes(barangay));
-          const inScope = coveredBarangays.length > 0;
+          const inScope = hasAnyCoverage(scopes, requestedScope);
+          const conflict = conflictMap.get(candidate._id.toString());
+          const isAvailable = !conflict;
+
           return {
             id: candidate._id.toString(),
             fullName: `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim(),
@@ -552,11 +593,14 @@ router.get(
             scopesSummary: scopes,
             coveredBarangays,
             inScope,
+            isAvailable,
+            conflict: conflict || null,
           };
         })
         .filter((candidate) =>
-          req.authUser?.role !== 'LGU_STAFF' ||
-          hasCoverage(requesterScope, candidate.scopesSummary)
+          req.authUser?.role === 'LGU_STAFF'
+            ? candidate.inScope && hasCoverage(requesterScope, candidate.scopesSummary)
+            : candidate.inScope
         );
 
       const paged = items.slice(cursor, cursor + limit);

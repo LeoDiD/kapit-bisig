@@ -119,10 +119,10 @@ function ScreeningLog({ resident }: { resident: ResidentRecord }) {
       
       {hasReasons && (
         <div>
-          <h5 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          <h5 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             System Notes
           </h5>
-          <ul className="list-inside list-disc space-y-1 text-sm text-slate-600">
+          <ul className="list-inside list-disc space-y-1 text-sm text-slate-600 dark:text-slate-300">
             {reasons.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
         </div>
@@ -130,10 +130,10 @@ function ScreeningLog({ resident }: { resident: ResidentRecord }) {
 
       {hasFlags && (
         <div>
-           <h5 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+           <h5 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
              Active Flags
            </h5>
-           <p className="text-sm font-medium tracking-wide text-slate-800">
+           <p className="text-sm font-medium tracking-wide text-slate-800 dark:text-slate-200">
              {flags.map((f) => f.replace(/_/g, ' ')).join(', ')}
            </p>
         </div>
@@ -152,10 +152,10 @@ function SummaryCard({
   hint: string
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
-      <p className="mt-3 text-xl font-black text-slate-900">{value}</p>
-      <p className="mt-1 text-xs font-medium text-slate-600">{hint}</p>
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-4">
+      <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-3 text-xl font-black text-slate-900 dark:text-slate-100">{value}</p>
+      <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-400">{hint}</p>
     </div>
   )
 }
@@ -168,17 +168,17 @@ function ChecklistItem({
   checked: boolean
 }) {
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+    <div className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3">
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</span>
       {checked ? (
-        <span className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-emerald-600">
+        <span className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
           </svg>
           Ready
         </span>
       ) : (
-        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+        <span className="inline-flex items-center rounded-full border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/30 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
           Missing
         </span>
       )}
@@ -200,8 +200,8 @@ function DetailItem({
 
   return (
     <div>
-      <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
-      <div className={`text-sm font-medium text-gray-900 ${mono ? 'font-mono break-all' : 'break-words'}`}>
+      <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">{label}</p>
+      <div className={`text-sm font-medium text-gray-900 dark:text-slate-200 ${mono ? 'font-mono break-all' : 'break-words'}`}>
         {displayValue}
       </div>
     </div>
@@ -218,24 +218,24 @@ function ImageCard({
   const resolvedSrc = resolveAssetUrl(src)
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-      <div className="border-b border-gray-100 px-4 py-3">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{title}</p>
+    <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+      <div className="border-b border-gray-100 dark:border-slate-700 px-4 py-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">{title}</p>
       </div>
-      <div className="bg-slate-50 p-4">
+      <div className="bg-slate-50 dark:bg-slate-900/50 p-4">
         {resolvedSrc ? (
           <a href={resolvedSrc} target="_blank" rel="noreferrer" className="block">
             <img
               src={resolvedSrc}
               alt={title}
-              className="h-56 w-full rounded-xl border border-gray-200 bg-white object-contain"
+              className="h-56 w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 object-contain"
             />
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
               Open full size
             </p>
           </a>
         ) : (
-          <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-sm font-medium text-gray-400">
+          <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-gray-400 dark:text-slate-500">
             No image uploaded
           </div>
         )}
@@ -275,24 +275,24 @@ export default function ResidentReviewModal({
       <div className="flex min-h-full items-start justify-center px-4 py-8">
         <div className="fixed inset-0 bg-black/55" onClick={onClose} />
 
-        <div className="relative flex max-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.25)]">
-          <div className="shrink-0 border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-6 py-5">
+        <div className="relative flex max-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-[0_24px_80px_rgba(0,0,0,0.25)]">
+          <div className="shrink-0 border-b border-gray-100 dark:border-slate-800 bg-gradient-to-r from-white via-slate-50 to-white dark:from-slate-900 dark:via-slate-800/30 dark:to-slate-900 px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-gray-400">{eyebrow}</p>
-                <h2 className="mt-1 text-2xl font-bold text-gray-900">{getDisplayName(resident)}</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-gray-400 dark:text-slate-500">{eyebrow}</p>
+                <h2 className="mt-1 text-2xl font-bold text-gray-900 dark:text-slate-100">{getDisplayName(resident)}</h2>
                 {resident ? (
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                     {resident.residentCode || 'Resident code pending'} - {resident.barangay}
                   </p>
                 ) : null}
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                   {modalDescription}
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                className="rounded-full p-2 text-gray-400 dark:text-slate-400 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-200"
                 aria-label="Close resident review modal"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,35 +302,35 @@ export default function ResidentReviewModal({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-slate-50/60 px-6 py-6">
+          <div className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-slate-900/50 px-6 py-6">
             {loading ? (
               <div className="flex min-h-[360px] items-center justify-center">
-                <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-gray-900" />
+                <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-gray-900 dark:border-slate-100" />
               </div>
             ) : error ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-700">
+              <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-900/20 px-5 py-4 text-sm font-semibold text-rose-700 dark:text-rose-400">
                 {error}
               </div>
             ) : resident ? (
               <div className="space-y-6">
-                <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                      <div className="flex flex-wrap items-center gap-3">
                        <ResidentStatusBadge status={resident.status} approvedLabel={approvedLabel} />
                        
-                       <div className="flex items-center gap-2 text-sm text-slate-500">
-                          <span>System Confidence: <strong className="text-slate-900">{resident.verification?.screeningConfidence ?? 0}%</strong></span>
+                       <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                          <span>System Confidence: <strong className="text-slate-900 dark:text-slate-100">{resident.verification?.screeningConfidence ?? 0}%</strong></span>
                           
                           {(resident.verification?.idCheckRequiresManualReview || idCheckDecision === 'BLOCK' || idCheckDecision === 'REVIEW') && (
                              <>
-                               <span className="text-slate-300">•</span>
-                               <span className="font-semibold text-amber-600">Manual Review Required</span>
+                               <span className="text-slate-300 dark:text-slate-600">•</span>
+                               <span className="font-semibold text-amber-600 dark:text-amber-500">Manual Review Required</span>
                              </>
                           )}
                        </div>
                      </div>
                   </div>
-                  <p className="mt-3 text-sm text-slate-500 max-w-2xl">
+                  <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 max-w-2xl">
                     Automated screening provides a baseline by flagging inconsistencies, but human confirmation is strictly required for final official approval.
                   </p>
                   <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -359,8 +359,8 @@ export default function ResidentReviewModal({
 
                 <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
                   <div className="space-y-6">
-                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                      <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500">Resident Information</h3>
+                    <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+                      <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">Resident Information</h3>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <DetailItem label="Resident Code" value={resident.residentCode || 'Pending generation'} mono />
                         <DetailItem label="Submitted At" value={formatDate(resident.createdAt)} />
@@ -396,8 +396,8 @@ export default function ResidentReviewModal({
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                      <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500">ID Screening</h3>
+                    <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+                      <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">ID Screening</h3>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <DetailItem label="Selected ID Type" value={resident.idType || '-'} />
                         <DetailItem label="Detected ID Type" value={resident.verification?.detectedIdType || 'Not detected'} />
@@ -431,9 +431,9 @@ export default function ResidentReviewModal({
                       <ScreeningLog resident={resident} />
 
                       {resident.verification?.rawTextPreview ? (
-                        <div className="mt-5 rounded-2xl border border-gray-200 bg-slate-50 p-4">
-                          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">OCR Text Preview</p>
-                          <p className="text-sm leading-6 text-slate-700">{resident.verification.rawTextPreview}</p>
+                        <div className="mt-5 rounded-2xl border border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-4">
+                          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">OCR Text Preview</p>
+                          <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">{resident.verification.rawTextPreview}</p>
                         </div>
                       ) : null}
                     </div>
@@ -449,8 +449,8 @@ export default function ResidentReviewModal({
                   </div>
 
                   <div className="space-y-6">
-                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                      <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500">Review Checklist</h3>
+                    <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
+                      <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">Review Checklist</h3>
                       <div className="space-y-3">
                         <ChecklistItem label="Front ID uploaded" checked={Boolean(resident.frontIdImage)} />
                         <ChecklistItem label="Back ID uploaded" checked={Boolean(resident.backIdImage)} />
@@ -467,15 +467,15 @@ export default function ResidentReviewModal({
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-gray-200 bg-white px-5 py-8 text-sm font-medium text-gray-500">
+              <div className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-8 text-sm font-medium text-gray-500 dark:text-slate-400">
                 Select a registration to review.
               </div>
             )}
           </div>
 
-          <div className="shrink-0 border-t border-gray-100 bg-white px-6 py-4">
+          <div className="shrink-0 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-xs font-medium text-gray-500">
+              <div className="text-xs font-medium text-gray-500 dark:text-slate-400">
                 {readOnly
                   ? 'View the uploaded ID, selfie, and screening results for this approved resident record.'
                   : 'Review the uploaded ID, selfie, and screening results before approving or returning this registration.'}
@@ -484,7 +484,7 @@ export default function ResidentReviewModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+                  className="rounded-xl border border-gray-200 dark:border-slate-700 px-4 py-2.5 text-sm font-semibold text-gray-600 dark:text-slate-300 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800"
                 >
                   Close
                 </button>

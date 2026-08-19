@@ -17,11 +17,13 @@ const parseAssignedBarangays = z.preprocess((value) => {
   }
 
   return [];
-}, z.array(barangayEnum).min(2, 'Select at least 2 assigned barangays').max(4, 'Select up to 4 assigned barangays'));
+}, z.array(barangayEnum).optional().default([]));
 
 export const scanEligibleUsersQuery = z.object({
-  hostBarangayId: barangayEnum,
+  barangay: barangayEnum.optional(),
+  hostBarangayId: barangayEnum.optional(),
   assignedBarangayIds: parseAssignedBarangays,
+  scheduled: z.string().optional(),
   q: z.string().trim().max(64, 'Search query is too long').optional().default(''),
   limit: z
     .string()
@@ -41,21 +43,25 @@ export const scanEligibleUsersQuery = z.object({
       if (Number.isNaN(parsed)) return 0;
       return Math.max(0, parsed);
     }),
-}).strict().superRefine((data, ctx) => {
-  const uniqueAssigned = new Set(data.assignedBarangayIds);
-  if (uniqueAssigned.size !== data.assignedBarangayIds.length) {
+}).passthrough().superRefine((data, ctx) => {
+  const targetBarangay = data.barangay || data.hostBarangayId;
+  if (!targetBarangay && (!data.assignedBarangayIds || data.assignedBarangayIds.length === 0)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ['assignedBarangayIds'],
-      message: 'Assigned barangays must be unique',
+      path: ['barangay'],
+      message: 'At least one target barangay is required',
     });
   }
 
-  if (data.assignedBarangayIds.includes(data.hostBarangayId)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['assignedBarangayIds'],
-      message: 'Host barangay cannot also be an assigned barangay',
-    });
+  if (data.assignedBarangayIds && data.assignedBarangayIds.length > 0) {
+    const uniqueAssigned = new Set(data.assignedBarangayIds);
+    if (uniqueAssigned.size !== data.assignedBarangayIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['assignedBarangayIds'],
+        message: 'Assigned barangays must be unique',
+      });
+    }
   }
 });
+
