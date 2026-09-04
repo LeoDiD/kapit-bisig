@@ -108,7 +108,7 @@ export default function QRReceiptScreen({
               <View style={styles.idCard}>
                 <View style={styles.brandRail} />
                 <View style={styles.idHeader}>
-                  <ResidentBrandLockup size="credential" subtitle="VIRTUAL RESIDENT ID" style={styles.brandLockup} />
+                  <ResidentBrandLockup size="credential" style={styles.brandLockup} />
                   <View style={styles.verifiedPill}>
                     <View style={styles.verifiedDot} />
                     <Text style={styles.verifiedText}>VERIFIED</Text>
@@ -208,10 +208,10 @@ const styles = StyleSheet.create({
   refreshWarningAction: { fontSize: 12, fontWeight: '800', color: residentColors.ink },
   shot: { borderRadius: 20, backgroundColor: residentColors.surface },
   idCard: { height: 230, borderRadius: 20, backgroundColor: residentColors.surface, overflow: 'hidden', borderWidth: 1, borderColor: residentColors.borderAccent, ...residentTheme.shadow },
-  brandRail: { height: 3, backgroundColor: residentColors.brand },
+  brandRail: { height: 3, backgroundColor: residentColors.accent },
   idHeader: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, backgroundColor: residentColors.surface },
   brandLockup: { flex: 1 },
-  verifiedPill: { flexDirection: 'row', gap: 4, alignItems: 'center', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 10, backgroundColor: residentColors.surface, borderWidth: 1, borderColor: residentColors.borderAccent },
+  verifiedPill: { flexDirection: 'row', gap: 4, alignItems: 'center', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 10, backgroundColor: residentColors.accentSoft, borderWidth: 1, borderColor: residentColors.accent },
   verifiedDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: residentColors.brand },
   verifiedText: { fontSize: 7.5, fontWeight: '900', color: residentColors.ink },
   idBody: { flex: 1, flexDirection: 'row', paddingHorizontal: 13, paddingTop: 10 },
@@ -227,9 +227,9 @@ const styles = StyleSheet.create({
   detailValue: { maxWidth: 105, fontSize: 8.5, lineHeight: 10.5, fontWeight: '700', color: residentColors.inkSoft },
   qrFrame: { marginTop: 1, padding: 4, backgroundColor: residentColors.surface, borderRadius: 7, borderWidth: 1, borderColor: residentColors.borderAccent },
   tapHint: { marginTop: 2, fontSize: 6.5, color: residentColors.secondary },
-  idFooter: { height: 23, paddingHorizontal: 13, backgroundColor: residentColors.ink, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  idFooter: { height: 23, paddingHorizontal: 13, backgroundColor: residentColors.brandDark, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   disclaimer: { color: residentColors.inverse, fontSize: 7.5, fontWeight: '600' },
-  version: { color: '#D1D5DB', fontSize: 7.5 },
+  version: { color: residentColors.accent, fontSize: 7.5 },
   instructions: { marginTop: 18, flexDirection: 'row', gap: 11, padding: 15, borderRadius: 15, backgroundColor: residentColors.surface, borderWidth: 1, borderColor: residentColors.borderAccent },
   instructionsCopy: { flex: 1 },
   instructionsTitle: { fontSize: 14, fontWeight: '700', color: residentColors.ink },

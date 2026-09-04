@@ -44,7 +44,7 @@ export default function BottomNavigation({
           const isActive = activeTab === tab.key;
           const isResident = appearance === 'resident';
           const color = isResident
-            ? (isActive ? residentTheme.colors.brand : '#111827')
+            ? (isActive ? residentTheme.colors.brandDark : residentTheme.colors.secondary)
             : (isActive ? theme.colors.primary : theme.colors.textMuted);
 
           return (
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 3,
     borderRadius: 2,
-    backgroundColor: residentTheme.colors.brand,
+    backgroundColor: residentTheme.colors.accent,
   },
   label: {
     marginTop: 2,

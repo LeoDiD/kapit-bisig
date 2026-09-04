@@ -1,11 +1,15 @@
 import { runAuthFlowUnitTests } from './authFlow.unit';
 import { runNotificationFlowUnitTests } from './notificationFlow.unit';
+import { runResidentForgotPasswordIntegrationTests } from './residentForgotPassword.integration';
+import { runStaffForgotPasswordIntegrationTests } from './staffForgotPassword.integration';
 import { runBeneficiaryFlowUnitTests } from './beneficiaryFlow.unit';
 
 async function main(): Promise<void> {
   try {
     await runAuthFlowUnitTests();
     await runNotificationFlowUnitTests();
+    await runResidentForgotPasswordIntegrationTests();
+    await runStaffForgotPasswordIntegrationTests();
     await runBeneficiaryFlowUnitTests();
     console.log('All Phase 3 Tests Passed Successfully!');
     process.exit(0);

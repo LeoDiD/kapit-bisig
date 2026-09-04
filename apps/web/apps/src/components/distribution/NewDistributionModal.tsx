@@ -10,6 +10,7 @@ export type CreateDistributionPayload = {
   assignedBarangays?: string[]
   assignedStaffIds: string[]
   scheduled: string
+  endsAt: string
   notes?: string
   disasterEventId?: string
 }
@@ -17,6 +18,7 @@ export type CreateDistributionPayload = {
 type StepFieldErrors = {
   barangay?: string
   scheduled?: string
+  endsAt?: string
   notes?: string
   assignedStaffIds?: string
   global?: string
@@ -60,6 +62,18 @@ function formatDateTimeLocal(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
+function getDefaultEndTime(startValue: string): string {
+  const start = new Date(startValue)
+  if (Number.isNaN(start.getTime())) return ''
+
+  const preferredEnd = new Date(start.getTime() + 2 * 60 * 60 * 1000)
+  const closingTime = new Date(start)
+  closingTime.setHours(DISTRIBUTION_END_HOUR, 0, 0, 0)
+  const end = preferredEnd.getTime() > closingTime.getTime() ? closingTime : preferredEnd
+
+  return end.getTime() > start.getTime() ? formatDateTimeLocal(end) : ''
+}
+
 export default function NewDistributionModal({
   open,
   onClose,
@@ -80,6 +94,7 @@ export default function NewDistributionModal({
   const [isCreating, setIsCreating] = useState(false)
 
   const [scheduled, setScheduled] = useState('')
+  const [endsAt, setEndsAt] = useState('')
   const [notes, setNotes] = useState('')
 
   const [errors, setErrors] = useState<StepFieldErrors>({})
@@ -98,6 +113,7 @@ export default function NewDistributionModal({
     setBarangay('')
     setAssignedStaffIds([])
     setScheduled('')
+    setEndsAt('')
     setNotes('')
     setErrors({})
     setStaffQuery('')
@@ -128,6 +144,13 @@ export default function NewDistributionModal({
     return formatDateTimeLocal(endOfMonth)
   }, [open])
 
+  const endsAtMaxLocal = useMemo(() => {
+    const start = new Date(scheduled)
+    if (Number.isNaN(start.getTime())) return scheduleMaxLocal
+    start.setHours(DISTRIBUTION_END_HOUR, 0, 0, 0)
+    return formatDateTimeLocal(start)
+  }, [scheduled, scheduleMaxLocal])
+
   const validateStep1 = (): StepFieldErrors => {
     const out: StepFieldErrors = {}
     if (!barangay.trim()) {
@@ -139,6 +162,7 @@ export default function NewDistributionModal({
   const validateStep2 = (): StepFieldErrors => {
     const out: StepFieldErrors = {}
     const date = new Date(scheduled)
+    const endDate = new Date(endsAt)
     const now = new Date()
     const minAllowed = Date.now() + SCHEDULE_MIN_LEAD_MINUTES * 60 * 1000
     if (!scheduled.trim()) {
@@ -152,11 +176,34 @@ export default function NewDistributionModal({
       out.scheduled = `Schedule must stay within ${monthLabel}. Next month is not allowed.`
     } else {
       const hour = date.getHours()
-      const minute = date.getMinutes()
       const isBeforeStart = hour < DISTRIBUTION_START_HOUR
-      const isAfterEnd = hour > DISTRIBUTION_END_HOUR || (hour === DISTRIBUTION_END_HOUR && minute > 0)
+      const isAfterEnd = hour >= DISTRIBUTION_END_HOUR
       if (isBeforeStart || isAfterEnd) {
-        out.scheduled = `Schedule must be between ${DISTRIBUTION_START_HOUR}:00 and ${DISTRIBUTION_END_HOUR}:00 only.`
+        out.scheduled = `Schedule must start at or after ${DISTRIBUTION_START_HOUR}:00 and before ${DISTRIBUTION_END_HOUR}:00.`
+      }
+    }
+
+    if (!endsAt.trim()) {
+      out.endsAt = 'Distribution end date/time is required.'
+    } else if (Number.isNaN(endDate.getTime())) {
+      out.endsAt = 'Distribution end date/time is invalid.'
+    } else if (!Number.isNaN(date.getTime())) {
+      const isSameDay =
+        endDate.getFullYear() === date.getFullYear() &&
+        endDate.getMonth() === date.getMonth() &&
+        endDate.getDate() === date.getDate()
+      const endHour = endDate.getHours()
+      const endMinute = endDate.getMinutes()
+      const isAfterClosing =
+        endHour > DISTRIBUTION_END_HOUR ||
+        (endHour === DISTRIBUTION_END_HOUR && endMinute > 0)
+
+      if (endDate.getTime() <= date.getTime()) {
+        out.endsAt = 'Distribution end time must be after the start time.'
+      } else if (!isSameDay) {
+        out.endsAt = 'Distribution must start and end on the same day.'
+      } else if (isAfterClosing) {
+        out.endsAt = `Distribution must end by ${DISTRIBUTION_END_HOUR}:00.`
       }
     }
 
@@ -214,6 +261,7 @@ export default function NewDistributionModal({
     step,
     barangay,
     scheduled,
+    endsAt,
     notes,
     assignedStaffIds,
     isLguStaff,
@@ -360,6 +408,10 @@ export default function NewDistributionModal({
         nextErrors.scheduled = issue.message || 'Scheduled date/time is invalid.'
         setStep(2)
       }
+      if (path.includes('endsAt')) {
+        nextErrors.endsAt = issue.message || 'Distribution end date/time is invalid.'
+        setStep(2)
+      }
       if (path.includes('notes')) {
         nextErrors.notes = issue.message || `Notes must be ${NOTES_MAX} characters or fewer.`
         setStep(2)
@@ -378,9 +430,16 @@ export default function NewDistributionModal({
   }
 
   const doCreate = async () => {
-    const current = validateStep3()
-    if (Object.keys(current).length > 0 || isCreating) {
-      setStepErrors(current)
+    const locationErrors = validateStep1()
+    const scheduleErrors = validateStep2()
+    const staffErrors = validateStep3()
+    const allErrors = { ...locationErrors, ...scheduleErrors, ...staffErrors }
+
+    if (Object.keys(allErrors).length > 0 || isCreating) {
+      setErrors(allErrors)
+      if (Object.keys(locationErrors).length > 0) setStep(1)
+      else if (Object.keys(scheduleErrors).length > 0) setStep(2)
+      else setStep(3)
       return
     }
 
@@ -392,6 +451,7 @@ export default function NewDistributionModal({
         barangay,
         assignedStaffIds,
         scheduled: new Date(scheduled).toISOString(),
+        endsAt: new Date(endsAt).toISOString(),
         notes: notes.trim() ? notes.trim() : undefined,
       })
     } catch (error: unknown) {
@@ -470,8 +530,8 @@ export default function NewDistributionModal({
                 {
                   stepNum: 2,
                   title: 'Schedule',
-                  subtitle: scheduled ? 'Date & Time Set' : 'Set Timing',
-                  isDone: !!scheduled && step > 2,
+                  subtitle: scheduled && endsAt ? 'Start & End Set' : 'Set Timing',
+                  isDone: !!scheduled && !!endsAt && step > 2,
                 },
                 {
                   stepNum: 3,
@@ -482,7 +542,7 @@ export default function NewDistributionModal({
               ].map(({ stepNum, title, subtitle, isDone }) => {
                 const isActive = step === stepNum
                 const isPast = step > stepNum || isDone
-                const canClick = stepNum < step || (stepNum === 2 && !!barangay) || (stepNum === 3 && !!barangay && !!scheduled)
+                const canClick = stepNum < step || (stepNum === 2 && !!barangay) || (stepNum === 3 && !!barangay && !!scheduled && !!endsAt)
 
                 return (
                   <button
@@ -606,7 +666,9 @@ export default function NewDistributionModal({
                     min={scheduleMinLocal}
                     max={scheduleMaxLocal}
                     onChange={(e) => {
-                      setScheduled(e.target.value)
+                      const nextStart = e.target.value
+                      setScheduled(nextStart)
+                      setEndsAt(getDefaultEndTime(nextStart))
                       setErrors({})
                     }}
                     className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500"
@@ -615,6 +677,26 @@ export default function NewDistributionModal({
                     Allowed: current month only, {DISTRIBUTION_START_HOUR}:00-{DISTRIBUTION_END_HOUR}:00, at least {SCHEDULE_MIN_LEAD_MINUTES} minutes ahead.
                   </p>
                   {errors.scheduled && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.scheduled}</p>}
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-200">Distribution End Date/Time</label>
+                  <input
+                    type="datetime-local"
+                    value={endsAt}
+                    min={scheduled || scheduleMinLocal}
+                    max={endsAtMaxLocal}
+                    onChange={(e) => {
+                      setEndsAt(e.target.value)
+                      setErrors({})
+                    }}
+                    disabled={!scheduled}
+                    className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-slate-400">
+                    Must be after the start time, on the same day, and no later than {DISTRIBUTION_END_HOUR}:00.
+                  </p>
+                  {errors.endsAt && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.endsAt}</p>}
                 </div>
 
                 <div>
@@ -657,6 +739,7 @@ export default function NewDistributionModal({
                     <span className="text-slate-500 dark:text-slate-400 font-medium">Scheduled Timeline:</span>
                     <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5 flex items-center gap-1.5">
                       🕒 {scheduled ? new Date(scheduled).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : '--'}
+                      {endsAt ? ` – ${new Date(endsAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : ''}
                       <button
                         type="button"
                         onClick={() => setStep(2)}

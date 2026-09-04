@@ -5,6 +5,16 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { MongoMemoryServer } from 'mongodb-memory-server';
+import { manilaDateParts } from '../utils/distributionLifecycle';
+
+function buildFutureDistributionWindow(daysAhead: number) {
+  const future = new Date(Date.now() + (daysAhead * 24 + 16) * 60 * 60 * 1000);
+  const parts = manilaDateParts(future);
+  return {
+    scheduled: new Date(Date.UTC(parts.year, parts.month, parts.day, 1, 0)).toISOString(),
+    endsAt: new Date(Date.UTC(parts.year, parts.month, parts.day, 9, 0)).toISOString(),
+  };
+}
 
 function buildResidentPayload(seed: number, barangay: string) {
   return {
@@ -63,6 +73,8 @@ async function waitFor<T>(
 }
 
 export async function runDistributionFlowIntegrationTests(): Promise<void> {
+  const dayOneWindow = buildFutureDistributionWindow(1);
+  const dayTwoWindow = buildFutureDistributionWindow(2);
   process.env.JWT_SECRET = 'test-secret-123456789012345678901234567890';
   const mongo = await MongoMemoryServer.create();
   const uri = mongo.getUri();
@@ -71,6 +83,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
   try {
     const { default: distributionRoutes } = await import('../routes/distributionRoutes');
     const { default: claimRoutes } = await import('../routes/claimRoutes');
+    const { default: householdRoutes } = await import('../routes/householdRoutes');
     const { default: profileRoutes } = await import('../routes/profileRoutes');
     const { default: Resident } = await import('../models/Resident');
     const { default: DisasterEvent } = await import('../models/DisasterEvent');
@@ -80,6 +93,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const { default: DistributionClaim } = await import('../models/DistributionClaim');
     const { default: HouseholdToken } = await import('../models/HouseholdToken');
     const { syncResidentEnrollmentsForEvent } = await import('../services/distributionFlowService');
+    const { buildResidentQrToken } = await import('../services/residentQrService');
 
     const staff = await StaffUser.create({
       email: 'staff-integration@example.com',
@@ -121,12 +135,14 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     });
     app.use('/api/distributions', distributionRoutes);
     app.use('/api/claims', claimRoutes);
+    app.use('/api/household', householdRoutes);
     app.use('/api/users', profileRoutes);
 
     const resA = await Resident.create(buildResidentPayload(1, 'Bolo'));
     const resB = await Resident.create(buildResidentPayload(2, 'Dulig'));
     const outOfAreaResident = await Resident.create(buildResidentPayload(3, 'Uyong'));
     const lateApprovedResident = await Resident.create(buildResidentPayload(4, 'Bolo'));
+    const sanJoseResident = await Resident.create(buildResidentPayload(5, 'San Jose'));
     const disasterEvent = await DisasterEvent.create({
       name: 'Typhoon Integration',
       disasterType: 'Typhoon',
@@ -152,6 +168,14 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         registrationStatus: 'Approved',
         proofStatus: 'Approved',
       },
+      {
+        residentId: sanJoseResident._id,
+        disasterEventId: disasterEvent._id,
+        proofSubmissionId: new mongoose.Types.ObjectId(),
+        status: 'Eligible',
+        registrationStatus: 'Approved',
+        proofStatus: 'Approved',
+      },
     ]);
 
     // Create distribution for single barangay 'Bolo'
@@ -160,7 +184,8 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       .send({
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
-        scheduled: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        scheduled: dayOneWindow.scheduled,
+        endsAt: dayOneWindow.endsAt,
         assignedStaffIds: [String(staff._id)],
         notes: 'integration test single barangay',
       });
@@ -204,7 +229,8 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       .send({
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
-        scheduled: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        scheduled: dayOneWindow.scheduled,
+        endsAt: dayOneWindow.endsAt,
         assignedStaffIds: [String(splitStaffA._id)],
         notes: 'split coverage test',
       });
@@ -216,12 +242,102 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       .send({
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
-        scheduled: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+        scheduled: dayOneWindow.scheduled,
+        endsAt: dayOneWindow.endsAt,
         assignedStaffIds: [String(splitStaffB._id)],
         notes: 'insufficient coverage test',
       });
     assert.strictEqual(insufficientCoverageCreate.status, 403);
     assert.strictEqual(insufficientCoverageCreate.body?.code, 'OUT_OF_SCOPE_STAFF');
+
+    // Real signed-QR scan in San Jose, followed by the exact modal payload.
+    const sanJoseDistributionResponse = await request(app)
+      .post('/api/distributions')
+      .send({
+        disasterEventId: String(disasterEvent._id),
+        barangay: 'San Jose',
+        scheduled: dayOneWindow.scheduled,
+        endsAt: dayOneWindow.endsAt,
+        assignedStaffIds: [String(splitStaffB._id)],
+        notes: 'San Jose QR scanner and household modal test',
+      });
+    assert.strictEqual(sanJoseDistributionResponse.status, 201);
+    assert.strictEqual(sanJoseDistributionResponse.body?.enrollment?.matchedResidents, 1);
+    const sanJoseDistributionId = sanJoseDistributionResponse.body?.data?.id as string;
+    assert.ok(sanJoseDistributionId);
+
+    const sanJoseModalBeforeScan = await request(app)
+      .get(`/api/distributions/${sanJoseDistributionId}/households`);
+    assert.strictEqual(sanJoseModalBeforeScan.status, 200);
+    assert.deepStrictEqual(sanJoseModalBeforeScan.body?.data?.totals, {
+      registered: 1,
+      claimed: 0,
+      notYetClaimed: 1,
+    });
+    assert.strictEqual(
+      sanJoseModalBeforeScan.body?.data?.notYetClaimed?.[0]?.householdCode,
+      sanJoseResident.residentCode,
+    );
+    assert.strictEqual(
+      sanJoseModalBeforeScan.body?.data?.notYetClaimed?.[0]?.barangay,
+      'San Jose',
+    );
+
+    await Distribution.updateOne(
+      { _id: new mongoose.Types.ObjectId(sanJoseDistributionId) },
+      { $set: { scheduled: new Date(Date.now() - 60 * 1000), endsAt: new Date(Date.now() + 60 * 60 * 1000) } },
+    );
+
+    const sanJoseScannerToken = jwt.sign(
+      {
+        sub: 'san-jose-scanner',
+        userId: String(splitStaffB._id),
+        email: splitStaffB.email,
+        role: 'LGU_STAFF',
+        assignedBarangays: ['Dulig', 'San Jose'],
+      },
+      process.env.JWT_SECRET,
+      { algorithm: 'HS256', expiresIn: '1h' },
+    );
+    const sanJoseQrData = buildResidentQrToken(
+      sanJoseResident.residentCode,
+      sanJoseResident.qrVersion,
+    );
+
+    const sanJoseResolveResponse = await request(app)
+      .post('/api/household/qr/resolve')
+      .set('Authorization', `Bearer ${sanJoseScannerToken}`)
+      .send({ qrData: sanJoseQrData, distributionId: sanJoseDistributionId });
+    assert.strictEqual(sanJoseResolveResponse.status, 200);
+    assert.strictEqual(sanJoseResolveResponse.body?.data?.residentId, String(sanJoseResident._id));
+    assert.strictEqual(sanJoseResolveResponse.body?.data?.alreadyClaimed, false);
+
+    const sanJoseClaimResponse = await request(app)
+      .post('/api/household/qr/claim')
+      .set('Authorization', `Bearer ${sanJoseScannerToken}`)
+      .send({
+        residentId: sanJoseResolveResponse.body?.data?.residentId,
+        distributionId: sanJoseDistributionId,
+      });
+    assert.strictEqual(sanJoseClaimResponse.status, 201);
+    assert.strictEqual(sanJoseClaimResponse.body?.alreadyClaimed, false);
+
+    const sanJoseModalAfterScan = await request(app)
+      .get(`/api/distributions/${sanJoseDistributionId}/households`);
+    assert.strictEqual(sanJoseModalAfterScan.status, 200);
+    assert.deepStrictEqual(sanJoseModalAfterScan.body?.data?.totals, {
+      registered: 1,
+      claimed: 1,
+      notYetClaimed: 0,
+    });
+    const scannedSanJoseHousehold = sanJoseModalAfterScan.body?.data?.claimed?.[0];
+    assert.strictEqual(scannedSanJoseHousehold?.householdName, sanJoseResident.fullName);
+    assert.strictEqual(scannedSanJoseHousehold?.householdCode, sanJoseResident.residentCode);
+    assert.strictEqual(scannedSanJoseHousehold?.barangay, 'San Jose');
+    assert.strictEqual(scannedSanJoseHousehold?.proofMethod, 'QR');
+    assert.strictEqual(scannedSanJoseHousehold?.scanner?.name, splitStaffB.email);
+    assert.strictEqual(scannedSanJoseHousehold?.claimId, sanJoseClaimResponse.body?.claimId);
+    assert.ok(scannedSanJoseHousehold?.claimedAt);
 
     async function createTokenForResident(plainToken: string, resident: any): Promise<void> {
       await HouseholdToken.create({
@@ -256,6 +372,12 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     assert.strictEqual(householdsResponse.status, 200);
     assert.strictEqual(householdsResponse.body?.data?.totals?.registered, 2);
     assert.strictEqual(householdsResponse.body?.data?.totals?.notYetClaimed, 2);
+
+    // Move the created run into its active window before exercising claim endpoints.
+    await Distribution.updateOne(
+      { _id: new mongoose.Types.ObjectId(distributionId) },
+      { $set: { scheduled: new Date(Date.now() - 60 * 1000), endsAt: new Date(Date.now() + 60 * 60 * 1000) } },
+    );
 
     const outOfAreaClaim = await request(app)
       .post('/api/claims/record-claim')
@@ -300,7 +422,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     );
 
     const scanEligibleResponse = await request(app)
-      .get(`/api/users/scan-eligible?barangay=Bolo&scheduled=${encodeURIComponent(new Date(Date.now() + 60 * 60 * 1000).toISOString())}`)
+      .get(`/api/users/scan-eligible?barangay=Bolo&scheduled=${encodeURIComponent(dayOneWindow.scheduled)}`)
       .set('Authorization', `Bearer ${authToken}`);
     assert.strictEqual(scanEligibleResponse.status, 200);
     const eligibleItems = scanEligibleResponse.body?.data?.items || [];
@@ -315,7 +437,8 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       .send({
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
-        scheduled: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        scheduled: dayOneWindow.scheduled,
+        endsAt: dayOneWindow.endsAt,
         assignedStaffIds: [String(splitStaffA._id)],
         notes: 'conflicting same day distribution',
       });
@@ -328,13 +451,18 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       .send({
         disasterEventId: String(disasterEvent._id),
         barangay: 'Bolo',
-        scheduled: new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString(),
+        scheduled: dayTwoWindow.scheduled,
+        endsAt: dayTwoWindow.endsAt,
         assignedStaffIds: [String(staff._id)],
         notes: 'second distribution test',
       });
     assert.strictEqual(secondDistributionResponse.status, 201);
     const secondDistributionId = secondDistributionResponse.body?.data?.id as string;
     assert.ok(secondDistributionId);
+    await Distribution.updateOne(
+      { _id: new mongoose.Types.ObjectId(secondDistributionId) },
+      { $set: { scheduled: new Date(Date.now() - 60 * 1000), endsAt: new Date(Date.now() + 60 * 60 * 1000) } },
+    );
 
     const claimFromAutomaticEnrollment = await request(app)
       .post('/api/claims/record-claim')

@@ -37,11 +37,12 @@ interface ScannerDistribution {
   barangay: string;
   assignedBarangays?: string[];
   scheduled?: string;
+  endsAt?: string;
   status?: string;
+  lifecycleStatus?: 'Upcoming' | 'Active' | 'Completed' | 'Archived';
   registeredHouseholds?: number;
   claimedHouseholds?: number;
 }
-
 type ScannerTone = 'ready' | 'working' | 'success' | 'warning' | 'error';
 
 function formatScheduleLabel(value?: string): string {
@@ -124,9 +125,11 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   const [resolvedResident, setResolvedResident] = useState<ResolvedResident | null>(null);
   const [resolveLatencyMs, setResolveLatencyMs] = useState<number | null>(null);
   const [activeDistribution, setActiveDistribution] = useState<ScannerDistribution | null>(null);
+  const [activeDistributions, setActiveDistributions] = useState<ScannerDistribution[]>([]);
+  const [nearestUpcoming, setNearestUpcoming] = useState<ScannerDistribution | null>(null);
+  const [assignmentMessage, setAssignmentMessage] = useState<string | null>(null);
   const [claimStatusText, setClaimStatusText] = useState<string | null>(null);
   const lastScanRef = useRef<{ data: string; at: number } | null>(null);
-
   const toMaskedName = (rawName?: string): string => {
     const parts = String(rawName || '')
       .trim()
@@ -154,45 +157,50 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   }, []);
 
   useEffect(() => {
-    const loadActiveDistribution = async () => {
+    const loadActiveDistributions = async () => {
       const response = await mobileAuthService.authenticatedRequest<{
         success: boolean;
-        data?: Array<{
-          id?: string;
-          _id?: string;
-          barangay: string;
-          assignedBarangays?: string[];
-          scheduled?: string;
-          status?: string;
-          registeredHouseholds?: number;
-          claimedHouseholds?: number;
-          lifecycleStatus?: 'Upcoming' | 'Active' | 'Completed' | 'Archived';
-        }>;
-      }>('/distributions', { method: 'GET' });
+        data?: {
+          active: Array<ScannerDistribution & { _id?: string }>;
+          nearestUpcoming?: (ScannerDistribution & { _id?: string }) | null;
+        };
+      }>('/distributions/scanner/active', { method: 'GET' });
 
-      if (!response.success || !response.data?.success || !Array.isArray(response.data.data)) {
+      if (!response.success || !response.data?.success || !response.data.data) {
+        setAssignmentMessage(response.error || 'Unable to load scanner assignments.');
         return;
       }
 
-      const firstActive = response.data.data.find((d) => d.status !== 'Claimed' && d.lifecycleStatus === 'Active');
-      if (!firstActive) return;
-
-      setActiveDistribution({
-        id: firstActive.id || firstActive._id || '',
-        barangay: firstActive.barangay,
-        assignedBarangays: firstActive.assignedBarangays || [],
-        scheduled: firstActive.scheduled,
-        status: firstActive.status,
-        registeredHouseholds: firstActive.registeredHouseholds,
-        claimedHouseholds: firstActive.claimedHouseholds,
+      const normalize = (item: ScannerDistribution & { _id?: string }): ScannerDistribution => ({
+        ...item,
+        id: item.id || item._id || '',
+        assignedBarangays: item.assignedBarangays || [],
       });
+      const active = (response.data.data.active || []).map(normalize).filter((item) => item.id);
+      const upcoming = response.data.data.nearestUpcoming
+        ? normalize(response.data.data.nearestUpcoming)
+        : null;
+
+      setActiveDistributions(active);
+      setNearestUpcoming(upcoming);
+      setActiveDistribution(active.length === 1 ? active[0] : null);
+      setAssignmentMessage(
+        active.length > 1
+          ? 'Choose which active distribution this scanner should record claims against.'
+          : active.length === 0 && upcoming
+            ? `No active distribution. Your nearest assignment starts ${formatScheduleLabel(upcoming.scheduled)}.`
+            : active.length === 0
+              ? 'No active or upcoming distribution is explicitly assigned to this account.'
+              : null,
+      );
     };
 
-    loadActiveDistribution().catch(() => undefined);
+    loadActiveDistributions().catch(() => {
+      setAssignmentMessage('Unable to load scanner assignments.');
+    });
   }, []);
 
-  const playSuccessFeedback = async () => {
-    Vibration.vibrate(80);
+  const playSuccessFeedback = async () => {    Vibration.vibrate(80);
   };
 
   const handleQrScanned = async ({ data }: { data: string }) => {
@@ -287,18 +295,18 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
     setClaimStatusText(null);
   };
 
-  const includedBarangays = activeDistribution
-    ? [activeDistribution.barangay, ...(activeDistribution.assignedBarangays || [])]
+  const displayedDistribution = activeDistribution || nearestUpcoming;
+  const includedBarangays = displayedDistribution
+    ? [displayedDistribution.barangay, ...(displayedDistribution.assignedBarangays || [])]
     : [];
   const coveredBarangayCount = Array.from(new Set(includedBarangays.filter(Boolean))).length;
-  const claimCountText = activeDistribution?.registeredHouseholds
-    ? `${activeDistribution.claimedHouseholds || 0}/${activeDistribution.registeredHouseholds} claimed`
-    : activeDistribution?.claimedHouseholds
-      ? `${activeDistribution.claimedHouseholds} claimed`
+  const claimCountText = displayedDistribution?.registeredHouseholds
+    ? `${displayedDistribution.claimedHouseholds || 0}/${displayedDistribution.registeredHouseholds} claimed`
+    : displayedDistribution?.claimedHouseholds
+      ? `${displayedDistribution.claimedHouseholds} claimed`
       : 'No claim totals yet';
 
-  let scannerTone: ScannerTone = 'ready';
-  if (isResolving) scannerTone = 'working';
+  let scannerTone: ScannerTone = 'ready';  if (isResolving) scannerTone = 'working';
   else if (error) scannerTone = 'error';
   else if (resolvedResident?.alreadyClaimed) scannerTone = 'warning';
   else if (resolvedResident) scannerTone = 'success';
@@ -386,11 +394,10 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
           <View style={styles.distributionTopRow}>
             <View style={styles.distributionHostBlock}>
               <Text style={styles.distributionLabel}>Active Host Barangay</Text>
-              <Text style={styles.distributionHost}>{activeDistribution?.barangay || 'No active distribution'}</Text>
+              <Text style={styles.distributionHost}>{displayedDistribution?.barangay || 'No assigned distribution'}</Text>
             </View>
             <View style={styles.distributionModePill}>
-              <Ionicons
-                name={activeDistribution ? 'radio-button-on' : 'alert-circle-outline'}
+              <Ionicons                name={activeDistribution ? 'radio-button-on' : 'alert-circle-outline'}
                 size={14}
                 color={activeDistribution ? '#0F766E' : '#B45309'}
               />
@@ -400,14 +407,50 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
             </View>
           </View>
 
+          {activeDistributions.length > 1 && (
+            <View style={styles.assignmentChooser}>
+              <Text style={styles.assignmentChooserTitle}>Choose active distribution</Text>
+              <View style={styles.assignmentChoices}>
+                {activeDistributions.map((distribution) => (
+                  <TouchableOpacity
+                    key={distribution.id}
+                    style={[
+                      styles.assignmentChoice,
+                      activeDistribution?.id === distribution.id && styles.assignmentChoiceSelected,
+                    ]}
+                    onPress={() => {
+                      setActiveDistribution(distribution);
+                      setAssignmentMessage(null);
+                      handleScanAgain();
+                    }}
+                  >
+                    <Text style={[
+                      styles.assignmentChoiceTitle,
+                      activeDistribution?.id === distribution.id && styles.assignmentChoiceTitleSelected,
+                    ]}>
+                      {distribution.barangay}
+                    </Text>
+                    <Text style={styles.assignmentChoiceTime}>{formatScheduleLabel(distribution.scheduled)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {!!assignmentMessage && (
+            <View style={styles.assignmentNotice}>
+              <Ionicons name="information-circle-outline" size={17} color="#B45309" />
+              <Text style={styles.assignmentNoticeText}>{assignmentMessage}</Text>
+            </View>
+          )}
+
           <View style={styles.distributionMetaRow}>
             <View style={styles.metaItem}>
               <Text style={styles.metaLabel}>Schedule</Text>
-              <Text style={styles.metaValue}>{formatScheduleLabel(activeDistribution?.scheduled)}</Text>
+              <Text style={styles.metaValue}>{formatScheduleLabel(displayedDistribution?.scheduled)}</Text>
             </View>
             <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Coverage</Text>
-              <Text style={styles.metaValue}>{coveredBarangayCount || 0} barangays</Text>
+              <Text style={styles.metaLabel}>Coverage</Text>              <Text style={styles.metaValue}>{coveredBarangayCount || 0} barangays</Text>
             </View>
             <View style={styles.metaItem}>
               <Text style={styles.metaLabel}>Progress</Text>
@@ -674,6 +717,58 @@ const styles = StyleSheet.create({
   distributionModeText: {
     fontSize: 11,
     fontWeight: '800',
+  },
+  assignmentChooser: {
+    gap: 10,
+  },
+  assignmentChooserTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#334155',
+  },
+  assignmentChoices: {
+    gap: 8,
+  },
+  assignmentChoice: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#F8FAFC',
+  },
+  assignmentChoiceSelected: {
+    borderColor: '#0F766E',
+    backgroundColor: '#F0FDFA',
+  },
+  assignmentChoiceTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#334155',
+  },
+  assignmentChoiceTitleSelected: {
+    color: '#0F766E',
+  },
+  assignmentChoiceTime: {
+    marginTop: 3,
+    fontSize: 11,
+    color: '#64748B',
+  },
+  assignmentNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 14,
+    padding: 10,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  assignmentNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#92400E',
   },
   distributionMetaRow: {
     flexDirection: 'row',

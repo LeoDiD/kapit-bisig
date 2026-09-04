@@ -102,6 +102,28 @@ function RequirementPill({ label, tone }: { label: string; tone: RequirementTone
   );
 }
 
+function FormSectionHeader({ step, icon, title, description, badge }: {
+  step: number;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  description: string;
+  badge: string;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionStepIcon}>
+        <Ionicons name={icon} size={18} color={residentColors.inverse} />
+      </View>
+      <View style={styles.sectionHeaderCopy}>
+        <Text style={styles.sectionEyebrow}>STEP {step}</Text>
+        <Typography variant="body" weight="semiBold">{title}</Typography>
+        <Typography variant="caption" color={theme.colors.textSecondary}>{description}</Typography>
+      </View>
+      <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>{badge}</Text></View>
+    </View>
+  );
+}
+
 function formatSchedule(value?: string): string {
   const trimmed = String(value || '').trim();
   if (!trimmed) {
@@ -560,17 +582,18 @@ export default function ResidentProofRequestScreen({ onBack, onSignInRequired }:
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
+          <View style={styles.heroCard}>
             <TouchableOpacity style={styles.backButton} onPress={onBack}>
-              <Ionicons name="arrow-back" size={20} color={residentColors.icon} />
+              <Ionicons name="arrow-back" size={20} color={residentColors.inverse} />
             </TouchableOpacity>
 
             <View style={styles.headerTextWrap}>
-              <Typography variant="label" color={theme.colors.textMuted}>Resident Request</Typography>
-              <Typography variant="h3" weight="semiBold">Send proof</Typography>
-              <Typography variant="body" color={theme.colors.textSecondary}>
-                Show how the active disaster affected you by adding a short damage note and clear photos.
-              </Typography>
+              <Text style={styles.heroEyebrow}>RESIDENT REQUEST</Text>
+              <Text style={styles.heroTitle}>Send proof</Text>
+              <Text style={styles.heroDescription}>Tell us what happened and attach clear photos for a quick review.</Text>
+            </View>
+            <View style={styles.heroIcon}>
+              <Ionicons name="document-attach-outline" size={22} color={residentColors.inverse} />
             </View>
           </View>
 
@@ -671,6 +694,10 @@ export default function ResidentProofRequestScreen({ onBack, onSignInRequired }:
               </View>
             </View>
 
+            <View style={styles.progressTrack} accessibilityLabel={`${completedRequirementCount} of 3 requirements complete`}>
+              <View style={[styles.progressFill, { width: `${(completedRequirementCount / 3) * 100}%` }]} />
+            </View>
+
             {queuedCount > 0 ? (
               <View style={styles.queueInline}>
                 <Ionicons name="cloud-upload-outline" size={16} color={theme.colors.warning} />
@@ -768,17 +795,13 @@ export default function ResidentProofRequestScreen({ onBack, onSignInRequired }:
           {canEditProof ? (
           <>
           <Card variant="outlined" padding="md" style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderCopy}>
-                <Typography variant="body" weight="semiBold">Damage details</Typography>
-                <Typography variant="caption" color={theme.colors.textSecondary}>
-                  Keep this short, clear, and specific.
-                </Typography>
-              </View>
-              <View style={styles.sectionBadge}>
-                <Text style={styles.sectionBadgeText}>{trimmedDescriptionLength}/10</Text>
-              </View>
-            </View>
+            <FormSectionHeader
+              step={1}
+              icon="alert-circle-outline"
+              title="Damage details"
+              description="Choose the damage type and describe what was affected."
+              badge={`${trimmedDescriptionLength}/10`}
+            />
 
             <View style={styles.fieldGroup}>
               <Typography variant="caption" color={theme.colors.textSecondary}>Damage type</Typography>
@@ -844,17 +867,13 @@ export default function ResidentProofRequestScreen({ onBack, onSignInRequired }:
           </Card>
 
           <Card variant="outlined" padding="md" style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderCopy}>
-                <Typography variant="body" weight="semiBold">Proof photos</Typography>
-                <Typography variant="caption" color={theme.colors.textSecondary}>
-                  Add 3 to 5 clear photos of the visible damage.
-                </Typography>
-              </View>
-              <View style={styles.sectionBadge}>
-                <Text style={styles.sectionBadgeText}>{photos.length}/{MAX_PHOTOS}</Text>
-              </View>
-            </View>
+            <FormSectionHeader
+              step={2}
+              icon="camera-outline"
+              title="Photo evidence"
+              description="Add 3 to 5 clear photos showing the visible damage."
+              badge={`${photos.length}/${MAX_PHOTOS}`}
+            />
 
             <Typography variant="caption" color={remainingPhotos === 0 ? theme.colors.success : theme.colors.textSecondary}>
               {remainingPhotos === 0
@@ -963,7 +982,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.lg,
     gap: theme.spacing.md,
   },
-  statusCard: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: '#FFF8E7', borderWidth: 1, borderColor: '#F2D68A' },
+  statusCard: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, backgroundColor: residentColors.accentSoft, borderWidth: 1, borderColor: residentColors.accent },
   statusCardApproved: { backgroundColor: residentColors.surface, borderColor: residentColors.border },
   statusCardRejected: { backgroundColor: '#FFF1F2', borderColor: '#F4C2C7' },
   statusIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.72)', alignItems: 'center', justifyContent: 'center' },
@@ -973,20 +992,32 @@ const styles = StyleSheet.create({
   statusMessage: { marginTop: 5, fontSize: 12.5, lineHeight: 18, color: residentColors.secondary },
   statusMetaRow: { marginTop: 9, flexDirection: 'row', gap: 8 },
   statusMeta: { fontSize: 10, fontWeight: '700', color: '#60736A', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 4 },
-  header: {
+  heroCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderRadius: 24,
+    backgroundColor: residentColors.brand,
+    shadowColor: residentColors.brandDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 5,
   },
+  heroEyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2, color: 'rgba(255,255,255,0.72)' },
+  heroTitle: { marginTop: 4, fontSize: 26, lineHeight: 31, fontWeight: '800', color: residentColors.inverse },
+  heroDescription: { marginTop: 5, fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,0.82)' },
+  heroIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' },
   backButton: {
     width: 42,
     height: 42,
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: residentColors.surface,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
-    borderColor: residentColors.border,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   headerTextWrap: {
     flex: 1,
@@ -1031,6 +1062,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: residentColors.ink,
   },
+  progressTrack: { height: 7, overflow: 'hidden', borderRadius: 99, backgroundColor: '#E7ECE9' },
+  progressFill: { height: '100%', borderRadius: 99, backgroundColor: residentColors.brand },
   queueInline: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1038,9 +1071,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: theme.borderRadius.lg,
-    backgroundColor: '#FFF9ED',
+    backgroundColor: residentColors.accentSoft,
     borderWidth: 1,
-    borderColor: '#F5D487',
+    borderColor: residentColors.accent,
   },
   queueInlineText: {
     flex: 1,
@@ -1101,8 +1134,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   distributionChipSelected: {
-    borderColor: residentColors.ink,
-    backgroundColor: residentColors.ink,
+    borderColor: residentColors.brand,
+    backgroundColor: residentColors.brand,
   },
   distributionChipText: {
     fontSize: 12,
@@ -1170,6 +1203,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     borderColor: residentColors.border,
     backgroundColor: residentColors.surface,
+    borderRadius: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1177,6 +1211,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: theme.spacing.md,
   },
+  sectionStepIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: residentColors.brand },
+  sectionEyebrow: { fontSize: 9, lineHeight: 12, fontWeight: '800', letterSpacing: 1, color: residentColors.icon },
   sectionHeaderCopy: {
     flex: 1,
     gap: 2,
@@ -1319,7 +1355,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
-    backgroundColor: 'rgba(247,247,245,0.98)',
+    backgroundColor: 'rgba(246,251,247,0.98)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(17,24,39,0.08)',
     gap: theme.spacing.sm,

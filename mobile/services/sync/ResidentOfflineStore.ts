@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import type {
   ResidentDisasterEvent,
+  ResidentDistributionItem,
   ResidentProfile,
   ResidentProofSubmissionStatus,
   ResidentQrData,
@@ -88,6 +89,10 @@ function photosDir(residentId: string): string {
   return `${residentDir(residentId)}photos/`;
 }
 
+function distributionCacheFile(residentId: string): string {
+  return `${residentDir(residentId)}distributions.json`;
+}
+
 async function ensureDirectory(path: string): Promise<void> {
   const info = await FileSystem.getInfoAsync(path);
   if (!info.exists) {
@@ -114,6 +119,38 @@ async function writeJson(path: string, value: unknown): Promise<void> {
   await FileSystem.writeAsStringAsync(path, JSON.stringify(value), {
     encoding: FileSystem.EncodingType.UTF8,
   });
+}
+
+export interface ResidentDistributionOfflineCache {
+  residentId: string;
+  items: ResidentDistributionItem[];
+  fetchedAt: string;
+}
+
+export async function saveResidentDistributionOfflineCache(
+  residentId: string,
+  items: ResidentDistributionItem[],
+  fetchedAt: string,
+): Promise<void> {
+  await ensureResidentDirectory(residentId);
+  await writeJson(distributionCacheFile(residentId), { residentId, items, fetchedAt });
+}
+
+export async function loadResidentDistributionOfflineCache(
+  residentId: string,
+): Promise<ResidentDistributionOfflineCache | null> {
+  const cached = await readJson<ResidentDistributionOfflineCache>(distributionCacheFile(residentId));
+  if (
+    !cached ||
+    cached.residentId !== residentId ||
+    !Array.isArray(cached.items) ||
+    typeof cached.fetchedAt !== 'string'
+  ) return null;
+  return cached;
+}
+
+export async function clearResidentDistributionOfflineCache(residentId: string): Promise<void> {
+  await FileSystem.deleteAsync(distributionCacheFile(residentId), { idempotent: true }).catch(() => undefined);
 }
 
 function mimeTypeForUri(uri: string): OfflineProofPhoto['mimeType'] {
@@ -169,7 +206,11 @@ export async function loadResidentOfflineCache(): Promise<ResidentOfflineCache |
 }
 
 export async function clearResidentOfflineCache(): Promise<void> {
+  const current = await loadResidentOfflineCache();
   await SecureStore.deleteItemAsync(CACHE_KEY);
+  if (current?.residentId) {
+    await clearResidentDistributionOfflineCache(current.residentId);
+  }
 }
 
 export async function persistProofPhoto(residentId: string, uri: string): Promise<OfflineProofPhoto> {

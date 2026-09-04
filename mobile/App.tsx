@@ -50,10 +50,16 @@ async function requestPermissionsAsync() {
   return { status: 'denied' } as any;
 }
 
+async function getExpoPushTokenAsync(projectId: string) {
+  if (Notifications) {
+    return Notifications.getExpoPushTokenAsync({ projectId });
+  }
+  return { data: '' } as any;
+}
+
 async function setNotificationChannelAsync(channelId: string, channel: any) {
   if (Notifications) {
-    return Notifications.setNotificationChannelAsync(channelId, channel);
-  }
+    return Notifications.setNotificationChannelAsync(channelId, channel);  }
 }
 
 async function scheduleNotificationAsync(request: any) {
@@ -91,6 +97,10 @@ import {
   updateResidentOfflineCache,
 } from './services/sync/ResidentOfflineStore';
 import { shouldInvalidateVirtualId } from './services/sync/VirtualIdPolicy';
+import {
+  clearResidentDistributionStore,
+  useResidentDistributionStore,
+} from './services/sync/ResidentDistributionStore';
 import ResidentRegistrationRevisionScreen from './components/ResidentRegistrationRevisionScreen';
 import VolunteerDashboardScreen from './components/VolunteerDashboardScreen';
 import QRReceiptScreen from './components/QRReceiptScreen';
@@ -113,6 +123,8 @@ import {
   ResidentProfile,
   ResidentQrData,
   saveResidentSession,
+  registerResidentPushDevice,
+  unregisterResidentPushDevice,
 } from './services/api/ResidentQrService';
 
 type Screen = 'home' | 'distributions' | 'qr' | 'profile' | 'proof-request' | 'registration-revision';
@@ -239,6 +251,10 @@ export default function App() {
   const virtualIdGenerationRef = useRef(0);
   const isResidentPending = accountType === 'resident'
     && (residentProfile?.status === 'Pending' || residentProfile?.status === 'Needs Revision');
+  const residentDistributions = useResidentDistributionStore(
+    accountType === 'resident' && residentProfile?.status === 'Approved',
+    residentProfile?.id,
+  );
 
   const setVirtualIdSnapshot = useCallback((data: ResidentQrData | null, fetchedAt: string | null) => {
     residentVirtualIdRef.current = data;
@@ -351,6 +367,7 @@ export default function App() {
         loadResidentOfflineCache(),
       ]);
       if (!token || !session) {
+        clearResidentDistributionStore();
         setResidentProfile(null);
         await clearVirtualIdSnapshot();
         return false;
@@ -384,6 +401,7 @@ export default function App() {
         if (response.failureKind === 'AUTH' && response.code && CONFIRMED_AUTH_FAILURE_CODES.has(response.code)) {
           await clearResidentSession();
           await clearResidentOfflineCache();
+          clearResidentDistributionStore();
           setResidentProfile(null);
           await clearVirtualIdSnapshot();
           setAccountType(null);
@@ -451,6 +469,7 @@ export default function App() {
     // Ensure volunteer login is the only active session type.
     clearResidentSession().catch(() => undefined);
     clearResidentOfflineCache().catch(() => undefined);
+    clearResidentDistributionStore();
     setVolunteerUser(user);
     setResidentProfile(null);
     clearVirtualIdSnapshot().catch(() => undefined);
@@ -477,9 +496,17 @@ export default function App() {
       mobileAuthService.logout().catch(() => undefined);
       setVolunteerUser(null);
     }
+    if (accountType === 'resident' && pushTokenRef.current) {
+      const deviceToken = pushTokenRef.current;
+      getResidentToken()
+        .then((residentToken) => residentToken ? unregisterResidentPushDevice(residentToken, deviceToken) : undefined)
+        .catch(() => undefined);
+      pushTokenRef.current = null;
+    }
 
     clearResidentSession().catch(() => undefined);
     clearResidentOfflineCache().catch(() => undefined);
+    clearResidentDistributionStore();
 
     setResidentProfile(null);
     clearVirtualIdSnapshot().catch(() => undefined);
@@ -642,14 +669,31 @@ export default function App() {
           return;
         }
 
-        console.log(
-          `Push token registration is available only in a development build or standalone app. Project ID detected: ${projectId}.`,
-        );
-        pushTokenRef.current = null;
+        const tokenResponse = await getExpoPushTokenAsync(projectId);
+        const expoPushToken = String(tokenResponse?.data || '').trim();
+        if (!expoPushToken) {
+          console.warn('Expo did not return a remote push token.');
+          return;
+        }
+        pushTokenRef.current = expoPushToken;
+        console.log(`Push token ready: ${maskPushToken(expoPushToken)}`);
+
+        if (accountType === 'resident') {
+          const residentToken = await getResidentToken();
+          if (residentToken) {
+            const registration = await registerResidentPushDevice(
+              residentToken,
+              expoPushToken,
+              Platform.OS === 'ios' ? 'ios' : 'android',
+            );
+            if (!registration.success) {
+              console.warn(registration.message || 'Resident push-device registration failed.');
+            }
+          }
+        }
       } catch (error) {
         console.error('Push registration error:', getErrorMessage(error), error);
-      }
-    };
+      }    };
 
     registerForPushNotificationsAsync().catch(() => undefined);
 
@@ -672,7 +716,7 @@ export default function App() {
       notificationReceivedListener.current?.remove();
       notificationResponseListener.current?.remove();
     };
-  }, [isResidentPending]);
+  }, [accountType, isResidentPending, residentProfile?.id]);
 
   if (!fontsLoaded) return null;
 
@@ -716,6 +760,13 @@ export default function App() {
         return (
           <DistributionScreen
             barangayName={residentProfile?.barangay ? `Barangay ${residentProfile.barangay}` : undefined}
+            distributionItems={residentDistributions.items}
+            isDistributionLoading={residentDistributions.isLoading}
+            isDistributionRefreshing={residentDistributions.isRefreshing}
+            distributionError={residentDistributions.error}
+            distributionWarning={residentDistributions.warning}
+            distributionFetchedAt={residentDistributions.fetchedAt}
+            onRefreshDistributions={residentDistributions.refresh}
             onNavigate={handleNavigate}
           />
         );
@@ -795,6 +846,10 @@ export default function App() {
             virtualIdError={virtualIdError}
             virtualIdWarning={virtualIdWarning}
             onRefreshVirtualId={refreshResidentVirtualId}
+            distributionItems={residentDistributions.items}
+            isDistributionLoading={residentDistributions.isLoading}
+            distributionWarning={residentDistributions.warning}
+            onRefreshDistributions={residentDistributions.refresh}
           />
         );
     }

@@ -20,7 +20,7 @@ export const createStaffBody = z.object({
 export const listStaffQuery = z.object({
   search: searchString.optional(),
   barangay: trimmedString(1, 50).optional(),
-  status: z.enum(['active', 'pending', 'inactive']).optional(),
+  status: z.enum(['active', 'pending', 'locked', 'inactive']).optional(),
 }).strict();
 
 /* PATCH /api/admin/users/:id — update staff */

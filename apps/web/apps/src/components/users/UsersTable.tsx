@@ -10,19 +10,22 @@ import { sanitizeAsciiText } from '@/lib/inputValidation'
 import { useAuth } from '@/lib/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-type FilterStatus = 'all' | 'active' | 'pending' | 'inactive'
+type FilterStatus = 'all' | 'active' | 'pending' | 'locked' | 'inactive'
 type FilterBarangay = string
-type AccountStatus = 'active' | 'pending' | 'inactive'
+type AccountStatus = 'active' | 'pending' | 'locked' | 'inactive'
 
 const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'all', label: 'All Status' },
   { value: 'active', label: 'Active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'inactive', label: 'Not Active' },
+  { value: 'pending', label: 'Pending Activation' },
+  { value: 'locked', label: 'Temporarily Locked' },
+  { value: 'inactive', label: 'Inactive' },
 ]
 
-function getAccountStatus(user: Pick<StaffUser, 'isActive' | 'lastLoginAt'>): AccountStatus {
-  if (!user.isActive) return 'inactive'
+function getAccountStatus(user: Pick<StaffUser, 'isActive' | 'lastLoginAt' | 'accountState'>): AccountStatus {
+  if (user.accountState === 'Temporarily Locked') return 'locked'
+  if (user.accountState === 'Pending Activation') return 'pending'
+  if (user.accountState === 'Inactive' || !user.isActive) return 'inactive'
   if (!user.lastLoginAt) return 'pending'
   return 'active'
 }
@@ -67,7 +70,7 @@ export default function UsersTable() {
       setIsLoading(true)
       setError(null)
 
-      const params: { search?: string; status?: 'active' | 'pending' | 'inactive'; barangay?: string } = {}
+      const params: { search?: string; status?: 'active' | 'pending' | 'locked' | 'inactive'; barangay?: string } = {}
       if (filterStatus !== 'all') params.status = filterStatus
       if (filterBarangay !== 'all') params.barangay = filterBarangay
       if (searchQuery) params.search = searchQuery
@@ -154,6 +157,22 @@ export default function UsersTable() {
     } catch (err) {
       console.error('Failed to update status:', err)
       showToast.error('Failed to update user status.')
+    }
+  }
+
+  const handleSendRecoveryOtp = async (target: StaffUser) => {
+    setActiveDropdown(null)
+    try {
+      if (getAccountStatus(target) === 'pending') {
+        await api.resendStaffActivationOtp(target.id)
+        showToast.success(`Activation OTP sent to ${target.email}.`)
+      } else {
+        await api.sendStaffPasswordResetOtp(target.id)
+        showToast.success(`Password reset OTP sent to ${target.email}.`)
+      }
+    } catch (err) {
+      console.error('Failed to send recovery OTP:', err)
+      showToast.error(err instanceof Error ? err.message : 'Failed to send the recovery OTP.')
     }
   }
 
@@ -498,6 +517,18 @@ export default function UsersTable() {
             ) : (
               <MenuItem icon={<ActivateIcon className="w-4 h-4" />} label="Activate Account" onClick={() => handleToggleActive(activeDropdown, false)} variant="success" />
             )}
+            {(() => {
+              const target = users.find((u) => u.id === activeDropdown)
+              if (!target?.isActive) return null
+              const pending = getAccountStatus(target) === 'pending'
+              return (
+                <MenuItem
+                  icon={<KeyIcon className="w-4 h-4" />}
+                  label={pending ? 'Resend activation OTP' : 'Send password reset OTP'}
+                  onClick={() => handleSendRecoveryOtp(target)}
+                />
+              )
+            })()}
             <div className="my-1 border-t border-gray-100" />
             <MenuItem
               icon={<DeleteIcon className="w-4 h-4" />}
@@ -613,7 +644,16 @@ function StatusBadge({ status }: { status: AccountStatus }) {
     return (
       <div className="flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending</span>
+        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Activation</span>
+      </div>
+    )
+  }
+
+  if (status === 'locked') {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+        <span className="text-sm font-medium text-red-600 dark:text-red-400">Temporarily Locked</span>
       </div>
     )
   }
@@ -622,6 +662,15 @@ function StatusBadge({ status }: { status: AccountStatus }) {
     <div className="flex items-center gap-2">
       <span className="text-sm font-medium text-slate-400 dark:text-slate-500">Inactive</span>
     </div>
+  )
+}
+
+function KeyIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="8" cy="15" r="4" />
+      <path d="m11 12 8-8m-3 3 2 2m-5 1 2 2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 

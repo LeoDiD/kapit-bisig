@@ -78,10 +78,13 @@ export default function DistributionDetailsModal({
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
                   <ClockIcon />
-                  <span>Status</span>
+                  <span>Lifecycle and claim progress</span>
                 </div>
                 <div className="mt-1">
-                  <StatusPill status={distribution.status} />
+                  <div className="flex flex-wrap gap-2">
+                    <LifecyclePill status={distribution.lifecycleStatus} />
+                    <ClaimProgressPill status={distribution.status} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -179,16 +182,21 @@ export default function DistributionDetailsModal({
 
 /* ----- Status Pill ----- */
 
-function StatusPill({ status }: { status: 'Claimed' | 'Unclaimed' | 'Partially Claimed' }) {
+function LifecyclePill({ status }: { status: 'Upcoming' | 'Active' | 'Completed' | 'Archived' }) {
+  const classes = {
+    Upcoming: 'bg-amber-100 text-amber-800',
+    Active: 'bg-blue-100 text-blue-800',
+    Completed: 'bg-emerald-100 text-emerald-800',
+    Archived: 'bg-slate-200 text-slate-700',
+  }[status]
+  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${classes}`}>{status}</span>
+}
+
+function ClaimProgressPill({ status }: { status: 'Claimed' | 'Unclaimed' | 'Partially Claimed' }) {
   const isUnclaimed = status === 'Unclaimed'
   const isPartial = status === 'Partially Claimed'
   
-  const label =
-    status === 'Claimed'
-      ? 'Completed'
-      : isPartial
-        ? 'Active'
-        : 'Scheduled'
+  const label = status
         
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${

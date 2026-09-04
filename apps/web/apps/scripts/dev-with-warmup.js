@@ -6,7 +6,11 @@ const path = require('path')
 const port = process.argv[2] || '3000'
 const origin = `http://localhost:${port}`
 const routesToWarm = ['/', '/login', '/target-beneficiaries']
-const useTurbo = process.env.NEXT_DEV_USE_WEBPACK !== 'true'
+// Next 14's experimental Turbopack runner can lose its PostCSS worker on
+// Windows and surface a misleading `failed to receive message` timeout.
+// Keep the reliable webpack compiler as the default; `dev:fast` remains the
+// explicit opt-in for Turbopack.
+const useTurbo = process.env.NEXT_DEV_USE_TURBO === 'true'
 
 function runFreePort() {
   const freePortScript = path.join(__dirname, 'free-port.js')

@@ -91,6 +91,18 @@ export interface ResidentDistributionItem {
   lifecycleStatus?: 'Upcoming' | 'Active' | 'Completed' | 'Archived';
 }
 
+export interface ResidentDistributionFetchResult {
+  success: boolean;
+  message?: string;
+  data?: ResidentDistributionItem[];
+  status?: number;
+  code?: string;
+  failureKind?: ApiFailureKind;
+  retryAfterSeconds?: number;
+  generatedAt?: string;
+  cacheTtlSeconds?: number;
+}
+
 export interface ResidentNotificationItem {
   _id?: string;
   id?: string;
@@ -201,7 +213,12 @@ interface ApiResponse<T> {
   code?: string;
   errorCode?: string;
   retryAfter?: string | number;
+  retryAfterSeconds?: string | number;
   data?: T;
+  meta?: {
+    generatedAt?: string;
+    cacheTtlSeconds?: number;
+  };
 }
 
 function getAssetBaseUrl(): string {
@@ -241,6 +258,47 @@ async function parseApiResponse<T>(response: Response): Promise<ApiResponse<T>> 
       message: 'Unable to parse server response.',
     };
   }
+}
+
+function parseRetryAfterSeconds(response: Response, payload: ApiResponse<unknown>): number | undefined {
+  const payloadValue = Number(payload.retryAfterSeconds ?? payload.retryAfter);
+  if (Number.isFinite(payloadValue) && payloadValue > 0) return Math.ceil(payloadValue);
+
+  const header = response.headers.get('Retry-After');
+  const headerSeconds = Number(header);
+  if (Number.isFinite(headerSeconds) && headerSeconds > 0) return Math.ceil(headerSeconds);
+
+  const retryDate = header ? Date.parse(header) : Number.NaN;
+  if (Number.isFinite(retryDate) && retryDate > Date.now()) {
+    return Math.ceil((retryDate - Date.now()) / 1000);
+  }
+  return undefined;
+}
+
+export function filterVisibleResidentDistributions(
+  items: ResidentDistributionItem[],
+  now = Date.now(),
+): ResidentDistributionItem[] {
+  return items
+    .filter((item) => {
+      if (item.lifecycleStatus === 'Archived' || item.lifecycleStatus === 'Completed') return false;
+      if (item.endsAt) {
+        const end = new Date(item.endsAt).getTime();
+        return !Number.isNaN(end) && end >= now;
+      }
+      if (!item.scheduled) return false;
+      const start = new Date(item.scheduled);
+      if (Number.isNaN(start.getTime())) return false;
+      const legacyEnd = new Date(start);
+      legacyEnd.setHours(20, 0, 0, 0);
+      return legacyEnd.getTime() >= now;
+    })
+    .sort((left, right) => {
+      const leftActive = left.lifecycleStatus === 'Active' ? 0 : 1;
+      const rightActive = right.lifecycleStatus === 'Active' ? 0 : 1;
+      if (leftActive !== rightActive) return leftActive - rightActive;
+      return new Date(left.scheduled || 0).getTime() - new Date(right.scheduled || 0).getTime();
+    });
 }
 
 export async function residentLogin(
@@ -533,7 +591,7 @@ export async function uploadResidentAvatar(
 
 export async function fetchResidentDistributions(
   token: string
-): Promise<{ success: boolean; message?: string; data?: ResidentDistributionItem[] }> {
+): Promise<ResidentDistributionFetchResult> {
   try {
     const response = await fetch(`${API_BASE_URL}/household/distributions`, {
       method: 'GET',
@@ -548,39 +606,30 @@ export async function fetchResidentDistributions(
       return {
         success: false,
         message: payload.message || 'Failed to fetch distributions.',
+        status: response.status,
+        code: payload.code || payload.errorCode,
+        failureKind: response.status === 401
+          ? 'AUTH'
+          : response.status === 429
+            ? 'RATE_LIMIT'
+            : response.status >= 500
+              ? 'SERVER'
+              : 'VALIDATION',
+        retryAfterSeconds: parseRetryAfterSeconds(response, payload),
       };
     }
 
-    const now = Date.now();
-    const visible = payload.data
-      .filter((item) => {
-        if (item.lifecycleStatus === 'Archived' || item.lifecycleStatus === 'Completed') return false;
-        if (item.endsAt) {
-          const end = new Date(item.endsAt).getTime();
-          return !Number.isNaN(end) && end >= now;
-        }
-        if (!item.scheduled) return false;
-        const start = new Date(item.scheduled);
-        if (Number.isNaN(start.getTime())) return false;
-        const legacyEnd = new Date(start);
-        legacyEnd.setHours(20, 0, 0, 0);
-        return legacyEnd.getTime() >= now;
-      })
-      .sort((left, right) => {
-        const leftActive = left.lifecycleStatus === 'Active' ? 0 : 1;
-        const rightActive = right.lifecycleStatus === 'Active' ? 0 : 1;
-        if (leftActive !== rightActive) return leftActive - rightActive;
-        return new Date(left.scheduled || 0).getTime() - new Date(right.scheduled || 0).getTime();
-      });
-
     return {
       success: true,
-      data: visible,
+      data: filterVisibleResidentDistributions(payload.data),
+      generatedAt: payload.meta?.generatedAt,
+      cacheTtlSeconds: payload.meta?.cacheTtlSeconds,
     };
   } catch {
     return {
       success: false,
       message: 'Network error while fetching distributions.',
+      failureKind: 'NETWORK',
     };
   }
 }
@@ -694,6 +743,45 @@ export async function markResidentNotificationRead(
       success: false,
       message: 'Network error while updating notification.',
     };
+  }
+}
+
+export async function registerResidentPushDevice(
+  token: string,
+  expoPushToken: string,
+  platform: 'android' | 'ios',
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/notifications/devices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ token: expoPushToken, platform }),
+    });
+    const payload = await parseApiResponse<unknown>(response);
+    return response.ok && payload.success
+      ? { success: true, message: payload.message }
+      : { success: false, message: payload.message || 'Failed to register notification device.' };
+  } catch {
+    return { success: false, message: 'Network error while registering notification device.' };
+  }
+}
+
+export async function unregisterResidentPushDevice(
+  token: string,
+  expoPushToken: string,
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/notifications/devices`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ token: expoPushToken }),
+    });
+    const payload = await parseApiResponse<unknown>(response);
+    return response.ok && payload.success
+      ? { success: true, message: payload.message }
+      : { success: false, message: payload.message || 'Failed to unregister notification device.' };
+  } catch {
+    return { success: false, message: 'Network error while unregistering notification device.' };
   }
 }
 

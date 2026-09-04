@@ -27,7 +27,7 @@ export default function DistributionPageClient() {
   const fetchDistributions = useCallback(async () => {
     try {
       setError(null)
-      const res = await api.getDistributions({ view: lifecycleView })
+      const res = await api.getDistributions({ view: 'all' })
       if (res.success && res.data) {
         const mapped: DistributionRow[] = res.data.map((d) => ({
           id: d.id || d._id,
@@ -55,7 +55,7 @@ export default function DistributionPageClient() {
     } finally {
       setLoading(false)
     }
-  }, [lifecycleView])
+  }, [])
 
   useEffect(() => {
     // Don't fetch if not authenticated
@@ -66,13 +66,17 @@ export default function DistributionPageClient() {
     fetchDistributions()
   }, [fetchDistributions, authLoading, user])
 
-  const unclaimedCount = useMemo(
-    () => rows.filter((r) => r.status === 'Unclaimed').length,
+  const activeCount = useMemo(
+    () => rows.filter((r) => r.lifecycleStatus === 'Active').length,
     [rows]
   )
-  const claimedCount = useMemo(
-    () => rows.filter((r) => r.status === 'Claimed').length,
+  const upcomingCount = useMemo(
+    () => rows.filter((r) => r.lifecycleStatus === 'Upcoming').length,
     [rows]
+  )
+  const visibleRows = useMemo(
+    () => rows.filter((r) => r.lifecycleStatus.toLowerCase() === lifecycleView),
+    [rows, lifecycleView]
   )
   const barangaysCount = useMemo(() => {
     const set = new Set(rows.map((r) => r.barangay))
@@ -87,7 +91,7 @@ export default function DistributionPageClient() {
   const handleCreate = async (payload: CreateDistributionPayload) => {
     try {
       setError(null)
-      await api.createDistribution({
+      const result = await api.createDistribution({
         disasterEventId: payload.disasterEventId,
         barangay: payload.barangay,
         assignedBarangays: payload.assignedBarangays,
@@ -99,7 +103,26 @@ export default function DistributionPageClient() {
         idempotencyKey: crypto.randomUUID(),
       })
       setCreateOpen(false)
-      showToast.success('Distribution created.')
+      const describeChannel = (label: string, delivery: typeof result.smsDelivery) => {
+        if (!delivery) return `${label}: no summary returned`
+        const statusLabel = {
+          sent_successfully: 'sent successfully',
+          partially_delivered: 'partially delivered',
+          no_eligible_recipients: 'no eligible recipients',
+          provider_not_configured: 'provider not configured',
+          provider_request_failed: 'provider request failed',
+        }[delivery.status]
+        return `${label}: ${statusLabel} (${delivery.sent}/${delivery.attempted} sent, ${delivery.failed} failed, ${delivery.skipped} skipped)`
+      }
+      const channelMessage = [
+        describeChannel('SMS', result.smsDelivery),
+        describeChannel('Push', result.pushDelivery),
+      ].join(' • ')
+      const hasChannelWarning = [result.smsDelivery, result.pushDelivery].some((delivery) =>
+        delivery && ['partially_delivered', 'provider_not_configured', 'provider_request_failed'].includes(delivery.status)
+      )
+      if (hasChannelWarning) showToast.info(`Distribution created. ${channelMessage}`)
+      else showToast.success(`Distribution created. ${channelMessage}`)
       await fetchDistributions()
     } catch (err: unknown) {
       console.error('Failed to create distribution:', err)
@@ -169,8 +192,8 @@ export default function DistributionPageClient() {
   return (
     <div>
       <DistributionStats
-        unclaimed={unclaimedCount}
-        claimed={claimedCount}
+        active={activeCount}
+        upcoming={upcomingCount}
         householdsServed={householdsServedCount}
         barangays={barangaysCount}
       />
@@ -202,7 +225,7 @@ export default function DistributionPageClient() {
       </div>
 
       <DistributionsTable
-        rows={rows}
+        rows={visibleRows}
         onOpenCreate={() => setCreateOpen(true)}
         onMarkClaimed={markClaimed}
         onRefresh={fetchDistributions}

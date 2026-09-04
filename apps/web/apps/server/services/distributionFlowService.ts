@@ -251,7 +251,7 @@ export async function syncResidentEnrollmentsForEvent(params: {
     status: mongoose.trusted({ $ne: 'Claimed' }),
     requiresBeneficiaryApproval: true,
     archivedAt: null,
-    endsAt: { $gte: new Date() },
+    endsAt: mongoose.trusted({ $gte: new Date() }),
   });
   const matching = candidates.filter((distribution) =>
     isDistributionVisibleToResidents(distribution)

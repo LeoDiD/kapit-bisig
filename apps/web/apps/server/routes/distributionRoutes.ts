@@ -15,6 +15,7 @@ import Distribution from '../models/Distribution';
 import DisasterEvent from '../models/DisasterEvent';
 import Resident from '../models/Resident';
 import DistributionClaim from '../models/DistributionClaim';
+import Claim from '../models/Claim';
 import StaffUser from '../models/StaffUser';
 import User from '../models/User';
 import { AuthRequest, requireStaffOrSuperadmin } from '../middleware/unifiedAuth';
@@ -26,6 +27,9 @@ import {
 } from '../validation/distribution.schema';
 import { logAudit } from '../utils/audit';
 import { broadcastResidentNotification, broadcastScopedNotification } from '../utils/createNotification';
+import { broadcastDistributionSms } from '../utils/distributionSms';
+import { broadcastDistributionPush } from '../utils/distributionPush';
+import { deriveDistributionLifecycle } from '../utils/distributionLifecycle';
 import {
   countRegisteredHouseholdsForDistribution,
   enrollApprovedResidentsInDistribution,
@@ -143,7 +147,15 @@ router.post(
         });
       }
 
-      const { disasterEventId, barangay, assignedBarangays = [], assignedStaffIds, scheduled, notes } = parsed.data;
+      const {
+        disasterEventId,
+        barangay,
+        assignedBarangays = [],
+        assignedStaffIds,
+        scheduled,
+        endsAt,
+        notes,
+      } = parsed.data;
 
       cleanIdempotencyStore();
       const idempotencyKeyHeader = req.header('Idempotency-Key')?.trim();
@@ -318,6 +330,7 @@ router.post(
         assignedBarangays,
         assignedStaffIds: uniqueStaffIds,
         scheduled,
+        endsAt: new Date(endsAt),
         households: 0,
         notes: notes || '',
         requiresBeneficiaryApproval,
@@ -337,6 +350,7 @@ router.post(
         disasterEventName: disasterEvent ? disasterEvent.name : null,
         assignedBarangays,
         scheduled,
+        endsAt,
         householdsDerived: distribution.households,
         requiresBeneficiaryApproval,
         assignedStaffCount: uniqueStaffIds.length,
@@ -368,11 +382,28 @@ router.post(
         targetBarangays,
       });
 
+      const [smsDelivery, pushDelivery] = await Promise.all([
+        broadcastDistributionSms({ targetBarangays, scheduled }).catch((error: unknown) => {
+          console.warn('[distributionSms] Broadcast failed:', error instanceof Error ? error.message : 'Unknown error');
+          return { status: 'provider_request_failed' as const, attempted: 0, sent: 0, skipped: 0, failed: 0 };
+        }),
+        broadcastDistributionPush({
+          distributionId: distribution._id.toString(),
+          targetBarangays,
+          scheduled,
+        }).catch((error: unknown) => {
+          console.warn('[distributionPush] Broadcast failed:', error instanceof Error ? error.message : 'Unknown error');
+          return { status: 'provider_request_failed' as const, attempted: 0, sent: 0, skipped: 0, failed: 0 };
+        }),
+      ]);
+
       res.status(201).json({
         success: true,
         message: `Distribution created successfully with ${enrollment.matchedResidents} automatically enrolled resident${enrollment.matchedResidents === 1 ? '' : 's'}.`,
-        data: distribution.toJSON(),
+        data: { ...distribution.toJSON(), lifecycleStatus: deriveDistributionLifecycle(distribution) },
         enrollment,
+        smsDelivery,
+        pushDelivery,
       });
 
       if (idempotencyKeyHeader) {
@@ -384,8 +415,10 @@ router.post(
           response: {
             success: true,
             message: `Distribution created successfully with ${enrollment.matchedResidents} automatically enrolled resident${enrollment.matchedResidents === 1 ? '' : 's'}.`,
-            data: distribution.toJSON(),
+            data: { ...distribution.toJSON(), lifecycleStatus: deriveDistributionLifecycle(distribution) },
             enrollment,
+            smsDelivery,
+            pushDelivery,
           },
         });
       }
@@ -474,6 +507,7 @@ router.get(
           registeredHouseholds: registered,
           claimedHouseholds: claimed,
           status: derivedStatus,
+          lifecycleStatus: deriveDistributionLifecycle(d),
           claimedAt: claimed > 0 ? (d.claimedAt || new Date().toISOString()) : d.claimedAt,
           requiresBeneficiaryApproval: requiresBeneficiaryApproval(d),
         };
@@ -487,6 +521,66 @@ router.get(
     }
   }
 );
+
+/**
+ * GET /api/distributions/scanner/active
+ *
+ * Returns only explicitly assigned distributions that are in scope and active.
+ * The nearest upcoming assignment is included for validation-only mode.
+ */
+router.get('/scanner/active', async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.authUser?.role !== 'LGU_STAFF' || !req.authUser.userId) {
+      return res.status(403).json({
+        success: false,
+        code: 'SCANNER_FORBIDDEN',
+        message: 'Only authenticated LGU staff can load scanner assignments.',
+      });
+    }
+
+    const staffId = req.authUser.userId;
+    if (!mongoose.Types.ObjectId.isValid(staffId)) {
+      return res.status(401).json({ success: false, message: 'Invalid staff session.' });
+    }
+
+    const scopedBarangays = await getScopedBarangays(req.authUser);
+    const scoped = new Set(scopedBarangays);
+    const assignments = await Distribution.find({
+      assignedStaffIds: new mongoose.Types.ObjectId(staffId),
+      archivedAt: null,
+      status: mongoose.trusted({ $ne: 'Claimed' }),
+    }).sort({ scheduled: 1 }).lean();
+
+    const inScope = assignments.filter((distribution) => {
+      const targets = getTargetBarangays(distribution.barangay, distribution.assignedBarangays ?? []);
+      return targets.some((barangay) => scoped.has(barangay));
+    });
+
+    const toScannerDistribution = (distribution: typeof inScope[number]) => ({
+      ...distribution,
+      id: distribution._id.toString(),
+      lifecycleStatus: deriveDistributionLifecycle(distribution),
+    });
+
+    const active = inScope
+      .filter((distribution) => deriveDistributionLifecycle(distribution) === 'Active')
+      .map(toScannerDistribution);
+    const upcoming = inScope
+      .filter((distribution) => deriveDistributionLifecycle(distribution) === 'Upcoming')
+      .sort((a, b) => new Date(a.scheduled).getTime() - new Date(b.scheduled).getTime())[0];
+
+    return res.json({
+      success: true,
+      data: {
+        active,
+        nearestUpcoming: upcoming ? toScannerDistribution(upcoming) : null,
+      },
+    });
+  } catch (error) {
+    console.error('[SCANNER_ACTIVE_DISTRIBUTIONS]', error);
+    return res.status(500).json({ success: false, message: 'Unable to load scanner assignments.' });
+  }
+});
 
 /**
  * PATCH /api/distributions/:id/reschedule
@@ -592,7 +686,7 @@ router.patch(
       return res.json({
         success: true,
         message: 'Distribution rescheduled successfully',
-        data: distribution.toJSON(),
+        data: { ...distribution.toJSON(), lifecycleStatus: deriveDistributionLifecycle(distribution) },
       });
     } catch (error: unknown) {
       console.error('Error rescheduling distribution:', error);
@@ -652,7 +746,7 @@ router.patch(
       res.json({
         success: true,
         message: 'Distribution marked as claimed',
-        data: distribution.toJSON(),
+        data: { ...distribution.toJSON(), lifecycleStatus: deriveDistributionLifecycle(distribution) },
       });
     } catch (error: unknown) {
       console.error('Error claiming distribution:', error);
@@ -718,13 +812,13 @@ router.get(
           status: 'Approved',
           qrStatus: 'ACTIVE',
         })
-          .select('_id fullName firstName lastName streetAddress barangay')
+          .select('_id residentCode fullName firstName lastName streetAddress barangay')
           .lean()
         : await Resident.find({
           barangay: mongoose.trusted({ $in: targetBarangays }),
           status: 'Approved',
         })
-          .select('_id fullName firstName lastName streetAddress barangay')
+          .select('_id residentCode fullName firstName lastName streetAddress barangay')
           .lean();
 
       // 4) If zero registered households, return early
@@ -747,6 +841,16 @@ router.get(
       const claims = await DistributionClaim.find({
         distributionId: distribution._id,
       }).lean();
+      const claimRecords = await Claim.find({
+        distributionId: id,
+        claimCategory: 'DISTRIBUTION',
+        status: 'CONFIRMED',
+      })
+        .select('claimId householdId householdCode barangay staffUserId staffName scannedAt createdAt source')
+        .lean();
+      const claimRecordByHousehold = new Map(
+        claimRecords.map((claim) => [String(claim.householdId), claim]),
+      );
 
       const claimedHouseholdIds = new Set(
         claims.map((c) => c.householdId.toString())
@@ -770,18 +874,26 @@ router.get(
           const claim = claims.find(
             (c) => c.householdId.toString() === hhId
           );
+          const claimRecord = claimRecordByHousehold.get(hhId);
           claimedList.push({
             householdId: hhId,
+            householdCode: claimRecord?.householdCode || (hh as any).residentCode || null,
             householdName,
+            barangay: hh.barangay,
             address,
-            claimedAt: claim?.claimedAt?.toISOString() ?? null,
-            claimedBy: claim?.claimedBy ?? null,
-            proofMethod: claim?.proofMethod ?? null,
+            claimId: claimRecord?.claimId || null,
+            claimedAt: claim?.claimedAt?.toISOString() ?? claimRecord?.scannedAt?.toISOString() ?? null,
+            claimedBy: claim?.claimedBy ?? (claimRecord ? { id: claimRecord.staffUserId, name: claimRecord.staffName } : null),
+            scanner: claimRecord ? { id: claimRecord.staffUserId, name: claimRecord.staffName } : claim?.claimedBy ?? null,
+            proofMethod: claim?.proofMethod ?? (claimRecord ? 'QR' : null),
+            source: claimRecord?.source ?? null,
           });
         } else {
           notYetClaimedList.push({
             householdId: hhId,
+            householdCode: (hh as any).residentCode || null,
             householdName,
+            barangay: hh.barangay,
             address,
           });
         }

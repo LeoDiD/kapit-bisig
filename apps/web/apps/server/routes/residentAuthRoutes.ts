@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import Resident from '../models/Resident';
 import {
   loginRateLimiter,
-  mobileLookupRateLimiter,
+  authenticatedResidentReadRateLimiter,
 } from '../middleware/rateLimiter';
 import { validateRequest } from '../validation/validateRequest';
 import {
@@ -181,7 +181,7 @@ router.post('/auth/logout', authMiddleware, async (req: AuthenticatedRequest, re
  *
  * Returns the authenticated resident profile.
  */
-router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/auth/me', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     if (!userId) {
@@ -243,7 +243,7 @@ router.get('/auth/me', authMiddleware, async (req: AuthenticatedRequest, res: Re
  *
  * Allows authenticated resident to update selected profile fields.
  */
-router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.patch('/auth/me', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -415,8 +415,8 @@ router.patch('/auth/me', mobileLookupRateLimiter, authMiddleware, async (req: Au
  */
 router.patch(
   '/auth/me/revision-submit',
-  mobileLookupRateLimiter,
   authMiddleware,
+  authenticatedResidentReadRateLimiter,
   validateRequest({ body: residentRevisionSubmitBody }),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -612,8 +612,8 @@ router.patch(
  */
 router.post(
   '/auth/me/avatar',
-  mobileLookupRateLimiter,
   authMiddleware,
+  authenticatedResidentReadRateLimiter,
   residentAvatarUpload.single('avatar'),
   async (req: AuthenticatedRequest, res: Response) => {
     try {

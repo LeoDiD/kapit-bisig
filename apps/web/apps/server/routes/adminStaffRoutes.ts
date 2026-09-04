@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import StaffUser from '../models/StaffUser';
 import LoginVerifyOtp from '../models/LoginVerifyOtp';
+import PasswordResetOtp from '../models/PasswordResetOtp';
 import {
   requireAuth,
   requireSuperadmin,
@@ -36,7 +37,8 @@ import {
   resetPasswordBody,
 } from '../validation/adminStaff.schema';
 import { logAudit } from '../utils/audit';
-import { sendFirstLoginOtpEmail } from '../utils/mailer';
+import { sendFirstLoginOtpEmail, sendResetOtpEmail } from '../utils/mailer';
+import { clearLoginAttempts, getLoginLockout } from '../services/loginAttemptService';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -176,28 +178,32 @@ router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequ
     if (barangay && typeof barangay === 'string') {
       filter.assignedBarangays = barangay;
     }
-    // "Active" means account is enabled and has logged in at least once.
-    if (status === 'active') {
-      filter.isActive = true;
-      filter.lastLoginAt = { $ne: null };
-    } else if (status === 'pending') {
-      filter.isActive = true;
-      filter.lastLoginAt = null;
-    } else if (status === 'inactive') {
-      // Inactive includes disabled accounts and never-logged-in accounts.
-      filter.$and = [
-        ...(filter.$and ?? []),
-        { $or: [{ isActive: false }, { lastLoginAt: null }] },
-      ];
-    }
+    const users = await StaffUser.find(filter).sort({ createdAt: -1 }).limit(200).lean();
 
-    const users = await StaffUser.find(filter).sort({ createdAt: -1 }).limit(50).lean();
+    const data = users.map((u) => {
+      const lockout = getLoginLockout(u.emailLower);
+      const accountState = !u.isActive
+        ? 'Inactive'
+        : u.forcePasswordReset && !u.lastLoginAt
+          ? 'Pending Activation'
+          : lockout.locked
+            ? 'Temporarily Locked'
+            : 'Active';
 
-    // Remap _id → id
-    const data = users.map((u) => ({
-      ...u,
-      id: u._id.toString(),
-    }));
+      return {
+        ...u,
+        id: u._id.toString(),
+        accountState,
+        lockedUntil: lockout.lockedUntil?.toISOString() ?? null,
+        lockoutRemainingSeconds: lockout.remainingSeconds,
+      };
+    }).filter((u) => {
+      if (!status) return true;
+      if (status === 'active') return u.accountState === 'Active';
+      if (status === 'pending') return u.accountState === 'Pending Activation';
+      if (status === 'locked') return u.accountState === 'Temporarily Locked';
+      return u.accountState === 'Inactive';
+    });
 
     res.json({ success: true, data });
   } catch (err) {
@@ -314,6 +320,7 @@ router.patch('/:id/reset-password', validateRequest({ params: staffIdParams, bod
     user.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     user.forcePasswordReset = false;
     await user.save();
+    clearLoginAttempts(user.emailLower);
     await LoginVerifyOtp.deleteMany({
       $or: [{ userId: user._id }, { emailLower: user.emailLower }],
       purpose: 'FIRST_LOGIN',
@@ -331,6 +338,92 @@ router.patch('/:id/reset-password', validateRequest({ params: staffIdParams, bod
     res.json({ success: true, message: 'Password has been reset.' });
   } catch (err) {
     console.error('[ADMIN_RESET_PW]', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/*  POST /api/admin/users/:id/send-reset-otp                          */
+/* ------------------------------------------------------------------ */
+router.post('/:id/send-reset-otp', validateRequest({ params: staffIdParams }), async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await StaffUser.findById(req.params.id);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Staff user not found.' });
+      return;
+    }
+    if (!user.isActive) {
+      res.status(400).json({ success: false, code: 'ACCOUNT_INACTIVE', message: 'Activate this account before sending a reset OTP.' });
+      return;
+    }
+    if (user.forcePasswordReset && !user.lastLoginAt) {
+      res.status(409).json({ success: false, code: 'PENDING_ACTIVATION', message: 'This account is awaiting first login. Resend its activation OTP instead.' });
+      return;
+    }
+
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+    await PasswordResetOtp.findOneAndUpdate(
+      { emailLower: user.emailLower },
+      { userId: user._id, emailLower: user.emailLower, otpHash, expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000), attemptsLeft: OTP_MAX_ATTEMPTS, lastSentAt: new Date(), createdAt: new Date() },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    try {
+      await sendResetOtpEmail(user.email, otp);
+    } catch (mailErr) {
+      console.error('[ADMIN_SEND_RESET_OTP]', mailErr);
+      res.status(502).json({ success: false, code: 'OTP_DELIVERY_FAILED', message: 'The reset OTP was created but the email provider could not deliver it. Please retry after checking email configuration.' });
+      return;
+    }
+
+    await logAudit(req, 'STAFF_PASSWORD_RESET_OTP_SENT', 'StaffUser', user._id.toString(), { email: user.email });
+    res.json({ success: true, message: 'Password reset OTP sent.' });
+  } catch (err) {
+    console.error('[ADMIN_SEND_RESET_OTP]', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/*  POST /api/admin/users/:id/resend-activation                       */
+/* ------------------------------------------------------------------ */
+router.post('/:id/resend-activation', validateRequest({ params: staffIdParams }), async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await StaffUser.findById(req.params.id);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Staff user not found.' });
+      return;
+    }
+    if (!user.isActive) {
+      res.status(400).json({ success: false, code: 'ACCOUNT_INACTIVE', message: 'Activate this account before resending its activation OTP.' });
+      return;
+    }
+    if (!user.forcePasswordReset || user.lastLoginAt) {
+      res.status(409).json({ success: false, code: 'ALREADY_ACTIVATED', message: 'This account is already established. Send a password reset OTP instead.' });
+      return;
+    }
+
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+    await LoginVerifyOtp.findOneAndUpdate(
+      { emailLower: user.emailLower, purpose: 'FIRST_LOGIN' },
+      { userId: user._id, emailLower: user.emailLower, purpose: 'FIRST_LOGIN', otpHash, expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000), usedAt: null, attemptsLeft: OTP_MAX_ATTEMPTS, lastSentAt: new Date(), createdAt: new Date() },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    try {
+      await sendFirstLoginOtpEmail(user.email, otp);
+    } catch (mailErr) {
+      console.error('[ADMIN_RESEND_ACTIVATION]', mailErr);
+      res.status(502).json({ success: false, code: 'OTP_DELIVERY_FAILED', message: 'The activation OTP was created but the email provider could not deliver it. Please retry after checking email configuration.' });
+      return;
+    }
+
+    await logAudit(req, 'STAFF_ACTIVATION_OTP_RESENT', 'StaffUser', user._id.toString(), { email: user.email });
+    res.json({ success: true, message: 'Activation OTP resent.' });
+  } catch (err) {
+    console.error('[ADMIN_RESEND_ACTIVATION]', err);
     res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });

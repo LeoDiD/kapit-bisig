@@ -17,6 +17,7 @@ import { type ResidentQrData } from '../services/api/ResidentQrService';
 import { residentTheme } from '../theme';
 import { formatResidentFullName } from '../utils/residentName';
 import { saveViewToMediaLibrary } from '../utils/saveViewToMediaLibrary';
+import ResidentBrandLockup from './ui/ResidentBrandLockup';
 
 const residentColors = residentTheme.colors;
 
@@ -143,7 +144,7 @@ export default function VirtualResidentIdCard({
             disabled={isLoading || !onRefresh}
             accessibilityRole="button"
           >
-            <Ionicons name="refresh" size={16} color="#166534" />
+            <Ionicons name="refresh" size={16} color={residentColors.brandDark} />
             <Text style={styles.retryText}>Try again</Text>
           </TouchableOpacity>
         </View>
@@ -157,19 +158,13 @@ export default function VirtualResidentIdCard({
             <View style={styles.idCard}>
               <View style={styles.goldRail} />
               <View style={styles.watermark}>
-                <Ionicons name="people" size={142} color="rgba(15, 46, 34, 0.045)" />
+                <Ionicons name="people" size={142} color="rgba(22, 163, 74, 0.045)" />
               </View>
 
               <View style={styles.idHeader}>
-                <View style={styles.brandMark}>
-                  <Ionicons name="people" size={18} color="#E4CD9C" />
-                </View>
-                <View style={styles.brandCopy}>
-                  <Text style={styles.brandName}>KAPIT-BISIG</Text>
-                  <Text style={styles.brandSubtitle}>VIRTUAL RESIDENT ID</Text>
-                </View>
+                <ResidentBrandLockup size="credential" style={styles.brandLockup} />
                 <View style={styles.verifiedPill}>
-                  <Ionicons name="checkmark-circle" size={13} color="#E4CD9C" />
+                  <Ionicons name="checkmark-circle" size={13} color={residentColors.brand} />
                   <Text style={styles.verifiedText}>VERIFIED</Text>
                 </View>
               </View>
@@ -213,7 +208,7 @@ export default function VirtualResidentIdCard({
                     accessibilityRole="button"
                     accessibilityLabel="Enlarge virtual ID QR code"
                   >
-                    <QRCode value={idData.qrData} size={72} backgroundColor="#FFFFFF" />
+                    <QRCode value={idData.qrData} size={72} backgroundColor={residentColors.surface} />
                   </TouchableOpacity>
                   <Text style={styles.scanLabel}>SCAN TO VERIFY</Text>
                   <Text style={styles.tapHint}>Tap to enlarge</Text>
@@ -267,7 +262,7 @@ export default function VirtualResidentIdCard({
       ) : (
         <View style={styles.stateCard} accessibilityLabel="Preparing virtual ID">
           <View style={styles.preparingIcon}>
-            <Ionicons name="id-card-outline" size={24} color="#166534" />
+            <Ionicons name="id-card-outline" size={24} color={residentColors.brandDark} />
           </View>
           <Text style={styles.stateTitle}>Getting your ID ready</Text>
           <Text style={styles.stateText}>
@@ -279,7 +274,7 @@ export default function VirtualResidentIdCard({
               onPress={() => onRefresh(true)}
               accessibilityRole="button"
             >
-              <Ionicons name="refresh" size={16} color="#166534" />
+              <Ionicons name="refresh" size={16} color={residentColors.brandDark} />
               <Text style={styles.retryText}>Refresh ID</Text>
             </TouchableOpacity>
           ) : null}
@@ -332,15 +327,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: residentColors.surface,
+    backgroundColor: residentColors.accentSoft,
     borderWidth: 1,
-    borderColor: '#D8C28F',
+    borderColor: residentColors.accent,
   },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: residentColors.brand },
   loadingDot: { backgroundColor: '#F59E0B' },
   unavailablePill: { backgroundColor: '#FEF2F2' },
   unavailableDot: { backgroundColor: '#EF4444' },
-  alwaysReadyText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7, color: '#166534' },
+  alwaysReadyText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.7, color: residentColors.brandDark },
   unavailableText: { color: '#B91C1C' },
   stateCard: {
     minHeight: 190,
@@ -348,68 +343,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: residentColors.surface,
     borderWidth: 1,
     borderColor: residentColors.borderAccent,
   },
-  skeletonHeader: { width: '100%', height: 32, borderRadius: 9, backgroundColor: '#EEF5F0' },
+  skeletonHeader: { width: '100%', height: 32, borderRadius: 9, backgroundColor: residentColors.surfaceMuted },
   skeletonBody: { width: '100%', marginTop: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  skeletonPhoto: { width: 52, height: 58, borderRadius: 11, backgroundColor: '#E6F2EB' },
+  skeletonPhoto: { width: 52, height: 58, borderRadius: 11, backgroundColor: residentColors.brandSoft },
   skeletonCopy: { flex: 1, gap: 8 },
   skeletonLineWide: { width: '85%', height: 12, borderRadius: 6, backgroundColor: '#E9F1EC' },
   skeletonLineShort: { width: '55%', height: 9, borderRadius: 5, backgroundColor: '#EEF4F0' },
-  errorIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF7D6' },
-  preparingIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAF5EE', borderWidth: 1, borderColor: '#C7E1D1' },
-  stateTitle: { marginTop: 10, fontSize: 16, fontWeight: '800', color: '#243B32' },
+  errorIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: residentColors.accentSoft },
+  preparingIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: residentColors.brandSoft, borderWidth: 1, borderColor: residentColors.borderAccent },
+  stateTitle: { marginTop: 10, fontSize: 16, fontWeight: '800', color: residentColors.ink },
   stateText: { marginTop: 7, fontSize: 12.5, lineHeight: 18, color: '#64746D', textAlign: 'center' },
   retryButton: { marginTop: 14, minHeight: 39, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, backgroundColor: residentColors.surface, borderWidth: 1, borderColor: residentColors.borderAccent },
-  retryText: { color: '#166534', fontSize: 12.5, fontWeight: '800' },
-  shot: { borderRadius: 20, backgroundColor: '#0F2E22' },
-  idCard: { height: 230, borderRadius: 20, backgroundColor: '#F8F4EA', overflow: 'hidden', borderWidth: 1, borderColor: '#C9A86A', shadowColor: '#0F2E22', shadowOpacity: 0.22, shadowRadius: 15, shadowOffset: { width: 0, height: 7 }, elevation: 6 },
-  goldRail: { height: 4, backgroundColor: '#C9A86A' },
+  retryText: { color: residentColors.brandDark, fontSize: 12.5, fontWeight: '800' },
+  shot: { borderRadius: 20, backgroundColor: residentColors.surface },
+  idCard: { height: 230, borderRadius: 20, backgroundColor: residentColors.surface, overflow: 'hidden', borderWidth: 1, borderColor: residentColors.borderAccent, shadowColor: residentColors.brandDark, shadowOpacity: 0.16, shadowRadius: 15, shadowOffset: { width: 0, height: 7 }, elevation: 6 },
+  goldRail: { height: 4, backgroundColor: residentColors.accent },
   watermark: { position: 'absolute', right: 70, bottom: -28, transform: [{ rotate: '-12deg' }] },
-  idHeader: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, backgroundColor: '#0F2E22' },
-  brandMark: { width: 30, height: 30, borderRadius: 9, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(228, 205, 156, 0.4)', alignItems: 'center', justifyContent: 'center' },
-  brandCopy: { marginLeft: 8, flex: 1 },
-  brandName: { fontSize: 13, fontWeight: '900', letterSpacing: 0.8, color: '#FFFFFF' },
-  brandSubtitle: { marginTop: 1, fontSize: 7.5, fontWeight: '700', letterSpacing: 1.1, color: '#D9BE84' },
-  verifiedPill: { flexDirection: 'row', gap: 3, alignItems: 'center', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(228, 205, 156, 0.35)' },
-  verifiedText: { fontSize: 7.5, fontWeight: '900', color: '#F4E7C8' },
-  idBody: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 12, backgroundColor: '#F8F4EA' },
+  idHeader: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, backgroundColor: residentColors.surface },
+  brandLockup: { flex: 1 },
+  verifiedPill: { flexDirection: 'row', gap: 3, alignItems: 'center', paddingHorizontal: 7, paddingVertical: 4, borderRadius: 10, backgroundColor: residentColors.accentSoft, borderWidth: 1, borderColor: residentColors.accent },
+  verifiedText: { fontSize: 7.5, fontWeight: '900', color: residentColors.ink },
+  idBody: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 12, backgroundColor: residentColors.surface },
   photoColumn: { width: 65, alignItems: 'center' },
-  photoFrame: { width: 60, height: 76, borderRadius: 11, backgroundColor: '#E8E5DC', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#C9A86A' },
+  photoFrame: { width: 60, height: 76, borderRadius: 11, backgroundColor: residentColors.iconSurface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: residentColors.borderAccent },
   photo: { width: '100%', height: '100%' },
   photoCaption: { marginTop: 4, fontSize: 6.5, fontWeight: '900', letterSpacing: 0.8, color: '#6B6558' },
   identityColumn: { flex: 1, minWidth: 0, paddingHorizontal: 10 },
   nameLabel: { fontSize: 6.5, fontWeight: '900', letterSpacing: 0.8, color: '#756F62' },
-  residentName: { marginTop: 3, fontSize: 13, lineHeight: 15.5, fontWeight: '900', color: '#17231E' },
-  residentCode: { marginTop: 4, fontSize: 8.5, fontWeight: '800', letterSpacing: 0.65, color: '#0F5A3A' },
+  residentName: { marginTop: 3, fontSize: 13, lineHeight: 15.5, fontWeight: '900', color: residentColors.ink },
+  residentCode: { marginTop: 4, fontSize: 8.5, fontWeight: '800', letterSpacing: 0.65, color: residentColors.brandDark },
   detailLabel: { marginTop: 8, fontSize: 6.3, fontWeight: '900', letterSpacing: 0.65, color: '#756F62' },
   issuedLabel: { marginTop: 6, fontSize: 6.3, fontWeight: '900', letterSpacing: 0.65, color: '#756F62' },
   detailValue: { marginTop: 1, fontSize: 8, lineHeight: 10.5, fontWeight: '700', color: '#3F463F' },
   qrColumn: { width: 84, alignItems: 'center' },
-  qrFrame: { padding: 5, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#D8C28F' },
-  scanLabel: { marginTop: 4, fontSize: 6.3, fontWeight: '900', letterSpacing: 0.65, color: '#0F5A3A' },
+  qrFrame: { padding: 5, backgroundColor: residentColors.surface, borderRadius: 8, borderWidth: 1, borderColor: residentColors.borderAccent },
+  scanLabel: { marginTop: 4, fontSize: 6.3, fontWeight: '900', letterSpacing: 0.65, color: residentColors.brandDark },
   tapHint: { marginTop: 1, fontSize: 5.8, color: '#777267' },
-  idFooter: { height: 24, paddingHorizontal: 13, backgroundColor: '#0F2E22', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  disclaimer: { color: '#E7E0D0', fontSize: 7.2, fontWeight: '600' },
-  version: { color: '#D9BE84', fontSize: 7.2, fontWeight: '700' },
+  idFooter: { height: 24, paddingHorizontal: 13, backgroundColor: residentColors.brandDark, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  disclaimer: { color: residentColors.inverse, fontSize: 7.2, fontWeight: '600' },
+  version: { color: residentColors.accent, fontSize: 7.2, fontWeight: '700' },
   actions: { marginTop: 12 },
-  downloadButton: { minHeight: 48, borderRadius: 14, backgroundColor: '#0F2E22', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', shadowColor: '#0F2E22', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  downloadButton: { minHeight: 48, borderRadius: 14, backgroundColor: residentColors.brand, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', shadowColor: residentColors.brandDark, shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   downloadButtonDisabled: { opacity: 0.68 },
   downloadText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   scanHint: { marginTop: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   scanHintText: { fontSize: 10.5, color: '#6A7D73' },
   refreshWarning: { marginTop: 10, paddingHorizontal: 11, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, backgroundColor: '#FFF8E1' },
   refreshWarningText: { flex: 1, fontSize: 10.5, lineHeight: 15, color: '#76520A' },
-  refreshWarningAction: { fontSize: 11, fontWeight: '800', color: '#166534' },
+  refreshWarningAction: { fontSize: 11, fontWeight: '800', color: residentColors.brandDark },
   modalOverlay: { flex: 1, padding: 24, backgroundColor: 'rgba(8, 24, 17, 0.76)', alignItems: 'center', justifyContent: 'center' },
   qrModal: { width: '100%', maxWidth: 340, borderRadius: 24, padding: 22, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: residentColors.borderAccent, alignItems: 'center' },
   modalIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: residentColors.iconSurface, borderWidth: 1, borderColor: residentColors.borderAccent, alignItems: 'center', justifyContent: 'center' },
   qrModalTitle: { marginTop: 10, fontSize: 19, fontWeight: '800', color: '#19382B' },
   qrModalSubtitle: { marginTop: 4, fontSize: 12, color: '#718079' },
   largeQr: { marginTop: 17, padding: 12, borderWidth: 1, borderColor: residentColors.borderAccent, borderRadius: 14 },
-  qrModalCode: { marginTop: 13, fontSize: 14, fontWeight: '700', letterSpacing: 1, color: '#16834B' },
+  qrModalCode: { marginTop: 13, fontSize: 14, fontWeight: '700', letterSpacing: 1, color: residentColors.brandDark },
   modalClose: { alignSelf: 'stretch', marginTop: 18, paddingVertical: 12, alignItems: 'center', borderRadius: 12, backgroundColor: residentColors.surface, borderWidth: 1, borderColor: residentColors.borderAccent },
-  modalCloseText: { color: '#166534', fontWeight: '700' },
+  modalCloseText: { color: residentColors.brandDark, fontWeight: '700' },
 });

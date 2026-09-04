@@ -109,6 +109,13 @@ export interface AuthResponse {
 /**
  * API Error interface
  */
+export interface PasswordRecoveryResponse {
+  success: boolean;
+  message?: string;
+  resetToken?: string;
+  code?: string;
+}
+
 export interface ApiError {
   success: false;
   message: string;
@@ -344,6 +351,50 @@ class MobileAuthService {
         message: `Unable to reach API server at ${API_CONFIG.baseUrl}. Make sure backend is running and EXPO_PUBLIC_API_URL is reachable from your device.`,
         code: 'NETWORK_ERROR',
       };
+    }
+  }
+
+  async requestPasswordReset(email: string): Promise<PasswordRecoveryResponse> {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/auth/forgot-password/send-otp`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await response.json();
+      return response.ok ? { success: true, message: data.message } : { success: false, message: data.message || 'Unable to send reset code.', code: data.code };
+    } catch (error) {
+      console.error('[MobileAuthService] Password reset request error:', error);
+      return { success: false, message: 'Unable to reach the server.', code: 'NETWORK_ERROR' };
+    }
+  }
+
+  async verifyPasswordResetOtp(email: string, otp: string): Promise<PasswordRecoveryResponse> {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/auth/forgot-password/verify-otp`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp }),
+      });
+      const data = await response.json();
+      return response.ok && data.resetToken ? { success: true, resetToken: data.resetToken } : { success: false, message: data.message || 'Invalid or expired code.', code: data.code };
+    } catch (error) {
+      console.error('[MobileAuthService] Password reset OTP error:', error);
+      return { success: false, message: 'Unable to reach the server.', code: 'NETWORK_ERROR' };
+    }
+  }
+
+  async resetPassword(resetToken: string, newPassword: string): Promise<PasswordRecoveryResponse> {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/auth/forgot-password/reset`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetToken, newPassword }),
+      });
+      const data = await response.json();
+      return response.ok
+        ? { success: true, message: data.message || 'Password reset successfully.' }
+        : { success: false, message: Array.isArray(data.errors) ? data.errors.join('\n') : data.message || 'Unable to reset password.', code: data.code };
+    } catch (error) {
+      console.error('[MobileAuthService] Password reset error:', error);
+      return { success: false, message: 'Unable to reach the server.', code: 'NETWORK_ERROR' };
     }
   }
 

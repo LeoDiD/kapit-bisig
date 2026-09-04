@@ -42,6 +42,9 @@ export interface StaffUser {
   role: 'LGU_STAFF';
   isActive: boolean;
   forcePasswordReset?: boolean;
+  accountState?: 'Pending Activation' | 'Active' | 'Temporarily Locked' | 'Inactive';
+  lockedUntil?: string | null;
+  lockoutRemainingSeconds?: number;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -83,6 +86,21 @@ export interface ApiResponse<T> {
   message?: string;
   data?: T;
   errors?: string[];
+}
+
+export type DeliveryChannelStatus = 'sent_successfully' | 'partially_delivered' | 'no_eligible_recipients' | 'provider_not_configured' | 'provider_request_failed';
+
+export interface SmsDeliverySummary {
+  status: DeliveryChannelStatus;
+  attempted: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+}
+
+export interface CreateDistributionResponse extends ApiResponse<DistributionData> {
+  smsDelivery?: SmsDeliverySummary;
+  pushDelivery?: SmsDeliverySummary;
 }
 
 /**
@@ -129,11 +147,16 @@ export interface DistributionData {
  */
 export interface ClaimedHousehold {
   householdId: string;
+  householdCode: string | null;
   householdName: string;
+  barangay: string;
   address: string;
+  claimId: string | null;
   claimedAt: string | null;
   claimedBy: { id: string; name: string } | null;
+  scanner: { id: string; name: string } | null;
   proofMethod: 'QR' | 'FACE' | null;
+  source?: 'ONLINE' | 'OFFLINE_SYNC' | null;
 }
 
 /**
@@ -141,7 +164,9 @@ export interface ClaimedHousehold {
  */
 export interface UnclaimedHousehold {
   householdId: string;
+  householdCode: string | null;
   householdName: string;
+  barangay: string;
   address: string;
 }
 
@@ -333,6 +358,23 @@ export interface BeneficiaryProofQueueSummary {
   approved: number;
   rejected: number;
 }
+export interface BeneficiaryReviewNotificationDelivery {
+  sms: {
+    status: 'sent_successfully' | 'no_eligible_recipient' | 'provider_not_configured' | 'provider_request_failed';
+    attempted: number;
+    sent: number;
+    skipped: number;
+    failed: number;
+  };
+  push: {
+    status: 'sent_successfully' | 'partially_delivered' | 'no_eligible_recipients' | 'provider_not_configured' | 'provider_request_failed';
+    attempted: number;
+    sent: number;
+    skipped: number;
+    failed: number;
+  };
+}
+
 
 export interface BeneficiaryProofSubmissionListResponse extends PaginatedApiResponse<BeneficiaryProofSubmissionRecord[]> {
   summary?: BeneficiaryProofQueueSummary;
@@ -427,6 +469,33 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return (data ?? ({} as T)) as T;
 }
 
+async function fetchWithCsrfRetry(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
+  const response = await fetch(input, init);
+  if (response.status !== 403) return response;
+
+  const errorBody = await response.clone().json().catch(() => null) as { code?: string } | null;
+  if (errorBody?.code !== 'CSRF_VALIDATION_FAILED') return response;
+
+  const refreshResponse = await fetch(`${API_URL}/auth/csrf`, {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  if (!refreshResponse.ok) return response;
+
+  const refreshBody = await refreshResponse.json().catch(() => null) as {
+    data?: { csrfToken?: string };
+  } | null;
+  const csrfToken = refreshBody?.data?.csrfToken || getCookie('XSRF-TOKEN');
+  if (!csrfToken) return response;
+
+  const retryHeaders = new Headers(init.headers);
+  retryHeaders.set('X-CSRF-Token', csrfToken);
+  return fetch(input, {
+    ...init,
+    headers: retryHeaders,
+  });
+}
+
 // ========================== API CLIENT ==========================
 
 export const api = {
@@ -437,7 +506,7 @@ export const api = {
    */
   async getStaffUsers(params?: {
     search?: string;
-    status?: 'active' | 'pending' | 'inactive';
+    status?: 'active' | 'pending' | 'locked' | 'inactive';
     barangay?: string;
   }): Promise<ApiResponse<StaffUser[]>> {
     const sp = new URLSearchParams();
@@ -505,6 +574,26 @@ export const api = {
     return handleResponse<ApiResponse<void>>(response);
   },
 
+  /** Send a recovery OTP to an established staff account. */
+  async sendStaffPasswordResetOtp(id: string): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/admin/users/${id}/send-reset-otp`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<void>>(response);
+  },
+
+  /** Resend the first-login activation OTP to a pending account. */
+  async resendStaffActivationOtp(id: string): Promise<ApiResponse<void>> {
+    const response = await fetch(`${API_URL}/admin/users/${id}/resend-activation`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<void>>(response);
+  },
+
   // ==================== HEALTH ====================
 
   /**
@@ -543,7 +632,7 @@ export const api = {
     scheduled: string;
     endsAt: string;
     notes?: string;
-  }, options?: { idempotencyKey?: string }): Promise<ApiResponse<DistributionData>> {
+  }, options?: { idempotencyKey?: string }): Promise<CreateDistributionResponse> {
     const headers = createHeaders('POST') as Record<string, string>;
     if (options?.idempotencyKey) {
       headers['Idempotency-Key'] = options.idempotencyKey;
@@ -557,7 +646,7 @@ export const api = {
         assignedBarangays: data.assignedBarangays ?? [],
       }),
     });
-    return handleResponse<ApiResponse<DistributionData>>(response);
+    return handleResponse<CreateDistributionResponse>(response);
   },
 
   /**
@@ -857,8 +946,9 @@ export const api = {
       rejectionReason?: string;
       reviewedAt?: string | null;
     };
+    notificationDelivery: BeneficiaryReviewNotificationDelivery;
   }>> {
-    const response = await fetch(`${API_URL}/beneficiaries/admin/proof-submissions/${id}/review`, {
+    const response = await fetchWithCsrfRetry(`${API_URL}/beneficiaries/admin/proof-submissions/${id}/review`, {
       method: 'PATCH',
       headers: createHeaders('PATCH'),
       credentials: 'include',
@@ -875,6 +965,7 @@ export const api = {
         rejectionReason?: string;
         reviewedAt?: string | null;
       };
+      notificationDelivery: BeneficiaryReviewNotificationDelivery;
     }>>(response);
   },
 

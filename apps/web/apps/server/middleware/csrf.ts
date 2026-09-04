@@ -119,6 +119,7 @@ export function csrfProtect(req: Request, res: Response, next: NextFunction): vo
   if (!cookieToken || !headerToken || cookieToken !== headerToken) {
     res.status(403).json({
       success: false,
+      code: 'CSRF_VALIDATION_FAILED',
       message: 'CSRF validation failed.',
     });
     return;

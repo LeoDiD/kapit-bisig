@@ -43,6 +43,7 @@ import { revokeJWTByValue } from '../services/tokenRevocationService';
 import { logAudit } from '../utils/audit';
 import { sendLoginVerifyOtpEmail } from '../utils/mailer';
 import { deriveDistributionLifecycle } from '../utils/distributionLifecycle';
+import { loginAttempts } from '../services/loginAttemptService';
 
 const router = Router();
 
@@ -96,14 +97,6 @@ const OTP_PENDING_TOKEN_EXPIRY = '10m';
  * 
  * Tracks failed login attempts per email to implement account lockout
  */
-interface LoginAttempt {
-  attempts: number;
-  lockedUntil: Date | null;
-  lastAttempt: Date;
-}
-
-const loginAttempts = new Map<string, LoginAttempt>();
-
 // Lockout configuration
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
@@ -389,6 +382,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
       auditLoginFailure(req, normalizedEmail, 'account_locked');
       return res.status(423).json({
         success: false,
+        code: 'ACCOUNT_LOCKED',
         message: `Account temporarily locked. Try again in ${lockStatus.remainingMinutes} minutes.`,
         locked: true,
         retryAfter: `${lockStatus.remainingMinutes} minutes`,
@@ -416,6 +410,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
         auditLoginFailure(req, normalizedEmail, 'invalid_credentials');
         return res.status(401).json({
           success: false,
+          code: 'INVALID_CREDENTIALS',
           message: 'Invalid email or password',
         });
       }
@@ -426,6 +421,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
         auditLoginFailure(req, normalizedEmail, 'invalid_credentials');
         return res.status(401).json({
           success: false,
+          code: staffUser.forcePasswordReset ? 'FIRST_LOGIN_REQUIRED' : 'INVALID_CREDENTIALS',
           message: 'Invalid email or password',
         });
       }
@@ -437,6 +433,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
         auditLoginFailure(req, normalizedEmail, 'invalid_credentials');
         return res.status(401).json({
           success: false,
+          code: 'INVALID_CREDENTIALS',
           message: 'Invalid email or password',
         });
       }
@@ -503,6 +500,7 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
       // Generic message - don't reveal which field was wrong
       return res.status(401).json({
         success: false,
+        code: 'INVALID_CREDENTIALS',
         message: 'Invalid email or password',
       });
     }
@@ -936,10 +934,10 @@ router.get('/dashboard-summary', authMiddleware, async (req: AuthenticatedReques
 
     const scopedDistributions = await Distribution.find({
       archivedAt: null,
-      endsAt: { $gte: new Date() },
+      endsAt: mongoose.trusted({ $gte: new Date() }),
       $or: mongoose.trusted([
-        { barangay: { $in: scopedBarangays } },
-        { assignedBarangays: { $in: scopedBarangays } },
+        { barangay: mongoose.trusted({ $in: scopedBarangays }) },
+        { assignedBarangays: mongoose.trusted({ $in: scopedBarangays }) },
       ]),
     })
       .select('_id status scheduled endsAt archivedAt')
@@ -961,27 +959,27 @@ router.get('/dashboard-summary', authMiddleware, async (req: AuthenticatedReques
       ResidentQrScanLog.countDocuments({
         scannerId: userId,
         result: 'VALID',
-        createdAt: {
+        createdAt: mongoose.trusted({
           $gte: startToday,
           $lt: startTomorrow,
-        },
+        }),
       }),
       ResidentQrScanLog.countDocuments({
         scannerId: userId,
         result: 'VALID',
-        createdAt: {
+        createdAt: mongoose.trusted({
           $gte: startYesterday,
           $lt: startToday,
-        },
+        }),
       }),
       Claim.countDocuments({
         claimCategory: 'DISTRIBUTION',
         barangay: mongoose.trusted({ $in: scopedBarangays }),
         status: 'CONFIRMED',
-        createdAt: {
+        createdAt: mongoose.trusted({
           $gte: startToday,
           $lt: startTomorrow,
-        },
+        }),
       }),
     ]);
 

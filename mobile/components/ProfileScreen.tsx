@@ -173,12 +173,12 @@ function resolveStatusPresentation(
   }
 }
 
-function DetailRow({ icon, label, value, showDivider = true, isResident = false }: DetailRowProps) {
-  const iconColor = isResident ? '#374151' : theme.colors.textSecondary;
+function DetailRow({ icon, label, value, showDivider = true }: DetailRowProps) {
+  const iconColor = residentColors.icon;
   return (
     <View>
       <View style={styles.detailRow}>
-        <View style={[styles.detailIcon, isResident && styles.residentIconSurface]}>
+        <View style={[styles.detailIcon, styles.residentIconSurface]}>
           <Ionicons name={icon} size={19} color={iconColor} />
         </View>
         <View style={styles.detailCopy}>
@@ -195,8 +195,8 @@ function DetailRow({ icon, label, value, showDivider = true, isResident = false 
   );
 }
 
-function ActionItem({ icon, label, description, onPress, isResident = false }: ActionItemProps) {
-  const iconColor = isResident ? '#374151' : theme.colors.textSecondary;
+function ActionItem({ icon, label, description, onPress }: ActionItemProps) {
+  const iconColor = residentColors.icon;
   return (
     <TouchableOpacity
       style={styles.actionItem}
@@ -205,7 +205,7 @@ function ActionItem({ icon, label, description, onPress, isResident = false }: A
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <View style={[styles.actionIcon, isResident && styles.residentIconSurface]}>
+      <View style={[styles.actionIcon, styles.residentIconSurface]}>
         <Ionicons name={icon} size={20} color={iconColor} />
       </View>
       <View style={styles.actionCopy}>
@@ -216,7 +216,7 @@ function ActionItem({ icon, label, description, onPress, isResident = false }: A
           </Typography>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={isResident ? '#6B7280' : theme.colors.textMuted} />
+      <Ionicons name="chevron-forward" size={18} color={residentColors.secondary} />
     </TouchableOpacity>
   );
 }
@@ -457,9 +457,9 @@ export default function ProfileScreen({
   };
 
   return (
-    <SafeAreaView style={[styles.container, !isVolunteer && styles.residentContainer]} edges={['top']}>
+    <SafeAreaView style={[styles.container, styles.residentContainer]} edges={['top']}>
       <View style={styles.header}>
-        <Typography variant="h2" weight="semiBold" color={!isVolunteer ? residentColors.ink : theme.colors.textPrimary}>Profile</Typography>
+        <Typography variant="h2" weight="semiBold" color={residentColors.ink}>Profile</Typography>
       </View>
 
       <ScrollView
@@ -468,14 +468,14 @@ export default function ProfileScreen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.profileCard, !isVolunteer && styles.residentCard]}>
-          {!isVolunteer ? <View style={styles.identityAccent} /> : null}
+        <View style={[styles.profileCard, styles.residentCard]}>
+          <View style={styles.identityAccent} />
           <View style={styles.avatarContainer}>
             {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={[styles.avatar, !isVolunteer && styles.residentAvatar]} accessibilityLabel={`${displayName}'s profile photo`} />
+              <Image source={{ uri: avatarUri }} style={[styles.avatar, styles.residentAvatar]} accessibilityLabel={`${displayName}'s profile photo`} />
             ) : (
-              <View style={[styles.avatarFallback, !isVolunteer && styles.residentAvatarFallback]} accessibilityLabel={`${displayName}'s initials`}>
-                <Typography variant="h2" weight="bold" color={!isVolunteer ? residentColors.ink : '#166534'}>{initials}</Typography>
+              <View style={[styles.avatarFallback, styles.residentAvatarFallback]} accessibilityLabel={`${displayName}'s initials`}>
+                <Typography variant="h2" weight="bold" color={residentColors.ink}>{initials}</Typography>
               </View>
             )}
 
@@ -499,7 +499,7 @@ export default function ProfileScreen({
           <View style={styles.identityCopy}>
             <Typography variant="h3" weight="semiBold" numberOfLines={2}>{displayName}</Typography>
             {!isVolunteer && residentProfile?.residentCode?.trim() ? (
-              <Typography variant="caption" weight="semiBold" color="#6B7280" style={styles.residentCode}>
+              <Typography variant="caption" weight="semiBold" color={residentColors.secondary} style={styles.residentCode}>
                 {residentProfile.residentCode.trim()}
               </Typography>
             ) : null}
@@ -515,13 +515,13 @@ export default function ProfileScreen({
               </Typography>
             </View>
             <TouchableOpacity
-              style={[styles.editProfileButton, !isVolunteer && styles.residentEditProfileButton]}
+              style={[styles.editProfileButton, styles.residentEditProfileButton]}
               onPress={openEditModal}
               accessibilityRole="button"
               accessibilityLabel="Edit profile"
             >
-              <Ionicons name="create-outline" size={17} color={!isVolunteer ? residentColors.icon : theme.colors.primaryDark} />
-              <Typography variant="caption" weight="semiBold" color={!isVolunteer ? residentColors.icon : theme.colors.primaryDark}>
+              <Ionicons name="create-outline" size={17} color={residentColors.icon} />
+              <Typography variant="caption" weight="semiBold" color={residentColors.icon}>
                 Edit profile
               </Typography>
             </TouchableOpacity>
@@ -572,30 +572,30 @@ export default function ProfileScreen({
           </TouchableOpacity>
         ) : null}
 
-        <Typography variant="label" weight="semiBold" color={!isVolunteer ? residentColors.inkSoft : theme.colors.textSecondary} style={styles.sectionLabel}>
+        <Typography variant="label" weight="semiBold" color={residentColors.inkSoft} style={styles.sectionLabel}>
           Account details
         </Typography>
-        <View style={[styles.card, !isVolunteer && styles.residentDetailCard]}>
+        <View style={[styles.card, styles.residentDetailCard]}>
           {detailItems.map((item, index) => (
             <DetailRow
               key={item.label}
               {...item}
               showDivider={index < detailItems.length - 1}
-              isResident={!isVolunteer}
+              isResident
             />
           ))}
         </View>
 
-        <Typography variant="label" weight="semiBold" color={!isVolunteer ? residentColors.inkSoft : theme.colors.textSecondary} style={styles.sectionLabel}>
+        <Typography variant="label" weight="semiBold" color={residentColors.inkSoft} style={styles.sectionLabel}>
           Support
         </Typography>
-        <View style={[styles.card, !isVolunteer && styles.residentDetailCard]}>
+        <View style={[styles.card, styles.residentDetailCard]}>
           <ActionItem
             icon="help-circle-outline"
             label="Help & Support"
             description="Contact your barangay office for account assistance."
             onPress={() => Alert.alert('Help & Support', 'Please contact your barangay office for support.')}
-            isResident={!isVolunteer}
+            isResident
           />
         </View>
 
@@ -619,7 +619,7 @@ export default function ProfileScreen({
         activeTab="profile"
         onNavigate={onNavigate}
         showDistributions={!isVolunteer}
-        appearance={!isVolunteer ? 'resident' : 'default'}
+        appearance="resident"
       />
 
       <Modal
@@ -648,7 +648,7 @@ export default function ProfileScreen({
                 accessibilityRole="button"
                 accessibilityLabel="Close edit profile"
               >
-                <Ionicons name="close" size={21} color={!isVolunteer ? residentColors.icon : theme.colors.textSecondary} />
+                <Ionicons name="close" size={21} color={residentColors.icon} />
               </TouchableOpacity>
             </View>
 
@@ -722,7 +722,7 @@ export default function ProfileScreen({
                 <Typography variant="body" weight="semiBold" color={theme.colors.textSecondary}>Cancel</Typography>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.formButton, styles.saveButton, !isVolunteer && styles.residentSaveButton, isSaving && styles.disabledButton]}
+                style={[styles.formButton, styles.saveButton, styles.residentSaveButton, isSaving && styles.disabledButton]}
                 onPress={handleSaveProfile}
                 disabled={isSaving}
               >
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   residentContainer: {
-    backgroundColor: '#F7F7F5',
+    backgroundColor: residentColors.background,
   },
   header: {
     minHeight: 64,
@@ -804,9 +804,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   residentCard: {
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#111827',
+    borderColor: residentColors.borderAccent,
+    backgroundColor: residentColors.surface,
+    shadowColor: residentColors.brandDark,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.06,
     shadowRadius: 14,
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
     right: 0,
     left: 0,
     height: 3,
-    backgroundColor: '#C9A86A',
+    backgroundColor: residentColors.accent,
   },
   avatarContainer: {
     width: 92,
@@ -836,7 +836,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.divider,
   },
   residentAvatar: {
-    borderColor: '#C9A86A',
+    borderColor: residentColors.accent,
   },
   avatarFallback: {
     width: 92,
@@ -849,8 +849,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   residentAvatarFallback: {
-    borderColor: '#C9A86A',
-    backgroundColor: '#F3F4F6',
+    borderColor: residentColors.accent,
+    backgroundColor: residentColors.iconSurface,
   },
   cameraButton: {
     position: 'absolute',
@@ -866,8 +866,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   residentCameraButton: {
-    borderColor: '#FFFFFF',
-    backgroundColor: '#0F2E22',
+    borderColor: residentColors.surface,
+    backgroundColor: residentColors.brand,
   },
   identityCopy: {
     flex: 1,
@@ -902,9 +902,9 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   residentEditProfileButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: residentColors.iconSurface,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: residentColors.borderAccent,
   },
   pendingBanner: {
     marginHorizontal: 0,
@@ -973,9 +973,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   residentDetailCard: {
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#111827',
+    borderColor: residentColors.borderAccent,
+    backgroundColor: residentColors.surface,
+    shadowColor: residentColors.brandDark,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.035,
     shadowRadius: 9,
@@ -997,7 +997,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   residentIconSurface: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: residentColors.iconSurface,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
   },
   detailCopy: {
     flex: 1,
@@ -1137,7 +1139,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   residentSaveButton: {
-    backgroundColor: residentColors.ink,
+    backgroundColor: residentColors.brand,
   },
   disabledButton: {
     opacity: 0.7,

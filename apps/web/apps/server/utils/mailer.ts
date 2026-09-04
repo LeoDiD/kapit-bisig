@@ -16,6 +16,20 @@ import nodemailer, { Transporter } from 'nodemailer';
 /* ------------------------------------------------------------------ */
 
 let _transporter: Transporter | null = null;
+let _resetOtpSenderForTests: ((to: string, otp: string) => Promise<void>) | null = null;
+
+export function setResetOtpSenderForTests(sender: ((to: string, otp: string) => Promise<void>) | null): void {
+  if (process.env.NODE_ENV !== 'test') throw new Error('Test mailer override is only available in test mode.');
+  _resetOtpSenderForTests = sender;
+}
+
+export function isMailerConfigured(): boolean {
+  return Boolean(
+    process.env.SMTP_HOST?.trim()
+    && process.env.SMTP_USER?.trim()
+    && process.env.SMTP_PASS?.trim(),
+  );
+}
 
 function getTransporter(): Transporter {
   if (_transporter) return _transporter;
@@ -60,6 +74,7 @@ export async function sendResetOtpEmail(
   to: string,
   otp: string,
 ): Promise<void> {
+  if (_resetOtpSenderForTests) return _resetOtpSenderForTests(to, otp);
   const transporter = getTransporter();
   const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
 

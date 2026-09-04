@@ -24,7 +24,11 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
-import { passwordResetRateLimiter } from '../middleware/rateLimiter';
+import {
+  passwordResetFinalizeRateLimiter,
+  passwordResetSendRateLimiter,
+  passwordResetVerifyRateLimiter,
+} from '../middleware/rateLimiter';
 import { validateRequest } from '../validation/validateRequest';
 import {
   sendOtpBody,
@@ -36,6 +40,7 @@ import PasswordResetOtp from '../models/PasswordResetOtp';
 import { sendResetOtpEmail } from '../utils/mailer';
 import { validatePasswordStrength } from '../utils/passwordValidator';
 import { logAudit } from '../utils/audit';
+import { clearLoginAttempts } from '../services/loginAttemptService';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -63,7 +68,7 @@ function generateOtp(): string {
 /* ------------------------------------------------------------------ */
 router.post(
   '/send-otp',
-  passwordResetRateLimiter,
+  passwordResetSendRateLimiter,
   validateRequest({ body: sendOtpBody }),
   async (req: Request, res: Response) => {
     try {
@@ -73,9 +78,9 @@ router.post(
       const staffUser = await StaffUser.findOne({
         emailLower,
         isActive: true,
-      });
+      }).select('+passwordHash');
 
-      if (staffUser) {
+      if (staffUser?.passwordHash) {
         const otp = generateOtp();
         const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
 
@@ -94,12 +99,17 @@ router.post(
           { upsert: true, new: true, setDefaultsOnInsert: true },
         );
 
-        // Send email (best-effort; do NOT reveal failures)
         try {
           await sendResetOtpEmail(staffUser.email, otp);
         } catch (mailErr) {
           console.error('[MAILER] Failed to send OTP email:', (mailErr as Error).message);
-          // Do NOT expose mail-send errors to the client
+          await PasswordResetOtp.deleteOne({ emailLower });
+          res.status(503).json({
+            success: false,
+            code: 'OTP_DELIVERY_FAILED',
+            message: 'The password reset code could not be delivered. Please try again later.',
+          });
+          return;
         }
 
         await logAudit(req, 'FORGOT_PASSWORD_OTP_REQUESTED', 'Auth', staffUser._id.toString(), {
@@ -129,7 +139,7 @@ router.post(
 /* ------------------------------------------------------------------ */
 router.post(
   '/verify-otp',
-  passwordResetRateLimiter,
+  passwordResetVerifyRateLimiter,
   validateRequest({ body: verifyOtpBody }),
   async (req: Request, res: Response) => {
     try {
@@ -200,7 +210,7 @@ router.post(
 /* ------------------------------------------------------------------ */
 router.post(
   '/reset',
-  passwordResetRateLimiter,
+  passwordResetFinalizeRateLimiter,
   validateRequest({ body: forgotResetPasswordBody }),
   async (req: Request, res: Response) => {
     try {
@@ -240,7 +250,9 @@ router.post(
 
       // Hash and update password
       staffUser.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      staffUser.forcePasswordReset = false;
       await staffUser.save();
+      clearLoginAttempts(staffUser.emailLower);
 
       // Clean up any remaining OTP records for this user
       await PasswordResetOtp.deleteMany({

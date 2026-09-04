@@ -39,7 +39,9 @@ jest.mock('expo-secure-store', () => {
 });
 
 import {
+  clearResidentDistributionOfflineCache,
   listOfflineProofRecords,
+  loadResidentDistributionOfflineCache,
   loadResidentOfflineCache,
   loadStoredProofDraft,
   persistProofPhoto,
@@ -48,6 +50,7 @@ import {
   removeOfflineProofRecord,
   saveStoredProofDraft,
   saveResidentOfflineCache,
+  saveResidentDistributionOfflineCache,
   type OfflineProofRecord,
 } from '../ResidentOfflineStore';
 
@@ -148,6 +151,25 @@ describe('resident-scoped durable proof storage', () => {
     const restored = await loadResidentOfflineCache();
     expect(restored?.residentId).toBe('resident-a');
     expect(restored?.virtualId?.qrData).toBe('signed-qr-token');
+  });
+
+  it('stores distribution fallback data in a resident-scoped file', async () => {
+    const fetchedAt = '2026-08-23T01:00:00.000Z';
+    await saveResidentDistributionOfflineCache('resident-a', [{
+      id: 'distribution-a',
+      barangay: 'Bolo',
+      scheduled: '2026-08-24T01:00:00.000Z',
+      endsAt: '2026-08-24T10:00:00.000Z',
+      lifecycleStatus: 'Upcoming',
+    }], fetchedAt);
+
+    const restored = await loadResidentDistributionOfflineCache('resident-a');
+    expect(restored?.residentId).toBe('resident-a');
+    expect(restored?.items[0]?.id).toBe('distribution-a');
+    expect(restored?.fetchedAt).toBe(fetchedAt);
+
+    await clearResidentDistributionOfflineCache('resident-a');
+    expect(await loadResidentDistributionOfflineCache('resident-a')).toBeNull();
   });
 
   it('restores drafts and isolates queues by resident owner', async () => {

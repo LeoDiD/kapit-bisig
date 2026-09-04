@@ -2,21 +2,20 @@ import React from 'react'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
 
 export default function DistributionStats({
-  unclaimed,
-  claimed,
+  active,
+  upcoming,
   householdsServed,
   barangays,
 }: {
-  unclaimed: number
-  claimed: number
+  active: number
+  upcoming: number
   householdsServed: number
   barangays: number
 }) {
-  const totalDistributions = claimed + unclaimed
+  const totalDistributions = active + upcoming
 
   return (
-    <section className="mb-6 rounded-[28px] border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
+    <section className="mb-6 rounded-[28px] border border-slate-200 bg-white shadow-sm">      <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Distribution Overview</p>
@@ -42,15 +41,15 @@ export default function DistributionStats({
           icon={<UsersIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard
-          label="Claimed"
-          value={claimed}
-          helper="Completed releases"
+          label="Active"
+          value={active}
+          helper="Inside claim window"
           icon={<CheckCircleIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard
-          label="Pending"
-          value={unclaimed}
-          helper="Still open"
+          label="Upcoming"
+          value={upcoming}
+          helper="Scheduled next"
           icon={<ClockIcon className="h-5 w-5" />}
         />
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, DistributionHouseholdsData } from '../../lib/api'
 import type { DistributionRow } from './DistributionsTable'
 
@@ -21,22 +21,35 @@ export default function ViewHouseholdsModal({
   const [activeTab, setActiveTab] = useState<'claimed' | 'notYetClaimed'>('notYetClaimed')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [newClaimCount, setNewClaimCount] = useState(0)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const knownClaimIdsRef = useRef<Set<string>>(new Set())
+  const hasLoadedRef = useRef(false)
 
-  const fetchData = useCallback(async (distributionId: string) => {
-    setLoading(true)
-    setError(null)
+  const fetchData = useCallback(async (distributionId: string, silent = false) => {
+    if (silent) setIsRefreshing(true)
+    else setLoading(true)
+    if (!silent) setError(null)
     try {
       const res = await api.getDistributionHouseholds(distributionId)
       if (res.success && res.data) {
+        const nextIds = new Set(res.data.claimed.map((claim) => claim.claimId || claim.householdId))
+        if (hasLoadedRef.current) {
+          const newlyDetected = [...nextIds].filter((id) => !knownClaimIdsRef.current.has(id)).length
+          if (newlyDetected > 0) setNewClaimCount((count) => count + newlyDetected)
+        }
+        knownClaimIdsRef.current = nextIds
+        hasLoadedRef.current = true
         setData(res.data)
-      } else {
-        setError(res.message || 'Failed to load households')
-      }
+        setLastUpdated(new Date())
+      } else if (!silent) setError(res.message || 'Failed to load households')
     } catch (err: unknown) {
       console.error('Failed to load households:', err)
-      setError('Failed to load households. Please try again.')
+      if (!silent) setError('Failed to load households. Please try again.')
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }, [])
 
@@ -46,6 +59,10 @@ export default function ViewHouseholdsModal({
       setActiveTab('notYetClaimed')
       setPage(1)
       setData(null)
+      setNewClaimCount(0)
+      setLastUpdated(null)
+      knownClaimIdsRef.current = new Set()
+      hasLoadedRef.current = false
       fetchData(distribution.id)
     }
   }, [open, distribution, fetchData])
@@ -53,6 +70,19 @@ export default function ViewHouseholdsModal({
   useEffect(() => {
     setPage(1)
   }, [activeTab, search])
+
+  useEffect(() => {
+    if (!open || !distribution) return
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') fetchData(distribution.id, true)
+    }
+    const intervalId = window.setInterval(refreshIfVisible, 3000)
+    document.addEventListener('visibilitychange', refreshIfVisible)
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', refreshIfVisible)
+    }
+  }, [open, distribution, fetchData])
 
   if (!open || !distribution) return null
 
@@ -65,6 +95,8 @@ export default function ViewHouseholdsModal({
     if (!q) return true
     return (
       h.householdName.toLowerCase().includes(q) ||
+      (h.householdCode || '').toLowerCase().includes(q) ||
+      h.barangay.toLowerCase().includes(q) ||
       h.address.toLowerCase().includes(q)
     )
   }) ?? []
@@ -74,6 +106,8 @@ export default function ViewHouseholdsModal({
     if (!q) return true
     return (
       h.householdName.toLowerCase().includes(q) ||
+      (h.householdCode || '').toLowerCase().includes(q) ||
+      h.barangay.toLowerCase().includes(q) ||
       h.address.toLowerCase().includes(q)
     )
   }) ?? []
@@ -111,14 +145,12 @@ export default function ViewHouseholdsModal({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Close"
-              >
-                <XIcon />
-              </button>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => fetchData(distribution.id, true)} disabled={isRefreshing} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                  {isRefreshing ? 'Refreshing…' : 'Refresh'}
+                </button>
+                <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors" aria-label="Close"><XIcon /></button>
+              </div>
             </div>
           </div>
 
@@ -159,6 +191,13 @@ export default function ViewHouseholdsModal({
             {/* Has registered households */}
             {!loading && !error && data && !noRegistered && (
               <div className="space-y-4">
+                {newClaimCount > 0 && (
+                  <button type="button" onClick={() => { setActiveTab('claimed'); setNewClaimCount(0) }} className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-semibold text-emerald-800 hover:bg-emerald-100">
+                    New claim recorded ({newClaimCount}). View the Claimed tab →
+                  </button>
+                )}
+                {lastUpdated && <div className="text-right text-[11px] text-gray-400">Live · updated {lastUpdated.toLocaleTimeString('en-PH')}</div>}
+
                 {/* Summary */}
                 <div className="grid grid-cols-3 gap-3">
                   <SummaryCard label={populationLabel} value={data.totals.registered} color="text-gray-900" />
@@ -200,7 +239,7 @@ export default function ViewHouseholdsModal({
                       <EmptyList message={search ? 'No households match your search.' : 'All households have claimed.'} />
                     ) : (
                       paginatedNotYetClaimed.map((h) => (
-                        <HouseholdCard key={h.householdId} name={h.householdName} address={h.address} />
+                        <HouseholdCard key={h.householdId} name={h.householdName} code={h.householdCode} barangay={h.barangay} address={h.address} />
                       ))
                     )}
                   </div>
@@ -219,7 +258,9 @@ export default function ViewHouseholdsModal({
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <div className="text-sm font-medium text-gray-900">{h.householdName}</div>
+                              <div className="text-[11px] font-semibold text-gray-500">{h.householdCode || 'No household code'} · {h.barangay}</div>
                               <div className="text-xs text-gray-500 mt-0.5">{h.address}</div>
+                              {h.claimId && <div className="text-[11px] text-gray-400">Claim ID: {h.claimId}</div>}
                             </div>
                             {h.proofMethod && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 shrink-0">
@@ -232,9 +273,9 @@ export default function ViewHouseholdsModal({
                               Claimed: {new Date(h.claimedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </div>
                           )}
-                          {h.claimedBy?.name && (
+                          {(h.scanner?.name || h.claimedBy?.name) && (
                             <div className="text-[11px] text-gray-400">
-                              By: {h.claimedBy.name}
+                              Scanned by: {h.scanner?.name || h.claimedBy?.name}
                             </div>
                           )}
                         </div>
@@ -300,10 +341,11 @@ function TabButton({ active, label, onClick }: { active: boolean; label: string;
   )
 }
 
-function HouseholdCard({ name, address }: { name: string; address: string }) {
+function HouseholdCard({ name, code, barangay, address }: { name: string; code: string | null; barangay: string; address: string }) {
   return (
     <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
       <div className="text-sm font-medium text-gray-900">{name}</div>
+      <div className="text-[11px] font-semibold text-gray-500">{code || 'No household code'} · {barangay}</div>
       <div className="text-xs text-gray-500 mt-0.5">{address}</div>
     </div>
   )

@@ -14,17 +14,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
   Alert,
   useWindowDimensions,
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mobileAuthService, User } from '../services/auth/MobileAuthService';
 import { theme } from '../theme';
-import { Typography } from './ui/Typography';
-import { Button } from './ui/Button';
+import StaffForgotPasswordScreen from './StaffForgotPasswordScreen';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: User) => void;
@@ -32,7 +29,6 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps) {
-  const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const otpInputRef = useRef<TextInput | null>(null);
   const otpScales = useRef(Array.from({ length: 6 }, () => new Animated.Value(1))).current;
@@ -48,6 +44,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [isOtpFocused, setIsOtpFocused] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
 
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -175,6 +172,12 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
           );
         } else if (response.code === 'OTP_SEND_FAILED') {
           setError(response.message || 'Unable to send the verification code.');
+        } else if (response.code === 'ACCOUNT_LOCKED') {
+          setError(response.message || 'Too many failed attempts. Please wait before trying again, or reset your password.');
+        } else if (response.code === 'FIRST_LOGIN_REQUIRED') {
+          setError(response.message || 'This account is awaiting activation. Ask an administrator to resend your activation code.');
+        } else if (response.code === 'INVALID_CREDENTIALS') {
+          setError('The email or password is incorrect. You can reset your password below.');
         } else {
           setError(response.message || 'Login failed. Please try again.');
         }
@@ -330,6 +333,15 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
     </>
   );
 
+  if (showRecovery) {
+    return (
+      <StaffForgotPasswordScreen
+        initialEmail={email}
+        onBack={() => setShowRecovery(false)}
+      />
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.loginKeyboardView}
@@ -361,12 +373,29 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
 
           {!!error && <Text style={styles.loginErrorText}>{error}</Text>}
 
-          <Button
-            title={isOtpChallenge ? 'Verify Code' : 'Login'}
+          {!isOtpChallenge && (
+            <View style={styles.optionsContainer}>
+              <View />
+              <TouchableOpacity
+                onPress={() => {
+                  setError(null);
+                  setShowRecovery(true);
+                }}
+              >
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.loginButtonMain, isLoading && styles.loginButtonMainDisabled]}
             onPress={handleLogin}
             disabled={!isLoginReady || isLoading}
-            style={{ width: '100%', marginTop: theme.spacing.sm, marginBottom: theme.spacing.lg }}
-          />
+          >
+            <Text style={styles.loginButtonMainText}>
+              {isLoading ? (isOtpChallenge ? 'Verifying...' : 'Signing In...') : (isOtpChallenge ? 'Verify Code' : 'Login')}
+            </Text>
+          </TouchableOpacity>
 
           {!isOtpChallenge && (
             <View style={styles.infoContainer}>
@@ -549,6 +578,37 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     textAlign: 'center',
   },
+  optionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 25,
+  },
+  forgotText: {
+    fontSize: 14,
+    color: '#2E7D32',
+  },
+  loginButtonMain: {
+    width: '100%',
+    backgroundColor: '#2E7D32',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 25,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  loginButtonMainDisabled: {
+    opacity: 0.7,
+  },
+  loginButtonMainText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
   challengeActions: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -577,7 +637,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   infoContainer: {
-    marginTop: theme.spacing.lg,
     alignItems: 'center',
   },
   infoText: {

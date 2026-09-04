@@ -8,12 +8,14 @@ import RescheduleDistributionModal from './RescheduleDistributionModal'
 import CompletedArchiveModal from './CompletedArchiveModal'
 
 export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed'
+export type DistributionLifecycleStatus = 'Upcoming' | 'Active' | 'Completed' | 'Archived'
 
 export type DistributionRow = {
   id: string
   barangay: string
   assignedBarangays: string[]
   scheduled: string
+  endsAt?: string | null
   households: number
   registeredHouseholds: number
   claimedHouseholds: number
@@ -22,16 +24,19 @@ export type DistributionRow = {
   status: DistributionStatus
   claimedAt: string | null
   createdAt: string
+  archivedAt?: string | null
+  archivedBy?: string | null
+  lifecycleStatus: DistributionLifecycleStatus
 }
 
 type BarangayFilter = 'All' | string
 type StatusFilter = 'All' | DistributionStatus
 
 const statusOptions: { value: StatusFilter; label: string }[] = [
-  { value: 'All', label: 'All Status' },
-  { value: 'Claimed', label: 'Completed' },
-  { value: 'Partially Claimed', label: 'Active' },
-  { value: 'Unclaimed', label: 'Scheduled' },
+  { value: 'All', label: 'All claim progress' },
+  { value: 'Unclaimed', label: 'Unclaimed' },
+  { value: 'Partially Claimed', label: 'Partially Claimed' },
+  { value: 'Claimed', label: 'Claimed' },
 ]
 
 export function formatScheduledDate(value?: string | null): string {
@@ -64,12 +69,20 @@ export default function DistributionsTable({
   onMarkClaimed,
   onRefresh,
   canCreate = true,
+  lifecycleView,
+  canManageLifecycle = false,
+  onArchive,
+  onRestore,
 }: {
   rows: DistributionRow[]
   onOpenCreate: () => void
   onMarkClaimed: (id: string) => void
   onRefresh?: () => void
   canCreate?: boolean
+  lifecycleView: 'upcoming' | 'active' | 'completed' | 'archived'
+  canManageLifecycle?: boolean
+  onArchive?: (id: string) => void
+  onRestore?: (id: string) => void
 }) {
   const [query, setQuery] = useState('')
   const [barangay, setBarangay] = useState<BarangayFilter>('All')
@@ -95,7 +108,7 @@ export default function DistributionsTable({
   const [rescheduleDistribution, setRescheduleDistribution] = useState<DistributionRow | null>(null)
   const [archiveOpen, setArchiveOpen] = useState(false)
 
-  const completedCount = useMemo(() => rows.filter((r) => r.status === 'Claimed').length, [rows])
+  const completedCount = useMemo(() => rows.filter((r) => r.lifecycleStatus === 'Completed').length, [rows])
 
   const barangayOptions = useMemo(() => {
     const unique = Array.from(new Set(rows.map((r) => r.barangay))).sort()
@@ -190,7 +203,7 @@ export default function DistributionsTable({
   }
 
   const barangayLabel = barangay === 'All' ? 'All Barangays' : barangay
-  const statusLabel = status === 'All' ? 'All Status' : status
+  const statusLabel = status === 'All' ? 'All claim progress' : status
 
   return (
     <>
@@ -213,7 +226,7 @@ export default function DistributionsTable({
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">Distribution Directory</p>
               <h3 className="mt-2 text-xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-100">
-                Scheduled and claimed distributions
+                {lifecycleView.charAt(0).toUpperCase() + lifecycleView.slice(1)} distributions
               </h3>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {filtered.length} visible distribution{filtered.length === 1 ? '' : 's'}
@@ -339,7 +352,7 @@ export default function DistributionsTable({
                 <th className="px-6 py-4">Registered Households</th>
                 <th className="px-6 py-4">Claims</th>
                 <th className="px-6 py-4">Scheduled For</th>
-                <th className="px-6 py-4">Current Status</th>
+                <th className="px-6 py-4">Lifecycle / Claim Progress</th>
                 <th className="px-6 py-4">Claimed On</th>
                 <th className="px-6 py-4 text-right pr-6">
                   <span className="sr-only">Actions</span>
@@ -386,7 +399,10 @@ export default function DistributionsTable({
                     <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">{formatScheduledDate(row.scheduled)}</td>
 
                     <td className="px-6 py-4">
-                      <StatusPill status={row.status} />
+                      <div className="flex flex-col items-start gap-1.5">
+                        <LifecyclePill status={row.lifecycleStatus} />
+                        <StatusPill status={row.status} />
+                      </div>
                     </td>
 
                     <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-400">
@@ -491,7 +507,7 @@ export default function DistributionsTable({
                           closeRowMenu()
                         }}
                       />
-                      {row.status !== 'Claimed' ? (
+                      {row.status !== 'Claimed' && row.lifecycleStatus !== 'Archived' ? (
                         <MenuItem
                           icon={<CalendarIcon />}
                           label="Reschedule"
@@ -502,13 +518,33 @@ export default function DistributionsTable({
                           }}
                         />
                       ) : null}
-                      {row.status !== 'Claimed' ? (
+                      {row.status !== 'Claimed' && row.lifecycleStatus === 'Active' ? (
                         <MenuItem
                           icon={<CheckGreenIcon />}
-                          label="Mark as completed"
+                          label="Mark claim progress complete"
                           tone="success"
                           onClick={() => {
                             onMarkClaimed(row.id)
+                            closeRowMenu()
+                          }}
+                        />
+                      ) : null}
+                      {canManageLifecycle && row.lifecycleStatus === 'Completed' && onArchive ? (
+                        <MenuItem
+                          icon={<ArchiveIcon className="h-4 w-4" />}
+                          label="Archive distribution"
+                          onClick={() => {
+                            onArchive(row.id)
+                            closeRowMenu()
+                          }}
+                        />
+                      ) : null}
+                      {canManageLifecycle && row.lifecycleStatus === 'Archived' && onRestore ? (
+                        <MenuItem
+                          icon={<ArchiveIcon className="h-4 w-4" />}
+                          label="Restore distribution"
+                          onClick={() => {
+                            onRestore(row.id)
                             closeRowMenu()
                           }}
                         />
@@ -521,22 +557,6 @@ export default function DistributionsTable({
             document.body,
           )
         : null}
-
-      {selectedDistribution && (
-        <DistributionDetailsModal
-          open={Boolean(selectedDistribution)}
-          distribution={selectedDistribution}
-          onClose={() => setSelectedDistribution(null)}
-        />
-      )}
-
-      {householdsDistribution && (
-        <ViewHouseholdsModal
-          open={Boolean(householdsDistribution)}
-          distribution={householdsDistribution}
-          onClose={() => setHouseholdsDistribution(null)}
-        />
-      )}
 
       {rescheduleDistribution && (
         <RescheduleDistributionModal
@@ -603,6 +623,21 @@ function DropdownMenu({
   )
 }
 
+function LifecyclePill({ status }: { status: DistributionLifecycleStatus }) {
+  const classes = {
+    Upcoming: 'border-amber-200 bg-amber-50 text-amber-700',
+    Active: 'border-blue-200 bg-blue-50 text-blue-700',
+    Completed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    Archived: 'border-slate-300 bg-slate-100 text-slate-600',
+  }[status]
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${classes}`}>
+      {status}
+    </span>
+  )
+}
+
 function StatusPill({ status }: { status: DistributionStatus }) {
   const classes =
     status === 'Claimed'
@@ -618,12 +653,7 @@ function StatusPill({ status }: { status: DistributionStatus }) {
         ? 'bg-blue-500 dark:bg-blue-400'
         : 'bg-amber-500 dark:bg-amber-400'
 
-  const label =
-    status === 'Claimed'
-      ? 'Completed'
-      : status === 'Partially Claimed'
-        ? 'Active'
-        : 'Scheduled'
+  const label = status
 
   return (
     <span className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${classes}`}>

@@ -5,10 +5,14 @@ import {
   getTargetBarangays,
   isResidentEligibleForDistribution,
 } from '../services/distributionFlowService';
+import { deriveDistributionLifecycle, manilaDateParts } from '../utils/distributionLifecycle';
 
 const validStaffId = '507f1f77bcf86cd799439011';
 const validDisasterEventId = '507f1f77bcf86cd799439012';
-const validSchedule = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+const tomorrowManila = new Date(Date.now() + 32 * 60 * 60 * 1000);
+const tomorrowParts = manilaDateParts(tomorrowManila);
+const validSchedule = new Date(Date.UTC(tomorrowParts.year, tomorrowParts.month, tomorrowParts.day, 1, 0)).toISOString();
+const validEndsAt = new Date(Date.UTC(tomorrowParts.year, tomorrowParts.month, tomorrowParts.day, 9, 0)).toISOString();
 
 export function runDistributionFlowUnitTests(): void {
   // Single barangay target
@@ -34,11 +38,23 @@ export function runDistributionFlowUnitTests(): void {
   assert.strictEqual(deriveDistributionStatus(10, 3), 'Partially Claimed');
   assert.strictEqual(deriveDistributionStatus(10, 10), 'Claimed');
 
+  const lifecycleWindow = {
+    scheduled: '2026-08-25T09:00:00+08:00',
+    endsAt: '2026-08-25T17:00:00+08:00',
+    archivedAt: null,
+  };
+  assert.strictEqual(deriveDistributionLifecycle(lifecycleWindow, new Date('2026-08-25T08:59:59+08:00')), 'Upcoming');
+  assert.strictEqual(deriveDistributionLifecycle(lifecycleWindow, new Date('2026-08-25T09:00:00+08:00')), 'Active');
+  assert.strictEqual(deriveDistributionLifecycle(lifecycleWindow, new Date('2026-08-25T17:00:00+08:00')), 'Active');
+  assert.strictEqual(deriveDistributionLifecycle(lifecycleWindow, new Date('2026-08-25T17:00:01+08:00')), 'Completed');
+  assert.strictEqual(deriveDistributionLifecycle({ ...lifecycleWindow, archivedAt: '2026-08-25T12:00:00+08:00' }, new Date('2026-08-25T13:00:00+08:00')), 'Archived');
+
   // Valid create without assignedBarangays (new 3-step per-barangay flow)
   const validCreateSingle = createDistributionBody.safeParse({
     disasterEventId: validDisasterEventId,
     barangay: 'Bolo',
     scheduled: validSchedule,
+    endsAt: validEndsAt,
     assignedStaffIds: [validStaffId],
     notes: 'Single barangay distribution',
   });
@@ -50,6 +66,7 @@ export function runDistributionFlowUnitTests(): void {
     barangay: 'Bolo',
     assignedBarangays: [],
     scheduled: validSchedule,
+    endsAt: validEndsAt,
     assignedStaffIds: [validStaffId],
     notes: 'Empty assigned array',
   });
@@ -59,6 +76,7 @@ export function runDistributionFlowUnitTests(): void {
   const validCreateWithoutEvent = createDistributionBody.safeParse({
     barangay: 'Bolo',
     scheduled: validSchedule,
+    endsAt: validEndsAt,
     assignedStaffIds: [validStaffId],
     notes: 'Single barangay distribution without event',
   });
@@ -68,6 +86,7 @@ export function runDistributionFlowUnitTests(): void {
   const missingStaff = createDistributionBody.safeParse({
     barangay: 'Bolo',
     scheduled: validSchedule,
+    endsAt: validEndsAt,
     assignedStaffIds: [],
     notes: 'test',
   });

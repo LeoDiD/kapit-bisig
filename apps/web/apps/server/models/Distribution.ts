@@ -146,6 +146,8 @@ distributionSchema.index({ assignedStaffIds: 1, createdAt: -1 });
 distributionSchema.index({ requiresBeneficiaryApproval: 1, status: 1, createdAt: -1 });
 distributionSchema.index({ disasterEventId: 1, status: 1, createdAt: -1 });
 distributionSchema.index({ archivedAt: 1, endsAt: 1, scheduled: 1 });
+distributionSchema.index({ barangay: 1, archivedAt: 1, endsAt: 1, scheduled: 1 });
+distributionSchema.index({ assignedBarangays: 1, archivedAt: 1, endsAt: 1, scheduled: 1 });
 
 const Distribution = mongoose.model<IDistribution>('Distribution', distributionSchema);
 

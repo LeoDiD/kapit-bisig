@@ -318,8 +318,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: theme.spacing.md,
-    backgroundColor: residentColors.surfaceMuted,
-    borderColor: residentColors.border,
+    backgroundColor: residentColors.accentSoft,
+    borderColor: residentColors.accent,
   },
   sectionCard: {
     gap: theme.spacing.md,

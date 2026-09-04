@@ -9,6 +9,12 @@ import Claim, { IClaim } from '../models/Claim';
 import OfflineSyncQueue, { IOfflineSyncQueue, OfflineActorRole, OfflineSyncQueueType, OfflineSyncStatus } from '../models/OfflineSyncQueue';
 import { persistVerificationImage, VERIFICATION_IMAGE_MAX_BYTES } from '../utils/imageStorage';
 import { createResidentNotification } from '../utils/createNotification';
+import {
+  BeneficiaryReviewSmsDeliverySummary,
+  sendBeneficiaryReviewSms,
+} from '../utils/beneficiaryReviewSms';
+import type { PushDeliverySummary } from '../utils/distributionPush';
+import { sendResidentPushNotification } from '../utils/residentPush';
 import { validateBase64Image } from '../validation/imageValidation';
 import {
   getTargetBarangays,
@@ -31,6 +37,7 @@ type ResidentScanRecord = {
   firstName?: string;
   lastName?: string;
   fullName?: string;
+  mobileNumber?: string;
   barangay: string;
   city?: string;
   status: ResidentApprovalStatus;
@@ -579,6 +586,10 @@ export async function reviewResidentProof(params: ProofReviewInput): Promise<{
   resident: ResidentScanRecord;
   submission: IProofSubmission;
   eligibility: IBeneficiaryEligibility;
+  notificationDelivery: {
+    sms: BeneficiaryReviewSmsDeliverySummary;
+    push: PushDeliverySummary;
+  };
 }> {
   if (!mongoose.Types.ObjectId.isValid(params.proofSubmissionId)) {
     throw new BeneficiaryServiceError(400, 'INVALID_PROOF_ID', 'Invalid proof submission id.');
@@ -593,7 +604,7 @@ export async function reviewResidentProof(params: ProofReviewInput): Promise<{
     submission.disasterEventId ? DisasterEvent.findById(submission.disasterEventId) : Promise.resolve(null),
     submission.distributionId ? Distribution.findById(submission.distributionId) : Promise.resolve(null),
     Resident.findById(submission.residentId)
-      .select('_id residentCode firstName lastName fullName barangay city status qrStatus')
+      .select('_id residentCode firstName lastName fullName mobileNumber barangay city status qrStatus')
       .lean<ResidentScanRecord | null>(),
   ]);
 
@@ -641,38 +652,50 @@ export async function reviewResidentProof(params: ProofReviewInput): Promise<{
     });
   }
 
-  // Notify the resident about the review decision
+  // One authoritative in-app notification is always created. SMS is
+  // best-effort and never rolls back the completed review decision.
   const scopeName = scope.name || 'your disaster proof';
-  if (params.decision === 'Approved') {
-    await createResidentNotification(resident._id.toString(), {
-      title: 'Proof Approved',
-      message: `Your disaster proof for ${scopeName} has been approved. You are now eligible for relief distribution.`,
-      type: 'status_update',
-      meta: {
+  const approved = params.decision === 'Approved';
+  const rejectionDetails = submission.rejectionReason
+    ? ` Reason: ${submission.rejectionReason}`
+    : ' Please resubmit with updated photos and information.';
+  const notificationMessage = approved
+    ? `Your disaster proof for ${scopeName} has been approved. You are now eligible for relief distribution.`
+    : `Your disaster proof for ${scopeName} was not approved.${rejectionDetails}`;
+
+  await createResidentNotification(resident._id.toString(), {
+    title: approved ? 'Proof Approved' : 'Proof Needs Update',
+    message: notificationMessage,
+    type: 'status_update',
+    meta: {
+      screen: 'proof-request',
+      proofSubmissionId: submission._id.toString(),
+      distributionId: distribution?._id?.toString() || '',
+      disasterEventId: event?._id?.toString() || '',
+      decision: params.decision,
+    },
+  });
+
+  const [smsDelivery, pushDelivery] = await Promise.all([
+    sendBeneficiaryReviewSms({
+      mobileNumber: resident.mobileNumber,
+      decision: params.decision,
+      scopeName,
+      rejectionReason: submission.rejectionReason,
+    }),
+    sendResidentPushNotification({
+      residentId: resident._id.toString(),
+      title: approved ? 'Proof Approved' : 'Proof Needs Update',
+      body: notificationMessage,
+      data: {
         screen: 'proof-request',
         proofSubmissionId: submission._id.toString(),
         distributionId: distribution?._id?.toString() || '',
         disasterEventId: event?._id?.toString() || '',
-        decision: 'Approved',
+        decision: params.decision,
       },
-    });
-  } else if (params.decision === 'Rejected') {
-    const reason = submission.rejectionReason
-      ? `: ${submission.rejectionReason}`
-      : '. Please resubmit with updated photos and information.';
-    await createResidentNotification(resident._id.toString(), {
-      title: 'Proof Needs Update',
-      message: `Your disaster proof for ${scopeName} was not approved${reason}`,
-      type: 'status_update',
-      meta: {
-        screen: 'proof-request',
-        proofSubmissionId: submission._id.toString(),
-        distributionId: distribution?._id?.toString() || '',
-        disasterEventId: event?._id?.toString() || '',
-        decision: 'Rejected',
-      },
-    });
-  }
+    }),
+  ]);
 
   return {
     scope,
@@ -681,6 +704,10 @@ export async function reviewResidentProof(params: ProofReviewInput): Promise<{
     resident,
     submission,
     eligibility,
+    notificationDelivery: {
+      sms: smsDelivery,
+      push: pushDelivery,
+    },
   };
 }
 

@@ -88,3 +88,10 @@ npm run start
 Notes:
 - In development, `API_PROXY_TARGET` may point to `localhost`, `127.0.0.1`, or a private LAN host like `192.168.x.x`.
 - Public remote targets still require `API_PROXY_ALLOW_REMOTE=true`; otherwise the proxy falls back to local `127.0.0.1:3001/api`.
+## Distribution SMS and Push Setup
+
+- Copy `.env.example` to the server environment and set `SMS_PROVIDER=semaphore`, `SMS_API_KEY`, and the approved `SMS_SENDER_NAME`. These values are server-only; never expose provider keys through `NEXT_PUBLIC_*` or `EXPO_PUBLIC_*` variables.
+- Configure the Expo/EAS project in `mobile/app.json`, then add the Android Firebase service account / FCM V1 credentials with EAS credentials. Add the iOS APNs credential for iOS builds.
+- Build the mobile app with an Expo development or production build. Expo Go does not provide remote push tokens for this workflow.
+- After credentials are deployed, set `EXPO_PUSH_ENABLED=true` on the server. The app registers Expo tokens after resident login and deactivates them on logout or provider rejection.
+- Distribution creation remains successful if SMS or push delivery fails; the API and web toast report each channel separately.

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Target Beneficiary Flow Architecture - Kapit-Bisig</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm 12mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #0F172A;
+      background-color: #FFFFFF;
+      margin: 0;
+      padding: 24px;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    .header-banner {
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+      color: #FFFFFF;
+      padding: 24px 28px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      border-left: 6px solid #10B981;
+    }
+
+    .header-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      letter-spacing: -0.5px;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      color: #94A3B8;
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .section-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-top: 0;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #F1F5F9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diagram-container {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    .mermaid svg {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12.5px;
+    }
+
+    th {
+      background-color: #F1F5F9;
+      color: #334155;
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      border-bottom: 2px solid #CBD5E1;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #E2E8F0;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #F8FAFC;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-mobile {
+      background: #E0F2FE;
+      color: #0369A1;
+    }
+
+    .badge-offline {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+
+    .badge-backend {
+      background: #F3E8FF;
+      color: #6B21A8;
+    }
+
+    .badge-web {
+      background: #DCFCE7;
+      color: #166534;
+    }
+
+    .badge-notify {
+      background: #FFE4E6;
+      color: #9F1239;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 14px;
+      padding: 12px 14px;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #10B981;
+      color: white;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-title {
+      font-weight: 700;
+      color: #0F172A;
+      margin-bottom: 4px;
+      font-size: 13.5px;
+    }
+
+    .step-desc {
+      color: #475569;
+      font-size: 12.5px;
+      margin: 0;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #94A3B8;
+      margin-top: 20px;
+      padding-top: 10px;
+      border-top: 1px solid #E2E8F0;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header-banner">
+    <div class="header-subtitle">Kapit-Bisig System Architecture Documentation</div>
+    <h1 class="header-title">Target Beneficiary Flowchart & Lifecycle</h1>
+    <div style="font-size: 12px; color: #CBD5E1; margin-top: 4px;">
+      End-to-End Analysis: Mobile Proof Submission &rarr; Offline Sync &rarr; Web Review &rarr; Multichannel
+      Verification
+    </div>
+  </div>
+
+  <div class="section-card">
+    <h2 class="section-title">📊 System Flowchart Diagram</h2>
+    <div class="diagram-container">
+      <pre class="mermaid">
+flowchart TD
+    subgraph MobileApp["📱 Mobile App Layer (Resident)"]
+        A(["Start: Active Disaster Event Announced"]) --> B["View Event on Dashboard<br/><i>(ResidentHomeDashboardScreen)</i>"]
+        B --> C["Select Damage Category & Input Details<br/><i>(ResidentProofRequestScreen)</i>"]
+        C --> D["Capture 3-5 Proof Photos with Metadata Watermarks<br/><i>(photoWatermark.ts)</i>"]
+        D --> E["Generate Local Submission Payload"]
+    end
+
+    subgraph OfflineEngine["💾 Offline Storage & Sync Coordinator"]
+        E --> F[("Save Record to Local Encryption<br/>Status: PENDING_SYNC<br/><i>(ResidentOfflineStore)</i>")]
+        F --> G{"Is Network Available?<br/><i>(NetInfo)</i>"}
+        G -- No --> H["Queue Locally & Wait for Connectivity<br/><i>(ProofSyncCoordinator)</i>"]
+        H --> G
+        G -- Yes --> I["Dispatch HTTP Payload<br/><code>POST /api/beneficiaries/sync/proof-submissions</code>"]
+    end
+
+    subgraph ServerBackend["⚙️ Backend Server & Database"]
+        I --> J["Validate Request Schema & Auth Token<br/><i>(beneficiaryRoutes.ts)</i>"]
+        J --> K[("Create ProofSubmission Record<br/>& Upsert BeneficiaryEligibility<br/>Status: 'Pending Verification'")]
+    end
+
+    subgraph WebAdmin["💻 Web Admin Dashboard (LGU Staff)"]
+        K --> L["Queue Appears on Target Beneficiaries Page<br/><i>(TargetBeneficiariesPageClient.tsx)</i>"]
+        L --> M["Staff Inspects Damage Info & Photo Gallery"]
+        M --> N{"Review Decision?"}
+    end
+
+    subgraph ReviewOutcomes["📋 Review Processing & Notification Engine"]
+        N -- "Approve" --> O["Update ProofSubmission & Eligibility<br/>Status: 'Approved'"]
+        N -- "Reject / Request Revision" --> P["Update Status: 'Rejected'<br/>Attach Rejection Reason Feedback"]
+
+        O --> Q["Trigger Multichannel Notification<br/><i>(Push Notification + SMS Fallback)</i>"]
+        P --> Q
+    end
+
+    subgraph FinalOutcomes["🎯 End Outcomes"]
+        Q --> R{"Was Approved?"}
+        
+        R -- Yes --> S(["Dynamic Beneficiary QR Claim Code Unlocked<br/><i>Ready for Relief Station Scanners</i>"])
+        R -- No --> T["Resident Receives Feedback in App<br/><i>(ResidentRegistrationRevisionScreen)</i>"]
+        T --> C
+    end
+
+    classDef startEnd fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff;
+    classDef process fill:#1E293B,stroke:#334155,stroke-width:1.5px,color:#F8FAFC;
+    classDef decision fill:#D97706,stroke:#B45309,stroke-width:2px,color:#fff;
+    classDef storage fill:#0284C7,stroke:#0369A1,stroke-width:2px,color:#fff;
+
+    class A,S startEnd;
+    class B,C,D,E,I,J,L,M,O,P,Q,T process;
+    class G,N,R decision;
+    class F,K storage;
+      </pre>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <div class="section-card">
+    <h2 class="section-title">🔍 Step-by-Step Architectural Lifecycle</h2>
+
+    <div class="step-list">
+      <div class="step-item">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <div class="step-title">
+            Mobile Event Discovery & Proof Input
+            <span class="badge badge-mobile">Mobile App</span>
+          </div>
+          <p class="step-desc">
+            Residents locate active disaster events on <code>ResidentHomeDashboardScreen.tsx</code>. In
+            <code>ResidentProofRequestScreen.tsx</code>, they select damage categories (Flood, House Damage, Landslide,
+            Livelihood Loss, etc.) and write damage descriptions.
+          </p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <div class="step-title">
+            Tamper-Evident Photo Capture & Offline Storage
+            <span class="badge badge-offline">Offline Sync Engine</span>
+          </div>
+          <p class="step-desc">
+            3 to 5 damage photos are taken via <code>photoWatermark.ts</code>, imprinting timestamps, GPS coordinates,
+            and resident IDs into photo pixels. Submissions are saved durably to <code>ResidentOfflineStore.ts</code>
+            with status <code>PENDING_SYNC</code>.
+          </p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <div class="step-title">
+            Server Ingestion & Record Creation
+            <span class="badge badge-backend">Backend API</span>
+          </div>
+          <p class="step-desc">
+            Upon internet reconnect, <code>ProofSyncCoordinator.ts</code> posts queued items to
+            <code>POST /api/beneficiaries/sync/proof-submissions</code>. The server creates a
+            <code>ProofSubmission</code> record (status: <i>Pending Verification</i>) and upserts
+            <code>BeneficiaryEligibility</code>.
+          </p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <div class="step-title">
+            Web Dashboard Review & Verification
+            <span class="badge badge-web">Web Admin</span>
+          </div>
+          <p class="step-desc">
+            LGU Staff and Admins review pending claims on the <code>/target-beneficiaries</code> page
+            (<code>TargetBeneficiariesPageClient.tsx</code>). Staff inspect watermarked photos and damage details,
+            submitting an <b>Approval</b> or <b>Revision Request</b>.
+          </p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">5</div>
+        <div class="step-content">
+          <div class="step-title">
+            Multichannel Notifications & Relief Claiming
+            <span class="badge badge-notify">Notification Engine</span>
+          </div>
+          <p class="step-desc">
+            The server sends instant FCM push notifications and SMS alerts via <code>beneficiaryReviewSms.ts</code>.
+            Approved residents unlock a dynamic beneficiary QR Code for instant scanning at relief distribution centers.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <h2 class="section-title">📌 System Components Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Location / File Path</th>
+          <th>Key Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Mobile Proof Screen</b></td>
+          <td><code>mobile/components/ResidentProofRequestScreen.tsx</code></td>
+          <td>Damage details entry & watermarked photo capture UI.</td>
+        </tr>
+        <tr>
+          <td><b>Offline Store</b></td>
+          <td><code>mobile/services/sync/ResidentOfflineStore.ts</code></td>
+          <td>Encrypted local storage for queued offline proof records.</td>
+        </tr>
+        <tr>
+          <td><b>Sync Coordinator</b></td>
+          <td><code>mobile/services/sync/ProofSyncCoordinator.ts</code></td>
+          <td>NetInfo network monitoring & automatic sync background worker.</td>
+        </tr>
+        <tr>
+          <td><b>Backend Routes</b></td>
+          <td><code>apps/web/apps/server/routes/beneficiaryRoutes.ts</code></td>
+          <td>Express API handlers for proof ingestion & review endpoints.</td>
+        </tr>
+        <tr>
+          <td><b>Beneficiary Service</b></td>
+          <td><code>apps/web/apps/server/services/beneficiaryService.ts</code></td>
+          <td>Core approval logic, eligibility updates & notification triggers.</td>
+        </tr>
+        <tr>
+          <td><b>Web Admin UI</b></td>
+          <td><code>apps/web/apps/src/components/beneficiaries/TargetBeneficiariesPageClient.tsx</code></td>
+          <td>LGU Staff review table, watermarked gallery viewer & approval modal.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    Kapit-Bisig System Documentation &bull; Generated automatically &bull; Confidential
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'neutral',
+      flowchart: {
+        useMaxWidth: true,
+        htmlLabels: true,
+        curve: 'basis'
+      }
+    });
+  </script>
+</body>
+
+</html>

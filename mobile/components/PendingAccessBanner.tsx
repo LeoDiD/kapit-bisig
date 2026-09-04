@@ -1,6 +1,9 @@
 import React from 'react';
 import { StyleProp, View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { residentTheme } from '../theme';
+
+const residentColors = residentTheme.colors;
 
 interface PendingAccessBannerProps {
   message?: string;
@@ -13,7 +16,7 @@ export default function PendingAccessBanner({
 }: PendingAccessBannerProps) {
   return (
     <View style={[styles.container, style]}>
-      <Ionicons name="time-outline" size={18} color="#92400E" />
+      <Ionicons name="time-outline" size={18} color={residentColors.accentInk} />
       <Text style={styles.text}>{message}</Text>
     </View>
   );
@@ -25,8 +28,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FCD34D',
-    backgroundColor: '#FEF3C7',
+    borderColor: residentColors.accent,
+    backgroundColor: residentColors.accentSoft,
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -35,7 +38,7 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
-    color: '#92400E',
+    color: residentColors.accentInk,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: '600',

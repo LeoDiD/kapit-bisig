@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -12,11 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  fetchResidentDistributions,
-  getResidentToken,
-  type ResidentDistributionItem,
-} from '../services/api/ResidentQrService';
+import { type ResidentDistributionItem } from '../services/api/ResidentQrService';
 import { residentTheme } from '../theme';
 import BottomNavigation from './ui/BottomNavigation';
 
@@ -24,6 +20,13 @@ const residentColors = residentTheme.colors;
 
 interface DistributionScreenProps {
   barangayName?: string;
+  distributionItems?: ResidentDistributionItem[];
+  isDistributionLoading?: boolean;
+  isDistributionRefreshing?: boolean;
+  distributionError?: string | null;
+  distributionWarning?: string | null;
+  distributionFetchedAt?: string | null;
+  onRefreshDistributions?: (force?: boolean) => Promise<void>;
   onNavigate?: (screen: 'home' | 'distributions' | 'profile') => void;
 }
 
@@ -72,52 +75,37 @@ function formatDistribution(item: ResidentDistributionItem, index: number): Dist
   };
 }
 
-export default function DistributionScreen({ barangayName, onNavigate }: DistributionScreenProps) {
+export default function DistributionScreen({
+  barangayName,
+  distributionItems = [],
+  isDistributionLoading = false,
+  isDistributionRefreshing = false,
+  distributionError = null,
+  distributionWarning = null,
+  distributionFetchedAt = null,
+  onRefreshDistributions,
+  onNavigate,
+}: DistributionScreenProps) {
   const insets = useSafeAreaInsets();
-  const [items, setItems] = useState<DistributionView[]>([]);
+  const items = useMemo(
+    () => distributionItems.map(formatDistribution),
+    [distributionItems],
+  );
   const [selected, setSelected] = useState<DistributionView | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const activeCount = items.filter((item) => item.lifecycleStatus === 'Active').length;
   const upcomingCount = items.length - activeCount;
 
-  const loadDistributions = useCallback(async () => {
-    const token = await getResidentToken();
-    if (!token) {
-      setItems([]);
-      setError('Please sign in again to load distributions.');
-      setIsLoading(false);
-      return;
-    }
-
-    const result = await fetchResidentDistributions(token);
-    if (!result.success || !Array.isArray(result.data)) {
-      setError(result.message || 'Unable to load distributions.');
-      setIsLoading(false);
-      return;
-    }
-
-    setItems(result.data.map(formatDistribution));
-    setError(null);
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadDistributions().catch(() => {
-      setError('Unable to load distributions.');
-      setIsLoading(false);
-    });
-  }, [loadDistributions]);
-
   const onRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      await loadDistributions();
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [loadDistributions]);
+    if (isDistributionRefreshing || !onRefreshDistributions) return;
+    await onRefreshDistributions(true);
+  }, [isDistributionRefreshing, onRefreshDistributions]);
+
+  const updatedLabel = useMemo(() => {
+    if (!distributionFetchedAt) return 'UPDATED';
+    const parsed = new Date(distributionFetchedAt);
+    if (Number.isNaN(parsed.getTime())) return 'UPDATED';
+    return `UPDATED ${parsed.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}`;
+  }, [distributionFetchedAt]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -125,7 +113,7 @@ export default function DistributionScreen({ barangayName, onNavigate }: Distrib
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 12) + 84 }]}
         refreshControl={(
           <RefreshControl
-            refreshing={isRefreshing}
+            refreshing={isDistributionRefreshing}
             onRefresh={onRefresh}
             tintColor={residentColors.icon}
             colors={[residentColors.icon]}
@@ -146,7 +134,7 @@ export default function DistributionScreen({ barangayName, onNavigate }: Distrib
           </View>
         </View>
 
-        {!isLoading && !error ? (
+        {!isDistributionLoading && !distributionError ? (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryText}>
               {activeCount > 0 ? `${activeCount} active` : `${upcomingCount} upcoming`}
@@ -154,24 +142,35 @@ export default function DistributionScreen({ barangayName, onNavigate }: Distrib
             </Text>
             <View style={styles.livePill}>
               <View style={styles.liveDot} />
-              <Text style={styles.liveText}>UPDATED</Text>
+              <Text style={styles.liveText}>{updatedLabel}</Text>
             </View>
           </View>
         ) : null}
 
-        {isLoading ? (
+        {distributionWarning ? (
+          <View style={styles.warningCard}>
+            <Ionicons name="cloud-offline-outline" size={18} color="#9A6700" />
+            <Text style={styles.warningText}>{distributionWarning}</Text>
+          </View>
+        ) : null}
+
+        {isDistributionLoading ? (
           <View style={styles.stateCard}>
             <ActivityIndicator color={residentColors.icon} />
             <Text style={styles.stateText}>Loading schedules…</Text>
           </View>
-        ) : error ? (
+        ) : distributionError ? (
           <View style={styles.stateCard}>
             <View style={styles.stateIcon}>
               <Ionicons name="cloud-offline-outline" size={24} color={residentColors.icon} />
             </View>
             <Text style={styles.stateTitle}>Schedules unavailable</Text>
-            <Text style={styles.stateText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+            <Text style={styles.stateText}>{distributionError}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={onRefresh}
+              disabled={isDistributionRefreshing || !onRefreshDistributions}
+            >
               <Ionicons name="refresh" size={16} color={residentColors.inverse} />
               <Text style={styles.retryText}>Try again</Text>
             </TouchableOpacity>
@@ -293,13 +292,15 @@ const styles = StyleSheet.create({
   headerIcon: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: residentColors.iconSurface, borderWidth: 1, borderColor: residentColors.borderAccent },
   summaryRow: { marginTop: 24, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   summaryText: { fontSize: 14, fontWeight: '700', color: residentColors.ink },
-  livePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: residentColors.surfaceMuted },
+  livePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: residentColors.accentSoft, borderWidth: 1, borderColor: residentColors.accent },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: residentColors.brand },
   liveText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.8, color: residentColors.ink },
+  warningCard: { marginBottom: 10, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, backgroundColor: '#FFF8E1', borderWidth: 1, borderColor: '#F4D58D' },
+  warningText: { flex: 1, fontSize: 11.5, lineHeight: 16, color: '#76520A' },
   list: { gap: 10 },
   distributionCard: { minHeight: 104, padding: 13, flexDirection: 'row', alignItems: 'center', borderRadius: 16, backgroundColor: residentColors.surface, borderWidth: 1, borderColor: residentColors.borderAccent, ...residentTheme.shadow },
-  dateTile: { width: 58, height: 70, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: residentColors.iconSurface, borderWidth: 1, borderColor: residentColors.borderAccent },
-  dateMonth: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8, color: residentColors.secondary },
+  dateTile: { width: 58, height: 70, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: residentColors.accentSoft, borderWidth: 1, borderColor: residentColors.accent },
+  dateMonth: { fontSize: 9, fontWeight: '900', letterSpacing: 0.8, color: residentColors.accentInk },
   dateDay: { marginTop: 2, fontSize: 24, lineHeight: 28, fontWeight: '800', color: residentColors.ink },
   cardCopy: { flex: 1, marginLeft: 13, marginRight: 8 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
   stateIcon: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: residentColors.iconSurface, borderWidth: 1, borderColor: residentColors.borderAccent },
   stateTitle: { marginTop: 14, fontSize: 17, fontWeight: '800', color: residentColors.ink },
   stateText: { marginTop: 7, fontSize: 13, lineHeight: 19, color: residentColors.secondary, textAlign: 'center' },
-  retryButton: { marginTop: 16, minHeight: 42, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, backgroundColor: residentColors.ink },
+  retryButton: { marginTop: 16, minHeight: 42, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, backgroundColor: residentColors.brand },
   retryText: { color: residentColors.inverse, fontSize: 13, fontWeight: '800' },
   modalOverlay: { flex: 1, padding: 20, justifyContent: 'flex-end', backgroundColor: residentColors.overlay },
   modalCard: { padding: 20, paddingBottom: 24, borderRadius: 24, backgroundColor: residentColors.surface, borderWidth: 1, borderColor: residentColors.borderAccent },
@@ -329,6 +330,6 @@ const styles = StyleSheet.create({
   detailValue: { marginTop: 3, fontSize: 13, lineHeight: 18, fontWeight: '600', color: residentColors.ink },
   notesBox: { marginTop: 10, padding: 13, borderRadius: 12, backgroundColor: residentColors.surfaceMuted },
   notesText: { marginTop: 5, fontSize: 12, lineHeight: 18, color: residentColors.secondary },
-  doneButton: { marginTop: 18, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: residentColors.ink },
+  doneButton: { marginTop: 18, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: residentColors.brand },
   doneText: { color: residentColors.inverse, fontSize: 14, fontWeight: '800' },
 });

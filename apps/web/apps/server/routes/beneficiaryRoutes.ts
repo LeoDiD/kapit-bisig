@@ -31,7 +31,7 @@ import {
   validateResidentQrForEvent,
 } from '../services/beneficiaryService';
 import { logAudit } from '../utils/audit';
-import { broadcastScopedNotification, createNotification } from '../utils/createNotification';
+import { broadcastScopedNotification } from '../utils/createNotification';
 import { escapeRegex } from '../validation/mongoSanitize';
 import { getTargetBarangays, requiresBeneficiaryApproval } from '../services/distributionFlowService';
 import { deriveDistributionLifecycle } from '../utils/distributionLifecycle';
@@ -163,7 +163,7 @@ router.get(
         requiresBeneficiaryApproval: true,
         status: mongoose.trusted({ $ne: 'Claimed' }),
         archivedAt: null,
-        endsAt: { $gte: new Date() },
+        endsAt: mongoose.trusted({ $gte: new Date() }),
       })
         .sort({ scheduled: 1, createdAt: -1 })
         .lean();
@@ -655,6 +655,8 @@ router.patch(
         disasterEventId: result.event?._id?.toString?.() || '',
         distributionId: result.distribution?._id?.toString?.() || '',
         scopeType: result.scope.type,
+        smsDeliveryStatus: result.notificationDelivery.sms.status,
+        pushDeliveryStatus: result.notificationDelivery.push.status,
       });
 
       await logAudit(req, 'BENEFICIARY_ELIGIBILITY_UPDATED', 'BeneficiaryEligibility', result.eligibility._id.toString(), {
@@ -664,18 +666,6 @@ router.patch(
         status: result.eligibility.status,
       });
 
-      createNotification({
-        userId: result.resident._id.toString(),
-        title: 'Proof Submission Reviewed',
-        message: req.body.decision === 'Approved' 
-          ? `Your proof submission for ${result.scope.name} has been approved.`
-          : `Your proof submission for ${result.scope.name} has been rejected.`,
-        type: 'status_update',
-        meta: {
-          submissionId: result.submission._id.toString(),
-          decision: req.body.decision
-        }
-      }).catch(err => console.error('[Notify Error]', err));
 
       return res.json({
         success: true,
@@ -684,6 +674,7 @@ router.patch(
           : 'Proof submission rejected and eligibility updated.',
         data: {
           proofSubmission: result.submission,
+          notificationDelivery: result.notificationDelivery,
           eligibility: result.eligibility,
         },
       });

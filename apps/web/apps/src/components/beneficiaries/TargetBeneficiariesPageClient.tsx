@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import {
   api,
   BeneficiaryProofQueueSummary,
+  BeneficiaryReviewNotificationDelivery,
   BeneficiaryProofSubmissionRecord,
   getScopedBarangays,
 } from '@/lib/api'
@@ -68,6 +69,32 @@ function statusBadgeClass(status: string): string {
 
 function getProofStatusLabel(status: BeneficiaryProofSubmissionRecord['status']): string {
   return status === 'Rejected' ? 'Needs Revision' : status
+}
+
+function getReviewDeliveryMessage(delivery?: BeneficiaryReviewNotificationDelivery): string {
+  const pushDelivered = delivery?.push.status === 'sent_successfully'
+    || delivery?.push.status === 'partially_delivered'
+  const smsDelivered = delivery?.sms.status === 'sent_successfully'
+
+  if (pushDelivered && smsDelivered) {
+    return ' The resident was notified by Firebase push, in the app, and by SMS.'
+  }
+  if (pushDelivered) {
+    return ' The resident was notified by Firebase push and in the app.'
+  }
+  if (smsDelivered) {
+    return ' The resident was notified in the app and by SMS; no Firebase push was delivered.'
+  }
+  if (delivery?.push.status === 'no_eligible_recipients') {
+    return ' The in-app notification was saved, but this resident has no active push device.'
+  }
+  if (delivery?.push.status === 'provider_not_configured') {
+    return ' The in-app notification was saved. Firebase push delivery is not enabled.'
+  }
+  if (delivery?.push.status === 'provider_request_failed') {
+    return ' The in-app notification was saved, but Firebase push delivery failed.'
+  }
+  return ' The resident was notified in the app.'
 }
 
 function resolveProofAssetUrl(value: string): string {
@@ -277,8 +304,10 @@ export default function TargetBeneficiariesPageClient() {
         decision: reviewDecision,
         rejectionReason: reviewDecision === 'Rejected' ? reviewReason.trim() : undefined,
       })
+      const baseMessage = response.message
+        || `Submission ${reviewDecision === 'Approved' ? 'approved' : 'returned for revision'}.`
       showToast.success(
-        response.message || `Submission ${reviewDecision === 'Approved' ? 'approved' : 'returned for revision'}.`,
+        `${baseMessage}${getReviewDeliveryMessage(response.data?.notificationDelivery)}`,
       )
       closeReviewModals()
 
@@ -303,7 +332,10 @@ export default function TargetBeneficiariesPageClient() {
       }
     } catch (err) {
       console.error('Failed to update proof submission:', err)
-      showToast.error('Failed to update proof submission. Please try again.')
+      const message = err instanceof Error && err.message
+        ? err.message
+        : 'Failed to update proof submission. Please try again.'
+      showToast.error(message)
       setReviewLoading(false)
     }
   }, [closeReviewModals, page, proofRows.length, reviewDecision, reviewReason, reviewTarget, selectedStatus])

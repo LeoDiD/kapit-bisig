@@ -920,4 +920,17 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
   });
 });
 
+/* ------------------------------------------------------------------ */
+/*  GET /api/auth/csrf                                                */
+/* ------------------------------------------------------------------ */
+router.get('/csrf', requireAuth, (_req: AuthRequest, res: Response) => {
+  const csrfToken = generateCsrfToken();
+  setCsrfCookie(res, csrfToken);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    success: true,
+    data: { csrfToken },
+  });
+});
+
 export default router;

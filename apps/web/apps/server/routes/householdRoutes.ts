@@ -38,9 +38,11 @@ import HouseholdToken from '../models/HouseholdToken';
 import Resident from '../models/Resident';
 import ResidentPasswordResetOtp from '../models/ResidentPasswordResetOtp';
 import Distribution from '../models/Distribution';
+import StaffUser from '../models/StaffUser';
 import Claim from '../models/Claim';
 import Notification from '../models/Notification';
 import ResidentQrScanLog from '../models/ResidentQrScanLog';
+import ResidentPushDevice from '../models/ResidentPushDevice';
 import { computeEventHash, computeHouseholdHash } from '../utils/hashHelpers';
 import {
   upsertDistributionClaimFromClaim,
@@ -48,13 +50,18 @@ import {
   isResidentApprovedBeneficiaryForDistribution,
 } from '../services/distributionFlowService';
 import { buildResidentQrToken, parseResidentQrToken } from '../services/residentQrService';
+import { isDistributionClaimable } from '../utils/distributionLifecycle';
 import bcrypt from 'bcrypt';
 import {
   loginRateLimiter,
-  passwordResetRateLimiter,
+  passwordResetFinalizeRateLimiter,
+  passwordResetSendRateLimiter,
+  passwordResetVerifyRateLimiter,
   tokenValidationRateLimiter,
   householdRegistrationRateLimiter,
   mobileLookupRateLimiter,
+  authenticatedResidentReadRateLimiter,
+  scannerOperationRateLimiter,
   registrationOtpRateLimiter,
 } from '../middleware/rateLimiter';
 import { validateRequest } from '../validation/validateRequest';
@@ -82,7 +89,7 @@ import {
   householdLoginSchema,
 } from '../schemas/authSchemas';
 import { revokeJWTByValue } from '../services/tokenRevocationService';
-import { sendResetOtpEmail } from '../utils/mailer';
+import { isMailerConfigured, sendResetOtpEmail } from '../utils/mailer';
 import { validatePasswordStrength } from '../utils/passwordValidator';
 import { buildScreeningValidationIssues, buildVerificationPayload } from '../services/householdRegistrationService';
 import { screenSubmittedId } from '../services/idScreeningService';
@@ -90,6 +97,7 @@ import { persistVerificationImage } from '../utils/imageStorage';
 import { broadcastScopedNotification } from '../utils/createNotification';
 import RegistrationOtp from '../models/RegistrationOtp';
 import { sendRegistrationOtpSms, isSmsConfigured } from '../utils/smsService';
+import { deriveDistributionLifecycle } from '../utils/distributionLifecycle';
 
 const router = Router();
 const CLAIMED_STATUSES = ['PENDING_CHAIN', 'CHAIN_SUBMITTED', 'CONFIRMED', 'CHAIN_FAILED'] as const;
@@ -668,7 +676,7 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
  *
  * Returns distributions that cover the authenticated resident's barangay.
  */
-router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/distributions', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -704,34 +712,39 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
       });
     }
 
+    const now = new Date();
     const residentBarangay = resident.barangay;
-    const allDistributions = await Distribution.find({})
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .lean();
-
-    const coveredDistributions = allDistributions
-      .filter((d) => d.barangay === residentBarangay || (d.assignedBarangays ?? []).some((b) => b === residentBarangay))
-      .map((d) => ({
-        id: d._id.toString(),
-        barangay: d.barangay,
-        assignedBarangays: d.assignedBarangays ?? [],
-        scheduled: d.scheduled,
-        notes: d.notes || '',
-        status: d.status,
-        createdAt: d.createdAt,
-      }));
-
-    const residentClaims = await Claim.find({
-      claimCategory: 'DISTRIBUTION',
-      residentId: userId,
-      status: mongoose.trusted({ $in: [...CLAIMED_STATUSES] }),
+    const coveredDistributions = await Distribution.find({
+      archivedAt: null,
+      // Query operators are sanitized globally. Mark this server-built range
+      // as trusted so Mongoose does not wrap `$gte` in `$eq` and attempt to
+      // cast the whole operator object as a Date.
+      endsAt: mongoose.trusted({ $gte: now }),
+      $or: [
+        { barangay: residentBarangay },
+        { assignedBarangays: residentBarangay },
+      ],
     })
       .setOptions({ sanitizeFilter: false })
-      .select('distributionId status createdAt')
-      .sort({ createdAt: -1 })
+      .select('barangay assignedBarangays scheduled endsAt notes status archivedAt createdAt')
+      .sort({ scheduled: 1, createdAt: -1 })
       .limit(50)
       .lean();
+
+    const visibleDistributionIds = coveredDistributions.map((distribution) => distribution._id);
+    const residentClaims = visibleDistributionIds.length > 0
+      ? await Claim.find({
+          claimCategory: 'DISTRIBUTION',
+          residentId: userId,
+          distributionId: mongoose.trusted({ $in: visibleDistributionIds }),
+          status: mongoose.trusted({ $in: [...CLAIMED_STATUSES] }),
+        })
+          .setOptions({ sanitizeFilter: false })
+          .select('distributionId status createdAt')
+          .sort({ createdAt: -1 })
+          .limit(50)
+          .lean()
+      : [];
 
     const claimByDistribution = new Map<string, string>();
     for (const claim of residentClaims) {
@@ -740,53 +753,31 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
       }
     }
 
-    const data = coveredDistributions.map((d) => {
-      const claimStatus = claimByDistribution.get(d.id) || null;
+    const data = coveredDistributions.map((distribution) => {
+      const id = distribution._id.toString();
+      const claimStatus = claimByDistribution.get(id) || null;
       return {
-        ...d,
+        id,
+        barangay: distribution.barangay,
+        assignedBarangays: distribution.assignedBarangays ?? [],
+        scheduled: distribution.scheduled,
+        endsAt: distribution.endsAt,
+        notes: distribution.notes || '',
+        status: distribution.status,
+        createdAt: distribution.createdAt,
+        lifecycleStatus: deriveDistributionLifecycle(distribution, now),
         residentClaimed: Boolean(claimStatus),
         residentClaimStatus: claimStatus,
       };
     });
 
-    // Fallback: if no covered distributions are currently visible but resident already has
-    // claim records, return claimed cards so home screen doesn't appear empty.
-    if (data.length === 0 && residentClaims.length > 0) {
-      const claimedDistributionIds = Array.from(
-        new Set(residentClaims.map((c) => String(c.distributionId)).filter(Boolean)),
-      );
-
-      const claimedDistributions = claimedDistributionIds.length
-        ? await Distribution.find({
-            _id: mongoose.trusted({
-              $in: claimedDistributionIds.map((id) => new mongoose.Types.ObjectId(id)),
-            }),
-          })
-            .sort({ createdAt: -1 })
-            .lean()
-        : [];
-
-      const fallbackData = claimedDistributions.map((d) => ({
-        id: d._id.toString(),
-        barangay: d.barangay,
-        assignedBarangays: d.assignedBarangays ?? [],
-        scheduled: d.scheduled,
-        notes: d.notes || '',
-        status: d.status,
-        createdAt: d.createdAt,
-        residentClaimed: true,
-        residentClaimStatus: claimByDistribution.get(d._id.toString()) || 'CONFIRMED',
-      }));
-
-      return res.json({
-        success: true,
-        data: fallbackData,
-      });
-    }
-
     return res.json({
       success: true,
       data,
+      meta: {
+        generatedAt: now.toISOString(),
+        cacheTtlSeconds: 60,
+      },
     });
   } catch (error) {
     console.error('[HouseholdRoutes] Resident /distributions error:', error);
@@ -804,7 +795,7 @@ router.get('/distributions', mobileLookupRateLimiter, authMiddleware, async (req
  *
  * Returns notifications addressed to the authenticated resident.
  */
-router.get('/notifications', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/notifications', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -843,12 +834,57 @@ router.get('/notifications', mobileLookupRateLimiter, authMiddleware, async (req
   }
 });
 
+/** Register or reactivate this resident device for remote push notifications. */
+router.post('/notifications/devices', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'Resident' || !req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Only resident accounts can register notification devices.' });
+    }
+    const expoPushToken = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    const platform = req.body?.platform === 'ios' ? 'ios' : req.body?.platform === 'android' ? 'android' : null;
+    if (!/^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/.test(expoPushToken) || !platform) {
+      return res.status(400).json({ success: false, code: 'INVALID_PUSH_DEVICE', message: 'A valid Expo push token and platform are required.' });
+    }
+
+    await ResidentPushDevice.findOneAndUpdate(
+      { expoPushToken },
+      { residentId: req.user.userId, expoPushToken, platform, active: true, lastSeenAt: new Date(), disabledReason: null },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    return res.json({ success: true, message: 'Notification device registered.' });
+  } catch (error) {
+    console.error('[RESIDENT_PUSH_REGISTER]', error);
+    return res.status(500).json({ success: false, message: 'Unable to register notification device.' });
+  }
+});
+
+/** Deactivate a resident device token on logout. */
+router.delete('/notifications/devices', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (req.user?.role !== 'Resident' || !req.user.userId) {
+      return res.status(403).json({ success: false, message: 'Only resident accounts can unregister notification devices.' });
+    }
+    const expoPushToken = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    if (!expoPushToken) {
+      return res.status(400).json({ success: false, message: 'Push token is required.' });
+    }
+    await ResidentPushDevice.updateOne(
+      { residentId: req.user.userId, expoPushToken },
+      { $set: { active: false, disabledReason: 'LOGOUT' } },
+    );
+    return res.json({ success: true, message: 'Notification device unregistered.' });
+  } catch (error) {
+    console.error('[RESIDENT_PUSH_UNREGISTER]', error);
+    return res.status(500).json({ success: false, message: 'Unable to unregister notification device.' });
+  }
+});
+
 /**
  * Resident Notification Read Endpoint
  *
  * PATCH /api/household/notifications/:id/read
  */
-router.patch('/notifications/:id/read', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.patch('/notifications/:id/read', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -896,9 +932,19 @@ router.patch('/notifications/:id/read', mobileLookupRateLimiter, authMiddleware,
  * POST /api/household/auth/forgot-password/verify-otp
  * POST /api/household/auth/forgot-password/reset
  */
-router.post('/auth/forgot-password/send-otp', passwordResetRateLimiter, validateRequest({ body: householdForgotSendOtpSchema }), async (req: Request, res: Response) => {
+router.post('/auth/forgot-password/send-otp', passwordResetSendRateLimiter, validateRequest({ body: householdForgotSendOtpSchema }), async (req: Request, res: Response) => {
   try {
     const emailLower = String(req.body.email || '').trim().toLowerCase();
+
+    // Return the same service-level response for every address when email is unavailable.
+    // This is actionable without revealing whether an account exists.
+    if (!isMailerConfigured()) {
+      return res.status(503).json({
+        success: false,
+        code: 'RESET_EMAIL_UNAVAILABLE',
+        message: 'Password-reset email is temporarily unavailable. Please contact support or try again later.',
+      });
+    }
 
     const resident = await Resident.findOne({
       emailLower,
@@ -909,25 +955,29 @@ router.post('/auth/forgot-password/send-otp', passwordResetRateLimiter, validate
       const otp = generateOtp();
       const otpHash = await bcrypt.hash(otp, 12);
 
-      await ResidentPasswordResetOtp.findOneAndUpdate(
-        { emailLower },
-        {
-          residentId: resident._id,
-          emailLower,
-          otpHash,
-          expiresAt: new Date(Date.now() + PASSWORD_RESET_OTP_EXPIRY_MINUTES * 60 * 1000),
-          attemptsLeft: PASSWORD_RESET_OTP_MAX_ATTEMPTS,
-          lastSentAt: new Date(),
-          createdAt: new Date(),
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
-      );
-
+      // A resend invalidates the previous OTP before attempting delivery.
+      await ResidentPasswordResetOtp.deleteMany({ emailLower });
       try {
         await sendResetOtpEmail(resident.email || emailLower, otp);
       } catch (mailErr) {
         console.error('[MAILER] Failed to send resident reset OTP:', (mailErr as Error).message);
+        return res.status(503).json({
+          success: false,
+          code: 'RESET_EMAIL_UNAVAILABLE',
+          message: 'Password-reset email could not be sent. Please try again later.',
+        });
       }
+
+      // Store the OTP only after the mail provider accepts the message.
+      await ResidentPasswordResetOtp.create({
+        residentId: resident._id,
+        emailLower,
+        otpHash,
+        expiresAt: new Date(Date.now() + PASSWORD_RESET_OTP_EXPIRY_MINUTES * 60 * 1000),
+        attemptsLeft: PASSWORD_RESET_OTP_MAX_ATTEMPTS,
+        lastSentAt: new Date(),
+        createdAt: new Date(),
+      });
     }
 
     return res.json({
@@ -943,7 +993,7 @@ router.post('/auth/forgot-password/send-otp', passwordResetRateLimiter, validate
   }
 });
 
-router.post('/auth/forgot-password/verify-otp', passwordResetRateLimiter, validateRequest({ body: householdForgotVerifyOtpSchema }), async (req: Request, res: Response) => {
+router.post('/auth/forgot-password/verify-otp', passwordResetVerifyRateLimiter, validateRequest({ body: householdForgotVerifyOtpSchema }), async (req: Request, res: Response) => {
   try {
     const emailLower = String(req.body.email || '').trim().toLowerCase();
     const otp = String(req.body.otp || '');
@@ -997,7 +1047,7 @@ router.post('/auth/forgot-password/verify-otp', passwordResetRateLimiter, valida
   }
 });
 
-router.post('/auth/forgot-password/reset', passwordResetRateLimiter, validateRequest({ body: householdForgotResetSchema }), async (req: Request, res: Response) => {
+router.post('/auth/forgot-password/reset', passwordResetFinalizeRateLimiter, validateRequest({ body: householdForgotResetSchema }), async (req: Request, res: Response) => {
   try {
     const { resetToken, newPassword } = req.body as { resetToken: string; newPassword: string };
 
@@ -1139,7 +1189,7 @@ router.post(
  * Reserved endpoint for resident-facing announcements.
  * Pending residents are explicitly blocked until admin approval.
  */
-router.get('/announcements', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/announcements', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -1195,7 +1245,7 @@ router.get('/announcements', mobileLookupRateLimiter, authMiddleware, async (req
  *
  * Returns compact QR payload and resident metadata for display.
  */
-router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/qr/me', authMiddleware, authenticatedResidentReadRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'Resident') {
       return res.status(403).json({
@@ -1324,7 +1374,7 @@ router.get('/qr/me', mobileLookupRateLimiter, authMiddleware, async (req: Authen
  *
  * Resolves scanned resident QR data to resident profile fields used on-site.
  */
-router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/qr/resolve', authMiddleware, scannerOperationRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   const ipAddress = getClientIP(req);
   const userAgent = getUserAgent(req);
 
@@ -1564,7 +1614,7 @@ router.post('/qr/resolve', mobileLookupRateLimiter, authMiddleware, async (req: 
  *
  * Finalizes a claim after a valid resident QR scan.
  */
-router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/qr/claim', authMiddleware, scannerOperationRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!isAllowedScannerRole(req.user?.role) || req.user?.role === 'Resident') {
       return res.status(403).json({
@@ -1595,12 +1645,31 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
     }
 
     const distribution = await Distribution.findById(distributionId)
-      .select('_id barangay assignedBarangays requiresBeneficiaryApproval')
+      .select('_id barangay assignedBarangays assignedStaffIds requiresBeneficiaryApproval scheduled endsAt archivedAt status')
       .lean();
     if (!distribution) {
       return res.status(404).json({
         success: false,
         message: 'Distribution not found',
+      });
+    }
+
+    if (distribution.status === 'Claimed' || !isDistributionClaimable(distribution)) {
+      return res.status(409).json({
+        success: false,
+        code: 'DISTRIBUTION_NOT_ACTIVE',
+        message: 'This distribution is no longer inside its active claim window.',
+      });
+    }
+
+    const scannerId = req.user?.userId || req.user?.id || '';
+    const explicitlyAssigned = (distribution.assignedStaffIds ?? [])
+      .some((id) => id.toString() === scannerId);
+    if (req.user?.role !== 'SUPERADMIN' && !explicitlyAssigned) {
+      return res.status(403).json({
+        success: false,
+        code: 'SCANNER_NOT_ASSIGNED',
+        message: 'Your staff account is not assigned to this distribution.',
       });
     }
 
@@ -1628,16 +1697,19 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
       }
     }
 
-    // Optional scanner scope check for Volunteer/LGU_STAFF accounts.
-    const scannerScope = Array.isArray(req.user?.assignedBarangays) ? req.user!.assignedBarangays : [];
+    // Re-read staff scope so assignment changes take effect without requiring re-login.
+    const currentStaff = scannerId && mongoose.Types.ObjectId.isValid(scannerId)
+      ? await StaffUser.findById(scannerId).select('assignedBarangays isActive').lean()
+      : null;
+    const scannerScope = currentStaff?.assignedBarangays ?? [];
     if (
       req.user?.role !== 'SUPERADMIN' &&
-      scannerScope.length > 0 &&
-      !scannerScope.some((b) => coverage.has(b))
+      (!currentStaff?.isActive || !scannerScope.some((b) => coverage.has(b)))
     ) {
       return res.status(403).json({
         success: false,
-        message: 'Scanner account is out of scope for this distribution',
+        code: 'SCANNER_OUT_OF_SCOPE',
+        message: 'Scanner account is inactive or out of scope for this distribution.',
       });
     }
 
@@ -1667,7 +1739,7 @@ router.post('/qr/claim', mobileLookupRateLimiter, authMiddleware, async (req: Au
       `HH-${resident.barangay.slice(0, 2).toUpperCase()}-${residentId.slice(-4).toUpperCase()}`;
 
     const claimId = `CLM-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
-    const staffUserId = req.user?.userId || req.user?.id || 'unknown';
+    const staffUserId = scannerId || 'unknown';
     const staffName = req.user?.email || req.user?.userId || 'Mobile Scanner';
     const distributionSite = `${distribution.barangay} Barangay Hall`;
 

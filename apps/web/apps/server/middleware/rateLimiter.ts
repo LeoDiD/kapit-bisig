@@ -24,7 +24,6 @@
 import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 import { Request, Response } from 'express';
 
-const isProduction = process.env.NODE_ENV === 'production';
 const isTest = process.env.NODE_ENV === 'test';
 
 /**
@@ -44,19 +43,49 @@ const getClientIP = (req: Request): string => {
   return req.ip || req.socket.remoteAddress || 'unknown';
 };
 
+type AuthenticatedRateLimitRequest = Request & {
+  user?: {
+    userId?: string;
+    id?: string;
+    role?: string;
+  };
+  rateLimit?: {
+    resetTime?: Date;
+  };
+};
+
+const getAuthenticatedAccountKey = (req: Request): string => {
+  const authenticatedRequest = req as AuthenticatedRateLimitRequest;
+  const userId = authenticatedRequest.user?.userId || authenticatedRequest.user?.id;
+  const role = authenticatedRequest.user?.role || 'authenticated';
+  return userId ? `${role}:${userId}` : `ip:${getClientIP(req)}`;
+};
+
+const getRetryAfterSeconds = (req: Request, res: Response, fallbackSeconds: number): number => {
+  const resetTime = (req as AuthenticatedRateLimitRequest).rateLimit?.resetTime;
+  if (resetTime) {
+    return Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000));
+  }
+
+  const retryAfterHeader = Number(res.getHeader('Retry-After'));
+  return Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+    ? Math.ceil(retryAfterHeader)
+    : fallbackSeconds;
+};
+
 /**
  * General Rate Limiter
- * [SECURITY CHECKLIST §1.4] Global rate limiting — 500 req / 15 min per IP
+ * [SECURITY CHECKLIST §1.4] Global rate limiting — 5,000 req / 15 min per IP
  * 
  * Applied to all API routes to prevent abuse.
- * Allows 100 requests per 15 minutes per IP.
+ * The broad IP safety net is deliberately high because barangay deployments
+ * commonly place many authenticated residents behind one shared connection.
  * 
  * This is a baseline protection; specific endpoints have stricter limits.
  */
 export const generalRateLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15-minute window
-  // Keep strict defaults in production; allow higher local traffic during dev/HMR.
-  max: isTest ? 10000 : isProduction ? 100 : 1000,
+  max: isTest ? 10000 : 5000,
   message: {
     success: false,
     message: 'Too many requests. Please try again later.',
@@ -66,10 +95,59 @@ export const generalRateLimiter: RateLimitRequestHandler = rateLimit({
   legacyHeaders: false, // Disable X-RateLimit-* headers (deprecated)
   keyGenerator: getClientIP,
   handler: (req: Request, res: Response) => {
+    const retryAfterSeconds = getRetryAfterSeconds(req, res, 15 * 60);
     res.status(429).json({
       success: false,
+      code: 'RATE_LIMITED',
       message: 'Too many requests from this IP. Please try again later.',
-      retryAfter: res.getHeader('Retry-After'),
+      retryAfterSeconds,
+      retryAfter: retryAfterSeconds,
+    });
+  },
+});
+
+/**
+ * Authenticated resident API reads.
+ *
+ * This limiter must be mounted after authMiddleware so the key is the resident
+ * account rather than the shared public IP address.
+ */
+export const authenticatedResidentReadRateLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isTest ? 10000 : 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getAuthenticatedAccountKey,
+  handler: (req: Request, res: Response) => {
+    const retryAfterSeconds = getRetryAfterSeconds(req, res, 15 * 60);
+    res.status(429).json({
+      success: false,
+      code: 'RATE_LIMITED',
+      message: 'Too many resident requests. Please wait before trying again.',
+      retryAfterSeconds,
+      retryAfter: retryAfterSeconds,
+    });
+  },
+});
+
+/**
+ * Authenticated QR resolve/claim throughput limiter.
+ * Mounted after authMiddleware and keyed per scanner account.
+ */
+export const scannerOperationRateLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isTest ? 10000 : 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getAuthenticatedAccountKey,
+  handler: (req: Request, res: Response) => {
+    const retryAfterSeconds = getRetryAfterSeconds(req, res, 15 * 60);
+    res.status(429).json({
+      success: false,
+      code: 'RATE_LIMITED',
+      message: 'Too many scanner requests. Please wait before trying again.',
+      retryAfterSeconds,
+      retryAfter: retryAfterSeconds,
     });
   },
 });
@@ -157,25 +235,55 @@ export const registrationRateLimiter: RateLimitRequestHandler = rateLimit({
  * Policy:
  * - 3 reset requests per hour per IP
  */
-export const passwordResetRateLimiter: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1-hour window
-  max: isTest ? 10000 : 3, // 3 reset requests per hour
-  message: {
-    success: false,
-    message: 'Too many password reset requests. Please try again later.',
-    retryAfter: '1 hour',
-  },
+const createPasswordResetRateLimiter = (options: {
+  windowMs: number;
+  max: number;
+  message: string;
+}): RateLimitRequestHandler => rateLimit({
+  windowMs: options.windowMs,
+  max: isTest ? 10000 : options.max,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getClientIP,
   handler: (req: Request, res: Response) => {
+    const retryAfterSeconds = getRetryAfterSeconds(
+      req,
+      res,
+      Math.ceil(options.windowMs / 1000),
+    );
+
     res.status(429).json({
       success: false,
-      message: 'Password reset limit reached. Please try again in 1 hour.',
-      retryAfter: '1 hour',
+      code: 'RATE_LIMITED',
+      message: options.message,
+      retryAfterSeconds,
+      retryAfter: retryAfterSeconds,
     });
   },
 });
+
+// Keep each recovery phase independent. A normal send/verify/reset sequence
+// must not exhaust one shared three-request quota.
+export const passwordResetSendRateLimiter = createPasswordResetRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: 'Too many reset-code requests. Please try again later.',
+});
+
+export const passwordResetVerifyRateLimiter = createPasswordResetRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many verification attempts. Please try again later.',
+});
+
+export const passwordResetFinalizeRateLimiter = createPasswordResetRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many password-reset attempts. Please try again later.',
+});
+
+/** @deprecated Use a phase-specific password reset limiter. */
+export const passwordResetRateLimiter = passwordResetSendRateLimiter;
 
 /**
  * Login OTP Rate Limiter

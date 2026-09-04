@@ -15,7 +15,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   fetchActiveBeneficiaryEvent,
-  fetchResidentDistributions,
   fetchResidentNotifications,
   fetchResidentProofSubmissionStatus,
   getResidentSession,
@@ -49,6 +48,10 @@ interface ResidentHomeDashboardScreenProps {
   virtualIdError?: string | null;
   virtualIdWarning?: string | null;
   onRefreshVirtualId?: (force?: boolean) => Promise<void>;
+  distributionItems?: ResidentDistributionItem[];
+  isDistributionLoading?: boolean;
+  distributionWarning?: string | null;
+  onRefreshDistributions?: (force?: boolean) => Promise<void>;
   onNavigate?: (
     screen: 'home' | 'distributions' | 'qr' | 'profile' | 'proof-request' | 'registration-revision'
   ) => void;
@@ -91,40 +94,23 @@ export default function ResidentHomeDashboardScreen({
   virtualIdError = null,
   virtualIdWarning = null,
   onRefreshVirtualId,
+  distributionItems = [],
+  isDistributionLoading = false,
+  distributionWarning = null,
+  onRefreshDistributions,
   onNavigate,
 }: ResidentHomeDashboardScreenProps) {
   const insets = useSafeAreaInsets();
-  const [nextDistribution, setNextDistribution] = useState<ResidentDistributionItem | null>(null);
-  const [distributionCount, setDistributionCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationView[]>([]);
   const [activeEvent, setActiveEvent] = useState<ResidentDisasterEvent | null>(null);
   const [proofStatus, setProofStatus] = useState<ResidentProofSubmissionStatus | null>(null);
-  const [isLoadingDistribution, setIsLoadingDistribution] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
   const needsRevision = residentStatus === 'Needs Revision';
   const isPending = residentStatus === 'Pending' || needsRevision;
-
-  const loadDistributions = useCallback(async () => {
-    if (isPending) {
-      setNextDistribution(null);
-      setDistributionCount(0);
-      setIsLoadingDistribution(false);
-      return;
-    }
-    const token = await getResidentToken();
-    if (!token) {
-      setIsLoadingDistribution(false);
-      return;
-    }
-    const result = await fetchResidentDistributions(token);
-    if (result.success && Array.isArray(result.data)) {
-      setNextDistribution(result.data[0] || null);
-      setDistributionCount(result.data.length);
-    }
-    setIsLoadingDistribution(false);
-  }, [isPending]);
+  const nextDistribution = distributionItems[0] || null;
+  const distributionCount = distributionItems.length;
 
   const loadNotifications = useCallback(async () => {
     if (isPending) {
@@ -184,16 +170,15 @@ export default function ResidentHomeDashboardScreen({
   }, [isPending]);
 
   useEffect(() => {
-    loadDistributions().catch(() => setIsLoadingDistribution(false));
     loadNotifications().catch(() => undefined);
     loadAssistanceStatus().catch(() => undefined);
-  }, [loadAssistanceStatus, loadDistributions, loadNotifications]);
+  }, [loadAssistanceStatus, loadNotifications]);
 
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
       await Promise.all([
-        loadDistributions(),
+        onRefreshDistributions?.(true),
         loadNotifications(),
         loadAssistanceStatus(),
         onRefreshVirtualId?.(true),
@@ -201,7 +186,7 @@ export default function ResidentHomeDashboardScreen({
     } finally {
       setIsRefreshing(false);
     }
-  }, [loadAssistanceStatus, loadDistributions, loadNotifications, onRefreshVirtualId]);
+  }, [loadAssistanceStatus, loadNotifications, onRefreshDistributions, onRefreshVirtualId]);
 
   const openNotification = useCallback(async (item: NotificationView) => {
     if (!item.isRead) {
@@ -235,19 +220,19 @@ export default function ResidentHomeDashboardScreen({
         ? 'Open your request to review the admin note.'
         : 'Submit photos once to request support.';
   const proofPresentation = proofStatus?.status === 'Approved'
-    ? { icon: 'shield-checkmark-outline' as const, label: 'APPROVED', color: '#BFE3C8' }
+    ? { icon: 'shield-checkmark-outline' as const, label: 'APPROVED', color: '#DCFCE7' }
     : proofStatus?.status === 'Pending Verification'
-      ? { icon: 'time-outline' as const, label: 'IN REVIEW', color: '#F0D59A' }
+      ? { icon: 'time-outline' as const, label: 'IN REVIEW', color: '#FDE68A' }
       : proofStatus?.status === 'Rejected'
-        ? { icon: 'alert-circle-outline' as const, label: 'ACTION NEEDED', color: '#F5C2A9' }
-        : { icon: 'camera-outline' as const, label: 'OPEN REQUEST', color: '#D7C08C' };
+        ? { icon: 'alert-circle-outline' as const, label: 'ACTION NEEDED', color: '#FDBA74' }
+        : { icon: 'camera-outline' as const, label: 'OPEN REQUEST', color: residentColors.accent };
 
   const requiresAccountAttention = needsRevision || residentStatus === 'Rejected';
   const bannerStatus = requiresAccountAttention
     ? { label: 'ACTION NEEDED', icon: 'alert-circle' as const, color: '#F6C56E' }
     : residentStatus === 'Pending'
       ? { label: 'UNDER REVIEW', icon: 'time' as const, color: '#F6C56E' }
-      : { label: 'VERIFIED', icon: 'checkmark-circle' as const, color: '#D9BE84' };
+      : { label: 'VERIFIED', icon: 'checkmark-circle' as const, color: residentColors.accent };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -281,7 +266,7 @@ export default function ResidentHomeDashboardScreen({
         </View>
 
         <LinearGradient
-          colors={['#0F2E22', '#173F2C']}
+          colors={[residentColors.brandDark, residentColors.brand]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.premiumBanner}
@@ -304,7 +289,7 @@ export default function ResidentHomeDashboardScreen({
           </Text>
           {barangayName ? (
             <View style={styles.bannerLocationPill}>
-              <Ionicons name="location-outline" size={14} color="#E8D6AE" />
+              <Ionicons name="location-outline" size={14} color={residentColors.accent} />
               <Text style={styles.bannerLocationText} numberOfLines={1}>{barangayName}</Text>
             </View>
           ) : null}
@@ -351,7 +336,7 @@ export default function ResidentHomeDashboardScreen({
               </View>
               <TouchableOpacity style={styles.premiumCardShadow} activeOpacity={0.86} onPress={() => onNavigate?.('proof-request')}>
                 <LinearGradient
-                  colors={['#123526', '#1B4932']}
+                  colors={[residentColors.brandDark, residentColors.brand]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.statusCard}
@@ -375,7 +360,7 @@ export default function ResidentHomeDashboardScreen({
                     <Text style={styles.darkCardDescription} numberOfLines={2}>{proofDescription}</Text>
                   </View>
                   <View style={styles.darkArrowButton}>
-                    <Ionicons name="arrow-forward" size={18} color="#F2DFB5" />
+                    <Ionicons name="arrow-forward" size={18} color={residentColors.accent} />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -394,11 +379,18 @@ export default function ResidentHomeDashboardScreen({
                 </TouchableOpacity>
               </View>
 
-              {isLoadingDistribution ? (
-                <LinearGradient colors={['#FCFAF5', '#F4EFE3']} style={styles.distributionCard}>
+              {distributionWarning ? (
+                <View style={styles.distributionWarning}>
+                  <Ionicons name="cloud-offline-outline" size={16} color="#9A6700" />
+                  <Text style={styles.distributionWarningText}>{distributionWarning}</Text>
+                </View>
+              ) : null}
+
+              {isDistributionLoading ? (
+                <LinearGradient colors={[residentColors.surface, residentColors.surfaceMuted]} style={styles.distributionCard}>
                   <View style={styles.cardGoldAccent} />
                   <View style={styles.calendarIcon}>
-                    <ActivityIndicator color="#D9BE84" />
+                    <ActivityIndicator color={residentColors.accentDark} />
                   </View>
                   <View style={styles.premiumCardCopy}>
                     <Text style={styles.lightCardEyebrow}>SCHEDULE</Text>
@@ -408,13 +400,13 @@ export default function ResidentHomeDashboardScreen({
                 </LinearGradient>
               ) : nextDistribution ? (
                 <TouchableOpacity style={styles.premiumCardShadow} activeOpacity={0.86} onPress={() => onNavigate?.('distributions')}>
-                  <LinearGradient colors={['#FCFAF5', '#F4EFE3']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.distributionCard}>
+                  <LinearGradient colors={[residentColors.surface, residentColors.surfaceMuted]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.distributionCard}>
                     <View style={styles.cardGoldAccent} />
                     <View style={styles.distributionWatermark} pointerEvents="none">
                       <Ionicons name="calendar-outline" size={90} color="rgba(15, 46, 34, 0.035)" />
                     </View>
                     <View style={styles.calendarIcon}>
-                      <Ionicons name="calendar-outline" size={23} color="#E7D09D" />
+                      <Ionicons name="calendar-outline" size={23} color={residentColors.accent} />
                     </View>
                     <View style={styles.premiumCardCopy}>
                       <View style={styles.statusMetaRow}>
@@ -434,24 +426,24 @@ export default function ResidentHomeDashboardScreen({
                       </Text>
                       <Text style={styles.lightCardDescription} numberOfLines={1}>{scheduleText(nextDistribution.scheduled)}</Text>
                       <View style={styles.metaRow}>
-                        <Ionicons name="location-outline" size={14} color="#2F664D" />
+                        <Ionicons name="location-outline" size={14} color={residentColors.brandDark} />
                         <Text style={styles.metaText} numberOfLines={1}>{nextDistribution.barangay} Covered Court</Text>
                       </View>
                     </View>
                     <View style={styles.lightArrowButton}>
-                      <Ionicons name="arrow-forward" size={18} color="#F2DFB5" />
+                      <Ionicons name="arrow-forward" size={18} color={residentColors.accent} />
                     </View>
                   </LinearGradient>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity style={styles.premiumCardShadow} activeOpacity={0.86} onPress={() => onNavigate?.('distributions')}>
-                  <LinearGradient colors={['#FCFAF5', '#F4EFE3']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.distributionCard}>
+                  <LinearGradient colors={[residentColors.surface, residentColors.surfaceMuted]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.distributionCard}>
                     <View style={styles.cardGoldAccent} />
                     <View style={styles.distributionWatermark} pointerEvents="none">
                       <Ionicons name="calendar-clear-outline" size={90} color="rgba(15, 46, 34, 0.035)" />
                     </View>
                     <View style={styles.calendarIcon}>
-                      <Ionicons name="calendar-clear-outline" size={23} color="#E7D09D" />
+                      <Ionicons name="calendar-clear-outline" size={23} color={residentColors.accent} />
                     </View>
                     <View style={styles.premiumCardCopy}>
                       <View style={styles.statusMetaRow}>
@@ -462,7 +454,7 @@ export default function ResidentHomeDashboardScreen({
                       <Text style={styles.lightCardDescription} numberOfLines={2}>We’ll notify you when the next distribution is available.</Text>
                     </View>
                     <View style={styles.lightArrowButton}>
-                      <Ionicons name="arrow-forward" size={18} color="#F2DFB5" />
+                      <Ionicons name="arrow-forward" size={18} color={residentColors.accent} />
                     </View>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -521,17 +513,17 @@ const styles = StyleSheet.create({
   notificationButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: residentColors.iconSurface, borderWidth: 1, borderColor: residentColors.borderAccent },
   notificationBadge: { position: 'absolute', top: -3, right: -3, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: residentColors.brand, borderWidth: 2, borderColor: residentColors.background },
   notificationBadgeText: { color: residentColors.inverse, fontSize: 8, fontWeight: '900' },
-  premiumBanner: { minHeight: 158, marginTop: 18, marginBottom: 22, padding: 16, borderRadius: 22, overflow: 'hidden', shadowColor: '#0F2E22', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.19, shadowRadius: 16, elevation: 5 },
-  bannerGoldAccent: { position: 'absolute', top: 0, right: 0, left: 0, height: 3, backgroundColor: '#C9A86A' },
+  premiumBanner: { minHeight: 158, marginTop: 18, marginBottom: 22, padding: 16, borderRadius: 22, overflow: 'hidden', shadowColor: residentColors.brandDark, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.19, shadowRadius: 16, elevation: 5 },
+  bannerGoldAccent: { position: 'absolute', top: 0, right: 0, left: 0, height: 3, backgroundColor: residentColors.accent },
   bannerWatermark: { position: 'absolute', right: -24, bottom: -34, transform: [{ rotate: '-10deg' }] },
   bannerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bannerEyebrow: { fontSize: 8.5, fontWeight: '900', letterSpacing: 1.25, color: '#D9BE84' },
-  bannerStatusPill: { minHeight: 25, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(217, 190, 132, 0.28)' },
+  bannerEyebrow: { fontSize: 8.5, fontWeight: '900', letterSpacing: 1.25, color: residentColors.accent },
+  bannerStatusPill: { minHeight: 25, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.38)' },
   bannerStatusText: { fontSize: 7.5, fontWeight: '900', letterSpacing: 0.65 },
   bannerGreeting: { maxWidth: '82%', marginTop: 10, fontSize: 25, lineHeight: 30, fontWeight: '800', color: '#FFFFFF' },
-  bannerSubtitle: { maxWidth: '78%', marginTop: 3, fontSize: 11.5, lineHeight: 15, color: '#C9D8D0' },
-  bannerLocationPill: { alignSelf: 'flex-start', maxWidth: '76%', minHeight: 26, marginTop: 8, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 9, backgroundColor: 'rgba(255, 255, 255, 0.09)', borderWidth: 1, borderColor: 'rgba(232, 214, 174, 0.23)' },
-  bannerLocationText: { flexShrink: 1, fontSize: 10.5, fontWeight: '700', color: '#F5F1E8' },
+  bannerSubtitle: { maxWidth: '78%', marginTop: 3, fontSize: 11.5, lineHeight: 15, color: '#E6F6EA' },
+  bannerLocationPill: { alignSelf: 'flex-start', maxWidth: '76%', minHeight: 26, marginTop: 8, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 9, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.32)' },
+  bannerLocationText: { flexShrink: 1, fontSize: 10.5, fontWeight: '700', color: residentColors.inverse },
   virtualIdSection: { marginHorizontal: -20, marginBottom: -22 },
   idCard: { minHeight: 112, padding: 14, flexDirection: 'row', alignItems: 'center', borderRadius: 18, backgroundColor: residentColors.surface, borderWidth: 1, borderColor: residentColors.borderAccent, ...residentTheme.shadow },
   idIcon: { width: 50, height: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: residentColors.iconSurface, borderWidth: 1, borderColor: residentColors.borderAccent },
@@ -547,39 +539,41 @@ const styles = StyleSheet.create({
   section: { marginTop: 22 },
   sectionHeader: { marginBottom: 10, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   sectionLabelRow: { marginBottom: 10, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  sectionEyebrow: { marginBottom: 2, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.15, color: '#9A7B42' },
+  sectionEyebrow: { marginBottom: 2, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.15, color: residentColors.accentInk },
   sectionTitle: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: residentColors.ink },
-  sectionLink: { fontSize: 11.5, fontWeight: '800', color: '#1D5038' },
-  premiumCardShadow: { borderRadius: 20, shadowColor: '#0F2E22', shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.15, shadowRadius: 14, elevation: 5 },
-  cardGoldAccent: { position: 'absolute', top: 0, right: 0, left: 0, height: 3, backgroundColor: '#C9A86A' },
-  statusCard: { minHeight: 126, padding: 15, flexDirection: 'row', alignItems: 'center', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201, 168, 106, 0.42)' },
+  sectionLink: { fontSize: 11.5, fontWeight: '800', color: residentColors.brandDark },
+  premiumCardShadow: { borderRadius: 20, shadowColor: residentColors.brandDark, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.15, shadowRadius: 14, elevation: 5 },
+  cardGoldAccent: { position: 'absolute', top: 0, right: 0, left: 0, height: 3, backgroundColor: residentColors.accent },
+  statusCard: { minHeight: 126, padding: 15, flexDirection: 'row', alignItems: 'center', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.52)' },
   statusWatermark: { position: 'absolute', right: 32, bottom: -26, transform: [{ rotate: '-10deg' }] },
-  darkIconTile: { width: 48, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(228, 205, 156, 0.32)' },
+  darkIconTile: { width: 48, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.42)' },
   premiumCardCopy: { flex: 1, minWidth: 0, marginHorizontal: 13 },
   statusMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  darkCardEyebrow: { flexShrink: 1, fontSize: 7.5, fontWeight: '900', letterSpacing: 1, color: '#D9BE84' },
-  darkStatusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(228, 205, 156, 0.22)' },
+  darkCardEyebrow: { flexShrink: 1, fontSize: 7.5, fontWeight: '900', letterSpacing: 1, color: residentColors.accent },
+  darkStatusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.32)' },
   statusDot: { width: 5, height: 5, borderRadius: 3 },
   darkStatusText: { fontSize: 6.7, fontWeight: '900', letterSpacing: 0.55 },
   darkCardTitle: { marginTop: 7, fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#FFFFFF' },
-  darkCardDescription: { marginTop: 4, fontSize: 11, lineHeight: 16, color: '#C9D8D0' },
-  darkArrowButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: 'rgba(255, 255, 255, 0.09)', borderWidth: 1, borderColor: 'rgba(228, 205, 156, 0.3)' },
-  distributionCard: { minHeight: 126, padding: 15, flexDirection: 'row', alignItems: 'center', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: '#D8C28F', shadowColor: '#0F2E22', shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 4 },
+  darkCardDescription: { marginTop: 4, fontSize: 11, lineHeight: 16, color: '#E6F6EA' },
+  darkArrowButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.4)' },
+  distributionCard: { minHeight: 126, padding: 15, flexDirection: 'row', alignItems: 'center', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: residentColors.borderAccent, shadowColor: residentColors.brandDark, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 4 },
   distributionWatermark: { position: 'absolute', right: 34, bottom: -24, transform: [{ rotate: '-8deg' }] },
-  calendarIcon: { width: 48, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: '#123526', borderWidth: 1, borderColor: '#C9A86A' },
-  lightCardEyebrow: { flexShrink: 1, fontSize: 7.5, fontWeight: '900', letterSpacing: 1, color: '#8B6E38' },
-  lightStatusPill: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999, backgroundColor: '#E6EFE8', borderWidth: 1, borderColor: '#C5D9CB' },
-  lightStatusText: { fontSize: 6.7, fontWeight: '900', letterSpacing: 0.5, color: '#1E5A3C' },
-  lightCardTitle: { marginTop: 7, fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#17231E' },
-  lightCardDescription: { marginTop: 4, fontSize: 11, lineHeight: 16, color: '#66756D' },
-  lightArrowButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: '#123526', borderWidth: 1, borderColor: '#C9A86A' },
+  calendarIcon: { width: 48, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: residentColors.brandDark, borderWidth: 1, borderColor: residentColors.accent },
+  lightCardEyebrow: { flexShrink: 1, fontSize: 7.5, fontWeight: '900', letterSpacing: 1, color: residentColors.accentInk },
+  lightStatusPill: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999, backgroundColor: residentColors.brandSoft, borderWidth: 1, borderColor: residentColors.borderAccent },
+  lightStatusText: { fontSize: 6.7, fontWeight: '900', letterSpacing: 0.5, color: residentColors.brandDark },
+  lightCardTitle: { marginTop: 7, fontSize: 15, lineHeight: 19, fontWeight: '800', color: residentColors.ink },
+  lightCardDescription: { marginTop: 4, fontSize: 11, lineHeight: 16, color: residentColors.secondary },
+  lightArrowButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: residentColors.brandDark, borderWidth: 1, borderColor: residentColors.accent },
   metaRow: { marginTop: 7, flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaText: { flex: 1, fontSize: 10.5, color: residentColors.secondary },
+  distributionWarning: { marginBottom: 10, paddingHorizontal: 11, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, backgroundColor: '#FFF8E1', borderWidth: 1, borderColor: '#F4D58D' },
+  distributionWarningText: { flex: 1, fontSize: 10.5, lineHeight: 15, color: '#76520A' },
   pendingCard: { minHeight: 130, padding: 15, flexDirection: 'row', alignItems: 'center', borderRadius: 18, backgroundColor: residentColors.surface, borderWidth: 1, borderColor: residentColors.borderAccent, ...residentTheme.shadow },
   pendingIcon: { width: 50, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: residentColors.iconSurface, borderWidth: 1, borderColor: residentColors.borderAccent },
   pendingCopy: { flex: 1, marginHorizontal: 13 },
   pendingTitle: { marginTop: 5, fontSize: 15, fontWeight: '800', color: residentColors.ink },
-  roundAction: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: residentColors.ink },
+  roundAction: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: residentColors.brand },
   modalOverlay: { flex: 1, padding: 20, justifyContent: 'flex-end', backgroundColor: residentColors.overlay },
   notificationSheet: { maxHeight: '72%', padding: 20, paddingBottom: 24, borderRadius: 24, backgroundColor: residentColors.surface },
   sheetHandle: { width: 42, height: 4, alignSelf: 'center', borderRadius: 2, backgroundColor: residentColors.border },
