@@ -20,7 +20,7 @@ interface Insight {
   tag: string
 }
 
-/** AI-curated smart insights derived from distribution analytics with impact chips. */
+/** Automated smart insights derived from distribution analytics with impact chips. */
 export default function SmartInsights(props: SmartInsightsProps) {
   const { loading } = props
 
@@ -99,8 +99,8 @@ export default function SmartInsights(props: SmartInsightsProps) {
         const facePct = ((verificationMethods.face / totalVer) * 100).toFixed(0)
         result.push({
           type: 'ai',
-          title: 'Biometric AI Security Active',
-          description: `${facePct}% claims validated via Face Recognition, reducing fraud risk significantly.`,
+          title: 'Biometric Face Verification Active',
+          description: `${facePct}% claims validated via Face Recognition, reducing duplicate claim risk.`,
           tag: 'Verification',
         })
       }
@@ -142,17 +142,17 @@ export default function SmartInsights(props: SmartInsightsProps) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-xs">
-              ✨
+              💡
             </span>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Smart Insights</h3>
           </div>
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            AI Digest
+            Analytics Digest
           </span>
         </div>
 
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-          Real-time pattern analysis and recommendations
+          Automated rule-based analysis and operational recommendations
         </p>
 
         {/* Insights Cards */}
@@ -186,7 +186,7 @@ export default function SmartInsights(props: SmartInsightsProps) {
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${iconBg}`}>
-                      {isSuccess ? '✓' : isWarning ? '!' : isAI ? '⚡' : 'ℹ'}
+                      {isSuccess ? '✓' : isWarning ? '!' : isAI ? '🛡️' : 'ℹ'}
                     </span>
                     <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                       {insight.title}
@@ -214,7 +214,7 @@ export default function SmartInsights(props: SmartInsightsProps) {
       {/* Footer Ribbon */}
       <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
         <span>Updated continuously</span>
-        <span className="font-semibold text-slate-500 dark:text-slate-400">✨ Self-optimizing model</span>
+        <span className="font-medium text-slate-500 dark:text-slate-400">Rule-based engine</span>
       </div>
     </div>
   )
