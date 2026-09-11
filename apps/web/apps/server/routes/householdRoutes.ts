@@ -96,7 +96,7 @@ import { screenSubmittedId } from '../services/idScreeningService';
 import { persistVerificationImage } from '../utils/imageStorage';
 import { broadcastScopedNotification } from '../utils/createNotification';
 import RegistrationOtp from '../models/RegistrationOtp';
-import { sendRegistrationOtpSms, isSmsConfigured } from '../utils/smsService';
+import { sendRegistrationOtpSms, sendPasswordResetOtpSms, isSmsConfigured } from '../utils/smsService';
 import { deriveDistributionLifecycle } from '../utils/distributionLifecycle';
 
 const router = Router();
@@ -556,6 +556,30 @@ router.post('/register', householdRegistrationRateLimiter, validateRequest({ bod
         errorCode: 'INVALID_TOKEN_FORMAT',
       });
     }
+
+    // Validate mobile verification token if provided
+    if (registrationData.verifiedToken) {
+      try {
+        const decoded = jwt.verify(registrationData.verifiedToken, getJWTSecret()) as {
+          mobile?: string;
+          purpose?: string;
+        };
+        const normalizedMobile = normalizePhilippineMobileNumber(registrationData.mobileNumber.trim());
+        if (decoded.purpose !== 'registration-verified' || decoded.mobile !== normalizedMobile) {
+          return res.status(400).json({
+            success: false,
+            message: 'Mobile verification token is invalid or does not match this mobile number.',
+            errorCode: 'INVALID_VERIFIED_TOKEN',
+          });
+        }
+      } catch (tokenErr) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mobile verification has expired. Please verify your phone number again.',
+          errorCode: 'VERIFIED_TOKEN_EXPIRED',
+        });
+      }
+    }
     
     registrationData.idNumber = normalizeIdNumber(registrationData.idType, registrationData.idNumber);
 
@@ -926,7 +950,7 @@ router.patch('/notifications/:id/read', authMiddleware, authenticatedResidentRea
 });
 
 /**
- * Resident Forgot Password OTP (Email/Gmail)
+ * Resident Forgot Password OTP (SMS or Email)
  *
  * POST /api/household/auth/forgot-password/send-otp
  * POST /api/household/auth/forgot-password/verify-otp
@@ -934,10 +958,55 @@ router.patch('/notifications/:id/read', authMiddleware, authenticatedResidentRea
  */
 router.post('/auth/forgot-password/send-otp', passwordResetSendRateLimiter, validateRequest({ body: householdForgotSendOtpSchema }), async (req: Request, res: Response) => {
   try {
-    const emailLower = String(req.body.email || '').trim().toLowerCase();
+    const rawMobile = req.body.mobileNumber ? String(req.body.mobileNumber).trim() : '';
+    const rawEmail = req.body.email ? String(req.body.email).trim().toLowerCase() : '';
 
-    // Return the same service-level response for every address when email is unavailable.
-    // This is actionable without revealing whether an account exists.
+    if (rawMobile) {
+      const normalizedMobile = normalizePhilippineMobileNumber(rawMobile);
+      const resident = await Resident.findOne({
+        mobileNumber: normalizedMobile,
+        status: { $ne: 'Rejected' },
+      }).select('_id mobileNumber fullName firstName lastName');
+
+      if (resident) {
+        const otp = generateOtp();
+        const otpHash = await bcrypt.hash(otp, 12);
+
+        await ResidentPasswordResetOtp.deleteMany({
+          $or: [{ identifier: normalizedMobile }, { mobileNumber: normalizedMobile }],
+        });
+
+        try {
+          await sendPasswordResetOtpSms(resident.mobileNumber, otp);
+        } catch (smsErr) {
+          console.error('[SMS] Failed to send resident reset OTP:', (smsErr as Error).message);
+          return res.status(503).json({
+            success: false,
+            code: 'RESET_SMS_UNAVAILABLE',
+            message: 'Password-reset SMS could not be delivered. Please try again later.',
+          });
+        }
+
+        await ResidentPasswordResetOtp.create({
+          residentId: resident._id,
+          identifier: normalizedMobile,
+          mobileNumber: normalizedMobile,
+          otpHash,
+          expiresAt: new Date(Date.now() + PASSWORD_RESET_OTP_EXPIRY_MINUTES * 60 * 1000),
+          attemptsLeft: PASSWORD_RESET_OTP_MAX_ATTEMPTS,
+          lastSentAt: new Date(),
+          createdAt: new Date(),
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'If the mobile number exists, an OTP was sent via SMS.',
+      });
+    }
+
+    // Email delivery path
+    const emailLower = rawEmail;
     if (!isMailerConfigured()) {
       return res.status(503).json({
         success: false,
@@ -955,8 +1024,10 @@ router.post('/auth/forgot-password/send-otp', passwordResetSendRateLimiter, vali
       const otp = generateOtp();
       const otpHash = await bcrypt.hash(otp, 12);
 
-      // A resend invalidates the previous OTP before attempting delivery.
-      await ResidentPasswordResetOtp.deleteMany({ emailLower });
+      await ResidentPasswordResetOtp.deleteMany({
+        $or: [{ identifier: emailLower }, { emailLower }],
+      });
+
       try {
         await sendResetOtpEmail(resident.email || emailLower, otp);
       } catch (mailErr) {
@@ -968,9 +1039,9 @@ router.post('/auth/forgot-password/send-otp', passwordResetSendRateLimiter, vali
         });
       }
 
-      // Store the OTP only after the mail provider accepts the message.
       await ResidentPasswordResetOtp.create({
         residentId: resident._id,
+        identifier: emailLower,
         emailLower,
         otpHash,
         expiresAt: new Date(Date.now() + PASSWORD_RESET_OTP_EXPIRY_MINUTES * 60 * 1000),
@@ -995,10 +1066,20 @@ router.post('/auth/forgot-password/send-otp', passwordResetSendRateLimiter, vali
 
 router.post('/auth/forgot-password/verify-otp', passwordResetVerifyRateLimiter, validateRequest({ body: householdForgotVerifyOtpSchema }), async (req: Request, res: Response) => {
   try {
-    const emailLower = String(req.body.email || '').trim().toLowerCase();
+    const rawMobile = req.body.mobileNumber ? String(req.body.mobileNumber).trim() : '';
+    const rawEmail = req.body.email ? String(req.body.email).trim().toLowerCase() : '';
     const otp = String(req.body.otp || '');
 
-    const record = await ResidentPasswordResetOtp.findOne({ emailLower });
+    const identifier = rawMobile ? normalizePhilippineMobileNumber(rawMobile) : rawEmail;
+
+    const record = await ResidentPasswordResetOtp.findOne({
+      $or: [
+        { identifier },
+        { emailLower: identifier },
+        { mobileNumber: identifier },
+      ],
+    });
+
     if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
       return res.status(400).json({
         success: false,
@@ -1046,6 +1127,7 @@ router.post('/auth/forgot-password/verify-otp', passwordResetVerifyRateLimiter, 
     });
   }
 });
+
 
 router.post('/auth/forgot-password/reset', passwordResetFinalizeRateLimiter, validateRequest({ body: householdForgotResetSchema }), async (req: Request, res: Response) => {
   try {

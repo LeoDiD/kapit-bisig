@@ -70,9 +70,9 @@ const envSchema = z.object({
 
   /* ---- SMS (used by registration mobile verification) ---- */
   SMS_PROVIDER: z
-    .enum(['semaphore', 'twilio', 'vonage'])
+    .enum(['unisms', 'semaphore', 'twilio', 'vonage'])
     .optional()
-    .default('semaphore'),
+    .default('unisms'),
   SMS_API_KEY: z.string().optional(),
   SMS_SENDER_NAME: z.string().optional().default('KapitBisig'),
   TWILIO_ACCOUNT_SID: z.string().optional(),

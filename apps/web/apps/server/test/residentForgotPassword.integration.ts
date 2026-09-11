@@ -65,13 +65,56 @@ export async function runResidentForgotPasswordIntegrationTests(): Promise<void>
     assert.strictEqual(login.status, 200);
     assert.strictEqual(login.body.success, true);
 
+    // Test Mobile Number SMS Forgot Password Flow
+    const mobileUnknown = await request(app).post('/api/household/auth/forgot-password/send-otp').send({ mobileNumber: '09990000000' });
+    assert.strictEqual(mobileUnknown.status, 200);
+    assert.match(mobileUnknown.body.message, /if the mobile number exists/i);
+
+    const mobileSent = await request(app).post('/api/household/auth/forgot-password/send-otp').send({ mobileNumber: '09171234567' });
+    assert.strictEqual(mobileSent.status, 200);
+
+    const otpRecord = await ResidentPasswordResetOtp.findOne({ mobileNumber: '09171234567' });
+    assert.ok(otpRecord, 'OTP record should exist for mobile number');
+
+    const wrongMobile = await request(app).post('/api/household/auth/forgot-password/verify-otp').send({ mobileNumber: '09171234567', otp: '000000' });
+    assert.strictEqual(wrongMobile.status, 400);
+
+    // Verify OTP using actual hash match
+    const bcrypt = (await import('bcrypt')).default;
+    const testOtp = '123789';
+    otpRecord.otpHash = await bcrypt.hash(testOtp, 12);
+    await otpRecord.save();
+
+    const mobileVerified = await request(app).post('/api/household/auth/forgot-password/verify-otp').send({ mobileNumber: '09171234567', otp: testOtp });
+    assert.strictEqual(mobileVerified.status, 200);
+    assert.ok(mobileVerified.body.resetToken);
+
+    const mobileReset = await request(app).post('/api/household/auth/forgot-password/reset').send({ resetToken: mobileVerified.body.resetToken, newPassword: 'ValidPass#2026' });
+    assert.strictEqual(mobileReset.status, 200);
+
+    const mobileLogin = await request(app).post('/api/household/auth/login').send({ mobileNumber: '09171234567', password: 'ValidPass#2026' });
+    assert.strictEqual(mobileLogin.status, 200);
+    assert.strictEqual(mobileLogin.body.success, true);
+
     setResetOtpSenderForTests(async () => { throw new Error('SMTP unavailable'); });
     const failedSend = await request(app).post('/api/household/auth/forgot-password/send-otp').send({ email: 'reset@example.com' });
     assert.strictEqual(failedSend.status, 503);
     assert.strictEqual(await ResidentPasswordResetOtp.countDocuments({ emailLower: 'reset@example.com' }), 0);
     setResetOtpSenderForTests(null);
+    console.log('✅ Resident forgot password integration tests passed');
   } finally {
     await mongoose.disconnect();
     await mongo.stop();
   }
 }
+
+if (require.main === module) {
+  runResidentForgotPasswordIntegrationTests()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}
+
+

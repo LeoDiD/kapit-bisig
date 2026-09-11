@@ -30,6 +30,7 @@ import {
   Image,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { resolveApiBaseUrl } from '../../services/config/apiSecurity';
 
@@ -417,6 +418,7 @@ export default function FaceScannerV2({
             ref={cameraRef}
             style={styles.camera}
             facing="front"
+            mirror={true}
           />
         ) : (
           // STEP 3: Captured image displayed (camera hidden)

@@ -1094,14 +1094,19 @@ export async function syncQueuedResidentProofSubmissions(
 }
 
 export async function residentForgotPasswordSendOtp(
-  email: string
+  identifier: string
 ): Promise<{ success: boolean; message?: string }> {
   try {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const raw = String(identifier || '').trim();
+    const isPhone = /^(\+?63|0)?9\d{9}$/.test(raw.replace(/\D/g, '')) || /^\d{10,12}$/.test(raw.replace(/\D/g, ''));
+    const bodyPayload = isPhone
+      ? { mobileNumber: raw }
+      : { email: raw.toLowerCase() };
+
     const response = await fetch(`${API_BASE_URL}/household/auth/forgot-password/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: normalizedEmail }),
+      body: JSON.stringify(bodyPayload),
     });
 
     const payload = await parseApiResponse<never>(response);
@@ -1114,7 +1119,7 @@ export async function residentForgotPasswordSendOtp(
 
     return {
       success: true,
-      message: payload.message || 'If the email exists, an OTP was sent.',
+      message: payload.message || 'If the account exists, an OTP was sent.',
     };
   } catch {
     return {
@@ -1125,15 +1130,20 @@ export async function residentForgotPasswordSendOtp(
 }
 
 export async function residentForgotPasswordVerifyOtp(
-  email: string,
+  identifier: string,
   otp: string
 ): Promise<{ success: boolean; message?: string; resetToken?: string }> {
   try {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const raw = String(identifier || '').trim();
+    const isPhone = /^(\+?63|0)?9\d{9}$/.test(raw.replace(/\D/g, '')) || /^\d{10,12}$/.test(raw.replace(/\D/g, ''));
+    const bodyPayload = isPhone
+      ? { mobileNumber: raw, otp }
+      : { email: raw.toLowerCase(), otp };
+
     const response = await fetch(`${API_BASE_URL}/household/auth/forgot-password/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: normalizedEmail, otp }),
+      body: JSON.stringify(bodyPayload),
     });
 
     const payload = await parseApiResponse<never>(response);
@@ -1187,3 +1197,110 @@ export async function residentForgotPasswordReset(
     };
   }
 }
+
+export async function requestResidentChangePasswordOtp(
+  token: string,
+  payload: { currentPassword: string; newPassword: string }
+): Promise<{ success: boolean; message?: string; errors?: string[] }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/auth/me/change-password/request-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return {
+        success: false,
+        message: data.message || 'Failed to send verification code.',
+        errors: data.errors,
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Verification code sent to your registered mobile number.',
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while requesting verification code.',
+    };
+  }
+}
+
+export async function confirmResidentChangePassword(
+  token: string,
+  payload: { otp: string; newPassword: string }
+): Promise<{ success: boolean; message?: string; errors?: string[] }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/auth/me/change-password/confirm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return {
+        success: false,
+        message: data.message || 'Failed to update password.',
+        errors: data.errors,
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Password updated successfully.',
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while confirming password update.',
+    };
+  }
+}
+
+export async function changeResidentPassword(
+  token: string,
+  payload: { currentPassword: string; newPassword: string }
+): Promise<{ success: boolean; message?: string; errors?: string[] }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/household/auth/me/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return {
+        success: false,
+        message: data.message || 'Failed to change password.',
+        errors: data.errors,
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Password updated successfully.',
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Network error while updating password.',
+    };
+  }
+}
+
+

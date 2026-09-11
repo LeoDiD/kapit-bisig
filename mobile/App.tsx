@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Alert, Platform, AppState } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Alert, Platform, AppState, type EventSubscription } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import type { EventSubscription } from 'expo-modules-core';
 const isExpoGo = Boolean(Constants.expoGoConfig);
 
 // Lazy-load notifications only outside Expo Go to prevent SDK 56 startup crash

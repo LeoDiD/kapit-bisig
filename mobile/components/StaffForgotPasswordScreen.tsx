@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { mobileAuthService } from '../services/auth/MobileAuthService';
 
@@ -33,7 +34,8 @@ function validateStrongPassword(value: string): string | null {
 }
 
 export default function StaffForgotPasswordScreen({ initialEmail = '', onBack }: Props) {
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState<RecoveryStep>('email');
   const [email, setEmail] = useState(initialEmail.trim().toLowerCase());
   const [otp, setOtp] = useState('');
@@ -99,21 +101,34 @@ export default function StaffForgotPasswordScreen({ initialEmail = '', onBack }:
       ? require('../assets/forgotp.png')
       : require('../assets/forgotpa.png');
 
+  const illustrationSize = Math.min(screenWidth * 0.52, screenHeight * 0.22, 170);
+
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(insets.top + 16, 24),
+            paddingBottom: Math.max(insets.bottom + 20, 24),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.card}>
-          <TouchableOpacity onPress={onBack} disabled={loading} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={onBack}
+            disabled={loading}
+            style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="arrow-back" size={22} color="#226538" />
           </TouchableOpacity>
 
           <Image
             source={illustration}
-            style={[styles.illustration, { width: screenWidth * 0.52, height: screenWidth * 0.52 }]}
+            style={[styles.illustration, { width: illustrationSize, height: illustrationSize }]}
             resizeMode="contain"
           />
 
@@ -236,6 +251,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
+    maxWidth: 420,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,

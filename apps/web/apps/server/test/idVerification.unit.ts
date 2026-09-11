@@ -26,7 +26,8 @@ function run(): void {
   assert.strictEqual(validateIdNumberFormat('Passport', 'P12345678'), false);
   assert.strictEqual(validateIdNumberFormat('Passport', '12345678'), false);
   assert.strictEqual(validateIdNumberFormat('PhilSys ID', '1234-5678-9012'), true);
-  assert.strictEqual(validateIdNumberFormat('PhilSys ID', '1234-5678-9012-3456'), false);
+  assert.strictEqual(validateIdNumberFormat('PhilSys ID', '1234-5678-9012-3456'), true);
+  assert.strictEqual(validateIdNumberFormat('PhilSys ID', '1234-5678-9012-34567'), false);
   assert.strictEqual(validateIdNumberFormat("Driver's License", 'N01-23-456789'), true);
   assert.strictEqual(validateIdNumberFormat("Driver's License", 'N0123456789'), true);
   assert.strictEqual(validateIdNumberFormat("Driver's License", 'AB1234567890'), false);

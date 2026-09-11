@@ -5,7 +5,6 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   FlatList,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -14,7 +13,9 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import RegisterScreen from './RegisterScreen';
 import LoginScreen from './LoginScreen';
@@ -27,8 +28,6 @@ import {
   residentLogin,
   saveResidentSession,
 } from '../services/api/ResidentQrService';
-
-const { width } = Dimensions.get('window');
 
 interface SplashScreenProps {
   onGetStarted: () => void;
@@ -63,6 +62,9 @@ export default function SplashScreen({
   onVolunteerLogin,
   initialView = 'landing',
 }: SplashScreenProps) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
   const [showLandingScreen, setShowLandingScreen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showInitialSplash, setShowInitialSplash] = useState(false);
@@ -78,8 +80,8 @@ export default function SplashScreen({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [showForgotPasswordScreen, setShowForgotPasswordScreen] = useState(false);
-  const [forgotStep, setForgotStep] = useState<'email' | 'verification' | 'reset'>('email');
-  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStep, setForgotStep] = useState<'mobile' | 'verification' | 'reset'>('mobile');
+  const [forgotMobile, setForgotMobile] = useState('');
   const [forgotVerificationCode, setForgotVerificationCode] = useState('');
   const [forgotResetToken, setForgotResetToken] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -99,7 +101,7 @@ export default function SplashScreen({
       setShowRegisterScreen(false);
       setShowVolunteerLoginScreen(false);
       setShowForgotPasswordScreen(false);
-      setForgotStep('email');
+      setForgotStep('mobile');
       setLoginError('');
       setShowLoginScreen(true);
       return;
@@ -112,13 +114,15 @@ export default function SplashScreen({
     setShowVolunteerLoginScreen(false);
     setShowRegisterScreen(false);
     setShowForgotPasswordScreen(false);
-    setForgotStep('email');
+    setForgotStep('mobile');
     setLoginError('');
   }, [initialView]);
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-    setCurrentIndex(slideIndex);
+    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
+    if (slideIndex >= 0 && slideIndex < slides.length) {
+      setCurrentIndex(slideIndex);
+    }
   };
 
   const handleGetStarted = () => {
@@ -190,20 +194,15 @@ export default function SplashScreen({
   };
 
   const handleSendResetCode = async () => {
-    const normalizedEmail = forgotEmail.trim().toLowerCase();
-
-    if (!normalizedEmail) {
-      Alert.alert('Missing Email', 'Please enter your email address.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+    const rawDigits = forgotMobile.replace(/\D/g, '');
+    if (!rawDigits || rawDigits.length < 10) {
+      Alert.alert('Invalid Mobile Number', 'Please enter a valid 11-digit mobile number (e.g. 09171234567).');
       return;
     }
 
     setIsSendingOtp(true);
     try {
-      const result = await residentForgotPasswordSendOtp(normalizedEmail);
+      const result = await residentForgotPasswordSendOtp(forgotMobile.trim());
       if (!result.success) {
         Alert.alert('Send Failed', result.message || 'Failed to send verification code.');
         return;
@@ -212,7 +211,7 @@ export default function SplashScreen({
       setForgotVerificationCode('');
       setForgotResetToken('');
       setForgotStep('verification');
-      Alert.alert('Code Sent', 'If the email exists, a verification code was sent.');
+      Alert.alert('Code Sent', 'If the mobile number is registered, a 6-digit verification code was sent via SMS.');
     } catch (error) {
       const messageText = error instanceof Error ? error.message : 'Failed to send verification code.';
       Alert.alert('Send Failed', messageText);
@@ -222,20 +221,20 @@ export default function SplashScreen({
   };
 
   const handleVerifyCode = async () => {
-    if (!forgotVerificationCode.trim()) {
-      Alert.alert('Missing Code', 'Please enter the verification code.');
+    if (!forgotVerificationCode.trim() || forgotVerificationCode.trim().length !== 6) {
+      Alert.alert('Missing Code', 'Please enter the 6-digit verification code.');
       return;
     }
 
-    if (!forgotEmail.trim()) {
-      Alert.alert('Missing Email', 'Please go back and enter your email.');
+    if (!forgotMobile.trim()) {
+      Alert.alert('Missing Mobile Number', 'Please go back and enter your mobile number.');
       return;
     }
 
     setIsVerifyingOtp(true);
     try {
       const result = await residentForgotPasswordVerifyOtp(
-        forgotEmail.trim().toLowerCase(),
+        forgotMobile.trim(),
         forgotVerificationCode.trim(),
       );
       if (!result.success || !result.resetToken) {
@@ -301,10 +300,10 @@ export default function SplashScreen({
         return;
       }
 
-      Alert.alert('Password Updated', result.message || 'Your password has been changed.');
+      Alert.alert('Password Updated', result.message || 'Your password has been changed successfully. You can now log in.');
       setShowForgotPasswordScreen(false);
-      setForgotStep('email');
-      setForgotEmail('');
+      setForgotStep('mobile');
+      setForgotMobile('');
       setForgotVerificationCode('');
       setForgotResetToken('');
       setForgotNewPassword('');
@@ -332,29 +331,49 @@ export default function SplashScreen({
     setShowInitialSplash(true);
   };
 
-  const renderSlide = ({ item }: { item: typeof slides[0] }) => (
-    <View style={styles.slide}>
-      <Image
-        source={item.image}
-        style={styles.slideImage}
-        resizeMode="contain"
-      />
-      <Text style={styles.slideText}>{item.text}</Text>
-    </View>
-  );
-
-  // Landing Screen with Logo and Get Started button
-  if (showLandingScreen) {
+  const renderSlide = ({ item }: { item: typeof slides[0] }) => {
+    const imageSize = Math.min(windowWidth * 0.75, windowHeight * 0.35, 280);
     return (
-      <View style={styles.container}>
-        <View style={styles.logoContainer}>
+      <View style={[styles.slide, { width: windowWidth }]}>
+        <View style={styles.slideImageWrapper}>
           <Image
-            source={require('../assets/logo.png')}
-            style={styles.logoLarge}
+            source={item.image}
+            style={{ width: imageSize, height: imageSize }}
             resizeMode="contain"
           />
         </View>
-        <TouchableOpacity style={styles.getStartedButton} onPress={handleGetStarted}>
+        <View style={styles.slideTextWrapper}>
+          <Text style={styles.slideText}>{item.text}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  // Landing Screen with Logo and Get Started button
+  if (showLandingScreen) {
+    const logoSize = Math.min(windowWidth * 0.72, windowHeight * 0.35, 260);
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: Math.max(insets.top, 24),
+            paddingBottom: Math.max(insets.bottom, 28),
+          },
+        ]}
+      >
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../assets/logo.png')}
+            style={{ width: logoSize, height: logoSize }}
+            resizeMode="contain"
+          />
+        </View>
+        <TouchableOpacity
+          style={styles.getStartedButton}
+          onPress={handleGetStarted}
+          activeOpacity={0.85}
+        >
           <Text style={styles.getStartedButtonText}>Get Started</Text>
         </TouchableOpacity>
       </View>
@@ -391,186 +410,237 @@ export default function SplashScreen({
     );
   }
 
-  // Login Screen
+  // Resident Login Screen
   if (showLoginScreen) {
     if (showForgotPasswordScreen) {
+      const illustrationSize = Math.min(windowWidth * 0.5, windowHeight * 0.22, 170);
       return (
-        <View style={styles.container}>
-          <View style={styles.forgotCard}>
-            <TouchableOpacity
-              style={styles.forgotBackButton}
-              onPress={() => {
-                if (forgotStep === 'reset') {
-                  setForgotStep('verification');
-                  return;
-                }
-                if (forgotStep === 'verification') {
-                  setForgotStep('email');
-                  return;
-                }
-                setShowForgotPasswordScreen(false);
-              }}
-            >
-              <Ionicons name="arrow-back" size={22} color="#226538" />
-            </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={styles.loginKeyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            contentContainerStyle={[
+              styles.forgotScrollContent,
+              {
+                paddingTop: Math.max(insets.top + 12, 24),
+                paddingBottom: Math.max(insets.bottom + 16, 24),
+              },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.forgotCard}>
+              <TouchableOpacity
+                style={styles.forgotBackButton}
+                onPress={() => {
+                  if (forgotStep === 'reset') {
+                    setForgotStep('verification');
+                    return;
+                  }
+                  if (forgotStep === 'verification') {
+                    setForgotStep('mobile');
+                    return;
+                  }
+                  setShowForgotPasswordScreen(false);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="arrow-back" size={22} color="#226538" />
+              </TouchableOpacity>
 
-            {forgotStep === 'email' ? (
-              <>
-                <Image
-                  source={require('../assets/forgot.png')}
-                  style={styles.forgotIllustration}
-                  resizeMode="contain"
-                />
-
-                <Text style={styles.forgotTitle}>
-                  <Text style={styles.welcomeGreen}>Reset </Text>
-                  <Text style={styles.welcomeYellow}>Password</Text>
-                </Text>
-
-                <View style={styles.forgotInputContainer}>
-                  <Ionicons name="mail-outline" size={18} color="#888" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Email Address"
-                    placeholderTextColor="#888"
-                    value={forgotEmail}
-                    onChangeText={setForgotEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    maxLength={254}
+              {forgotStep === 'mobile' ? (
+                <>
+                  <Image
+                    source={require('../assets/forgot.png')}
+                    style={[styles.forgotIllustration, { width: illustrationSize, height: illustrationSize }]}
+                    resizeMode="contain"
                   />
-                </View>
 
-                <TouchableOpacity
-                  style={[styles.forgotSendButton, isSendingOtp && styles.forgotSendButtonDisabled]}
-                  onPress={handleSendResetCode}
-                  disabled={isSendingOtp}
-                >
-                  <Text style={styles.forgotSendButtonText}>
-                    {isSendingOtp ? 'Sending...' : 'Send OTP'}
+                  <Text style={styles.forgotTitle}>
+                    <Text style={styles.welcomeGreen}>Reset </Text>
+                    <Text style={styles.welcomeYellow}>Password</Text>
                   </Text>
-                </TouchableOpacity>
-              </>
-            ) : null}
 
-            {forgotStep === 'verification' ? (
-              <>
-                <Image
-                  source={require('../assets/forgotp.png')}
-                  style={styles.forgotIllustration}
-                  resizeMode="contain"
-                />
-
-                <Text style={styles.forgotTitle}>
-                  <Text style={styles.welcomeGreen}>Reset </Text>
-                  <Text style={styles.welcomeYellow}>Password</Text>
-                </Text>
-
-                <View style={styles.forgotInputContainer}>
-                  <Ionicons name="key-outline" size={18} color="#888" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter 6-digit OTP"
-                    placeholderTextColor="#888"
-                    value={forgotVerificationCode}
-                    onChangeText={(text) => setForgotVerificationCode(text.replace(/\D/g, '').slice(0, 6))}
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    autoCapitalize="none"
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.forgotSendButton, isVerifyingOtp && styles.forgotSendButtonDisabled]}
-                  onPress={handleVerifyCode}
-                  disabled={isVerifyingOtp}
-                >
-                  <Text style={styles.forgotSendButtonText}>{isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.forgotBackToLoginLink}
-                  onPress={() => setShowForgotPasswordScreen(false)}
-                >
-                  <Text style={styles.forgotBackToLoginText}>
-                    Back to <Text style={styles.forgotBackToLoginStrong}>Login</Text>
+                  <Text style={styles.forgotSubtitle}>
+                    Enter your registered mobile number to receive a 6-digit verification code via SMS.
                   </Text>
-                </TouchableOpacity>
-              </>
-            ) : null}
 
-            {forgotStep === 'reset' ? (
-              <>
-                <Image
-                  source={require('../assets/forgotpa.png')}
-                  style={styles.forgotIllustration}
-                  resizeMode="contain"
-                />
-
-                <Text style={styles.forgotTitle}>
-                  <Text style={styles.welcomeGreen}>Reset </Text>
-                  <Text style={styles.welcomeYellow}>Password</Text>
-                </Text>
-
-                <View style={styles.forgotInputContainer}>
-                  <Ionicons name="lock-closed-outline" size={18} color="#888" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter New Password"
-                    placeholderTextColor="#888"
-                    value={forgotNewPassword}
-                    onChangeText={setForgotNewPassword}
-                    secureTextEntry={!showForgotNewPassword}
-                    autoCapitalize="none"
-                    maxLength={128}
-                  />
-                  <TouchableOpacity onPress={() => setShowForgotNewPassword(!showForgotNewPassword)} style={styles.eyeIcon}>
-                    <Ionicons name={showForgotNewPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color="#888" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.forgotInputContainer}>
-                  <Ionicons name="lock-closed-outline" size={18} color="#888" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Confirm Password"
-                    placeholderTextColor="#888"
-                    value={forgotConfirmPassword}
-                    onChangeText={setForgotConfirmPassword}
-                    secureTextEntry={!showForgotConfirmPassword}
-                    autoCapitalize="none"
-                    maxLength={128}
-                  />
-                  <TouchableOpacity onPress={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)} style={styles.eyeIcon}>
-                    <Ionicons name={showForgotConfirmPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color="#888" />
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.forgotSendButton, isResettingPassword && styles.forgotSendButtonDisabled]}
-                  onPress={handleChangePassword}
-                  disabled={isResettingPassword}
-                >
-                  <Text style={styles.forgotSendButtonText}>
-                    {isResettingPassword ? 'Updating...' : 'Change Password'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.forgotBackToLoginLink}
-                  onPress={() => setShowForgotPasswordScreen(false)}
-                >
-                  <View style={styles.forgotBackToLoginRow}>
-                    <Ionicons name="time-outline" size={13} color="#6B7280" />
-                    <Text style={styles.forgotBackToLoginText}>
-                      {' '}Back to <Text style={styles.forgotBackToLoginStrong}>Login</Text>
-                    </Text>
+                  <View style={styles.forgotInputContainer}>
+                    <Ionicons name="call-outline" size={18} color="#888" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="09XXXXXXXXX"
+                      placeholderTextColor="#888"
+                      value={forgotMobile}
+                      onChangeText={(text) => setForgotMobile(text.replace(/\D/g, '').slice(0, 11))}
+                      keyboardType="phone-pad"
+                      autoCapitalize="none"
+                      maxLength={11}
+                    />
                   </View>
-                </TouchableOpacity>
-              </>
-            ) : null}
-          </View>
-        </View>
+
+                  <TouchableOpacity
+                    style={[styles.forgotSendButton, isSendingOtp && styles.forgotSendButtonDisabled]}
+                    onPress={handleSendResetCode}
+                    disabled={isSendingOtp}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.forgotSendButtonText}>
+                      {isSendingOtp ? 'Sending SMS...' : 'Send OTP via SMS'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.forgotBackToLoginLink}
+                    onPress={() => setShowForgotPasswordScreen(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                  >
+                    <Text style={styles.forgotBackToLoginText}>
+                      Back to <Text style={styles.forgotBackToLoginStrong}>Login</Text>
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+
+              {forgotStep === 'verification' ? (
+                <>
+                  <Image
+                    source={require('../assets/forgotp.png')}
+                    style={[styles.forgotIllustration, { width: illustrationSize, height: illustrationSize }]}
+                    resizeMode="contain"
+                  />
+
+                  <Text style={styles.forgotTitle}>
+                    <Text style={styles.welcomeGreen}>Reset </Text>
+                    <Text style={styles.welcomeYellow}>Password</Text>
+                  </Text>
+
+                  <Text style={styles.forgotSubtitle}>
+                    Enter the 6-digit code sent via SMS to {forgotMobile}.
+                  </Text>
+
+                  <View style={styles.forgotInputContainer}>
+                    <Ionicons name="key-outline" size={18} color="#888" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter 6-digit OTP"
+                      placeholderTextColor="#888"
+                      value={forgotVerificationCode}
+                      onChangeText={(text) => setForgotVerificationCode(text.replace(/\D/g, '').slice(0, 6))}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      autoCapitalize="none"
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.forgotSendButton, isVerifyingOtp && styles.forgotSendButtonDisabled]}
+                    onPress={handleVerifyCode}
+                    disabled={isVerifyingOtp}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.forgotSendButtonText}>{isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ paddingVertical: 8, alignItems: 'center' }}
+                    onPress={handleSendResetCode}
+                    disabled={isSendingOtp}
+                    hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                  >
+                    <Text style={{ color: '#226538', fontSize: 13, fontWeight: '600' }}>
+                      {isSendingOtp ? 'Resending...' : 'Resend code'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.forgotBackToLoginLink}
+                    onPress={() => setShowForgotPasswordScreen(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                  >
+                    <Text style={styles.forgotBackToLoginText}>
+                      Back to <Text style={styles.forgotBackToLoginStrong}>Login</Text>
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+
+              {forgotStep === 'reset' ? (
+                <>
+                  <Image
+                    source={require('../assets/forgotpa.png')}
+                    style={[styles.forgotIllustration, { width: illustrationSize, height: illustrationSize }]}
+                    resizeMode="contain"
+                  />
+
+                  <Text style={styles.forgotTitle}>
+                    <Text style={styles.welcomeGreen}>Reset </Text>
+                    <Text style={styles.welcomeYellow}>Password</Text>
+                  </Text>
+
+                  <View style={styles.forgotInputContainer}>
+                    <Ionicons name="lock-closed-outline" size={18} color="#888" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter New Password"
+                      placeholderTextColor="#888"
+                      value={forgotNewPassword}
+                      onChangeText={setForgotNewPassword}
+                      secureTextEntry={!showForgotNewPassword}
+                      autoCapitalize="none"
+                      maxLength={128}
+                    />
+                    <TouchableOpacity onPress={() => setShowForgotNewPassword(!showForgotNewPassword)} style={styles.eyeIcon}>
+                      <Ionicons name={showForgotNewPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color="#888" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.forgotInputContainer}>
+                    <Ionicons name="lock-closed-outline" size={18} color="#888" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Confirm Password"
+                      placeholderTextColor="#888"
+                      value={forgotConfirmPassword}
+                      onChangeText={setForgotConfirmPassword}
+                      secureTextEntry={!showForgotConfirmPassword}
+                      autoCapitalize="none"
+                      maxLength={128}
+                    />
+                    <TouchableOpacity onPress={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)} style={styles.eyeIcon}>
+                      <Ionicons name={showForgotConfirmPassword ? 'eye-outline' : 'eye-off-outline'} size={18} color="#888" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.forgotSendButton, isResettingPassword && styles.forgotSendButtonDisabled]}
+                    onPress={handleChangePassword}
+                    disabled={isResettingPassword}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.forgotSendButtonText}>
+                      {isResettingPassword ? 'Updating...' : 'Change Password'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.forgotBackToLoginLink}
+                    onPress={() => setShowForgotPasswordScreen(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                  >
+                    <View style={styles.forgotBackToLoginRow}>
+                      <Ionicons name="time-outline" size={13} color="#6B7280" />
+                      <Text style={styles.forgotBackToLoginText}>
+                        {' '}Back to <Text style={styles.forgotBackToLoginStrong}>Login</Text>
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       );
     }
 
@@ -580,102 +650,119 @@ export default function SplashScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={styles.loginScrollContent}
+          contentContainerStyle={[
+            styles.loginScrollContent,
+            {
+              paddingTop: Math.max(insets.top + 20, 40),
+              paddingBottom: Math.max(insets.bottom + 20, 30),
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity
-            style={styles.loginBackButton}
+            style={[
+              styles.loginBackButton,
+              { top: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 20) },
+            ]}
             onPress={() => {
               setShowLoginScreen(false);
               setShowInitialSplash(true);
             }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="arrow-back" size={24} color="#2E7D32" />
           </TouchableOpacity>
 
           <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeText}>
-            <Text style={styles.welcomeGreen}>Welcome </Text>
-            <Text style={styles.welcomeYellow}>Back!</Text>
-          </Text>
-          <Text style={styles.brandTagline}>Community Relief Platform</Text>
-        </View>
-
-        <View style={styles.formContainer}>
-          <View style={[styles.inputContainer, isMobileInputFocused && styles.inputContainerFocused]}>
-            <Ionicons name="call-outline" size={20} color="#888" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="09XXXXXXXXX"
-              placeholderTextColor="#888"
-              value={mobileNumber}
-              onChangeText={(text) => setMobileNumber(text.replace(/\D/g, '').slice(0, 11))}
-              onFocus={() => setIsMobileInputFocused(true)}
-              onBlur={() => setIsMobileInputFocused(false)}
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-              maxLength={11}
-            />
+            <Text style={styles.welcomeText}>
+              <Text style={styles.welcomeGreen}>Welcome </Text>
+              <Text style={styles.welcomeYellow}>Back!</Text>
+            </Text>
+            <Text style={styles.brandTagline}>Community Relief Platform</Text>
           </View>
 
-          <View style={[styles.inputContainer, isPasswordInputFocused && styles.inputContainerFocused]}>
-            <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#888"
-              value={password}
-              onChangeText={setPassword}
-              onFocus={() => setIsPasswordInputFocused(true)}
-              onBlur={() => setIsPasswordInputFocused(false)}
-              secureTextEntry={!showPassword}
-              maxLength={128}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-              <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#888" />
-            </TouchableOpacity>
-          </View>
+          <View style={styles.formContainer}>
+            <View style={[styles.inputContainer, isMobileInputFocused && styles.inputContainerFocused]}>
+              <Ionicons name="call-outline" size={20} color="#888" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="09XXXXXXXXX"
+                placeholderTextColor="#888"
+                value={mobileNumber}
+                onChangeText={(text) => setMobileNumber(text.replace(/\D/g, '').slice(0, 11))}
+                onFocus={() => setIsMobileInputFocused(true)}
+                onBlur={() => setIsMobileInputFocused(false)}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                maxLength={11}
+              />
+            </View>
 
-          {!!loginError && (
-            <Text style={styles.loginErrorText}>{loginError}</Text>
-          )}
+            <View style={[styles.inputContainer, isPasswordInputFocused && styles.inputContainerFocused]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#888"
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setIsPasswordInputFocused(true)}
+                onBlur={() => setIsPasswordInputFocused(false)}
+                secureTextEntry={!showPassword}
+                maxLength={128}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                <Ionicons name={showPassword ? 'eye-outline' : 'eye-off-outline'} size={20} color="#888" />
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.optionsContainer}>
-            <View />
+            {!!loginError && (
+              <Text style={styles.loginErrorText}>{loginError}</Text>
+            )}
+
+            <View style={styles.optionsContainer}>
+              <View />
+              <TouchableOpacity
+                onPress={() => {
+                  setForgotStep('mobile');
+                  setForgotMobile(mobileNumber);
+                  setForgotResetToken('');
+                  setForgotVerificationCode('');
+                  setForgotNewPassword('');
+                  setForgotConfirmPassword('');
+                  setShowForgotPasswordScreen(true);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+              >
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
-              onPress={() => {
-                setForgotStep('email');
-                setForgotResetToken('');
-                setForgotVerificationCode('');
-                setForgotNewPassword('');
-                setForgotConfirmPassword('');
-                setShowForgotPasswordScreen(true);
-              }}
+              style={[styles.loginButtonMain, isLoggingIn && styles.loginButtonMainDisabled]}
+              onPress={handleLogin}
+              disabled={isLoggingIn}
+              activeOpacity={0.85}
             >
-              <Text style={styles.forgotText}>Forgot password?</Text>
+              <Text style={styles.loginButtonMainText}>{isLoggingIn ? 'Signing In...' : 'Login'}</Text>
             </TouchableOpacity>
-          </View>
 
-          <TouchableOpacity
-            style={[styles.loginButtonMain, isLoggingIn && styles.loginButtonMainDisabled]}
-            onPress={handleLogin}
-            disabled={isLoggingIn}
-          >
-            <Text style={styles.loginButtonMainText}>{isLoggingIn ? 'Signing In...' : 'Login'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.volunteerLoginSwitch} onPress={openVolunteerLoginFromResidentLogin}>
-            <Text style={styles.volunteerLoginSwitchText}>Staff account? Sign in here</Text>
-          </TouchableOpacity>
-
-          <View style={styles.registerContainer}>
-            <Text style={styles.registerPrompt}>Don't have an account? </Text>
-            <TouchableOpacity onPress={handleRegister}>
-              <Text style={styles.registerLink}>Register</Text>
+            <TouchableOpacity
+              style={styles.volunteerLoginSwitch}
+              onPress={openVolunteerLoginFromResidentLogin}
+              hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+            >
+              <Text style={styles.volunteerLoginSwitchText}>Staff account? Sign in here</Text>
             </TouchableOpacity>
+
+            <View style={styles.registerContainer}>
+              <Text style={styles.registerPrompt}>Don't have an account? </Text>
+              <TouchableOpacity onPress={handleRegister} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.registerLink}>Register</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     );
@@ -683,32 +770,44 @@ export default function SplashScreen({
 
   // Initial Login/Registration Screen (shows after onboarding slides)
   if (showInitialSplash) {
+    const logoWidth = Math.min(windowWidth * 0.9, 360);
+    const logoHeight = Math.min(windowHeight * 0.28, 220);
     return (
-      <View style={styles.initialSplashContainer}>
+      <View
+        style={[
+          styles.initialSplashContainer,
+          {
+            paddingTop: Math.max(insets.top, 24),
+            paddingBottom: Math.max(insets.bottom, 28),
+          },
+        ]}
+      >
         <View style={styles.initialLogoWrapper}>
           <Image
             source={require('../assets/textual.png')}
-            style={styles.initialTextualLogo}
+            style={{ width: logoWidth, height: logoHeight }}
             resizeMode="contain"
           />
           <Text style={styles.initialSubtitle}>Choose how you want to continue</Text>
         </View>
         <View style={styles.initialButtonsContainer}>
-          <TouchableOpacity 
-            style={styles.initialLoginButton} 
+          <TouchableOpacity
+            style={styles.initialLoginButton}
             onPress={() => {
               setShowInitialSplash(false);
               setShowLoginScreen(true);
             }}
+            activeOpacity={0.85}
           >
             <Text style={styles.initialLoginButtonText}>Login</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.initialRegisterButton} 
+          <TouchableOpacity
+            style={styles.initialRegisterButton}
             onPress={() => {
               setShowInitialSplash(false);
               setShowRegisterScreen(true);
             }}
+            activeOpacity={0.85}
           >
             <Text style={styles.initialRegisterButtonText}>Register</Text>
           </TouchableOpacity>
@@ -720,10 +819,53 @@ export default function SplashScreen({
   // Onboarding Slider (shows after clicking Get Started)
   if (showOnboarding) {
     const isLastSlide = currentIndex === slides.length - 1;
-    
+
+    const handleSkip = () => {
+      setShowOnboarding(false);
+      setShowInitialSplash(true);
+    };
+
+    const handleNext = () => {
+      if (currentIndex < slides.length - 1) {
+        const nextIndex = currentIndex + 1;
+        setCurrentIndex(nextIndex);
+        flatListRef.current?.scrollToIndex({
+          index: nextIndex,
+          animated: true,
+        });
+      } else {
+        handleSkip();
+      }
+    };
+
     return (
-      <View style={styles.onboardingContainer}>
-        {/* Image Slider */}
+      <View
+        style={[
+          styles.onboardingContainer,
+          {
+            paddingTop: Math.max(insets.top, 16),
+            paddingBottom: Math.max(insets.bottom, 20),
+          },
+        ]}
+      >
+        {/* Top Header with Skip Button */}
+        <View style={styles.onboardingHeader}>
+          <View style={styles.onboardingHeaderSpacer} />
+          {!isLastSlide ? (
+            <TouchableOpacity
+              style={styles.onboardingSkipButton}
+              onPress={handleSkip}
+              accessibilityLabel="Skip onboarding"
+              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+            >
+              <Text style={styles.onboardingSkipText}>Skip</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.onboardingSkipPlaceholder} />
+          )}
+        </View>
+
+        {/* Carousel Slider */}
         <View style={styles.sliderContainer}>
           <FlatList
             ref={flatListRef}
@@ -735,43 +877,61 @@ export default function SplashScreen({
             showsHorizontalScrollIndicator={false}
             onScroll={onScroll}
             scrollEventThrottle={16}
+            initialNumToRender={3}
+            maxToRenderPerBatch={3}
+            windowSize={5}
+            removeClippedSubviews={false}
             getItemLayout={(_, index) => ({
-              length: width,
-              offset: width * index,
+              length: windowWidth,
+              offset: windowWidth * index,
               index,
             })}
-            snapToInterval={width}
+            snapToInterval={windowWidth}
+            snapToAlignment="start"
             decelerationRate="fast"
-            contentContainerStyle={styles.flatListContent}
+            style={{ width: windowWidth, flex: 1 }}
           />
-          
-          {/* Pagination Dots */}
-          <View style={styles.pagination}>
-            {slides.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  currentIndex === index ? styles.activeDot : styles.inactiveDot,
-                ]}
-              />
-            ))}
-          </View>
         </View>
 
-        {/* Continue Button - only shows on last slide */}
-        {isLastSlide && (
+        {/* Bottom Controls Area (Page Indicator + Action Button) */}
+        <View style={styles.onboardingBottomContainer}>
+          {/* Pagination Indicators */}
+          <View style={styles.pagination}>
+            {slides.map((_, index) => {
+              const isActive = currentIndex === index;
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.dot,
+                    isActive ? styles.activeDot : styles.inactiveDot,
+                  ]}
+                />
+              );
+            })}
+          </View>
+
+          {/* Action Button */}
           <TouchableOpacity
-            style={styles.onboardingContinueButton}
-            onPress={() => {
-              setShowOnboarding(false);
-              setShowInitialSplash(true);
-            }}
-            accessibilityLabel="Continue onboarding"
+            style={[
+              styles.onboardingActionButton,
+              isLastSlide && styles.onboardingGetStartedButton,
+            ]}
+            onPress={handleNext}
+            activeOpacity={0.85}
+            accessibilityLabel={isLastSlide ? 'Get Started' : 'Next slide'}
           >
-            <Ionicons name="arrow-forward" size={22} color="#FFFFFF" />
+            <Text style={styles.onboardingActionButtonText}>
+              {isLastSlide ? 'Get Started' : 'Next'}
+            </Text>
+            <Ionicons
+              name={isLastSlide ? 'arrow-forward' : 'chevron-forward'}
+              size={18}
+              color="#FFFFFF"
+              style={styles.onboardingActionIcon}
+            />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
     );
   }
@@ -786,7 +946,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
   },
   loginKeyboardView: {
     flex: 1,
@@ -796,193 +956,160 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingTop: 40,
-    paddingBottom: 30,
+    paddingHorizontal: 32,
   },
   loginBackButton: {
     position: 'absolute',
     left: 20,
-    top: Platform.OS === 'ios' ? 50 : 30,
     zIndex: 10,
-    padding: 5,
+    padding: 6,
   },
   loginContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
     paddingTop: 60,
   },
   onboardingContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  onboardingHeader: {
+    height: 48,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+  },
+  onboardingHeaderSpacer: {
+    width: 48,
+  },
+  onboardingSkipButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+  },
+  onboardingSkipText: {
+    color: '#4B5563',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  onboardingSkipPlaceholder: {
+    width: 48,
   },
   logoContainer: {
-    marginBottom: 20,
-  },
-  logo: {
-    width: width * 0.5,
-    height: width * 0.5,
-  },
-  logoLarge: {
-    width: width * 0.75,
-    height: width * 0.75,
+    marginBottom: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sliderContainer: {
     flex: 1,
+    width: '100%',
     justifyContent: 'center',
   },
   slide: {
-    width: width,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: 28,
   },
-  slideImage: {
-    width: width * 0.85,
-    height: width * 0.85,
-    marginBottom: 30,
+  slideImageWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  slideTextWrapper: {
+    maxWidth: 340,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   slideText: {
     fontSize: 16,
-    color: '#333333',
+    color: '#374151',
     textAlign: 'center',
     lineHeight: 24,
-    paddingHorizontal: 10,
+    fontWeight: '400',
   },
-  flatListContent: {
+  onboardingBottomContainer: {
+    paddingHorizontal: 32,
+    paddingTop: 12,
+    paddingBottom: 8,
     alignItems: 'center',
   },
   pagination: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginBottom: 20,
+    gap: 6,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginHorizontal: 5,
+    height: 8,
+    borderRadius: 4,
   },
   activeDot: {
-    backgroundColor: '#2E7D32',
+    width: 26,
+    backgroundColor: '#16A34A',
   },
   inactiveDot: {
-    backgroundColor: '#C4C4C4',
+    width: 8,
+    backgroundColor: '#D1D5DB',
+  },
+  onboardingActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#16A34A',
+    width: '100%',
+    maxWidth: 320,
+    paddingVertical: 14,
+    borderRadius: 25,
+    elevation: 3,
+    shadowColor: '#16A34A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  onboardingGetStartedButton: {
+    backgroundColor: '#15803D',
+  },
+  onboardingActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  onboardingActionIcon: {
+    marginLeft: 6,
   },
   getStartedContainer: {
-    paddingHorizontal: 40,
-    paddingBottom: 80,
-    paddingTop: 30,
+    paddingHorizontal: 32,
+    paddingBottom: 40,
+    paddingTop: 20,
     width: '100%',
     alignItems: 'center',
   },
   getStartedButton: {
     backgroundColor: '#16A34A',
-    paddingVertical: 16,
-    paddingHorizontal: 80,
+    paddingVertical: 15,
+    paddingHorizontal: 64,
     borderRadius: 30,
     elevation: 3,
     shadowColor: '#16A34A',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    marginBottom: 16,
-  },
-  onboardingContinueButton: {
-    position: 'absolute',
-    top: 52,
-    right: 20,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#16A34A',
+    width: '100%',
+    maxWidth: 280,
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#16A34A',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    zIndex: 10,
   },
   getStartedButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-  },
-  skipButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-  },
-  skipButtonText: {
-    color: '#6B7280',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  buttonContainer: {
-    paddingHorizontal: 40,
-    paddingBottom: 50,
-    width: '100%',
-    alignItems: 'center',
-  },
-  titleContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  titleGreen: {
-    color: '#2E7D32',
-  },
-  titleYellow: {
-    color: '#F9A825',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#F9A825',
-    fontWeight: '600',
-    letterSpacing: 2,
-  },
-  button: {
-    backgroundColor: '#2E7D32',
-    paddingVertical: 16,
-    paddingHorizontal: 60,
-    borderRadius: 30,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  brandTagline: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#6B7280',
-    letterSpacing: 0.2,
   },
   welcomeContainer: {
     marginBottom: 20,
@@ -999,8 +1126,15 @@ const styles = StyleSheet.create({
   welcomeYellow: {
     color: '#ECC323',
   },
+  brandTagline: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#6B7280',
+    letterSpacing: 0.2,
+  },
   formContainer: {
     width: '100%',
+    maxWidth: 420,
     paddingHorizontal: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -1045,8 +1179,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2E7D32',
   },
+  forgotScrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
   forgotCard: {
     width: '100%',
+    maxWidth: 420,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
@@ -1062,14 +1203,20 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   forgotIllustration: {
-    width: width * 0.52,
-    height: width * 0.52,
     marginBottom: 10,
   },
   forgotTitle: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '800',
-    marginBottom: 18,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  forgotSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 18,
   },
   forgotInputContainer: {
     flexDirection: 'row',
@@ -1132,10 +1279,7 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
@@ -1172,78 +1316,27 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: 'bold',
   },
-  authButtonsContainer: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 15,
-  },
-  loginButton: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
-    paddingHorizontal: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: '#2E7D32',
-    width: width * 0.55,
-    alignItems: 'center',
-  },
-  loginButtonText: {
-    color: '#ECC323',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  textLogoContainer: {
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  textLogo: {
-    width: width * 1.0,
-    height: width * 0.85,
-  },
-  registerButton: {
-    backgroundColor: '#2E7D32',
-    paddingVertical: 14,
-    paddingHorizontal: 60,
-    borderRadius: 30,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    width: width * 0.55,
-    alignItems: 'center',
-  },
-  registerButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
   initialSplashContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
   },
   initialLogoWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 30,
   },
-  initialTextualLogo: {
-    width: width * 0.95,
-    height: width * 0.75,
-  },
   initialSubtitle: {
     marginTop: 8,
     color: '#6B7280',
     fontSize: 14,
+    textAlign: 'center',
   },
   initialButtonsContainer: {
     width: '100%',
+    maxWidth: 340,
     alignItems: 'center',
     gap: 12,
   },
@@ -1269,10 +1362,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },

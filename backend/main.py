@@ -18,9 +18,10 @@ NEW: MongoDB Integration for Resident Registration
 from fastapi import FastAPI, HTTPException, Request, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any, Dict, List, Union
 import base64
 import cv2
+import cv2.data
 import numpy as np
 from deepface import DeepFace
 import os
@@ -29,6 +30,22 @@ from datetime import datetime
 import logging
 import time
 import sys
+import os
+
+# Ensure UTF-8 output on Windows console
+if sys.platform == "win32":
+    try:
+        reconf_stdout = getattr(sys.stdout, "reconfigure", None)
+        if callable(reconf_stdout):
+            reconf_stdout(encoding="utf-8")
+        reconf_stderr = getattr(sys.stderr, "reconfigure", None)
+        if callable(reconf_stderr):
+            reconf_stderr(encoding="utf-8")
+    except Exception:
+        pass
+
+os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+
 from pymongo import MongoClient
 from bson import ObjectId
 
@@ -47,17 +64,21 @@ app = FastAPI(
 )
 
 # CORS allowlist configuration
-FACE_API_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("FACE_API_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-    if origin.strip()
-]
+raw_allowed_origins = os.getenv("FACE_API_ALLOWED_ORIGINS", "*").split(",")
+FACE_API_ALLOWED_ORIGINS = [origin.strip() for origin in raw_allowed_origins if origin.strip()]
+
+if "*" in FACE_API_ALLOWED_ORIGINS or not FACE_API_ALLOWED_ORIGINS:
+    cors_origins = ["*"]
+    cors_credentials = False
+else:
+    cors_origins = FACE_API_ALLOWED_ORIGINS
+    cors_credentials = True
 
 # Enable CORS for mobile app communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=FACE_API_ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=cors_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -122,7 +143,9 @@ def _cleanup_face_attempt_tracker(now_ts: float) -> None:
         _face_attempt_tracker.pop(key, None)
 
 
-def enforce_face_attempt_limit(http_request: Request, endpoint_name: str, session_key: Optional[str] = None) -> None:
+def enforce_face_attempt_limit(http_request: Optional[Request], endpoint_name: str, session_key: Optional[str] = None) -> None:
+    if http_request is None:
+        return
     now_ts = time.time()
     _cleanup_face_attempt_tracker(now_ts)
 
@@ -180,7 +203,7 @@ def get_mongo_db():
     global mongo_client, mongo_db
     if mongo_db is None:
         try:
-            mongo_client = MongoClient(MONGODB_URI)
+            mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
             mongo_db = mongo_client[MONGODB_DB_NAME]
             # Test connection
             mongo_client.admin.command('ping')
@@ -246,8 +269,8 @@ class FaceDetectionResult(BaseModel):
     image_quality: str = "good"  # good, blurry, too_dark, too_bright
     is_valid: bool = False  # Overall validation result
     message: str
-    bounding_box: Optional[dict] = None
-    validation_details: Optional[dict] = None  # Detailed validation info
+    bounding_box: Optional[Dict[str, Any]] = None
+    validation_details: Optional[Dict[str, Any]] = None  # Detailed validation info
 
 # ============================================
 # IN-MEMORY FACE DATABASE
@@ -256,7 +279,7 @@ class FaceDetectionResult(BaseModel):
 
 face_database = {}  # {user_id: {"name": str, "embedding": list, "registered_at": str}}
 EMBEDDINGS_FILE = "face_embeddings.json"
-face_index = {
+face_index: Dict[str, Any] = {
     "user_ids": [],
     "names": [],
     "matrix": None,   # 2D numpy array [n_users, embedding_dim]
@@ -464,12 +487,14 @@ def detect_faces_opencv(image: np.ndarray) -> dict:
         minSize=(MIN_FACE_SIZE, MIN_FACE_SIZE)
     )
     
+    face_list = [[int(coord) for coord in f] for f in faces] if len(faces) > 0 else []
+    
     result = {
-        "has_face": len(faces) > 0,
-        "face_count": len(faces),
-        "faces": faces.tolist() if len(faces) > 0 else [],
-        "image_width": image.shape[1],
-        "image_height": image.shape[0]
+        "has_face": bool(len(faces) > 0),
+        "face_count": int(len(faces)),
+        "faces": face_list,
+        "image_width": int(image.shape[1]),
+        "image_height": int(image.shape[0])
     }
     
     return result
@@ -491,13 +516,14 @@ def detect_faces_deepface(image: np.ndarray) -> dict:
 
     face_boxes = []
     for f in faces:
-        area = f.get("facial_area") or {}
-        x = int(area.get("x", 0))
-        y = int(area.get("y", 0))
-        w = int(area.get("w", 0))
-        h = int(area.get("h", 0))
-        if w > 0 and h > 0:
-            face_boxes.append([x, y, w, h])
+        if isinstance(f, dict):
+            area = f.get("facial_area") or {}
+            x = int(area.get("x", 0))
+            y = int(area.get("y", 0))
+            w = int(area.get("w", 0))
+            h = int(area.get("h", 0))
+            if w > 0 and h > 0:
+                face_boxes.append([x, y, w, h])
 
     if len(face_boxes) == 0:
         # Fallback to OpenCV if DeepFace found nothing
@@ -700,10 +726,10 @@ def check_liveness_basic(image: np.ndarray, face_bbox: list) -> tuple[bool, dict
     details["liveness_score"] = score
     details["min_required"] = LIVENESS_MIN_PASSES
     details["max_score"] = max_score
-    details["confidence"] = float(score / max_score * 100)
+    details["confidence"] = score / max_score * 100
     
     # Require at least configured number of checks (default 1) to pass
-    is_real = bool(score >= LIVENESS_MIN_PASSES)
+    is_real = score >= LIVENESS_MIN_PASSES
     
     return is_real, details
 
@@ -728,10 +754,14 @@ def get_face_embedding(image: np.ndarray) -> list:
             enforce_detection=True
         )
         
-        if len(embedding) == 0:
+        if not embedding:
             raise ValueError("No face detected in image")
         
-        return embedding[0]["embedding"]
+        first_emb = embedding[0] if isinstance(embedding, list) else embedding
+        if isinstance(first_emb, dict) and "embedding" in first_emb:
+            emb_vec = first_emb["embedding"]
+            return list(emb_vec) if not isinstance(emb_vec, list) else emb_vec
+        raise ValueError("Could not extract embedding from model output")
     except Exception as e:
         logger.error(f"Face embedding generation failed: {e}")
         raise ValueError(f"Could not generate face embedding: {str(e)}")
@@ -758,10 +788,14 @@ def get_face_embedding_fast(face_crop: np.ndarray) -> list:
             enforce_detection=False
         )
         
-        if len(embedding) == 0:
+        if not embedding:
             raise ValueError("Could not generate embedding")
         
-        return embedding[0]["embedding"]
+        first_emb = embedding[0] if isinstance(embedding, list) else embedding
+        if isinstance(first_emb, dict) and "embedding" in first_emb:
+            emb_vec = first_emb["embedding"]
+            return list(emb_vec) if not isinstance(emb_vec, list) else emb_vec
+        raise ValueError("Could not extract embedding from model output")
     except Exception as e:
         logger.error(f"Fast embedding failed: {e}")
         raise ValueError(f"Could not generate face embedding: {str(e)}")
@@ -790,17 +824,19 @@ def calculate_similarity(embedding1: list, embedding2: list) -> float:
     similarity = dot_product / norm_product
     
     # Ensure result is in valid range
-    return float(max(0.0, min(1.0, similarity)))
+    return float(np.clip(similarity, 0.0, 1.0))
 
-def to_native(obj):
+def to_native(obj: Any) -> Any:
     """
-    Convert numpy scalars to native Python types for JSON serialization.
+    Convert numpy scalars, arrays, and collections to native Python types for JSON serialization.
     """
     if isinstance(obj, np.generic):
         return obj.item()
+    if isinstance(obj, np.ndarray):
+        return [to_native(v) for v in obj.tolist()]
     if isinstance(obj, dict):
-        return {k: to_native(v) for k, v in obj.items()}
-    if isinstance(obj, list):
+        return {str(k): to_native(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
         return [to_native(v) for v in obj]
     return obj
 
@@ -849,7 +885,7 @@ async def health_check():
     }
 
 @app.post("/api/face/detect", response_model=FaceDetectionResult)
-async def detect_face(request: FaceDetectRequest, http_request: Request):
+async def detect_face(request: FaceDetectRequest, http_request: Request = None):
     """
     STEP 1: Detect and validate face in image
     Enhanced with liveness detection and image quality checks
@@ -996,17 +1032,17 @@ async def detect_face(request: FaceDetectRequest, http_request: Request):
             return FaceDetectionResult(
                 has_face=True,
                 face_count=1,
-                is_centered=is_centered,
-                face_size_ok=face_size_ok,
+                is_centered=bool(is_centered),
+                face_size_ok=bool(face_size_ok),
                 is_real_image=False,
                 image_quality=img_quality,
                 is_valid=False,
                 message=msg,
                 bounding_box={
-                    "x": face[0],
-                    "y": face[1],
-                    "width": face[2],
-                    "height": face[3]
+                    "x": int(face[0]),
+                    "y": int(face[1]),
+                    "width": int(face[2]),
+                    "height": int(face[3])
                 },
                 validation_details=to_native(validation_details)
             )
@@ -1014,7 +1050,7 @@ async def detect_face(request: FaceDetectRequest, http_request: Request):
         # Build final response
         # For registration selfies, centering and size are advisory — only liveness is critical.
         # The duplicate-check endpoint does the heavy lifting later.
-        all_valid = is_real  # Only require liveness for the detect step
+        all_valid = bool(is_real)  # Only require liveness for the detect step
 
         # Build an advisory message with positioning tips
         warnings = []
@@ -1036,17 +1072,17 @@ async def detect_face(request: FaceDetectRequest, http_request: Request):
         return FaceDetectionResult(
             has_face=True,
             face_count=1,
-            is_centered=is_centered,
-            face_size_ok=face_size_ok,
-            is_real_image=is_real,
+            is_centered=bool(is_centered),
+            face_size_ok=bool(face_size_ok),
+            is_real_image=bool(is_real),
             image_quality="good",
-            is_valid=all_valid,
+            is_valid=bool(all_valid),
             message=message,
             bounding_box={
-                "x": face[0],
-                "y": face[1],
-                "width": face[2],
-                "height": face[3]
+                "x": int(face[0]),
+                "y": int(face[1]),
+                "width": int(face[2]),
+                "height": int(face[3])
             },
             validation_details=to_native(validation_details)
         )
@@ -1122,12 +1158,14 @@ async def register_face(request: FaceRegisterRequest):
         logger.info(f"Embedding generated: {len(embedding)} dimensions")
         
         # Check for duplicate face (1:N matching against existing faces)
-        if len(face_index["user_ids"]) > 0:
+        matrix = face_index.get("matrix")
+        norms = face_index.get("norms")
+        if len(face_index["user_ids"]) > 0 and matrix is not None and norms is not None:
             query = np.array(embedding, dtype=np.float32)
             query_norm = np.linalg.norm(query)
             if query_norm > 0:
-                sims = np.dot(face_index["matrix"], query) / (
-                    (face_index["norms"] * query_norm) + 1e-12
+                sims = np.dot(matrix, query) / (
+                    (norms * query_norm) + 1e-12
                 )
                 best_idx = int(np.argmax(sims))
                 best_similarity = float(np.clip(sims[best_idx], 0.0, 1.0))
@@ -1233,7 +1271,7 @@ def save_face_embedding_to_mongodb(embedding_data: dict) -> Optional[str]:
         return None
 
 @app.post("/api/face/check-duplicate", response_model=DuplicateCheckResponse)
-async def check_duplicate_face(request: DuplicateCheckRequest, http_request: Request):
+async def check_duplicate_face(request: DuplicateCheckRequest, http_request: Request = None):
     """
     CHECK FOR DUPLICATE FACE DURING RESIDENT REGISTRATION
     
@@ -1355,17 +1393,19 @@ async def check_duplicate_face(request: DuplicateCheckRequest, http_request: Req
         embedding = get_face_embedding_fast(face_crop)
         print(f"  Embedding generated: {len(embedding)} dimensions")
         
-        # Step 4: Get all registered embeddings from MongoDB + in-memory
+        # Step 4: Get all registered embeddings from MongoDB (with in-memory fallback)
         registered_faces = get_all_embeddings_from_mongodb()
         
-        # Also check in-memory database for backwards compatibility
-        for user_id, data in face_database.items():
-            registered_faces.append({
-                "_id": user_id,
-                "resident_id": user_id,
-                "name": data.get("name", "Unknown"),
-                "embedding_vector": data.get("embedding", [])
-            })
+        # Fallback to local in-memory database only if MongoDB has no records
+        if not registered_faces:
+            load_database()
+            for user_id, data in face_database.items():
+                registered_faces.append({
+                    "_id": user_id,
+                    "resident_id": user_id,
+                    "name": data.get("name", "Unknown"),
+                    "embedding_vector": data.get("embedding", [])
+                })
         
         print(f"  Comparing against {len(registered_faces)} registered faces...")
         
@@ -1486,7 +1526,7 @@ async def check_duplicate_face(request: DuplicateCheckRequest, http_request: Req
                 "similarity_score": round(best_similarity, 4) if best_similarity > 0 else None,
                 "decision": "ALLOW",
                 "processing_time_ms": processing_time,
-                "registered_embedding_id": str(embedding_id) if embedding_id else None
+                "registered_embedding_id": embedding_id if embedding_id else None
             })
             save_registration_log(log_entry)
             
@@ -1513,7 +1553,7 @@ async def check_duplicate_face(request: DuplicateCheckRequest, http_request: Req
                 threshold=DUPLICATE_THRESHOLD,
                 processing_time_ms=processing_time,
                 message=message,
-                resident_id=str(embedding_id) if embedding_id else None
+                resident_id=embedding_id if embedding_id else None
             )
     
     except ValueError as e:
@@ -1672,8 +1712,17 @@ async def verify_face(request: FaceVerifyRequest):
             )
 
         logger.info(f"Comparing against {len(face_index['user_ids'])} registered faces...")
-        similarities = np.dot(face_index["matrix"], query) / (
-            (face_index["norms"] * query_norm) + 1e-12
+        matrix = face_index.get("matrix")
+        norms = face_index.get("norms")
+        if matrix is None or norms is None:
+            return FaceVerifyResponse(
+                verified=False,
+                confidence=0.0,
+                message="Face index is not initialized. Please try again."
+            )
+
+        similarities = np.dot(matrix, query) / (
+            (norms * query_norm) + 1e-12
         )
         best_idx = int(np.argmax(similarities))
         best_similarity = float(np.clip(similarities[best_idx], 0.0, 1.0))

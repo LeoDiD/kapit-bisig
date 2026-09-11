@@ -47,7 +47,7 @@ export function validateIdNumberFormat(idType: string, idNumber: string): boolea
   switch (idType) {
     case 'PhilSys ID':
     case 'Philippine National ID':
-      return /^\d{12}$/.test(normalized);
+      return /^(?:\d{12}|\d{16})$/.test(normalized);
     case "Driver's License":
       return /^[A-Z]\d{10}$/.test(normalized);
     case 'Passport':

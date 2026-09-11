@@ -1,7 +1,7 @@
 /**
  * seedStaffAccounts.ts
  *
- * Seeds 30 staff accounts (3 staff members per barangay for all 10 Lingayen barangays).
+ * Seeds 30 staff accounts (3 staff members per barangay for all 10 Labrador barangays).
  *
  * Usage:
  *   npx ts-node --project tsconfig.server.json server/scripts/seedStaffAccounts.ts

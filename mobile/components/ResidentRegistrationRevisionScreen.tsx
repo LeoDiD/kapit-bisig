@@ -23,6 +23,7 @@ import {
   ResidentProfile,
   submitResidentRegistrationRevision,
 } from '../services/api/ResidentQrService';
+import { getIdFormatInfo, sanitizeIdInput } from '../utils/idFormat';
 
 const residentColors = residentTheme.colors;
 
@@ -205,11 +206,23 @@ export default function ResidentRegistrationRevisionScreen({
           <Typography variant="body" weight="semiBold" style={styles.fieldLabel}>ID number</Typography>
           <TextInput
             value={idNumber}
-            onChangeText={setIdNumber}
-            placeholder="Enter the corrected ID number"
+            onChangeText={(text) => {
+              const formatted = sanitizeIdInput(selectedIdType, text, idNumber);
+              setIdNumber(formatted);
+            }}
+            placeholder={getIdFormatInfo(selectedIdType).placeholder || 'Enter the corrected ID number'}
             placeholderTextColor={theme.colors.textMuted}
+            keyboardType={getIdFormatInfo(selectedIdType).keyboardType}
+            maxLength={getIdFormatInfo(selectedIdType).maxLength}
+            autoCapitalize="characters"
+            autoCorrect={false}
             style={styles.input}
           />
+          {!!selectedIdType && (
+            <Typography variant="caption" color="muted" style={{ marginTop: 4 }}>
+              Format: {getIdFormatInfo(selectedIdType).hint}
+            </Typography>
+          )}
         </Card>
 
         <UploadCard

@@ -23,7 +23,7 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, cast
 
 import cv2
 import numpy as np
@@ -98,7 +98,7 @@ def cosine_similarity(v1: np.ndarray, v2: np.ndarray) -> float:
 def face_embedding(image_bgr: np.ndarray, model_name: str) -> np.ndarray:
     # LFW images are already face crops, so we skip detection.
     resized = cv2.resize(image_bgr, (160, 160), interpolation=cv2.INTER_AREA)
-    reps = DeepFace.represent(
+    reps: Any = DeepFace.represent(
         img_path=resized,
         model_name=model_name,
         detector_backend="skip",
@@ -106,7 +106,8 @@ def face_embedding(image_bgr: np.ndarray, model_name: str) -> np.ndarray:
     )
     if not reps:
         raise ValueError("No embedding returned from DeepFace.represent")
-    emb = np.array(reps[0]["embedding"], dtype=np.float32)
+    first_rep = reps[0] if isinstance(reps, list) else reps
+    emb = np.array(first_rep["embedding"], dtype=np.float32)
     return emb
 
 
@@ -114,9 +115,9 @@ def compute_metrics(y_true: np.ndarray, y_score: np.ndarray, threshold: float) -
     y_pred = (y_score >= threshold).astype(int)
 
     acc = float(accuracy_score(y_true, y_pred))
-    prec = float(precision_score(y_true, y_pred, zero_division=0))
-    rec = float(recall_score(y_true, y_pred, zero_division=0))
-    f1 = float(f1_score(y_true, y_pred, zero_division=0))
+    prec = float(precision_score(y_true, y_pred, zero_division=cast(Any, 0)))
+    rec = float(recall_score(y_true, y_pred, zero_division=cast(Any, 0)))
+    f1 = float(f1_score(y_true, y_pred, zero_division=cast(Any, 0)))
     auc: float | None
     if len(np.unique(y_true)) < 2:
         auc = None
@@ -145,10 +146,13 @@ def compute_metrics(y_true: np.ndarray, y_score: np.ndarray, threshold: float) -
 
 def sweep_thresholds(y_true: np.ndarray, y_score: np.ndarray) -> Dict[str, float | int | None]:
     best: Dict[str, float | int | None] | None = None
+    best_f1 = -1.0
     for t in np.linspace(0.30, 0.90, 61):
         m = compute_metrics(y_true, y_score, float(t))
-        if best is None or m["f1_score"] > best["f1_score"]:
+        m_f1 = float(m.get("f1_score") or 0.0)
+        if best is None or m_f1 > best_f1:
             best = m
+            best_f1 = m_f1
     return best if best is not None else {}
 
 

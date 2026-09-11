@@ -31,6 +31,7 @@ import {
   readVerificationImageAsDataUrl,
 } from '../utils/imageStorage';
 import { createNotification } from '../utils/createNotification';
+import { sendAccountStatusUpdateSms } from '../utils/smsService';
 
 const router = Router();
 const REGISTER_PAYLOAD_MAX_BYTES = 8 * 1024 * 1024; // 8MB
@@ -445,6 +446,20 @@ router.patch(
       }
       await resident.save();
 
+      const residentName = resident.fullName || `${resident.firstName || ''} ${resident.lastName || ''}`.trim() || 'Resident';
+
+      // Send SMS status announcement (best effort)
+      if (resident.mobileNumber) {
+        sendAccountStatusUpdateSms(
+          resident.mobileNumber,
+          residentName,
+          status,
+          resident.rejectionReason,
+        ).catch((smsErr) => {
+          console.warn('[ResidentRoutes] Failed to send status SMS:', smsErr?.message || smsErr);
+        });
+      }
+
       if (status === 'Approved') {
         await createNotification({
           userId: resident._id.toString(),
@@ -469,7 +484,20 @@ router.patch(
             residentId: resident._id.toString(),
           },
         });
+      } else if (status === 'Rejected') {
+        await createNotification({
+          userId: resident._id.toString(),
+          title: 'Registration Rejected',
+          message: resident.rejectionReason
+            ? `Your registration could not be approved: ${resident.rejectionReason}`
+            : 'Your registration could not be approved. Please contact your barangay office.',
+          type: 'status_update',
+          meta: {
+            residentId: resident._id.toString(),
+          },
+        });
       }
+
 
       return res.json({
         success: true,

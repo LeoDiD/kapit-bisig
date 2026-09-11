@@ -2,7 +2,9 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IResidentPasswordResetOtp extends Document {
   residentId: mongoose.Types.ObjectId;
-  emailLower: string;
+  identifier: string;
+  emailLower?: string;
+  mobileNumber?: string;
   otpHash: string;
   expiresAt: Date;
   attemptsLeft: number;
@@ -18,10 +20,21 @@ const ResidentPasswordResetOtpSchema = new Schema<IResidentPasswordResetOtp>(
       required: true,
       index: true,
     },
-    emailLower: {
+    identifier: {
       type: String,
       required: true,
       lowercase: true,
+      trim: true,
+      index: true,
+    },
+    emailLower: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+    mobileNumber: {
+      type: String,
       trim: true,
       index: true,
     },
@@ -60,3 +73,4 @@ const ResidentPasswordResetOtp = mongoose.model<IResidentPasswordResetOtp>(
 );
 
 export default ResidentPasswordResetOtp;
+

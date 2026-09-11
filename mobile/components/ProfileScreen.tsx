@@ -17,7 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  changeResidentPassword,
+  confirmResidentChangePassword,
   getResidentToken,
+  requestResidentChangePasswordOtp,
   ResidentProfile,
   updateResidentProfile,
   uploadResidentAvatar,
@@ -239,6 +242,17 @@ export default function ProfileScreen({
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [changePasswordStep, setChangePasswordStep] = useState<'input' | 'otp'>('input');
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [changePasswordOtpInput, setChangePasswordOtpInput] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isRequestingChangePasswordOtp, setIsRequestingChangePasswordOtp] = useState(false);
+  const [isConfirmingChangePassword, setIsConfirmingChangePassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [firstNameInput, setFirstNameInput] = useState('');
@@ -451,6 +465,103 @@ export default function ProfileScreen({
     }
   };
 
+  const handleRequestChangePasswordOtp = async () => {
+    if (isRequestingChangePasswordOtp) return;
+
+    const currentPassword = currentPasswordInput.trim();
+    const newPassword = newPasswordInput.trim();
+    const confirmPassword = confirmPasswordInput.trim();
+
+    if (!currentPassword) {
+      Alert.alert('Missing field', 'Please enter your current password.');
+      return;
+    }
+    if (!newPassword) {
+      Alert.alert('Missing field', 'Please enter a new password.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      Alert.alert('Weak password', 'Password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Passwords mismatch', 'New password and confirmation do not match.');
+      return;
+    }
+    if (newPassword === currentPassword) {
+      Alert.alert('Invalid password', 'New password cannot be the same as your current password.');
+      return;
+    }
+
+    setIsRequestingChangePasswordOtp(true);
+    try {
+      const token = await getResidentToken();
+      if (!token) {
+        Alert.alert('Session expired', 'Please log in again.');
+        return;
+      }
+
+      const result = await requestResidentChangePasswordOtp(token, {
+        currentPassword,
+        newPassword,
+      });
+
+      if (!result.success) {
+        const errorDetail = result.errors && result.errors.length > 0 ? `\n\n• ${result.errors.join('\n• ')}` : '';
+        Alert.alert('Request failed', `${result.message || 'Unable to send verification code.'}${errorDetail}`);
+        return;
+      }
+
+      setChangePasswordStep('otp');
+      setChangePasswordOtpInput('');
+      Alert.alert('Verification code sent', 'A 6-digit verification code was sent via SMS to your registered mobile number.');
+    } finally {
+      setIsRequestingChangePasswordOtp(false);
+    }
+  };
+
+  const handleConfirmChangePassword = async () => {
+    if (isConfirmingChangePassword) return;
+
+    const otp = changePasswordOtpInput.trim();
+    const newPassword = newPasswordInput.trim();
+
+    if (!otp || otp.length !== 6) {
+      Alert.alert('Invalid code', 'Please enter the 6-digit verification code sent via SMS.');
+      return;
+    }
+
+    setIsConfirmingChangePassword(true);
+    try {
+      const token = await getResidentToken();
+      if (!token) {
+        Alert.alert('Session expired', 'Please log in again.');
+        return;
+      }
+
+      const result = await confirmResidentChangePassword(token, {
+        otp,
+        newPassword,
+      });
+
+      if (!result.success) {
+        const errorDetail = result.errors && result.errors.length > 0 ? `\n\n• ${result.errors.join('\n• ')}` : '';
+        Alert.alert('Verification failed', `${result.message || 'Unable to update password.'}${errorDetail}`);
+        return;
+      }
+
+      setIsChangePasswordOpen(false);
+      setChangePasswordStep('input');
+      setCurrentPasswordInput('');
+      setNewPasswordInput('');
+      setConfirmPasswordInput('');
+      setChangePasswordOtpInput('');
+      Alert.alert('Password updated', 'Your password has been changed successfully.');
+    } finally {
+      setIsConfirmingChangePassword(false);
+    }
+  };
+
   const handleConfirmLogout = () => {
     setIsLogoutConfirmOpen(false);
     onLogout?.();
@@ -585,6 +696,33 @@ export default function ProfileScreen({
             />
           ))}
         </View>
+
+        {!isVolunteer ? (
+          <>
+            <Typography variant="label" weight="semiBold" color={residentColors.inkSoft} style={styles.sectionLabel}>
+              Security
+            </Typography>
+            <View style={[styles.card, styles.residentDetailCard]}>
+              <ActionItem
+                icon="lock-closed-outline"
+                label="Change password"
+                description="Update your account login password with SMS OTP."
+                onPress={() => {
+                  setChangePasswordStep('input');
+                  setCurrentPasswordInput('');
+                  setNewPasswordInput('');
+                  setConfirmPasswordInput('');
+                  setChangePasswordOtpInput('');
+                  setShowCurrentPassword(false);
+                  setShowNewPassword(false);
+                  setShowConfirmPassword(false);
+                  setIsChangePasswordOpen(true);
+                }}
+                isResident
+              />
+            </View>
+          </>
+        ) : null}
 
         <Typography variant="label" weight="semiBold" color={residentColors.inkSoft} style={styles.sectionLabel}>
           Support
@@ -768,6 +906,219 @@ export default function ProfileScreen({
             </View>
           </View>
         </View>
+      </Modal>
+
+      <Modal
+        visible={isChangePasswordOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!isRequestingChangePasswordOtp && !isConfirmingChangePassword) {
+            setIsChangePasswordOpen(false);
+          }
+        }}
+      >
+        <KeyboardAvoidingView
+          style={styles.sheetOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.editSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetHeaderCopy}>
+                <Typography variant="h3" weight="semiBold">
+                  {changePasswordStep === 'input' ? 'Change password' : 'Enter verification code'}
+                </Typography>
+                <Typography variant="caption" color={theme.colors.textSecondary}>
+                  {changePasswordStep === 'input'
+                    ? 'Enter your current password and choose a strong new password.'
+                    : 'We sent a 6-digit SMS verification code to your registered mobile number.'}
+                </Typography>
+              </View>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  if (!isRequestingChangePasswordOtp && !isConfirmingChangePassword) {
+                    setIsChangePasswordOpen(false);
+                  }
+                }}
+                disabled={isRequestingChangePasswordOtp || isConfirmingChangePassword}
+                accessibilityRole="button"
+                accessibilityLabel="Close change password"
+              >
+                <Ionicons name="close" size={21} color={residentColors.icon} />
+              </TouchableOpacity>
+            </View>
+
+            {changePasswordStep === 'input' ? (
+              <>
+                <ScrollView
+                  style={styles.formScroll}
+                  contentContainerStyle={styles.formContent}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                >
+                  <Text style={styles.inputLabel}>Current password</Text>
+                  <View style={styles.passwordInputContainer}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      value={currentPasswordInput}
+                      onChangeText={setCurrentPasswordInput}
+                      secureTextEntry={!showCurrentPassword}
+                      autoCapitalize="none"
+                      editable={!isRequestingChangePasswordOtp}
+                      placeholder="Enter current password"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                      style={styles.passwordEyeButton}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                    >
+                      <Ionicons
+                        name={showCurrentPassword ? 'eye-outline' : 'eye-off-outline'}
+                        size={19}
+                        color={residentColors.icon}
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.inputLabel}>New password</Text>
+                  <View style={styles.passwordInputContainer}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      value={newPasswordInput}
+                      onChangeText={setNewPasswordInput}
+                      secureTextEntry={!showNewPassword}
+                      autoCapitalize="none"
+                      editable={!isRequestingChangePasswordOtp}
+                      placeholder="Enter new password (min. 8 characters)"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowNewPassword(!showNewPassword)}
+                      style={styles.passwordEyeButton}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={showNewPassword ? 'Hide new password' : 'Show new password'}
+                    >
+                      <Ionicons
+                        name={showNewPassword ? 'eye-outline' : 'eye-off-outline'}
+                        size={19}
+                        color={residentColors.icon}
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.inputLabel}>Confirm new password</Text>
+                  <View style={styles.passwordInputContainer}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      value={confirmPasswordInput}
+                      onChangeText={setConfirmPasswordInput}
+                      secureTextEntry={!showConfirmPassword}
+                      autoCapitalize="none"
+                      editable={!isRequestingChangePasswordOtp}
+                      placeholder="Re-enter new password"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={styles.passwordEyeButton}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    >
+                      <Ionicons
+                        name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
+                        size={19}
+                        color={residentColors.icon}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+
+                <View style={styles.formActions}>
+                  <TouchableOpacity
+                    style={[styles.formButton, styles.cancelButton]}
+                    onPress={() => setIsChangePasswordOpen(false)}
+                    disabled={isRequestingChangePasswordOtp}
+                  >
+                    <Typography variant="body" weight="semiBold" color={theme.colors.textSecondary}>Cancel</Typography>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.formButton, styles.saveButton, styles.residentSaveButton, isRequestingChangePasswordOtp && styles.disabledButton]}
+                    onPress={handleRequestChangePasswordOtp}
+                    disabled={isRequestingChangePasswordOtp}
+                  >
+                    {isRequestingChangePasswordOtp ? (
+                      <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                    ) : (
+                      <Typography variant="body" weight="bold" color={theme.colors.textInverse}>Send OTP code</Typography>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.otpCardContainer}>
+                  <View style={styles.otpNoticeBox}>
+                    <Ionicons name="chatbox-ellipses-outline" size={24} color={residentColors.brand} style={styles.otpNoticeIcon} />
+                    <Typography variant="body" color={residentColors.ink} style={styles.otpNoticeText}>
+                      Please check your SMS inbox for the 6-digit code.
+                    </Typography>
+                  </View>
+
+                  <Text style={styles.inputLabel}>6-Digit SMS Verification Code</Text>
+                  <TextInput
+                    style={[styles.input, styles.otpInputField]}
+                    value={changePasswordOtpInput}
+                    onChangeText={setChangePasswordOtpInput}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    placeholder="123456"
+                    placeholderTextColor="#9CA3AF"
+                    autoFocus
+                    editable={!isConfirmingChangePassword}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.resendOtpButton}
+                    onPress={handleRequestChangePasswordOtp}
+                    disabled={isRequestingChangePasswordOtp || isConfirmingChangePassword}
+                  >
+                    <Typography variant="caption" weight="semiBold" color={residentColors.brand}>
+                      {isRequestingChangePasswordOtp ? 'Resending code...' : "Didn't receive code? Resend OTP"}
+                    </Typography>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.formActions}>
+                  <TouchableOpacity
+                    style={[styles.formButton, styles.cancelButton]}
+                    onPress={() => setChangePasswordStep('input')}
+                    disabled={isConfirmingChangePassword}
+                  >
+                    <Typography variant="body" weight="semiBold" color={theme.colors.textSecondary}>Back</Typography>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.formButton, styles.saveButton, styles.residentSaveButton, isConfirmingChangePassword && styles.disabledButton]}
+                    onPress={handleConfirmChangePassword}
+                    disabled={isConfirmingChangePassword}
+                  >
+                    {isConfirmingChangePassword ? (
+                      <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                    ) : (
+                      <Typography variant="body" weight="bold" color={theme.colors.textInverse}>Confirm & update</Typography>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -1116,6 +1467,64 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontFamily: theme.typography.fontFamily.regular,
     fontSize: 15,
+  },
+  passwordInputContainer: {
+    minHeight: 48,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: theme.colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 10,
+  },
+  passwordInput: {
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: 13,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamily.regular,
+    fontSize: 15,
+  },
+  passwordEyeButton: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  otpCardContainer: {
+    paddingVertical: 12,
+  },
+  otpNoticeBox: {
+    padding: 12,
+    marginBottom: 14,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: residentColors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: residentColors.borderAccent,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  otpNoticeIcon: {
+    marginRight: 10,
+  },
+  otpNoticeText: {
+    flex: 1,
+    fontSize: 13,
+  },
+  otpInputField: {
+    textAlign: 'center',
+    fontSize: 22,
+    letterSpacing: 8,
+    fontFamily: theme.typography.fontFamily.bold,
+  },
+  resendOtpButton: {
+    marginTop: 12,
+    alignSelf: 'center',
+    paddingVertical: 6,
+  },
+  sheetHeaderCopy: {
+    flex: 1,
+    paddingRight: 12,
   },
   formActions: {
     paddingTop: 16,

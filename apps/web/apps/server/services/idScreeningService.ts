@@ -234,11 +234,11 @@ function cacheScreening(key: string, result: IdScreeningResult): void {
 const TYPE_RULES: Record<SupportedIdType, TypeRule> = {
   'PhilSys ID': {
     keywords: ['PHILIPPINE', 'NATIONAL', 'IDENTIFICATION', 'PHILSYS', 'PCN'],
-    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}/g,
+    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}(?:[-\s]?\d{4})?/g,
   },
   'Philippine National ID': {
     keywords: ['PHILIPPINE', 'NATIONAL', 'IDENTIFICATION', 'PHILSYS', 'PCN'],
-    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}/g,
+    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}(?:[-\s]?\d{4})?/g,
   },
   "Driver's License": {
     keywords: ['DRIVER', 'LICENSE', 'LTO', 'LAND', 'TRANSPORTATION'],

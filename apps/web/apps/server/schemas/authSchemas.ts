@@ -27,14 +27,22 @@ export const householdLoginSchema = z
 
 export const householdForgotSendOtpSchema = z
   .object({
-    email: trimmedString.email().max(254),
+    email: trimmedString.email().max(254).optional(),
+    mobileNumber: trimmedString.max(32).optional(),
+  })
+  .refine((data) => Boolean(data.email || data.mobileNumber), {
+    message: 'Either email or mobileNumber is required',
   })
   .strict();
 
 export const householdForgotVerifyOtpSchema = z
   .object({
-    email: trimmedString.email().max(254),
+    email: trimmedString.email().max(254).optional(),
+    mobileNumber: trimmedString.max(32).optional(),
     otp: z.string().length(6).regex(/^\d{6}$/),
+  })
+  .refine((data) => Boolean(data.email || data.mobileNumber), {
+    message: 'Either email or mobileNumber is required',
   })
   .strict();
 
@@ -42,6 +50,27 @@ export const householdForgotResetSchema = z
   .object({
     resetToken: z.string().min(1),
     newPassword: z.string().min(1).max(200),
+  })
+  .strict();
+
+export const householdChangePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required').max(200),
+    newPassword: z.string().min(1, 'New password is required').max(200),
+  })
+  .strict();
+
+export const householdChangePasswordRequestOtpSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required').max(200),
+    newPassword: z.string().min(1, 'New password is required').max(200),
+  })
+  .strict();
+
+export const householdChangePasswordConfirmSchema = z
+  .object({
+    otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must be numeric'),
+    newPassword: z.string().min(1, 'New password is required').max(200),
   })
   .strict();
 

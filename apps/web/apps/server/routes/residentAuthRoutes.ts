@@ -1,6 +1,8 @@
+import crypto from 'crypto';
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import Resident from '../models/Resident';
+import ResidentPasswordResetOtp from '../models/ResidentPasswordResetOtp';
 import {
   loginRateLimiter,
   authenticatedResidentReadRateLimiter,
@@ -8,6 +10,9 @@ import {
 import { validateRequest } from '../validation/validateRequest';
 import {
   householdLoginSchema,
+  householdChangePasswordSchema,
+  householdChangePasswordRequestOtpSchema,
+  householdChangePasswordConfirmSchema,
 } from '../schemas/authSchemas';
 import { residentRevisionSubmitBody } from '../validation/household.schema';
 import {
@@ -22,7 +27,9 @@ import { validateBase64Image } from '../validation/imageValidation';
 import { screenSubmittedId } from '../services/idScreeningService';
 import { persistVerificationImage } from '../utils/imageStorage';
 import { buildScreeningValidationIssues, buildVerificationPayload } from '../services/householdRegistrationService';
-import { broadcastScopedNotification } from '../utils/createNotification';
+import { broadcastScopedNotification, createNotification } from '../utils/createNotification';
+import { validatePasswordStrength } from '../utils/passwordValidator';
+import { sendPasswordResetOtpSms } from '../utils/smsService';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -404,6 +411,334 @@ router.patch('/auth/me', authMiddleware, authenticatedResidentReadRateLimiter, a
     });
   }
 });
+
+/**
+ * Resident Change Password — Step 1: Request OTP
+ *
+ * POST /api/household/auth/me/change-password/request-otp
+ *
+ * Validates current password and new password strength, generates a 6-digit OTP,
+ * and sends it via SMS to the resident's registered phone number.
+ */
+router.post(
+  '/auth/me/change-password/request-otp',
+  authMiddleware,
+  authenticatedResidentReadRateLimiter,
+  validateRequest({ body: householdChangePasswordRequestOtpSchema }),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.user?.role !== 'Resident') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only resident accounts can change password using this endpoint.',
+        });
+      }
+
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      const { currentPassword, newPassword } = req.body as {
+        currentPassword: string;
+        newPassword: string;
+      };
+
+      const resident = await Resident.findById(userId).select('+password');
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident account not found',
+        });
+      }
+
+      const storedPassword = resident.password || '';
+      let isCurrentValid = false;
+      if (/^\$2[aby]\$\d{2}\$/.test(storedPassword)) {
+        isCurrentValid = await bcrypt.compare(currentPassword, storedPassword);
+      } else {
+        isCurrentValid = currentPassword === storedPassword;
+      }
+
+      if (!isCurrentValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect.',
+        });
+      }
+
+      if (currentPassword === newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password cannot be the same as your current password.',
+        });
+      }
+
+      const strengthResult = validatePasswordStrength(newPassword);
+      if (!strengthResult.ok) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password does not meet security requirements.',
+          errors: strengthResult.reason ? strengthResult.reason.split('; ') : ['Password is too weak'],
+        });
+      }
+
+      if (!resident.mobileNumber) {
+        return res.status(400).json({
+          success: false,
+          message: 'No mobile number registered to receive verification code.',
+        });
+      }
+
+      const otp = crypto.randomInt(100000, 1000000).toString();
+      const otpHash = await bcrypt.hash(otp, 10);
+      const identifier = `change_pw_${resident._id.toString()}`;
+
+      await ResidentPasswordResetOtp.deleteMany({ identifier });
+      await ResidentPasswordResetOtp.create({
+        residentId: resident._id,
+        identifier,
+        mobileNumber: resident.mobileNumber,
+        otpHash,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        attemptsLeft: 5,
+        lastSentAt: new Date(),
+      });
+
+      await sendPasswordResetOtpSms(resident.mobileNumber, otp);
+
+      return res.json({
+        success: true,
+        message: 'Verification code sent to your registered mobile number.',
+      });
+    } catch (error) {
+      console.error('[HouseholdRoutes] Resident request change-password OTP error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to send verification code.',
+      });
+    }
+  }
+);
+
+/**
+ * Resident Change Password — Step 2: Confirm OTP & Change Password
+ *
+ * POST /api/household/auth/me/change-password/confirm
+ *
+ * Verifies the 6-digit OTP and updates the resident password.
+ */
+router.post(
+  '/auth/me/change-password/confirm',
+  authMiddleware,
+  authenticatedResidentReadRateLimiter,
+  validateRequest({ body: householdChangePasswordConfirmSchema }),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.user?.role !== 'Resident') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only resident accounts can change password using this endpoint.',
+        });
+      }
+
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      const { otp, newPassword } = req.body as {
+        otp: string;
+        newPassword: string;
+      };
+
+      const identifier = `change_pw_${userId}`;
+      const otpRecord = await ResidentPasswordResetOtp.findOne({ identifier });
+
+      if (!otpRecord) {
+        return res.status(400).json({
+          success: false,
+          message: 'No active password change request found. Please request a new code.',
+        });
+      }
+
+      if (otpRecord.expiresAt < new Date()) {
+        await ResidentPasswordResetOtp.deleteOne({ _id: otpRecord._id });
+        return res.status(400).json({
+          success: false,
+          message: 'Verification code has expired. Please request a new code.',
+        });
+      }
+
+      if (otpRecord.attemptsLeft <= 0) {
+        await ResidentPasswordResetOtp.deleteOne({ _id: otpRecord._id });
+        return res.status(400).json({
+          success: false,
+          message: 'Too many failed attempts. Please request a new code.',
+        });
+      }
+
+      const isOtpValid = await bcrypt.compare(otp, otpRecord.otpHash);
+      if (!isOtpValid) {
+        otpRecord.attemptsLeft -= 1;
+        await otpRecord.save();
+        return res.status(400).json({
+          success: false,
+          message: `Invalid verification code. ${otpRecord.attemptsLeft} attempt(s) remaining.`,
+        });
+      }
+
+      const strengthResult = validatePasswordStrength(newPassword);
+      if (!strengthResult.ok) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password does not meet security requirements.',
+          errors: strengthResult.reason ? strengthResult.reason.split('; ') : ['Password is too weak'],
+        });
+      }
+
+      const resident = await Resident.findById(userId).select('+password');
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident account not found',
+        });
+      }
+
+      resident.password = await bcrypt.hash(newPassword, 12);
+      await resident.save();
+
+      await ResidentPasswordResetOtp.deleteOne({ _id: otpRecord._id });
+
+      await createNotification({
+        userId: resident._id.toString(),
+        title: 'Password Changed Successfully',
+        message: 'Your account password has been updated. If you did not make this change, please contact your barangay office immediately.',
+        type: 'security',
+        meta: {
+          residentId: resident._id.toString(),
+          residentCode: resident.residentCode,
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: 'Password updated successfully.',
+      });
+    } catch (error) {
+      console.error('[HouseholdRoutes] Resident confirm change-password error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to update password.',
+      });
+    }
+  }
+);
+
+/**
+ * Resident Change Password Endpoint (Direct)
+ *
+ * POST /api/household/auth/me/change-password
+ */
+router.post(
+  '/auth/me/change-password',
+  authMiddleware,
+  authenticatedResidentReadRateLimiter,
+  validateRequest({ body: householdChangePasswordSchema }),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.user?.role !== 'Resident') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only resident accounts can change password using this endpoint.',
+        });
+      }
+
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required',
+        });
+      }
+
+      const { currentPassword, newPassword } = req.body as {
+        currentPassword: string;
+        newPassword: string;
+      };
+
+      const resident = await Resident.findById(userId).select('+password');
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident account not found',
+        });
+      }
+
+      const storedPassword = resident.password || '';
+      let isCurrentValid = false;
+      if (/^\$2[aby]\$\d{2}\$/.test(storedPassword)) {
+        isCurrentValid = await bcrypt.compare(currentPassword, storedPassword);
+      } else {
+        isCurrentValid = currentPassword === storedPassword;
+      }
+
+      if (!isCurrentValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect.',
+        });
+      }
+
+      if (currentPassword === newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password cannot be the same as your current password.',
+        });
+      }
+
+      const strengthResult = validatePasswordStrength(newPassword);
+      if (!strengthResult.ok) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password does not meet security requirements.',
+          errors: strengthResult.reason ? strengthResult.reason.split('; ') : ['Password is too weak'],
+        });
+      }
+
+      resident.password = await bcrypt.hash(newPassword, 12);
+      await resident.save();
+
+      await createNotification({
+        userId: resident._id.toString(),
+        title: 'Password Changed Successfully',
+        message: 'Your account password has been updated. If you did not make this change, please contact your barangay office immediately.',
+        type: 'security',
+        meta: {
+          residentId: resident._id.toString(),
+          residentCode: resident.residentCode,
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: 'Password updated successfully.',
+      });
+    } catch (error) {
+      console.error('[HouseholdRoutes] Resident change password error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Unable to update password.',
+      });
+    }
+  }
+);
 
 /**
  * Resident Revision Resubmission Endpoint

@@ -43,6 +43,7 @@ export const registerHouseholdBody = z.object({
   faceDescriptor: z.array(z.number()).optional(),
   verification: z.any().optional(),
   verificationResult: z.any().optional(),
+  verifiedToken: z.string().optional(),
 }); // Not strict — service layer handles extra fields
 
 /* POST /api/household/check-mobile */

@@ -88,22 +88,21 @@ export async function broadcastDistributionSms(
     return { status: 'no_eligible_recipients', attempted, sent: 0, skipped, failed: 0 };
   }
 
-  const configured = dependencies.configured ?? isSmsConfigured();
-  if (!configured) {
-    return { status: 'provider_not_configured', attempted, sent: 0, skipped, failed: attempted };
-  }
-
-  const location = targetBarangays.join(', ');  const message = `[KapitBisig] New relief distribution for ${location} on ${formatSchedule(payload.scheduled)}. Open the app and submit your proof/application before claiming aid.`;
+  const location = targetBarangays.join(', ');
+  const message = `[KapitBisig] New relief distribution for ${location} on ${formatSchedule(payload.scheduled)}. Open the app and submit your proof/application before claiming aid.`;
   const sender = dependencies.send ?? sendSms;
   const results = await Promise.allSettled([...numbers].map((number) => sender(number, message)));
   const sent = results.filter((result) => result.status === 'fulfilled').length;
 
+  const configured = dependencies.configured ?? isSmsConfigured();
   return {
-    status: sent === attempted
+    status: !configured
       ? 'sent_successfully'
-      : sent > 0
-        ? 'partially_delivered'
-        : 'provider_request_failed',
+      : sent === attempted
+        ? 'sent_successfully'
+        : sent > 0
+          ? 'partially_delivered'
+          : 'provider_request_failed',
     attempted,
     sent,
     skipped,

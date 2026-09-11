@@ -27,6 +27,7 @@
     "test:distribution-flow": "ts-node --project tsconfig.server.json server/test/runDistributionFlowTests.ts",
     "test:resident-distribution-feed": "ts-node --project tsconfig.server.json server/test/residentDistributionFeed.integration.ts",
     "test:offline-proof-sync": "ts-node --project tsconfig.server.json server/test/runOfflineProofSyncTests.ts",
+    "test:sms": "ts-node --project tsconfig.server.json server/scripts/testSms.ts",
     "test:auth:newman": "npx newman run ../../../docs/postman/KapitBisig_Auth_Security.postman_collection.json -e ../../../docs/postman/KapitBisig_Local.postman_environment.json --reporters cli",
     "test:auth:newman:insecure": "npx newman run ../../../docs/postman/KapitBisig_Auth_Security.postman_collection.json -e ../../../docs/postman/KapitBisig_Local.postman_environment.json --reporters cli --insecure"
   },

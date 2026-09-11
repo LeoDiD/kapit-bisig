@@ -24,6 +24,15 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { VerificationResult } from '../services/ai';
 import { resolveApiBaseUrl, resolveDevApiFallbackUrl } from '../services/config/apiSecurity';
+import RegistrationOtpModal from './registration/RegistrationOtpModal';
+import { smsVerificationService } from '../services/auth/SmsVerificationService';
+import {
+  normalizeStep3IdNumber,
+  getIdFormatInfo,
+  isStep3IdNumberFormatValid,
+  getIdDisplayCount,
+  sanitizeIdInput,
+} from '../utils/idFormat';
 
 const { width } = Dimensions.get('window');
 
@@ -151,6 +160,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
   const [termsModalContent, setTermsModalContent] = useState<'terms' | 'privacy'>('terms');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Step 1: OTP Verification
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpToken, setOtpToken] = useState<string | null>(null);
+  const [verifiedToken, setVerifiedToken] = useState<string | null>(null);
+  const [verifiedMobileNumber, setVerifiedMobileNumber] = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
 
   // Step 2: Household Information
   const [city, setCity] = useState('');
@@ -785,107 +801,6 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     setStep3IdNumberError(null);
     setStep3ValidationWarnings([]);
     setStep3ValidationStatus('neutral');
-  };
-
-  const normalizeStep3IdNumber = (type: string, value: string): string => {
-    const upper = value.trim().toUpperCase();
-    switch (type) {
-      case 'PhilSys ID':
-      case 'SSS ID':
-      case 'PhilHealth ID':
-        return upper.replace(/\D/g, '');
-      case "Driver's License":
-      case 'Passport':
-      case "Voter's ID":
-        return upper.replace(/[^A-Z0-9]/g, '');
-      default:
-        return upper.replace(/\s+/g, ' ');
-    }
-  };
-
-  const getIdFormatInfo = (type: string) => {
-    switch (type) {
-      case 'PhilSys ID':
-        return {
-          minLength: 12,
-          maxLength: 14,
-          hint: '12 digits, e.g. 1234-5678-9012',
-          keyboardType: 'number-pad' as const,
-        };
-      case "Driver's License":
-        return {
-          minLength: 11,
-          maxLength: 13,
-          hint: '1 letter + 10 digits, e.g. N01-23-456789',
-          keyboardType: 'default' as const,
-        };
-      case 'Passport':
-        return {
-          minLength: 8,
-          maxLength: 8,
-          hint: '1 letter + 7 digits, e.g. P1234567',
-          keyboardType: 'default' as const,
-        };
-      case 'SSS ID':
-        return {
-          minLength: 10,
-          maxLength: 12,
-          hint: '10 digits, e.g. 12-3456789-0',
-          keyboardType: 'number-pad' as const,
-        };
-      case 'PhilHealth ID':
-        return {
-          minLength: 12,
-          maxLength: 14,
-          hint: '12 digits, e.g. 1234-5678-9012',
-          keyboardType: 'number-pad' as const,
-        };
-      case "Voter's ID":
-        return {
-          minLength: 6,
-          maxLength: 25,
-          hint: '6-25 letters or numbers',
-          keyboardType: 'default' as const,
-        };
-      default:
-        return {
-          minLength: 1,
-          maxLength: 30,
-          hint: 'Enter the ID number exactly as shown',
-          keyboardType: 'default' as const,
-        };
-    }
-  };
-
-  const isStep3IdNumberFormatValid = (type: string, value: string): boolean => {
-    const normalized = normalizeStep3IdNumber(type, value);
-    switch (type) {
-      case 'PhilSys ID':
-      case 'PhilHealth ID':
-        return /^\d{12}$/.test(normalized);
-      case "Driver's License":
-        return /^[A-Z]\d{10}$/.test(normalized);
-      case 'Passport':
-        return /^[A-Z]\d{7}$/.test(normalized);
-      case 'SSS ID':
-        return /^\d{10}$/.test(normalized);
-      case "Voter's ID":
-        return /^[A-Z0-9]{6,25}$/.test(normalized);
-      default:
-        return normalized.length > 0;
-    }
-  };
-
-  const sanitizeIdInput = (type: string, rawValue: string): string => {
-    const value = rawValue.toUpperCase();
-    switch (type) {
-      case 'PhilSys ID':
-      case 'SSS ID':
-      case 'PhilHealth ID':
-        return value.replace(/[^0-9\-\s]/g, '');
-      default:
-        return value.replace(/[^A-Z0-9\-\s]/g, '');
-    }
   };
 
   const analyzeStep3IdUpload = async (): Promise<Step3IdScreeningResult> => {
@@ -1842,6 +1757,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
         householdToken,
         // Include the face embedding resident ID from the duplicate check
         faceResidentId: duplicateResult.resident_id,
+        // Include verified mobile token from OTP verification
+        verifiedToken: verifiedToken || undefined,
       };
 
       const response = await fetch(`${API_URL}/household/register`, {
@@ -1935,18 +1852,57 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
     return { label: 'Low Match', color: '#E74C3C' };
   };
 
+  const handleOtpSuccess = (token: string) => {
+    const normalizedMobile = normalizeMobileForLookup(mobileNumber);
+    setVerifiedToken(token);
+    setVerifiedMobileNumber(normalizedMobile);
+    setShowOtpModal(false);
+    setShowErrors(false);
+    setCurrentStep(2);
+  };
+
   const handleNextStep = async () => {
     setShowErrors(true);
 
     if (currentStep === 1) {
       setIsStep1Validating(true);
+      let isValid = false;
       try {
-        if (!(await validateStep1())) {
+        isValid = await validateStep1();
+        if (!isValid) {
           return;
         }
       } finally {
         setIsStep1Validating(false);
       }
+
+      // Check if current mobile number is already verified
+      const normalizedMobile = normalizeMobileForLookup(mobileNumber);
+      if (verifiedToken && verifiedMobileNumber === normalizedMobile) {
+        setShowErrors(false);
+        setCurrentStep(2);
+        return;
+      }
+
+      // Send OTP and open verification modal
+      setIsSendingOtp(true);
+      try {
+        const sendResult = await smsVerificationService.sendOtp(normalizedMobile);
+        if (sendResult.success && sendResult.otpToken) {
+          setOtpToken(sendResult.otpToken);
+          setShowOtpModal(true);
+        } else {
+          Alert.alert(
+            'Verification Error',
+            sendResult.message || 'Unable to send verification code. Please check your number and try again.'
+          );
+        }
+      } catch (otpErr) {
+        Alert.alert('Error', 'Unable to send verification code. Please check your internet connection.');
+      } finally {
+        setIsSendingOtp(false);
+      }
+      return;
     }
     if (currentStep === 2 && !validateStep2()) {
       return;
@@ -2244,6 +2200,10 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                 onChangeText={(text) => {
                   const sanitized = text.replace(/\D/g, '').slice(0, 11);
                   setMobileNumber(sanitized);
+                  if (verifiedToken && sanitized !== verifiedMobileNumber) {
+                    setVerifiedToken(null);
+                    setVerifiedMobileNumber(null);
+                  }
                   if (sanitized.trim()) {
                     clearStep1Error('mobileNumber');
                   }
@@ -2266,6 +2226,8 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               />
               {isCheckingMobile ? (
                 <ActivityIndicator size="small" color="#2E7D32" style={styles.inputIconRight} />
+              ) : (verifiedToken && verifiedMobileNumber === normalizeMobileForLookup(mobileNumber)) ? (
+                <Ionicons name="shield-checkmark" size={22} color="#2E7D32" style={styles.inputIconRight} />
               ) : mobileChecked ? (
                 <Ionicons name="checkmark-circle" size={22} color="#2E7D32" style={styles.inputIconRight} />
               ) : (
@@ -2273,10 +2235,13 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               )}
             </View>
             <Text style={styles.fieldHelperText}>Use 09XXXXXXXXX.</Text>
+            {verifiedToken && verifiedMobileNumber === normalizeMobileForLookup(mobileNumber) && (
+              <Text style={styles.mobileSuccessText}>Mobile number verified via SMS.</Text>
+            )}
             {mobileAvailabilityStatus === 'checking' && (
               <Text style={styles.mobileInfoText}>Checking mobile number...</Text>
             )}
-            {mobileAvailabilityStatus === 'available' && (
+            {mobileAvailabilityStatus === 'available' && !(verifiedToken && verifiedMobileNumber === normalizeMobileForLookup(mobileNumber)) && (
               <Text style={styles.mobileSuccessText}>Mobile number is available.</Text>
             )}
             {mobileAvailabilityStatus === 'taken' && (
@@ -2774,14 +2739,15 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           <View style={[styles.inputContainer, showErrors && step3Errors.idNumber && styles.inputError]}>
             <TextInput
               style={styles.input}
-              placeholder={idType ? `Enter your ${idType} number` : 'Select ID type first'}
+              placeholder={idType ? (getIdFormatInfo(idType).placeholder || `Enter your ${idType} number`) : 'Select ID type first'}
               placeholderTextColor="#999"
               value={idNumber}
               maxLength={getIdFormatInfo(idType).maxLength}
               keyboardType={getIdFormatInfo(idType).keyboardType}
-              autoCapitalize="none"
+              autoCapitalize="characters"
+              autoCorrect={false}
               onChangeText={(text) => {
-                const filteredText = idType ? sanitizeIdInput(idType, text) : text;
+                const filteredText = idType ? sanitizeIdInput(idType, text, idNumber) : text;
                 setIdNumber(filteredText);
                 resetStep3ScreeningState();
                 if (filteredText.trim() && showErrors) {
@@ -2798,7 +2764,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
           )}
           {idType && (
             <Text style={styles.idFormatHint}>
-              Format: {getIdFormatInfo(idType).hint} ({idNumber.length}/{getIdFormatInfo(idType).maxLength})
+              Format: {getIdFormatInfo(idType).hint} ({getIdDisplayCount(idType, idNumber)})
             </Text>
           )}
           {showErrors && step3Errors.idNumber && (
@@ -3332,29 +3298,40 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
               <TouchableOpacity
                 style={[
                   styles.nextButton,
-                  (isStep1Validating || isStep3Validating) && styles.nextButtonDisabled,
+                  (isStep1Validating || isStep3Validating || isSendingOtp) && styles.nextButtonDisabled,
                 ]}
                 onPress={handleNextStep}
-                disabled={isStep1Validating || isStep3Validating}
+                disabled={isStep1Validating || isStep3Validating || isSendingOtp}
               >
                 <Text style={styles.nextButtonText}>
-                  {isStep1Validating
-                    ? 'Validating...'
-                    : isStep3Validating
-                      ? 'Checking ID...'
-                      : currentStep === 3 && step3ValidationStatus === 'error'
-                        ? 'Check ID Again'
-                        : currentStep === 4
-                          ? 'Verify & Submit'
-                          : currentStep === 3
-                            ? 'Continue'
-                            : 'Next Step'}
+                  {isSendingOtp
+                    ? 'Sending Code...'
+                    : isStep1Validating
+                      ? 'Validating...'
+                      : isStep3Validating
+                        ? 'Checking ID...'
+                        : currentStep === 3 && step3ValidationStatus === 'error'
+                          ? 'Check ID Again'
+                          : currentStep === 4
+                            ? 'Verify & Submit'
+                            : currentStep === 3
+                              ? 'Continue'
+                              : 'Next Step'}
                 </Text>
                 <Ionicons name={currentStep === 4 ? "shield-checkmark" : "arrow-forward"} size={22} color="#FFF" />
               </TouchableOpacity>
             </View>
           </View>
         )}
+
+        {/* Registration OTP Modal */}
+        <RegistrationOtpModal
+          visible={showOtpModal}
+          mobileNumber={mobileNumber}
+          initialOtpToken={otpToken}
+          onSuccess={handleOtpSuccess}
+          onClose={() => setShowOtpModal(false)}
+        />
 
         {/* Vulnerable Details Modal */}
         <Modal
@@ -3513,6 +3490,7 @@ export default function RegisterScreen({ onBack, onComplete, onCancel }: Registe
                   ref={cameraRef}
                   style={styles.camera}
                   facing="front"
+                  mirror={true}
                 />
               ) : (
                 capturedPhotoUri && (

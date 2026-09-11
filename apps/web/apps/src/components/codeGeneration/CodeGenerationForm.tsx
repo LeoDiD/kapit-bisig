@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import SelectDropdown from '@/components/ui/SelectDropdown'
 
 const EXPIRY_DAYS = 30
@@ -49,12 +50,17 @@ function GenerateConfirmModal({
   onConfirm: () => void
   isLoading: boolean
 }) {
+  const [mounted, setMounted] = useState(false)
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const cancelBtnRef = useRef<HTMLButtonElement | null>(null)
   
   // React Best Practices: Store event handlers in refs to avoid redundant effect cleanup/re-binds
   const latestHandles = useRef({ onCancel, onConfirm, isLoading })
   latestHandles.current = { onCancel, onConfirm, isLoading }
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -95,18 +101,21 @@ function GenerateConfirmModal({
     }
   }, [open])
 
-  if (!open) return null
+  if (!open || !mounted || typeof document === 'undefined') return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-hidden={!open}>
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={isLoading ? undefined : onCancel} />
+  const modal = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" aria-hidden={!open}>
+      <div
+        className="fixed inset-0 bg-slate-950/60 dark:bg-black/75 backdrop-blur-sm transition-opacity"
+        onClick={isLoading ? undefined : onCancel}
+      />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="generate-confirm-title"
         aria-describedby="generate-confirm-desc"
-        className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/20 dark:border-slate-700/50"
+        className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 p-8 shadow-2xl border border-gray-200/80 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150"
       >
         <h2 id="generate-confirm-title" className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
           Confirm Code Generation
@@ -150,6 +159,8 @@ function GenerateConfirmModal({
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }
 
 export default function CodeGenerationForm({

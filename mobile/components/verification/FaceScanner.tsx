@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { FaceValidationResult } from '../../services/ai';
 
 const { width, height } = Dimensions.get('window');
@@ -328,6 +329,7 @@ export default function FaceScanner({
               ref={cameraRef}
               style={styles.camera}
               facing="front"
+              mirror={true}
             />
           )}
 

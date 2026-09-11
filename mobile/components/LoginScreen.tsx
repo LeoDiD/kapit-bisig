@@ -18,6 +18,7 @@ import {
   useWindowDimensions,
   Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { mobileAuthService, User } from '../services/auth/MobileAuthService';
 import { theme } from '../theme';
@@ -30,6 +31,7 @@ interface LoginScreenProps {
 
 export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps) {
   const { width: screenWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const otpInputRef = useRef<TextInput | null>(null);
   const otpScales = useRef(Array.from({ length: 6 }, () => new Animated.Value(1))).current;
   const prevOtpRef = useRef('');
@@ -348,12 +350,25 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.loginScrollContent}
+        contentContainerStyle={[
+          styles.loginScrollContent,
+          {
+            paddingTop: Math.max(insets.top + 20, 40),
+            paddingBottom: Math.max(insets.bottom + 20, 30),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.loginBackButton}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={[
+              styles.loginBackButton,
+              { top: Math.max(insets.top + 8, Platform.OS === 'ios' ? 44 : 20) },
+            ]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="arrow-back" size={24} color="#2E7D32" />
           </TouchableOpacity>
         )}
@@ -453,6 +468,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
+    maxWidth: 420,
     paddingHorizontal: 20,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,

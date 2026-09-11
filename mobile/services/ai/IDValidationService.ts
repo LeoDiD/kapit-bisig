@@ -63,12 +63,12 @@ export interface ImageQualityResult {
 // ID Type patterns for Philippine IDs
 const ID_PATTERNS = {
   'PhilSys ID': {
-    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}/g,
+    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}(?:[-\s]?\d{4})?/g,
     keywords: ['PHILIPPINE', 'NATIONAL', 'IDENTIFICATION', 'PCN', 'PHILSYS'],
     dateFormat: /\d{2}[\/\-]\d{2}[\/\-]\d{4}/g,
   },
   'Philippine National ID': {
-    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}/g,
+    numberPattern: /\d{4}[-\s]?\d{4}[-\s]?\d{4}(?:[-\s]?\d{4})?/g,
     keywords: ['PHILIPPINE', 'NATIONAL', 'IDENTIFICATION', 'PCN', 'PHILSYS'],
     dateFormat: /\d{2}[\/\-]\d{2}[\/\-]\d{4}/g,
   },
