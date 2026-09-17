@@ -141,3 +141,15 @@ export const residentTheme = {
     elevation: 2,
   },
 } as const;
+
+/**
+ * Staff/volunteer semantic palette.
+ *
+ * Mirrors the resident theme so both account types share the same premium
+ * design language.  Having a dedicated export lets staff screens evolve
+ * independently later without touching resident imports.
+ */
+export const staffTheme = {
+  colors: { ...residentTheme.colors },
+  shadow: { ...residentTheme.shadow },
+} as const;

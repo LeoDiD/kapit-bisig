@@ -10,19 +10,20 @@ import {
   Alert,
   Modal,
   Pressable,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   DashboardSummary,
   mobileAuthService,
   User as VolunteerUser,
 } from '../services/auth/MobileAuthService';
-import { theme } from '../theme';
-import { Typography } from './ui/Typography';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
+import { staffTheme } from '../theme';
+import BottomNavigation from './ui/BottomNavigation';
+import ResidentBrandLockup from './ui/ResidentBrandLockup';
+
+const sc = staffTheme.colors;
 
 interface VolunteerDashboardScreenProps {
   volunteerUser?: VolunteerUser | null;
@@ -62,6 +63,13 @@ interface VolunteerNotificationItem {
   createdAt?: string;
 }
 
+function notificationDate(value?: string): string {
+  if (!value) return 'Just now';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'Recently';
+  return parsed.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+}
+
 export default function VolunteerDashboardScreen({
   volunteerUser,
   onNavigate,
@@ -82,7 +90,7 @@ export default function VolunteerDashboardScreen({
     scopedBarangays: [],
   });
   const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notifications, setNotifications] = useState<VolunteerNotificationItem[]>([]);
 
@@ -178,7 +186,7 @@ export default function VolunteerDashboardScreen({
   };
 
   const featuredDistribution = distributions[0];
-  const unreadNotificationCount = notifications.filter((item) => !item.isRead).length;
+  const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);
@@ -202,7 +210,7 @@ export default function VolunteerDashboardScreen({
   }, []);
 
   const handleOpenNotifications = async () => {
-    setShowNotificationsModal(true);
+    setShowNotifications(true);
     await loadNotifications();
   };
 
@@ -231,276 +239,322 @@ export default function VolunteerDashboardScreen({
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
-        refreshControl={
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 12) + 82 }]}
+        refreshControl={(
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
+            tintColor={sc.icon}
+            colors={[sc.icon]}
           />
-        }
+        )}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.nameRow}>
-              <Text style={styles.userName}>{displayName}</Text>
-              <View style={styles.staffBadge}>
-                <Text style={styles.staffBadgeText}>STAFF</Text>
+        {/* ── Top Bar ── */}
+        <View style={styles.topBar}>
+          <ResidentBrandLockup />
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={handleOpenNotifications}
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+          >
+            <Ionicons name="notifications-outline" size={22} color={sc.icon} />
+            {unreadCount > 0 ? (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
               </View>
-            </View>
-            <View style={styles.syncRow}>
-              <View style={styles.syncDot} />
-              <Text style={styles.syncText}>Sync Online</Text>
-              <Text style={styles.syncSeparator}>•</Text>
-              <Text style={styles.syncText}>Last updated {formatTime(lastUpdated)}</Text>
-            </View>
-            {stats.scopedBarangays.length > 0 && (
-              <Text style={styles.scopeText}>Scope: {stats.scopedBarangays.join(', ')}</Text>
-            )}
-          </View>
-          <TouchableOpacity style={styles.notificationButton} onPress={handleOpenNotifications}>
-            <Ionicons name="notifications-outline" size={24} color={theme.colors.textPrimary} />
-            {unreadNotificationCount > 0 && <View style={styles.notificationDot} />}
+            ) : null}
           </TouchableOpacity>
         </View>
 
-        {/* Primary Progress Card */}
-        <View style={styles.progressCard}>
-          <View style={styles.progressCardHeader}>
-            <Text style={styles.progressLabel}>CURRENT OBJECTIVE</Text>
-            <View style={styles.activeBadge}>
+        {/* ── Premium Gradient Banner ── */}
+        <LinearGradient
+          colors={[sc.brandDark, sc.brand]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.premiumBanner}
+          accessibilityLabel={`Staff dashboard. Hello, ${displayName}.`}
+        >
+          <View style={styles.bannerGoldAccent} />
+          <View style={styles.bannerWatermark} pointerEvents="none">
+            <Ionicons name="shield-checkmark" size={132} color="rgba(255, 255, 255, 0.055)" />
+          </View>
+          <View style={styles.bannerTopRow}>
+            <Text style={styles.bannerEyebrow}>STAFF DASHBOARD</Text>
+            <View style={styles.bannerStatusPill}>
+              <View style={styles.syncDot} />
+              <Text style={styles.bannerStatusText}>
+                {formatTime(lastUpdated)}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.bannerGreeting} numberOfLines={1}>Hello, {displayName}</Text>
+          <Text style={styles.bannerSubtitle} numberOfLines={2}>Here's your operations overview.</Text>
+          {stats.scopedBarangays.length > 0 ? (
+            <View style={styles.bannerLocationPill}>
+              <Ionicons name="location-outline" size={14} color={sc.accent} />
+              <Text style={styles.bannerLocationText} numberOfLines={1}>
+                {stats.scopedBarangays.join(', ')}
+              </Text>
+            </View>
+          ) : null}
+        </LinearGradient>
+
+        {/* ── QR Scanner Action ── */}
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.premiumCardShadow} activeOpacity={0.86} onPress={() => onNavigate?.('qr')}>
+            <LinearGradient
+              colors={[sc.brandDark, sc.brand]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.qrActionCard}
+            >
+              <View style={styles.cardGoldAccent} />
+              <View style={styles.qrWatermark} pointerEvents="none">
+                <Ionicons name="qr-code-outline" size={92} color="rgba(255, 255, 255, 0.045)" />
+              </View>
+              <View style={styles.darkIconTile}>
+                <Ionicons name="qr-code-outline" size={23} color={sc.accent} />
+              </View>
+              <View style={styles.premiumCardCopy}>
+                <Text style={styles.darkCardEyebrow}>VERIFICATION</Text>
+                <Text style={styles.darkCardTitle}>Scan resident QR</Text>
+                <Text style={styles.darkCardDescription}>Open the scanner to verify resident identity.</Text>
+              </View>
+              <View style={styles.darkArrowButton}>
+                <Ionicons name="arrow-forward" size={18} color={sc.accent} />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Progress Card ── */}
+        <View style={styles.section}>
+          <View style={styles.sectionLabelRow}>
+            <View>
+              <Text style={styles.sectionEyebrow}>CURRENT OBJECTIVE</Text>
+              <Text style={styles.sectionTitle}>Relief Goods Phase 1</Text>
+            </View>
+            <View style={styles.activePill}>
               <View style={styles.activeDot} />
               <Text style={styles.activeText}>ACTIVE</Text>
             </View>
           </View>
-
-          <Text style={styles.progressTitle}>Relief Goods Phase 1</Text>
-
-          <View style={styles.progressStats}>
-            <Text style={styles.progressCount}>
-              <Text style={styles.progressCountBold}>{stats.verifiedHouseholds}</Text>
-              {' / '}{stats.totalHouseholds} Households Verified
-            </Text>
-            <Text style={styles.progressPercent}>{progressPercentage}%</Text>
-          </View>
-
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} />
+          <View style={styles.progressCard}>
+            <View style={styles.cardGoldAccent} />
+            <View style={styles.progressWatermark} pointerEvents="none">
+              <Ionicons name="people" size={92} color="rgba(15, 46, 34, 0.035)" />
+            </View>
+            <View style={styles.progressRow}>
+              <Text style={styles.progressLabel}>
+                <Text style={styles.progressBold}>{stats.verifiedHouseholds}</Text>
+                {' / '}{stats.totalHouseholds} Households Verified
+              </Text>
+              <Text style={styles.progressPercent}>{progressPercentage}%</Text>
+            </View>
+            <View style={styles.progressBarOuter}>
+              <View style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} />
+            </View>
           </View>
         </View>
 
-        {/* Secondary Operational Cards */}
+        {/* ── Stats Row ── */}
         <View style={styles.statsRow}>
-          {/* Pending Card */}
           <View style={styles.statsCard}>
-            <View style={styles.statsCardHeader}>
+            <View style={styles.cardGoldAccent} />
+            <View style={styles.statsHeader}>
               <View style={styles.pendingDot} />
-              <Text style={styles.statsCardLabel}>PENDING</Text>
+              <Text style={styles.statsLabel}>PENDING</Text>
             </View>
-            <Text style={styles.statsCardValue}>{stats.pendingQueue}</Text>
-            <Text style={styles.statsCardSubtext}>Verification Queue</Text>
+            <Text style={styles.statsValue}>{stats.pendingQueue}</Text>
+            <Text style={styles.statsSubtext}>Verification Queue</Text>
           </View>
 
-          {/* Scans Today Card */}
           <View style={styles.statsCard}>
-            <View style={styles.statsCardHeader}>
-              <Text style={styles.statsCardLabel}>SCANS TODAY</Text>
+            <View style={styles.cardGoldAccent} />
+            <View style={styles.statsHeader}>
+              <Text style={styles.statsLabel}>SCANS TODAY</Text>
               <View style={styles.trendBadge}>
                 <Ionicons
                   name={stats.scansTrend >= 0 ? 'arrow-up' : 'arrow-down'}
                   size={12}
-                  color={stats.scansTrend >= 0 ? theme.colors.success : theme.colors.error}
+                  color={stats.scansTrend >= 0 ? sc.brand : '#EF4444'}
                 />
-                <Text
-                  style={[
-                    styles.trendText,
-                    stats.scansTrend < 0 ? styles.trendTextNegative : null,
-                  ]}
-                >
+                <Text style={[styles.trendText, stats.scansTrend < 0 && styles.trendTextNeg]}>
                   {stats.scansTrend}
                 </Text>
               </View>
             </View>
-            <Text style={styles.statsCardValue}>{stats.scansToday}</Text>
-            <Text style={styles.statsCardSubtext}>Processed Scans</Text>
+            <Text style={styles.statsValue}>{stats.scansToday}</Text>
+            <Text style={styles.statsSubtext}>Processed Scans</Text>
           </View>
         </View>
 
+        {/* ── Operational Status ── */}
         <View style={styles.statusStrip}>
           <View style={styles.statusItem}>
-            <Ionicons name="layers-outline" size={16} color={theme.colors.success} />
-            <Text style={styles.statusText}>ACTIVE DISTRIBUTIONS: {stats.activeDistributions}</Text>
+            <Ionicons name="layers-outline" size={15} color={sc.brand} />
+            <Text style={styles.statusText}>ACTIVE: {stats.activeDistributions}</Text>
           </View>
           <View style={styles.statusItem}>
-            <Ionicons name="checkmark-done-outline" size={16} color={theme.colors.success} />
-            <Text style={styles.statusText}>CONFIRMED TODAY: {stats.confirmedClaimsToday}</Text>
+            <Ionicons name="checkmark-done-outline" size={15} color={sc.brand} />
+            <Text style={styles.statusText}>CONFIRMED: {stats.confirmedClaimsToday}</Text>
+          </View>
+          <View style={styles.statusItem}>
+            <Ionicons name="checkmark-circle-outline" size={15} color={sc.brand} />
+            <Text style={styles.statusText}>ONLINE</Text>
           </View>
         </View>
 
-        {/* System Status Strip */}
-        <View style={styles.statusStrip}>
-          <View style={styles.statusItem}>
-            <Ionicons name="checkmark" size={16} color={theme.colors.success} />
-            <Text style={styles.statusText}>AUTHENTICATED</Text>
-          </View>
-          <View style={styles.statusItem}>
-            <Ionicons name="checkmark" size={16} color={theme.colors.success} />
-            <Text style={styles.statusText}>SCANNER READY</Text>
-          </View>
-          <View style={styles.statusItem}>
-            <Ionicons name="checkmark" size={16} color={theme.colors.success} />
-            <Text style={styles.statusText}>ACTIVE</Text>
-          </View>
-        </View>
-
-        {/* Live Distributions Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>LIVE DISTRIBUTIONS</Text>
-          <View style={styles.sectionDivider} />
-        </View>
-
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-          </View>
-        )}
-
-        {!loading && featuredDistribution && (
-          <View style={styles.distributionCard}>
-            <View style={styles.distributionHeader}>
-              <View style={styles.liveIndicator}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>LIVE NOW</Text>
-              </View>
-              <Text style={styles.distributionTime}>Started {featuredDistribution.startTime}</Text>
+        {/* ── Live Distributions ── */}
+        <View style={styles.section}>
+          <View style={styles.sectionLabelRow}>
+            <View>
+              <Text style={styles.sectionEyebrow}>DISTRIBUTION UPDATE</Text>
+              <Text style={styles.sectionTitle}>Live distributions</Text>
             </View>
+          </View>
 
-            <Text style={styles.distributionTitle}>{featuredDistribution.title}</Text>
-
-            <View style={styles.distributionInfo}>
-              <View style={styles.infoRow}>
-                <View style={styles.infoIconWrapper}>
-                  <Ionicons name="location-outline" size={18} color={theme.colors.primary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>COVERAGE</Text>
-                  <Text style={styles.infoValue}>
-                    {featuredDistribution.coverage.length > 1
-                      ? `Zones ${featuredDistribution.coverage.slice(0, 3).join(', ')} (Priority)`
-                      : featuredDistribution.coverage[0]}
-                  </Text>
-                </View>
+          {loading ? (
+            <LinearGradient colors={[sc.surface, sc.surfaceMuted]} style={styles.distributionCard}>
+              <View style={styles.cardGoldAccent} />
+              <View style={styles.calendarIcon}>
+                <ActivityIndicator color={sc.accentDark} />
               </View>
-
-              <View style={styles.infoRow}>
-                <View style={styles.infoIconWrapper}>
-                  <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>SCHEDULE</Text>
-                  <Text style={styles.infoValue}>{featuredDistribution.schedule}</Text>
-                </View>
+              <View style={styles.premiumCardCopy}>
+                <Text style={styles.lightCardEyebrow}>LOADING</Text>
+                <Text style={styles.lightCardTitle}>Checking distributions</Text>
+                <Text style={styles.lightCardDescription}>Getting the latest data…</Text>
               </View>
-
-              <View style={styles.infoRow}>
-                <View style={styles.infoIconWrapper}>
-                  <Ionicons name="people-outline" size={18} color={theme.colors.primary} />
+            </LinearGradient>
+          ) : featuredDistribution ? (
+            <TouchableOpacity
+              style={styles.premiumCardShadow}
+              activeOpacity={0.86}
+              onPress={() =>
+                Alert.alert(
+                  featuredDistribution.title,
+                  `Coverage: ${featuredDistribution.coverage.join(', ')}\nSchedule: ${featuredDistribution.schedule}\nClaimed: ${featuredDistribution.claimedHouseholds} / ${featuredDistribution.registeredHouseholds}`,
+                )
+              }
+            >
+              <LinearGradient
+                colors={[sc.surface, sc.surfaceMuted]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.distributionCard}
+              >
+                <View style={styles.cardGoldAccent} />
+                <View style={styles.distributionWatermark} pointerEvents="none">
+                  <Ionicons name="calendar-outline" size={90} color="rgba(15, 46, 34, 0.035)" />
                 </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>HOUSEHOLDS</Text>
-                  <Text style={styles.infoValue}>
+                <View style={styles.calendarIcon}>
+                  <Ionicons name="calendar-outline" size={23} color={sc.accent} />
+                </View>
+                <View style={styles.premiumCardCopy}>
+                  <View style={styles.statusMetaRow}>
+                    <Text style={styles.lightCardEyebrow}>RELIEF DISTRIBUTION</Text>
+                    <View style={styles.lightStatusPill}>
+                      <Text style={styles.lightStatusText}>
+                        {featuredDistribution.isLive ? 'LIVE NOW' : 'UPCOMING'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.lightCardTitle} numberOfLines={1}>{featuredDistribution.title}</Text>
+                  <Text style={styles.lightCardDescription} numberOfLines={1}>
                     {featuredDistribution.claimedHouseholds} claimed / {featuredDistribution.registeredHouseholds} registered
                   </Text>
+                  <View style={styles.metaRow}>
+                    <Ionicons name="location-outline" size={14} color={sc.brandDark} />
+                    <Text style={styles.metaText} numberOfLines={1}>
+                      {featuredDistribution.coverage.join(', ')}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </View>
-
-            <View style={styles.distributionFooter}>
-              {featuredDistribution.isUrgent && (
-                <View style={styles.urgentIndicator}>
-                  <Text style={styles.urgentIcon}>!</Text>
-                  <Text style={styles.urgentText}>URGENT</Text>
+                <View style={styles.lightArrowButton}>
+                  <Ionicons name="arrow-forward" size={18} color={sc.accent} />
                 </View>
-              )}
-              <Button
-                variant="outline"
-                title="Details"
-                icon="arrow-forward"
-                size="sm"
-                onPress={() =>
-                  Alert.alert(
-                    featuredDistribution.title,
-                    `Coverage: ${featuredDistribution.coverage.join(', ')}\nSchedule: ${featuredDistribution.schedule}`
-                  )
-                }
-              />
-            </View>
-          </View>
-        )}
-
-        {!loading && distributions.length === 0 && (
-          <View style={[styles.emptyState, { paddingHorizontal: 32 }]}>
-            <View style={{ backgroundColor: theme.colors.divider, padding: 24, borderRadius: 50, marginBottom: 24 }}>
-              <Ionicons name="radio-outline" size={48} color={theme.colors.textMuted} />
-            </View>
-            <Typography variant="h3" weight="semiBold" align="center">No live distributions</Typography>
-            <Typography variant="body" color={theme.colors.textSecondary} align="center" style={{ marginTop: 8 }}>
-              Distributions will appear here when they go live.
-            </Typography>
-          </View>
-        )}
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.premiumCardShadow} activeOpacity={0.86}>
+              <LinearGradient
+                colors={[sc.surface, sc.surfaceMuted]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.distributionCard}
+              >
+                <View style={styles.cardGoldAccent} />
+                <View style={styles.distributionWatermark} pointerEvents="none">
+                  <Ionicons name="calendar-clear-outline" size={90} color="rgba(15, 46, 34, 0.035)" />
+                </View>
+                <View style={styles.calendarIcon}>
+                  <Ionicons name="calendar-clear-outline" size={23} color={sc.accent} />
+                </View>
+                <View style={styles.premiumCardCopy}>
+                  <View style={styles.statusMetaRow}>
+                    <Text style={styles.lightCardEyebrow}>RELIEF DISTRIBUTION</Text>
+                    <View style={styles.lightStatusPill}>
+                      <Text style={styles.lightStatusText}>STAY TUNED</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.lightCardTitle}>No live distributions</Text>
+                  <Text style={styles.lightCardDescription} numberOfLines={2}>
+                    Distributions will appear here when they go live.
+                  </Text>
+                </View>
+                <View style={styles.lightArrowButton}>
+                  <Ionicons name="arrow-forward" size={18} color={sc.accent} />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
 
-      <Modal
-        transparent
-        animationType="fade"
-        visible={showNotificationsModal}
-        onRequestClose={() => setShowNotificationsModal(false)}
-      >
-        <Pressable style={styles.notificationsOverlay} onPress={() => setShowNotificationsModal(false)}>
-          <Pressable style={styles.notificationsCard} onPress={() => undefined}>
-            <View style={styles.notificationsHeader}>
-              <Text style={styles.notificationsTitle}>Notifications</Text>
-              <TouchableOpacity onPress={() => setShowNotificationsModal(false)}>
-                <Ionicons name="close" size={22} color={theme.colors.textPrimary} />
+      {/* ── Notification Bottom Sheet ── */}
+      <Modal transparent animationType="fade" visible={showNotifications} onRequestClose={() => setShowNotifications(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowNotifications(false)}>
+          <Pressable style={styles.notificationSheet} onPress={() => undefined}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetEyebrow}>RECENT UPDATES</Text>
+                <Text style={styles.sheetTitle}>Notifications</Text>
+              </View>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setShowNotifications(false)}>
+                <Ionicons name="close" size={20} color={sc.icon} />
               </TouchableOpacity>
             </View>
-
             {notificationsLoading ? (
-              <View style={styles.notificationsLoading}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
+              <View style={styles.notificationEmpty}>
+                <ActivityIndicator color={sc.icon} />
               </View>
             ) : notifications.length === 0 ? (
-              <Text style={styles.notificationsEmpty}>No notifications found.</Text>
+              <View style={styles.notificationEmpty}>
+                <Ionicons name="notifications-outline" size={25} color={sc.icon} />
+                <Text style={styles.notificationEmptyText}>No new notifications</Text>
+              </View>
             ) : (
-              <ScrollView>
+              <ScrollView style={styles.notificationList}>
                 {notifications.map((item) => (
                   <TouchableOpacity
                     key={item._id}
-                    style={styles.notificationsItem}
+                    style={styles.notificationItem}
                     onPress={() => handleNotificationPress(item)}
                   >
-                    <View
-                      style={[
-                        styles.notificationsItemDot,
-                        item.isRead && styles.notificationsItemDotRead,
-                      ]}
-                    />
-                    <View style={styles.notificationsItemContent}>
-                      <Text style={styles.notificationsItemTitle}>{item.title || 'Notification'}</Text>
-                      <Text style={styles.notificationsItemMessage}>
+                    <View style={[styles.unreadDot, item.isRead && styles.readDot]} />
+                    <View style={styles.notificationCopy}>
+                      <Text style={styles.notificationTitle}>{item.title || 'Notification'}</Text>
+                      <Text style={styles.notificationMessage} numberOfLines={2}>
                         {item.message || 'You have an update.'}
                       </Text>
-                      {item.createdAt ? (
-                        <Text style={styles.notificationsItemDate}>
-                          {new Date(item.createdAt).toLocaleString('en-US')}
-                        </Text>
-                      ) : null}
+                      <Text style={styles.notificationDateText}>
+                        {notificationDate(item.createdAt)}
+                      </Text>
                     </View>
+                    <Ionicons name="chevron-forward" size={18} color={sc.icon} />
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -509,566 +563,119 @@ export default function VolunteerDashboardScreen({
         </Pressable>
       </Modal>
 
-      {/* Bottom Navigation */}
-      <View style={[styles.bottomNavContainer, { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.bottomNavItem}>
-            <Ionicons name="home" size={22} color={theme.colors.primary} />
-            <Text style={[styles.bottomNavText, styles.bottomNavTextActive]}>HOME</Text>
-          </TouchableOpacity>
-          <View style={styles.bottomNavPlaceholder} />
-          <TouchableOpacity style={styles.bottomNavItem} onPress={() => onNavigate?.('profile')}>
-            <Ionicons name="person-outline" size={22} color={theme.colors.textMuted} />
-            <Text style={styles.bottomNavText}>PROFILE</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Floating QR Button */}
-        <TouchableOpacity style={styles.floatingQrButton} onPress={() => onNavigate?.('qr')}>
-          <Ionicons name="qr-code-outline" size={26} color={theme.colors.surface} />
-        </TouchableOpacity>
-      </View>
+      {/* ── Bottom Navigation ── */}
+      <BottomNavigation activeTab="home" onNavigate={onNavigate as ((screen: 'home' | 'distributions' | 'profile') => void) | undefined} showDistributions={false} appearance="resident" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
-    backgroundColor: theme.colors.surface,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  staffBadge: {
-    backgroundColor: theme.colors.divider,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 10,
-  },
-  staffBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6B7280',
-    letterSpacing: 0.5,
-  },
-  syncRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  syncDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#16A34A',
-    marginRight: 8,
-  },
-  syncText: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  syncSeparator: {
-    fontSize: 13,
-    color: '#D1D5DB',
-    marginHorizontal: 8,
-  },
-  scopeText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#4B5563',
-    fontWeight: '500',
-  },
-  notificationButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-  },
-  notificationsOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  notificationsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    maxHeight: '68%',
-  },
-  notificationsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  notificationsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  notificationsLoading: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  notificationsEmpty: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  notificationsItem: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  notificationsItemDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#16A34A',
-    marginTop: 6,
-    marginRight: 10,
-  },
-  notificationsItemDotRead: {
-    backgroundColor: '#D1D5DB',
-  },
-  notificationsItemContent: {
-    flex: 1,
-  },
-  notificationsItemTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  notificationsItemMessage: {
-    marginTop: 2,
-    fontSize: 12,
-    color: '#4B5563',
-    lineHeight: 18,
-  },
-  notificationsItemDate: {
-    marginTop: 4,
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
+  /* ── Layout ── */
+  container: { flex: 1, backgroundColor: sc.background },
+  content: { paddingHorizontal: 20, paddingTop: 12 },
+  topBar: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 
-  // Progress Card
-  progressCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 24,
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 24,
-    elevation: 3,
-  },
-  progressCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  progressLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    letterSpacing: 1,
-  },
-  activeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#16A34A',
-    marginRight: 6,
-  },
-  activeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#16A34A',
-  },
-  progressTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
-    letterSpacing: -0.5,
-  },
-  progressStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  progressCount: {
-    fontSize: 15,
-    color: '#4B5563',
-  },
-  progressCountBold: {
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  progressPercent: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#16A34A',
-  },
-  progressBarContainer: {
-    height: 10,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#16A34A',
-    borderRadius: 5,
-  },
+  /* ── Notification Button ── */
+  notificationButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: sc.iconSurface, borderWidth: 1, borderColor: sc.borderAccent },
+  notificationBadge: { position: 'absolute', top: -3, right: -3, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: sc.brand, borderWidth: 2, borderColor: sc.background },
+  notificationBadgeText: { color: sc.inverse, fontSize: 8, fontWeight: '900' },
 
-  // Stats Row
-  statsRow: {
-    flexDirection: 'row',
-    marginHorizontal: 24,
-    marginTop: 16,
-    gap: 12,
-  },
-  statsCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  statsCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  pendingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F59E0B',
-    marginRight: 6,
-  },
-  statsCardLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    letterSpacing: 0.5,
-  },
-  statsCardValue: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  statsCardSubtext: {
-    fontSize: 13,
-    color: '#9CA3AF',
-  },
-  trendBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  trendText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#16A34A',
-    marginLeft: 2,
-  },
-  trendTextNegative: {
-    color: '#EF4444',
-  },
+  /* ── Premium Banner ── */
+  premiumBanner: { minHeight: 158, marginTop: 18, marginBottom: 22, padding: 16, borderRadius: 22, overflow: 'hidden', shadowColor: sc.brandDark, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.19, shadowRadius: 16, elevation: 5 },
+  bannerGoldAccent: { position: 'absolute', top: 0, right: 0, left: 0, height: 3, backgroundColor: sc.accent },
+  bannerWatermark: { position: 'absolute', right: -24, bottom: -34, transform: [{ rotate: '-10deg' }] },
+  bannerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bannerEyebrow: { fontSize: 8.5, fontWeight: '900', letterSpacing: 1.25, color: sc.accent },
+  bannerStatusPill: { minHeight: 25, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.38)' },
+  bannerStatusText: { fontSize: 7.5, fontWeight: '900', letterSpacing: 0.65, color: '#E6F6EA' },
+  syncDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ADE80' },
+  bannerGreeting: { maxWidth: '82%', marginTop: 10, fontSize: 25, lineHeight: 30, fontWeight: '800', color: '#FFFFFF' },
+  bannerSubtitle: { maxWidth: '78%', marginTop: 3, fontSize: 11.5, lineHeight: 15, color: '#E6F6EA' },
+  bannerLocationPill: { alignSelf: 'flex-start', maxWidth: '76%', minHeight: 26, marginTop: 8, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 9, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.32)' },
+  bannerLocationText: { flexShrink: 1, fontSize: 10.5, fontWeight: '700', color: sc.inverse },
 
-  // Status Strip
-  statusStrip: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#F8FAF9',
-    marginHorizontal: 24,
-    marginTop: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
-  },
-  statusItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
-    letterSpacing: 0.5,
-    marginLeft: 6,
-  },
+  /* ── Sections ── */
+  section: { marginTop: 22 },
+  sectionLabelRow: { marginBottom: 10, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  sectionEyebrow: { marginBottom: 2, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.15, color: sc.accentInk },
+  sectionTitle: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: sc.ink },
 
-  // Section Header
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 24,
-    marginTop: 28,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    letterSpacing: 1.5,
-    marginRight: 16,
-  },
-  sectionDivider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
+  /* ── Premium Card Utilities ── */
+  premiumCardShadow: { borderRadius: 20, shadowColor: sc.brandDark, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.15, shadowRadius: 14, elevation: 5 },
+  cardGoldAccent: { position: 'absolute', top: 0, right: 0, left: 0, height: 3, backgroundColor: sc.accent },
+  premiumCardCopy: { flex: 1, minWidth: 0, marginHorizontal: 13 },
+  statusMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
 
-  // Loading
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
+  /* ── Dark Card Tokens ── */
+  darkIconTile: { width: 48, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.42)' },
+  darkCardEyebrow: { flexShrink: 1, fontSize: 7.5, fontWeight: '900', letterSpacing: 1, color: sc.accent },
+  darkCardTitle: { marginTop: 7, fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#FFFFFF' },
+  darkCardDescription: { marginTop: 4, fontSize: 11, lineHeight: 16, color: '#E6F6EA' },
+  darkArrowButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.4)' },
 
-  // Distribution Card
-  distributionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 24,
-    elevation: 3,
-  },
-  distributionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#16A34A',
-    marginRight: 8,
-  },
-  liveText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1F2937',
-    letterSpacing: 0.5,
-  },
-  distributionTime: {
-    fontSize: 13,
-    color: '#9CA3AF',
-  },
-  distributionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 20,
-    letterSpacing: -0.3,
-  },
-  distributionInfo: {
-    marginBottom: 20,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  infoIconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F0FDF4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 15,
-    color: '#1F2937',
-    fontWeight: '500',
-  },
-  distributionFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  urgentIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  urgentIcon: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#EF4444',
-    marginRight: 6,
-  },
-  urgentText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#EF4444',
-    letterSpacing: 0.5,
-  },
-  detailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  detailsButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#16A34A',
-    marginRight: 4,
-  },
+  /* ── QR Action ── */
+  qrActionCard: { minHeight: 126, padding: 15, flexDirection: 'row', alignItems: 'center', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(236, 195, 35, 0.52)' },
+  qrWatermark: { position: 'absolute', right: 32, bottom: -26, transform: [{ rotate: '-10deg' }] },
 
-  // Empty State
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-  },
-  emptyStateTitle: {
-    marginTop: 16,
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  emptyStateText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
+  /* ── Progress Card ── */
+  activePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: sc.brandSoft, borderWidth: 1, borderColor: sc.borderAccent },
+  activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: sc.brand },
+  activeText: { fontSize: 7, fontWeight: '900', letterSpacing: 0.55, color: sc.brandDark },
+  progressCard: { minHeight: 100, padding: 16, borderRadius: 20, overflow: 'hidden', backgroundColor: sc.surface, borderWidth: 1, borderColor: sc.borderAccent, ...staffTheme.shadow },
+  progressWatermark: { position: 'absolute', right: 20, bottom: -24, transform: [{ rotate: '-10deg' }] },
+  progressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  progressLabel: { fontSize: 13, color: sc.secondary },
+  progressBold: { fontWeight: '800', color: sc.ink },
+  progressPercent: { fontSize: 15, fontWeight: '800', color: sc.brandDark },
+  progressBarOuter: { height: 10, backgroundColor: sc.surfaceMuted, borderRadius: 5, overflow: 'hidden', borderWidth: 1, borderColor: sc.borderAccent },
+  progressBarFill: { height: '100%', backgroundColor: sc.brand, borderRadius: 5 },
 
-  // Bottom Navigation
-  bottomNavContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 28,
-  },
-  bottomNavItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 56,
-    flex: 1,
-  },
-  bottomNavPlaceholder: {
-    width: 64,
-  },
-  bottomNavText: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    marginTop: 4,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  bottomNavTextActive: {
-    color: '#16A34A',
-  },
-  floatingQrButton: {
-    position: 'absolute',
-    top: -28,
-    left: '50%',
-    marginLeft: -32,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#16A34A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-  },
+  /* ── Stats Row ── */
+  statsRow: { flexDirection: 'row', marginTop: 16, gap: 12 },
+  statsCard: { flex: 1, minHeight: 110, padding: 15, borderRadius: 18, overflow: 'hidden', backgroundColor: sc.surface, borderWidth: 1, borderColor: sc.borderAccent, ...staffTheme.shadow },
+  statsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  pendingDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#F59E0B', marginRight: 5 },
+  statsLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 0.85, color: sc.secondary },
+  statsValue: { fontSize: 30, fontWeight: '800', color: sc.ink, marginBottom: 4 },
+  statsSubtext: { fontSize: 11, color: sc.secondary },
+  trendBadge: { flexDirection: 'row', alignItems: 'center' },
+  trendText: { fontSize: 11, fontWeight: '700', color: sc.brand, marginLeft: 2 },
+  trendTextNeg: { color: '#EF4444' },
+
+  /* ── Status Strip ── */
+  statusStrip: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 16, paddingVertical: 13, paddingHorizontal: 8, borderRadius: 14, backgroundColor: sc.surfaceMuted, borderWidth: 1, borderColor: sc.borderAccent },
+  statusItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statusText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.45, color: sc.secondary },
+
+  /* ── Light Card Tokens (Distributions) ── */
+  distributionCard: { minHeight: 126, padding: 15, flexDirection: 'row', alignItems: 'center', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: sc.borderAccent, ...staffTheme.shadow },
+  distributionWatermark: { position: 'absolute', right: 34, bottom: -24, transform: [{ rotate: '-8deg' }] },
+  calendarIcon: { width: 48, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: sc.brandDark, borderWidth: 1, borderColor: sc.accent },
+  lightCardEyebrow: { flexShrink: 1, fontSize: 7.5, fontWeight: '900', letterSpacing: 1, color: sc.accentInk },
+  lightStatusPill: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999, backgroundColor: sc.brandSoft, borderWidth: 1, borderColor: sc.borderAccent },
+  lightStatusText: { fontSize: 6.7, fontWeight: '900', letterSpacing: 0.5, color: sc.brandDark },
+  lightCardTitle: { marginTop: 7, fontSize: 15, lineHeight: 19, fontWeight: '800', color: sc.ink },
+  lightCardDescription: { marginTop: 4, fontSize: 11, lineHeight: 16, color: sc.secondary },
+  lightArrowButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: sc.brandDark, borderWidth: 1, borderColor: sc.accent },
+  metaRow: { marginTop: 7, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaText: { flex: 1, fontSize: 10.5, color: sc.secondary },
+
+  /* ── Notification Sheet ── */
+  modalOverlay: { flex: 1, padding: 20, justifyContent: 'flex-end', backgroundColor: sc.overlay },
+  notificationSheet: { maxHeight: '72%', padding: 20, paddingBottom: 24, borderRadius: 24, backgroundColor: sc.surface },
+  sheetHandle: { width: 42, height: 4, alignSelf: 'center', borderRadius: 2, backgroundColor: sc.border },
+  sheetHeader: { marginTop: 17, marginBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sheetEyebrow: { fontSize: 8, fontWeight: '900', letterSpacing: 1, color: sc.secondary },
+  sheetTitle: { marginTop: 3, fontSize: 20, fontWeight: '800', color: sc.ink },
+  closeButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: sc.iconSurface, borderWidth: 1, borderColor: sc.borderAccent },
+  notificationList: { maxHeight: 390 },
+  notificationItem: { minHeight: 86, paddingVertical: 13, flexDirection: 'row', alignItems: 'flex-start', borderTopWidth: 1, borderTopColor: sc.divider },
+  unreadDot: { width: 7, height: 7, marginTop: 6, marginRight: 10, borderRadius: 4, backgroundColor: sc.brand },
+  readDot: { backgroundColor: sc.border },
+  notificationCopy: { flex: 1, paddingRight: 8 },
+  notificationTitle: { fontSize: 13, fontWeight: '800', color: sc.ink },
+  notificationMessage: { marginTop: 4, fontSize: 11.5, lineHeight: 16, color: sc.secondary },
+  notificationDateText: { marginTop: 5, fontSize: 9.5, fontWeight: '700', color: sc.secondary },
+  notificationEmpty: { minHeight: 180, alignItems: 'center', justifyContent: 'center' },
+  notificationEmptyText: { marginTop: 10, fontSize: 13, color: sc.secondary },
 });
