@@ -41,9 +41,11 @@ export default function HouseholdsPage() {
   const [barangay, setBarangay] = useState<BarangayFilter>('All Barangays')
   const [status, setStatus] = useState<StatusFilter>('All Status')
 
-  const fetchHouseholds = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const fetchHouseholds = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const pageSize = 50
       let page = 1
@@ -61,19 +63,42 @@ export default function HouseholdsPage() {
       setAllRows(mergedRows)
     } catch (e: unknown) {
       console.error('Failed to fetch households:', e)
-      const err = e as { status?: number; message?: string }
-      if (err?.status === 401) setError('Your session has expired. Please log in again.')
-      else if (err?.status === 403) setError('You do not have access to view households.')
-      else if (typeof err?.status === 'number') setError('Failed to fetch households. Please try again.')
-      else setError('Unable to connect to the server. Please make sure the backend is running.')
-      setAllRows([])
+      if (!silent) {
+        const err = e as { status?: number; message?: string }
+        if (err?.status === 401) setError('Your session has expired. Please log in again.')
+        else if (err?.status === 403) setError('You do not have access to view households.')
+        else if (typeof err?.status === 'number') setError('Failed to fetch households. Please try again.')
+        else setError('Unable to connect to the server. Please make sure the backend is running.')
+        setAllRows([])
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
   useEffect(() => {
-    fetchHouseholds()
+    fetchHouseholds(false)
+  }, [fetchHouseholds])
+
+  // Live data hook: silently poll for claim status changes when active and tab is visible
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchHouseholds(true)
+      }
+    }
+
+    const intervalId = window.setInterval(refreshIfVisible, 5000)
+    document.addEventListener('visibilitychange', refreshIfVisible)
+    window.addEventListener('focus', refreshIfVisible)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', refreshIfVisible)
+      window.removeEventListener('focus', refreshIfVisible)
+    }
   }, [fetchHouseholds])
 
   const statCounts = useMemo(() => {
@@ -117,7 +142,7 @@ export default function HouseholdsPage() {
           loading={loading}
           error={error}
           hasAnyRows={allRows.length > 0}
-          onRetry={fetchHouseholds}
+          onRetry={() => fetchHouseholds(false)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           barangay={barangay}

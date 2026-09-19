@@ -470,14 +470,19 @@ router.get(
       }
 
       // Aggregate claimed household counts per distribution from DistributionClaim
-      const distIds = distributions.map((d) => d._id);
+      const distLookupIds = distributions.flatMap((d) => [
+        new mongoose.Types.ObjectId(d._id),
+        d._id.toString(),
+      ]);
       const claimedCounts = await DistributionClaim.aggregate([
-        { $match: { distributionId: mongoose.trusted({ $in: distIds }) } },
-        { $group: { _id: '$distributionId', count: { $sum: 1 } } },
+        { $match: { distributionId: mongoose.trusted({ $in: distLookupIds }) } },
+        { $group: { _id: { $toString: '$distributionId' }, count: { $sum: 1 } } },
       ]);
       const claimedCountMap: Record<string, number> = {};
       for (const c of claimedCounts) {
-        claimedCountMap[c._id.toString()] = c.count;
+        if (c._id) {
+          claimedCountMap[c._id] = c.count;
+        }
       }
 
       const targetedDistributionIds = distributions
@@ -838,11 +843,15 @@ router.get(
       }
 
       // 5) Find claims for THIS distribution
+      const distLookupIds = [
+        new mongoose.Types.ObjectId(distribution._id),
+        distribution._id.toString(),
+      ];
       const claims = await DistributionClaim.find({
-        distributionId: distribution._id,
+        distributionId: mongoose.trusted({ $in: distLookupIds }),
       }).lean();
       const claimRecords = await Claim.find({
-        distributionId: id,
+        distributionId: mongoose.trusted({ $in: [id, distribution._id.toString()] }),
         claimCategory: 'DISTRIBUTION',
         status: 'CONFIRMED',
       })

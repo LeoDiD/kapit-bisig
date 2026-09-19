@@ -210,14 +210,22 @@ export default function DistributionsTable({
       <DistributionDetailsModal
         open={selectedDistribution !== null}
         onClose={() => setSelectedDistribution(null)}
-        distribution={selectedDistribution}
+        distribution={
+          selectedDistribution
+            ? rows.find((r) => r.id === selectedDistribution.id) || selectedDistribution
+            : null
+        }
         onMarkClaimed={onMarkClaimed}
       />
 
       <ViewHouseholdsModal
         open={householdsDistribution !== null}
         onClose={() => setHouseholdsDistribution(null)}
-        distribution={householdsDistribution}
+        distribution={
+          householdsDistribution
+            ? rows.find((r) => r.id === householdsDistribution.id) || householdsDistribution
+            : null
+        }
       />
 
       <div className="mb-12 overflow-hidden rounded-[28px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">

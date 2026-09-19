@@ -56,8 +56,10 @@ export default function DashboardPage() {
   const [weeklyData, setWeeklyData] = useState<{ day: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchDashboardStats = useCallback(async () => {
-    setLoading(true)
+  const fetchDashboardStats = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true)
+    }
     try {
       const [householdsRes, distributionsRes, reportRes] = await Promise.all([
         api.getHouseholds({ page: 1, limit: 1 }),
@@ -88,15 +90,38 @@ export default function DashboardPage() {
         totalUnclaimed: report?.overview?.totalUnclaimedHouseholds ?? 0,
       })
     } catch {
-      showToast.error('Failed to load dashboard stats.')
-      setStats(INITIAL_STATS)
+      if (!silent) {
+        showToast.error('Failed to load dashboard stats.')
+        setStats(INITIAL_STATS)
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
   useEffect(() => {
-    fetchDashboardStats()
+    fetchDashboardStats(false)
+  }, [fetchDashboardStats])
+
+  // Live data hook: silently poll for dashboard stats updates when page is visible
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchDashboardStats(true)
+      }
+    }
+
+    const intervalId = window.setInterval(refreshIfVisible, 5000)
+    document.addEventListener('visibilitychange', refreshIfVisible)
+    window.addEventListener('focus', refreshIfVisible)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', refreshIfVisible)
+      window.removeEventListener('focus', refreshIfVisible)
+    }
   }, [fetchDashboardStats])
 
   const monthlyTrends = useMemo(() => reportData?.monthlyTrends ?? [], [reportData])
@@ -141,7 +166,7 @@ export default function DashboardPage() {
               </div>
               <button
                 type="button"
-                onClick={fetchDashboardStats}
+                onClick={() => fetchDashboardStats(false)}
                 disabled={loading}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 transition-colors"
                 title="Refresh metrics"

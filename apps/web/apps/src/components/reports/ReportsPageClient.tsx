@@ -67,9 +67,11 @@ export default function ReportsPageClient() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [])
 
-  const fetchReport = useCallback(async () => {
-    setLoading(true)
-    setError('')
+  const fetchReport = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const res = await api.getReportSummary({
         startDate: startDate || undefined,
@@ -80,22 +82,44 @@ export default function ReportsPageClient() {
       if (res.success && res.data) {
         setData(res.data)
         setGenerated(true)
-      } else {
+      } else if (!silent) {
         setError(res.message || 'Failed to generate report')
       }
     } catch (err: unknown) {
       console.error('Failed to generate report:', err)
-      setError('Failed to generate report. Please try again.')
+      if (!silent) {
+        setError('Failed to generate report. Please try again.')
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [startDate, endDate, barangay, reportType])
 
   // Auto-fetch on first load
   useEffect(() => {
-    fetchReport()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    fetchReport(false)
+  }, [fetchReport])
+
+  // Live data hook: silently poll for report summary updates when page is visible
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchReport(true)
+      }
+    }
+
+    const intervalId = window.setInterval(refreshIfVisible, 6000)
+    document.addEventListener('visibilitychange', refreshIfVisible)
+    window.addEventListener('focus', refreshIfVisible)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', refreshIfVisible)
+      window.removeEventListener('focus', refreshIfVisible)
+    }
+  }, [fetchReport])
 
   const overview = data?.overview
   const distributions = data?.distributions ?? []
@@ -287,7 +311,7 @@ export default function ReportsPageClient() {
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={fetchReport}
+              onClick={() => fetchReport(false)}
               disabled={loading}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition-all duration-200 hover:shadow-md"
             >

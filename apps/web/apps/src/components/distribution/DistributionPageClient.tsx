@@ -23,10 +23,13 @@ export default function DistributionPageClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lifecycleView, setLifecycleView] = useState<'upcoming' | 'active' | 'completed' | 'archived'>('upcoming')
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  const fetchDistributions = useCallback(async () => {
+  const fetchDistributions = useCallback(async (silent = false) => {
     try {
-      setError(null)
+      if (!silent) {
+        setError(null)
+      }
       const res = await api.getDistributions({ view: 'all' })
       if (res.success && res.data) {
         const mapped: DistributionRow[] = res.data.map((d) => ({
@@ -48,12 +51,17 @@ export default function DistributionPageClient() {
           lifecycleStatus: d.lifecycleStatus ?? 'Completed',
         }))
         setRows(mapped)
+        setLastUpdated(new Date())
       }
     } catch (err: unknown) {
       console.error('Failed to load distributions:', err)
-      setError('Failed to load distributions. Please try again.')
+      if (!silent) {
+        setError('Failed to load distributions. Please try again.')
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -63,7 +71,28 @@ export default function DistributionPageClient() {
       setLoading(false)
       return
     }
-    fetchDistributions()
+    fetchDistributions(false)
+  }, [fetchDistributions, authLoading, user])
+
+  // Live data hook: poll for live claim updates when active and tab is visible
+  useEffect(() => {
+    if (authLoading || !user) return
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchDistributions(true)
+      }
+    }
+
+    const intervalId = window.setInterval(refreshIfVisible, 4000)
+    document.addEventListener('visibilitychange', refreshIfVisible)
+    window.addEventListener('focus', refreshIfVisible)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', refreshIfVisible)
+      window.removeEventListener('focus', refreshIfVisible)
+    }
   }, [fetchDistributions, authLoading, user])
 
   const activeCount = useMemo(
@@ -204,24 +233,36 @@ export default function DistributionPageClient() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Distribution lifecycle">
-        {(['upcoming', 'active', 'completed', 'archived'] as const).map((view) => (
-          <button
-            key={view}
-            type="button"
-            role="tab"
-            aria-selected={lifecycleView === view}
-            onClick={() => setLifecycleView(view)}
-            className={[
-              'rounded-full border px-4 py-2 text-sm font-semibold capitalize transition-colors',
-              lifecycleView === view
-                ? 'border-slate-950 bg-slate-950 text-white'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-950',
-            ].join(' ')}
-          >
-            {view}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Distribution lifecycle">
+          {(['upcoming', 'active', 'completed', 'archived'] as const).map((view) => (
+            <button
+              key={view}
+              type="button"
+              role="tab"
+              aria-selected={lifecycleView === view}
+              onClick={() => setLifecycleView(view)}
+              className={[
+                'rounded-full border px-4 py-2 text-sm font-semibold capitalize transition-colors',
+                lifecycleView === view
+                  ? 'border-slate-950 bg-slate-950 text-white'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-950',
+              ].join(' ')}
+            >
+              {view}
+            </button>
+          ))}
+        </div>
+
+        {lastUpdated && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Live claims active</span>
+          </div>
+        )}
       </div>
 
       <DistributionsTable

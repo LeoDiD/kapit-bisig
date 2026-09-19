@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  AppState,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,8 +103,10 @@ export default function VolunteerDashboardScreen({
     ? Math.round((stats.verifiedHouseholds / stats.totalHouseholds) * 100)
     : 0;
 
-  const loadDashboardData = useCallback(async () => {
-    setLoading(true);
+  const loadDashboardData = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const [distributionResult, summaryResult] = await Promise.all([
         mobileAuthService.authenticatedRequest<{
@@ -164,7 +167,9 @@ export default function VolunteerDashboardScreen({
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -230,10 +235,28 @@ export default function VolunteerDashboardScreen({
   };
 
   useEffect(() => {
-    if (mobileAuthService.isLoggedIn()) {
-      loadDashboardData();
-      loadNotifications().catch(() => undefined);
-    }
+    if (!mobileAuthService.isLoggedIn()) return;
+
+    loadDashboardData(false);
+    loadNotifications().catch(() => undefined);
+
+    const refreshIfActive = () => {
+      if (AppState.currentState === 'active') {
+        loadDashboardData(true);
+      }
+    };
+
+    const intervalId = setInterval(refreshIfActive, 5000);
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        loadDashboardData(true);
+      }
+    });
+
+    return () => {
+      clearInterval(intervalId);
+      subscription.remove();
+    };
   }, [loadDashboardData, loadNotifications]);
 
   return (
