@@ -14,6 +14,7 @@ import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
 import FilterDropdown from '@/components/ui/FilterDropdown'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 
 const ALL_STATUSES = '__ALL_STATUSES__'
 const ALL_BARANGAYS = 'All Barangays'
@@ -528,7 +529,8 @@ const DEMO_PROOF_SUBMISSIONS: BeneficiaryProofSubmissionRecord[] = [
                   <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
                     value={searchInput}
-                    onChange={(event) => setSearchInput(event.target.value)}
+                    onChange={(event) => setSearchInput(sanitizeSearchQuery(event.target.value))}
+                    maxLength={MAX_SEARCH_LENGTH}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         event.preventDefault()

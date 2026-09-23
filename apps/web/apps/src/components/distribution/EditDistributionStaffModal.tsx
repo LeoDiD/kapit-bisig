@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { api, ScanEligibleUser, StaffUser } from '@/lib/api'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 import { showToast } from '@/lib/toast'
 import type { DistributionRow } from './DistributionsTable'
 import { formatScheduledDate } from './DistributionsTable'
@@ -270,7 +271,8 @@ export default function EditDistributionStaffModal({
               <input
                 type="text"
                 value={staffQuery}
-                onChange={(e) => setStaffQuery(e.target.value)}
+                onChange={(e) => setStaffQuery(sanitizeSearchQuery(e.target.value))}
+                maxLength={MAX_SEARCH_LENGTH}
                 placeholder="Search staff by name..."
                 className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-gray-800 dark:text-slate-100 placeholder-gray-400 focus:outline-none focus:border-[#0F533A] focus:ring-1 focus:ring-[#0F533A]"
               />

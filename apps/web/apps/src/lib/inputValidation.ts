@@ -60,3 +60,23 @@ export function validateEmailFormat(input: string): EmailValidationResult {
 export function isValidEmail(input: string): boolean {
   return validateEmailFormat(input).isValid
 }
+
+export const MAX_SEARCH_LENGTH = 60
+
+/**
+ * Allowed safe characters for search queries:
+ * - Alphanumeric (a-z, A-Z, 0-9)
+ * - Spaces
+ * - Common safe symbols for addresses, barangays, dates, notes, and IDs: - , . / : # ( ) ' ñ Ñ
+ * Strips dangerous injection/markup/script characters: < > { } [ ] $ % ^ * + = ; " ` \ | ~
+ */
+export const ALLOWED_SEARCH_CHAR_REGEX = /^[a-zA-Z0-9\s\-,\.\/:#()ñÑ']*$/
+
+export function sanitizeSearchQuery(input: string, max = MAX_SEARCH_LENGTH): string {
+  if (!input) return ''
+  return input
+    .slice(0, max)
+    .split('')
+    .filter((ch) => ALLOWED_SEARCH_CHAR_REGEX.test(ch))
+    .join('')
+}

@@ -7,7 +7,7 @@ import { api, getScopedBarangays, StaffUser } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
-import { sanitizeAsciiText } from '@/lib/inputValidation'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 import { useAuth } from '@/lib/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -310,7 +310,8 @@ export default function UsersTable() {
                 type="text"
                 placeholder="Search by name or email..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(sanitizeAsciiText(e.target.value))}
+                onChange={(e) => setSearchQuery(sanitizeSearchQuery(e.target.value))}
+                maxLength={MAX_SEARCH_LENGTH}
                 className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors hover:border-[#004A1C]/30 hover:bg-slate-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-[#ECC323]/50 dark:hover:bg-slate-800/50"
               />
             </div>

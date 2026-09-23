@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import HouseholdProfileModal from './HouseholdProfileModal'
+import DistributionCycleModal from './DistributionCycleModal'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 import type { HouseholdRow } from '@/app/households/page'
 
 const ROWS_PER_PAGE = 5
@@ -10,6 +12,15 @@ export interface DistributionOption {
   value: string
   label: string
   isCurrent?: boolean
+  barangay?: string
+  assignedBarangays?: string[]
+  scheduled?: string
+  status?: string
+  lifecycleStatus?: string
+  claimedHouseholds?: number
+  registeredHouseholds?: number
+  households?: number
+  notes?: string
 }
 
 interface HouseholdsTableProps {
@@ -52,25 +63,22 @@ export default function HouseholdsTable({
   // Modal
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdRow | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isCycleModalOpen, setIsCycleModalOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   // Dropdowns
   const [barangayOpen, setBarangayOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
-  const [distOpen, setDistOpen] = useState(false)
   const barangayBtnRef = useRef<HTMLButtonElement>(null)
   const barangayMenuRef = useRef<HTMLDivElement>(null)
   const statusBtnRef = useRef<HTMLButtonElement>(null)
   const statusMenuRef = useRef<HTMLDivElement>(null)
-  const distBtnRef = useRef<HTMLButtonElement>(null)
-  const distMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const t = event.target as Node
       if (!barangayBtnRef.current?.contains(t) && !barangayMenuRef.current?.contains(t)) setBarangayOpen(false)
       if (!statusBtnRef.current?.contains(t) && !statusMenuRef.current?.contains(t)) setStatusOpen(false)
-      if (!distBtnRef.current?.contains(t) && !distMenuRef.current?.contains(t)) setDistOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -133,9 +141,15 @@ export default function HouseholdsTable({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400">Relief Registry</p>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                  Cycle: {selectedDistributionLabel}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsCycleModalOpen(true)}
+                  className="group inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100/80 transition-colors dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-900/50"
+                  title="Click to change distribution cycle"
+                >
+                  <span>Cycle: <strong className="font-semibold">{selectedDistributionLabel}</strong></span>
+                  <span className="text-[10px] text-blue-500 dark:text-blue-400 group-hover:underline">Change</span>
+                </button>
               </div>
               <p className="mt-1 text-sm text-gray-700 dark:text-slate-300">
                 {loading ? 'Loading registry data...' : `${rows.length} visible record(s)`}
@@ -163,43 +177,70 @@ export default function HouseholdsTable({
               </span>
               <input
                 type="text"
+                maxLength={MAX_SEARCH_LENGTH}
                 placeholder="Search by resident, code, barangay, or address..."
                 value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+                onChange={(e) => onSearchChange(sanitizeSearchQuery(e.target.value))}
+                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-20 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => onSearchChange('')}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-md"
+                    aria-label="Clear search"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                ) : null}
+                <span
+                  className={[
+                    'text-[11px] font-mono tabular-nums select-none px-1.5 py-0.5 rounded border',
+                    searchQuery.length >= MAX_SEARCH_LENGTH
+                      ? 'font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700'
+                      : 'text-slate-600 dark:text-slate-300 bg-slate-200/80 dark:bg-slate-700/80 border-slate-300 dark:border-slate-600',
+                  ].join(' ')}
+                  title={`Character limit: ${searchQuery.length}/${MAX_SEARCH_LENGTH}`}
+                >
+                  {searchQuery.length}/{MAX_SEARCH_LENGTH}
+                </span>
+              </div>
             </div>
 
             <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
-              {/* Distribution Cycle Selector */}
+              {/* Distribution Cycle Selector Button (Replaces cramped dropdown) */}
               {distributionOptions.length > 0 && (
-                <div className="relative min-w-[210px] flex-1 sm:flex-none">
+                <div className="relative flex-1 sm:flex-none">
                   <button
-                    ref={distBtnRef}
+                    type="button"
                     onClick={() => {
-                      setDistOpen(!distOpen)
+                      setIsCycleModalOpen(true)
                       setBarangayOpen(false)
                       setStatusOpen(false)
                     }}
-                    className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
-                    title={`Distribution cycle: ${selectedDistributionLabel}`}
+                    className="group flex w-full items-center justify-between gap-3 rounded-xl border border-blue-200/90 bg-blue-50/60 px-3.5 py-2 text-sm transition-all hover:bg-blue-50 hover:border-blue-300 dark:border-blue-900/60 dark:bg-blue-950/30 dark:hover:bg-blue-950/60 sm:w-auto"
+                    title={`Distribution cycle: ${selectedDistributionLabel}. Click to browse or change cycle.`}
                   >
-                    <span className="truncate max-w-[220px] text-xs font-semibold">
-                      {selectedDistributionLabel}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-400/20 dark:text-blue-300">
+                        <CalendarHistoryIcon className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col text-left min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600/80 dark:text-blue-400/80 leading-none">
+                          Cycle
+                        </span>
+                        <span className="truncate max-w-[190px] font-semibold text-xs text-blue-950 dark:text-blue-100 mt-0.5">
+                          {selectedDistributionLabel}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="shrink-0 rounded-lg bg-blue-200/70 dark:bg-blue-900/80 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:text-blue-200 transition-colors group-hover:bg-blue-600 group-hover:text-white">
+                      Browse
                     </span>
-                    <ChevronDownIcon />
                   </button>
-                  {distOpen && (
-                    <DropdownMenu
-                      menuRef={distMenuRef}
-                      items={distributionOptions}
-                      selected={distributionId}
-                      onSelect={(v) => {
-                        onDistributionChange?.(v)
-                        setDistOpen(false)
-                      }}
-                    />
-                  )}
                 </div>
               )}
 
@@ -209,7 +250,6 @@ export default function HouseholdsTable({
                   onClick={() => {
                     setBarangayOpen(!barangayOpen)
                     setStatusOpen(false)
-                    setDistOpen(false)
                   }}
                   className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
                 >
@@ -235,7 +275,6 @@ export default function HouseholdsTable({
                   onClick={() => {
                     setStatusOpen(!statusOpen)
                     setBarangayOpen(false)
-                    setDistOpen(false)
                   }}
                   className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
                 >
@@ -403,6 +442,14 @@ export default function HouseholdsTable({
         data={selectedHousehold}
         distributionName={selectedDistributionLabel}
       />
+
+      <DistributionCycleModal
+        open={isCycleModalOpen}
+        onClose={() => setIsCycleModalOpen(false)}
+        options={distributionOptions}
+        selectedId={distributionId}
+        onSelect={(id) => onDistributionChange?.(id)}
+      />
     </>
   )
 }
@@ -478,6 +525,19 @@ function SpinnerIcon({ className }: { className?: string }) {
     <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9" className="opacity-20" stroke="currentColor" strokeWidth="3" />
       <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CalendarHistoryIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+      />
     </svg>
   )
 }

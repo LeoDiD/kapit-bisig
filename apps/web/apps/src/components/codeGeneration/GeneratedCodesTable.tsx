@@ -3,6 +3,7 @@
 import React from 'react'
 import type { CodeStatus, GeneratedCodeRow, BatchSummary } from './types'
 import SelectDropdown from '@/components/ui/SelectDropdown'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 
 type Props = {
   rows: GeneratedCodeRow[]
@@ -66,7 +67,8 @@ export default function GeneratedCodesTable({
           <input
             type="text"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => setSearch(sanitizeSearchQuery(event.target.value))}
+            maxLength={MAX_SEARCH_LENGTH}
             placeholder="Search code"
             aria-label="Search generated codes"
             className="h-10 w-48 rounded-xl border border-gray-300 dark:border-slate-700 px-3 text-sm text-gray-900 dark:text-white bg-white/80 dark:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800 focus:border-[#004A1C] dark:focus:border-[#ECC323] focus:outline-none focus:ring-2 focus:ring-[#004A1C]/20 dark:focus:ring-[#ECC323]/20 shadow-inner transition-all"

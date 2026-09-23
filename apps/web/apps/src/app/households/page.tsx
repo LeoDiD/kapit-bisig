@@ -73,7 +73,7 @@ export default function HouseholdsPage() {
     distributions.forEach((d) => {
       const distId = d._id || d.id
       const dateStr = d.scheduled
-        ? new Date(d.scheduled).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        ? new Date(d.scheduled).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : ''
       const isCompleted = d.status === 'Claimed'
       const isCurrent = !isCompleted && !d.archivedAt
@@ -83,6 +83,15 @@ export default function HouseholdsPage() {
         value: distId,
         label,
         isCurrent,
+        barangay: d.barangay,
+        assignedBarangays: d.assignedBarangays,
+        scheduled: d.scheduled,
+        status: d.status,
+        lifecycleStatus: d.lifecycleStatus || (isCompleted ? 'Completed' : isCurrent ? 'Active' : 'Archived'),
+        claimedHouseholds: d.claimedHouseholds,
+        registeredHouseholds: d.registeredHouseholds,
+        households: d.households,
+        notes: d.notes,
       })
     })
 

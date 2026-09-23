@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ScanEligibleUser } from '../../lib/api'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '../../lib/inputValidation'
 import { useAuth } from '@/lib/AuthContext'
 
 export type CreateDistributionPayload = {
@@ -760,7 +761,8 @@ export default function NewDistributionModal({
                   </p>
                   <input
                     value={staffQuery}
-                    onChange={(e) => setStaffQuery(e.target.value)}
+                    onChange={(e) => setStaffQuery(sanitizeSearchQuery(e.target.value))}
+                    maxLength={MAX_SEARCH_LENGTH}
                     placeholder="Search staff by name or email"
                     className="w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none transition-colors focus:border-gray-400 dark:focus:border-slate-500 placeholder-gray-400 dark:placeholder-slate-500"
                   />

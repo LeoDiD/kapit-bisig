@@ -12,6 +12,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 
 import ResidentReviewModal from '@/components/residents/ResidentReviewModal'
 import FilterDropdown from '@/components/ui/FilterDropdown'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 
 function getResidentId(record: ResidentRecord): string {
   return record._id || record.id || ''
@@ -692,7 +693,8 @@ export default function ResidentRegistrationPage() {
                       <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                       <input
                         value={searchQuery}
-                        onChange={(event) => setSearchQuery(event.target.value)}
+                        onChange={(event) => setSearchQuery(sanitizeSearchQuery(event.target.value))}
+                        maxLength={MAX_SEARCH_LENGTH}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter') {
                             event.preventDefault()

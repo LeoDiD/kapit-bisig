@@ -6,6 +6,27 @@ import { api } from '@/lib/api'
 import type { AuditLogRecord } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import { ChevronLeft, ChevronRight, Search, RotateCcw, X } from 'lucide-react'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
+import SelectDropdown from '@/components/ui/SelectDropdown'
+
+const ACTION_OPTIONS = [
+  { value: '', label: 'All Actions' },
+  { value: 'LOGIN_SUCCESS', label: 'LOGIN_SUCCESS' },
+  { value: 'LOGIN_FAILURE', label: 'LOGIN_FAILURE' },
+  { value: 'LOGOUT', label: 'LOGOUT' },
+  { value: 'DISTRIBUTION_CREATED', label: 'DISTRIBUTION_CREATED' },
+  { value: 'DISTRIBUTION_RESCHEDULED', label: 'DISTRIBUTION_RESCHEDULED' },
+  { value: 'DISTRIBUTION_CLAIMED', label: 'DISTRIBUTION_CLAIMED' },
+  { value: 'CLAIM_RECORDED', label: 'CLAIM_RECORDED' },
+  { value: 'STAFF_CREATED', label: 'STAFF_CREATED' },
+  { value: 'STAFF_UPDATED', label: 'STAFF_UPDATED' },
+  { value: 'PROOF_SUBMISSION_CREATED', label: 'PROOF_SUBMISSION_CREATED' },
+  { value: 'PROOF_SUBMISSION_REVIEWED', label: 'PROOF_SUBMISSION_REVIEWED' },
+  { value: 'BENEFICIARY_ELIGIBILITY_UPDATED', label: 'BENEFICIARY_ELIGIBILITY_UPDATED' },
+  { value: 'BENEFICIARY_CLAIM_RECORDED', label: 'BENEFICIARY_CLAIM_RECORDED' },
+  { value: 'OFFLINE_SYNC_RECEIVED', label: 'OFFLINE_SYNC_RECEIVED' },
+  { value: 'ACCESS_DENIED', label: 'ACCESS_DENIED' },
+]
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogRecord[]>([])
@@ -104,8 +125,8 @@ export default function AuditLogsPage() {
         )}
       </Header>
 
-      <div className="mt-6 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="mt-6 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="overflow-x-auto min-h-[460px]">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
               <tr>
@@ -140,7 +161,7 @@ export default function AuditLogsPage() {
                 </th>
 
                 {/* Action Column Header & Filter */}
-                <th className="px-5 py-3.5 align-top min-w-[210px]">
+                <th className="px-5 py-3.5 align-top min-w-[210px] relative z-20">
                   <div className="flex items-center justify-between gap-1 mb-2">
                     <span className="font-semibold text-xs text-slate-700 dark:text-slate-200">
                       Action
@@ -158,31 +179,19 @@ export default function AuditLogsPage() {
                       </button>
                     )}
                   </div>
-                  <select
+                  <SelectDropdown
                     value={actionFilter}
-                    onChange={(e) => {
-                      setActionFilter(e.target.value)
+                    options={ACTION_OPTIONS}
+                    onChange={(val) => {
+                      setActionFilter(val)
                       setPage(1)
                     }}
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all cursor-pointer"
-                  >
-                    <option value="">All Actions</option>
-                    <option value="LOGIN_SUCCESS">LOGIN_SUCCESS</option>
-                    <option value="LOGIN_FAILURE">LOGIN_FAILURE</option>
-                    <option value="LOGOUT">LOGOUT</option>
-                    <option value="DISTRIBUTION_CREATED">DISTRIBUTION_CREATED</option>
-                    <option value="DISTRIBUTION_RESCHEDULED">DISTRIBUTION_RESCHEDULED</option>
-                    <option value="DISTRIBUTION_CLAIMED">DISTRIBUTION_CLAIMED</option>
-                    <option value="CLAIM_RECORDED">CLAIM_RECORDED</option>
-                    <option value="STAFF_CREATED">STAFF_CREATED</option>
-                    <option value="STAFF_UPDATED">STAFF_UPDATED</option>
-                    <option value="PROOF_SUBMISSION_CREATED">PROOF_SUBMISSION_CREATED</option>
-                    <option value="PROOF_SUBMISSION_REVIEWED">PROOF_SUBMISSION_REVIEWED</option>
-                    <option value="BENEFICIARY_ELIGIBILITY_UPDATED">BENEFICIARY_ELIGIBILITY_UPDATED</option>
-                    <option value="BENEFICIARY_CLAIM_RECORDED">BENEFICIARY_CLAIM_RECORDED</option>
-                    <option value="OFFLINE_SYNC_RECEIVED">OFFLINE_SYNC_RECEIVED</option>
-                    <option value="ACCESS_DENIED">ACCESS_DENIED</option>
-                  </select>
+                    placeholder="All Actions"
+                    ariaLabel="Filter by action"
+                    className="w-full text-xs font-normal"
+                    buttonClassName="!h-[32px] !text-xs !px-2.5 !py-1 !rounded-lg !border-slate-200 dark:!border-slate-700 !bg-white dark:!bg-slate-800 text-slate-700 dark:text-slate-200 !shadow-none font-normal"
+                    menuClassName="min-w-[240px] !text-xs !rounded-xl"
+                  />
                 </th>
 
                 {/* Actor Column Header & Filter */}
@@ -210,8 +219,9 @@ export default function AuditLogsPage() {
                       type="text"
                       placeholder="Filter actor / role..."
                       value={actorFilter}
+                      maxLength={MAX_SEARCH_LENGTH}
                       onChange={(e) => {
-                        setActorFilter(e.target.value)
+                        setActorFilter(sanitizeSearchQuery(e.target.value))
                         setPage(1)
                       }}
                       className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all"
@@ -244,8 +254,9 @@ export default function AuditLogsPage() {
                       type="text"
                       placeholder="Filter target entity..."
                       value={targetFilter}
+                      maxLength={MAX_SEARCH_LENGTH}
                       onChange={(e) => {
-                        setTargetFilter(e.target.value)
+                        setTargetFilter(sanitizeSearchQuery(e.target.value))
                         setPage(1)
                       }}
                       className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all"
@@ -278,8 +289,9 @@ export default function AuditLogsPage() {
                       type="text"
                       placeholder="Filter IP or agent..."
                       value={ipFilter}
+                      maxLength={MAX_SEARCH_LENGTH}
                       onChange={(e) => {
-                        setIpFilter(e.target.value)
+                        setIpFilter(sanitizeSearchQuery(e.target.value))
                         setPage(1)
                       }}
                       className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all"

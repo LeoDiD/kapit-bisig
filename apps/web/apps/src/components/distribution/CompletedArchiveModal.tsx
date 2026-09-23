@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
+import SelectDropdown, { type SelectDropdownOption } from '@/components/ui/SelectDropdown'
+import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 import type { DistributionRow } from './DistributionsTable'
 
 interface CompletedArchiveModalProps {
@@ -33,15 +35,31 @@ export default function CompletedArchiveModal({
   onSelectHouseholds,
 }: CompletedArchiveModalProps) {
   const [query, setQuery] = useState('')
+  const [sanitizedNotice, setSanitizedNotice] = useState(false)
   const [selectedBarangay, setSelectedBarangay] = useState('All')
+
+  const handleQueryChange = (val: string) => {
+    const sanitized = sanitizeSearchQuery(val)
+    if (val.length > 0 && sanitized.length < val.length && val.length <= MAX_SEARCH_LENGTH) {
+      setSanitizedNotice(true)
+    } else {
+      setSanitizedNotice(false)
+    }
+    setQuery(sanitized)
+  }
+
+  const handleClearQuery = () => {
+    setQuery('')
+    setSanitizedNotice(false)
+  }
 
   const completedRows = useMemo(() => {
     return rows.filter((r) => r.status === 'Claimed')
   }, [rows])
 
-  const barangayOptions = useMemo(() => {
+  const barangayDropdownOptions: SelectDropdownOption[] = useMemo(() => {
     const unique = Array.from(new Set(completedRows.map((r) => r.barangay))).sort()
-    return ['All', ...unique]
+    return [{ value: 'All', label: 'All Barangays' }, ...unique.map((b) => ({ value: b, label: b }))]
   }, [completedRows])
 
   const filtered = useMemo(() => {
@@ -125,32 +143,74 @@ export default function CompletedArchiveModal({
         </div>
 
         {/* Filter Toolbar */}
-        <div className="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-3.5 shrink-0">
+        <div className="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-3.5 shrink-0 relative z-20">
           <div className="flex flex-col sm:flex-row items-center gap-3">
+            {/* Search Input with Validation & 60 Character Limit */}
             <div className="relative w-full sm:flex-1">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                <SearchIcon className="h-4 w-4" />
-              </span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search archived distributions or notes..."
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 pl-9 pr-4 text-xs sm:text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500"
-              />
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <SearchIcon className="h-4 w-4" />
+                </span>
+                <input
+                  type="text"
+                  value={query}
+                  maxLength={MAX_SEARCH_LENGTH}
+                  onChange={(e) => handleQueryChange(e.target.value)}
+                  placeholder="Search archived distributions or notes..."
+                  className={[
+                    'w-full h-11 rounded-xl border py-2 pl-9 pr-20 text-xs sm:text-sm placeholder-slate-400 outline-none transition-colors',
+                    sanitizedNotice
+                      ? 'border-amber-400 bg-amber-50/40 text-slate-800 dark:border-amber-500/80 dark:bg-amber-950/20 dark:text-slate-100'
+                      : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800',
+                  ].join(' ')}
+                />
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={handleClearQuery}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-md"
+                      aria-label="Clear search"
+                    >
+                      <CloseIcon className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <span
+                    className={[
+                      'text-[11px] font-mono tabular-nums select-none px-1.5 py-0.5 rounded border',
+                      query.length >= MAX_SEARCH_LENGTH
+                        ? 'font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700'
+                        : 'text-slate-600 dark:text-slate-300 bg-slate-200/80 dark:bg-slate-700/80 border-slate-300 dark:border-slate-600',
+                    ].join(' ')}
+                    title={`Character limit: ${query.length}/${MAX_SEARCH_LENGTH}`}
+                  >
+                    {query.length}/{MAX_SEARCH_LENGTH}
+                  </span>
+                </div>
+              </div>
+              {sanitizedNotice && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 animate-fadeIn">
+                  <WarningIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span>Special characters were automatically removed.</span>
+                </div>
+              )}
+              {query.length >= MAX_SEARCH_LENGTH && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 animate-fadeIn">
+                  <WarningIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span>Maximum limit of {MAX_SEARCH_LENGTH} characters reached.</span>
+                </div>
+              )}
             </div>
 
-            <div className="w-full sm:w-auto">
-              <select
+            <div className="w-full sm:w-56">
+              <SelectDropdown
                 value={selectedBarangay}
-                onChange={(e) => setSelectedBarangay(e.target.value)}
-                className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
-              >
-                {barangayOptions.map((b) => (
-                  <option key={b} value={b}>
-                    {b === 'All' ? 'All Barangays' : b}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedBarangay}
+                options={barangayDropdownOptions}
+                ariaLabel="Filter archived distributions by barangay"
+                buttonClassName="h-11 text-xs sm:text-sm"
+                menuClassName="w-60"
+              />
             </div>
           </div>
         </div>
@@ -305,6 +365,19 @@ function EyeIcon({ className = 'h-4 w-4' }: { className?: string }) {
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  )
+}
+
+function WarningIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+      />
     </svg>
   )
 }
