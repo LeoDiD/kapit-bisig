@@ -21,10 +21,57 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     // Optional filters
     const action = req.query.action as string;
     const actorRole = req.query.actorRole as string;
-    
-    const query: Record<string, unknown> = {};
-    if (action) query.action = action;
-    if (actorRole) query.actorRole = actorRole;
+    const actor = req.query.actor as string;
+    const target = req.query.target as string;
+    const ip = req.query.ip as string;
+    const date = req.query.date as string;
+
+    const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const andConditions: Record<string, unknown>[] = [];
+
+    if (action) andConditions.push({ action });
+    if (actorRole) andConditions.push({ actorRole });
+    if (actor) {
+      const escaped = escapeRegex(actor.trim());
+      andConditions.push({
+        $or: [
+          { actorName: { $regex: escaped, $options: 'i' } },
+          { actorId: { $regex: escaped, $options: 'i' } },
+          { actorRole: { $regex: escaped, $options: 'i' } },
+        ],
+      });
+    }
+    if (target) {
+      const escaped = escapeRegex(target.trim());
+      andConditions.push({
+        $or: [
+          { entityType: { $regex: escaped, $options: 'i' } },
+          { entityId: { $regex: escaped, $options: 'i' } },
+        ],
+      });
+    }
+    if (ip) {
+      const escaped = escapeRegex(ip.trim());
+      andConditions.push({
+        $or: [
+          { ip: { $regex: escaped, $options: 'i' } },
+          { userAgent: { $regex: escaped, $options: 'i' } },
+        ],
+      });
+    }
+    if (date) {
+      const start = new Date(date);
+      if (!isNaN(start.getTime())) {
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        andConditions.push({
+          createdAt: { $gte: start, $lt: end },
+        });
+      }
+    }
+
+    const query = andConditions.length > 0 ? { $and: andConditions } : {};
 
     const [logs, total] = await Promise.all([
       AuditLog.find(query)

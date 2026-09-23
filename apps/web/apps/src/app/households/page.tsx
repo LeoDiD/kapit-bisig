@@ -3,8 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { DashboardLayout, Header } from '@/components/layout'
 import HouseholdStats from '@/components/households/PriorityStats'
-import HouseholdsTable from '@/components/households/HouseholdsTable'
-import api, { getScopedBarangays } from '@/lib/api'
+import HouseholdsTable, { DistributionOption } from '@/components/households/HouseholdsTable'
+import api, { getScopedBarangays, DistributionData } from '@/lib/api'
 import { useAuth } from '@/lib/AuthContext'
 
 export interface HouseholdRow {
@@ -34,12 +34,65 @@ export default function HouseholdsPage() {
   )
 
   const [allRows, setAllRows] = useState<HouseholdRow[]>([])
+  const [distributions, setDistributions] = useState<DistributionData[]>([])
+  const [selectedDistributionId, setSelectedDistributionId] = useState<string>('active')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [barangay, setBarangay] = useState<BarangayFilter>('All Barangays')
   const [status, setStatus] = useState<StatusFilter>('All Status')
+
+  // Load available distribution cycles on mount
+  useEffect(() => {
+    let isMounted = true
+    api.getDistributions({ view: 'all' })
+      .then((res) => {
+        if (isMounted && res.success && Array.isArray(res.data)) {
+          setDistributions(res.data)
+        }
+      })
+      .catch((err) => console.error('Failed to fetch distributions for registry:', err))
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const distributionOptions = useMemo(() => {
+    const options: DistributionOption[] = []
+
+    const hasActive = distributions.some((d) => d.status !== 'Claimed' && !d.archivedAt)
+    if (hasActive) {
+      options.push({
+        value: 'active',
+        label: 'Current / Active Cycle',
+        isCurrent: true,
+      })
+    }
+
+    distributions.forEach((d) => {
+      const distId = d._id || d.id
+      const dateStr = d.scheduled
+        ? new Date(d.scheduled).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : ''
+      const isCompleted = d.status === 'Claimed'
+      const isCurrent = !isCompleted && !d.archivedAt
+      const statusTag = isCompleted ? 'Completed' : isCurrent ? 'Active' : d.status
+      const label = `${d.barangay}${dateStr ? ` • ${dateStr}` : ''} (${statusTag})`
+      options.push({
+        value: distId,
+        label,
+        isCurrent,
+      })
+    })
+
+    options.push({
+      value: 'all',
+      label: 'All Cycles (Lifetime Claimed)',
+    })
+
+    return options
+  }, [distributions])
 
   const fetchHouseholds = useCallback(async (silent = false) => {
     if (!silent) {
@@ -53,7 +106,11 @@ export default function HouseholdsPage() {
       const mergedRows: HouseholdRow[] = []
 
       do {
-        const res = await api.getHouseholds({ page, limit: pageSize })
+        const res = await api.getHouseholds({
+          page,
+          limit: pageSize,
+          distributionId: selectedDistributionId,
+        })
         if (!res.success || !Array.isArray(res.data)) break
         mergedRows.push(...(res.data as HouseholdRow[]))
         totalPages = res.pagination?.totalPages || 1
@@ -76,7 +133,7 @@ export default function HouseholdsPage() {
         setLoading(false)
       }
     }
-  }, [])
+  }, [selectedDistributionId])
 
   useEffect(() => {
     fetchHouseholds(false)
@@ -151,6 +208,9 @@ export default function HouseholdsPage() {
           status={status}
           statusOptions={STATUS_OPTIONS as unknown as string[]}
           onStatusChange={(v) => setStatus(v as StatusFilter)}
+          distributionId={selectedDistributionId}
+          distributionOptions={distributionOptions}
+          onDistributionChange={(v) => setSelectedDistributionId(v)}
         />
       </div>
     </DashboardLayout>

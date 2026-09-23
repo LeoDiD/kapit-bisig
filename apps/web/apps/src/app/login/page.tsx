@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/AuthContext'
 import { showToast } from '@/lib/toast'
-import { MAX_TEXT_LENGTH, sanitizeAsciiText, sanitizeNoWhitespace } from '@/lib/inputValidation'
+import { MAX_TEXT_LENGTH, MAX_EMAIL_LENGTH, sanitizeNoWhitespace, validateEmailFormat } from '@/lib/inputValidation'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -56,8 +56,9 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
 
-    if (!email) {
-      setError('Please enter your email and password')
+    const emailCheck = validateEmailFormat(email)
+    if (!emailCheck.isValid) {
+      setError(emailCheck.error || 'Please enter a valid email address')
       return
     }
 
@@ -287,8 +288,8 @@ export default function LoginPage() {
                   type="text"
                   id="email"
                   value={email}
-                  onChange={(e) => setEmail(sanitizeAsciiText(e.target.value))}
-                  maxLength={MAX_TEXT_LENGTH}
+                  onChange={(e) => setEmail(sanitizeNoWhitespace(e.target.value, MAX_EMAIL_LENGTH))}
+                  maxLength={MAX_EMAIL_LENGTH}
                   placeholder="Enter your registered email"
                   className="block w-full pl-10 pr-3 py-3 bg-transparent border-b-2 border-gray-300 focus:outline-none focus:border-[#226538] transition-colors text-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
                   required

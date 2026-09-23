@@ -64,10 +64,11 @@ export const trimmedString = (min = 1, max = 64) =>
 /** Email format */
 export const email = z
   .string()
-  .trim()
-  .toLowerCase()
-  .max(64, 'Email must be at most 64 characters')
-  .email('Invalid email format')
+  .refine((v) => !/\s/.test(v), 'Email must not contain spaces or whitespace')
+  .refine((v) => v.length > 0, 'Email is required')
+  .refine((v) => v.length <= 64, 'Email must be at most 64 characters')
+  .transform((v) => v.trim().toLowerCase())
+  .refine((v) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v), 'Invalid email format')
   .refine((v) => SAFE_ASCII_TEXT.test(v), 'Only standard characters are allowed');
 
 /** Search text (optional) */

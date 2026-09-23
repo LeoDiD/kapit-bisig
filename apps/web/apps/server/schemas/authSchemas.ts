@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { email as safeEmail } from '../validation/shared';
 
 const trimmedString = z.string().trim();
 
@@ -27,7 +28,7 @@ export const householdLoginSchema = z
 
 export const householdForgotSendOtpSchema = z
   .object({
-    email: trimmedString.email().max(254).optional(),
+    email: safeEmail.optional(),
     mobileNumber: trimmedString.max(32).optional(),
   })
   .refine((data) => Boolean(data.email || data.mobileNumber), {
@@ -37,7 +38,7 @@ export const householdForgotSendOtpSchema = z
 
 export const householdForgotVerifyOtpSchema = z
   .object({
-    email: trimmedString.email().max(254).optional(),
+    email: safeEmail.optional(),
     mobileNumber: trimmedString.max(32).optional(),
     otp: z.string().length(6).regex(/^\d{6}$/),
   })
@@ -76,7 +77,7 @@ export const householdChangePasswordConfirmSchema = z
 
 export const userRegisterSchema = z
   .object({
-    email: trimmedString.email().max(254),
+    email: safeEmail,
     password: z.string().min(8).max(128),
     firstName: trimmedString.min(1).max(50),
     lastName: trimmedString.min(1).max(50),
@@ -85,7 +86,7 @@ export const userRegisterSchema = z
 
 export const userLoginSchema = z
   .object({
-    email: trimmedString.email().max(254),
+    email: safeEmail,
     password: z.string().min(1).max(128),
   })
   .strict();

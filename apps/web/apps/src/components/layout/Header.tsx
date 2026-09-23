@@ -9,9 +9,10 @@ import { NotificationBell, ProfileDropdown } from './HeaderWidgets'
 interface HeaderProps {
   title: string
   subtitle?: string
+  children?: React.ReactNode
 }
 
-export default function Header({ title, subtitle }: HeaderProps) {
+export default function Header({ title, subtitle, children }: HeaderProps) {
   useAuth()
   const { toggleMobileSidebar } = useSidebar()
 
@@ -44,6 +45,8 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
         {/* Right Section */}
         <div className="flex items-center justify-end gap-2.5 sm:gap-3 shrink-0">
+          {children}
+
           {/* Notification Bell */}
           <NotificationBell />
 

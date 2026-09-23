@@ -5,17 +5,59 @@ import { DashboardLayout, Header } from '@/components/layout'
 import { api } from '@/lib/api'
 import type { AuditLogRecord } from '@/lib/api'
 import { showToast } from '@/lib/toast'
-import { ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react'
-import FilterDropdown from '@/components/ui/FilterDropdown'
+import { ChevronLeft, ChevronRight, Search, RotateCcw, X } from 'lucide-react'
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  
+
+  // Direct column filters
+  const [dateFilter, setDateFilter] = useState('')
   const [actionFilter, setActionFilter] = useState('')
-  const [roleFilter, setRoleFilter] = useState('')
+  const [actorFilter, setActorFilter] = useState('')
+  const [targetFilter, setTargetFilter] = useState('')
+  const [ipFilter, setIpFilter] = useState('')
+
+  // Debounced values for text filters
+  const [debouncedActor, setDebouncedActor] = useState('')
+  const [debouncedTarget, setDebouncedTarget] = useState('')
+  const [debouncedIp, setDebouncedIp] = useState('')
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedActor(actorFilter)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [actorFilter])
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedTarget(targetFilter)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [targetFilter])
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedIp(ipFilter)
+    }, 300)
+    return () => clearTimeout(handler)
+  }, [ipFilter])
+
+  const hasActiveFilters = Boolean(
+    dateFilter || actionFilter || actorFilter || targetFilter || ipFilter
+  )
+
+  const handleResetFilters = () => {
+    setDateFilter('')
+    setActionFilter('')
+    setActorFilter('')
+    setTargetFilter('')
+    setIpFilter('')
+    setPage(1)
+  }
 
   const fetchLogs = useCallback(async () => {
     setLoading(true)
@@ -24,7 +66,10 @@ export default function AuditLogsPage() {
         page,
         limit: 50,
         action: actionFilter || undefined,
-        actorRole: roleFilter || undefined
+        actor: debouncedActor || undefined,
+        target: debouncedTarget || undefined,
+        ip: debouncedIp || undefined,
+        date: dateFilter || undefined,
       })
       setLogs(res.data || [])
       if (res.pagination) {
@@ -36,7 +81,7 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, actionFilter, roleFilter])
+  }, [page, actionFilter, debouncedActor, debouncedTarget, debouncedIp, dateFilter])
 
   useEffect(() => {
     fetchLogs()
@@ -47,62 +92,210 @@ export default function AuditLogsPage() {
       <Header
         title="Audit Logs"
         subtitle="System activity and security events (Superadmin Only)"
-      />
+      >
+        {hasActiveFilters && (
+          <button
+            onClick={handleResetFilters}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+            Reset all filters
+          </button>
+        )}
+      </Header>
 
-      <div className="mt-6 flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex-1 max-w-sm relative z-20">
-          <FilterDropdown
-            value={actionFilter}
-            options={[
-              { value: '', label: 'All Actions' },
-              { value: 'LOGIN_SUCCESS', label: 'Login Success' },
-              { value: 'LOGIN_FAILURE', label: 'Login Failure' },
-              { value: 'DISTRIBUTION_CREATED', label: 'Distribution Created' },
-              { value: 'CLAIM_RECORDED', label: 'Claim Recorded' },
-              { value: 'STAFF_CREATED', label: 'Staff Created' },
-            ]}
-            onChange={(val) => {
-              setActionFilter(val)
-              setPage(1)
-            }}
-          />
-        </div>
-
-        <div className="flex-1 max-w-sm relative z-10">
-          <FilterDropdown
-            value={roleFilter}
-            options={[
-              { value: '', label: 'All Roles' },
-              { value: 'SUPERADMIN', label: 'Superadmin' },
-              { value: 'LGU_STAFF', label: 'LGU Staff' },
-              { value: 'Volunteer', label: 'Volunteer' },
-              { value: 'Resident', label: 'Resident' },
-            ]}
-            onChange={(val) => {
-              setRoleFilter(val)
-              setPage(1)
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="mt-6 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-medium">
+            <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="px-6 py-4">Timestamp</th>
-                <th className="px-6 py-4">Action</th>
-                <th className="px-6 py-4">Actor</th>
-                <th className="px-6 py-4">Target</th>
-                <th className="px-6 py-4">IP / User Agent</th>
+                {/* Timestamp Column Header & Filter */}
+                <th className="px-5 py-3.5 align-top min-w-[190px]">
+                  <div className="flex items-center justify-between gap-1 mb-2">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-slate-200">
+                      Timestamp
+                    </span>
+                    {dateFilter && (
+                      <button
+                        onClick={() => {
+                          setDateFilter('')
+                          setPage(1)
+                        }}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Clear date"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="date"
+                    value={dateFilter}
+                    onChange={(e) => {
+                      setDateFilter(e.target.value)
+                      setPage(1)
+                    }}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all"
+                  />
+                </th>
+
+                {/* Action Column Header & Filter */}
+                <th className="px-5 py-3.5 align-top min-w-[210px]">
+                  <div className="flex items-center justify-between gap-1 mb-2">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-slate-200">
+                      Action
+                    </span>
+                    {actionFilter && (
+                      <button
+                        onClick={() => {
+                          setActionFilter('')
+                          setPage(1)
+                        }}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Clear action"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    value={actionFilter}
+                    onChange={(e) => {
+                      setActionFilter(e.target.value)
+                      setPage(1)
+                    }}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all cursor-pointer"
+                  >
+                    <option value="">All Actions</option>
+                    <option value="LOGIN_SUCCESS">LOGIN_SUCCESS</option>
+                    <option value="LOGIN_FAILURE">LOGIN_FAILURE</option>
+                    <option value="LOGOUT">LOGOUT</option>
+                    <option value="DISTRIBUTION_CREATED">DISTRIBUTION_CREATED</option>
+                    <option value="DISTRIBUTION_RESCHEDULED">DISTRIBUTION_RESCHEDULED</option>
+                    <option value="DISTRIBUTION_CLAIMED">DISTRIBUTION_CLAIMED</option>
+                    <option value="CLAIM_RECORDED">CLAIM_RECORDED</option>
+                    <option value="STAFF_CREATED">STAFF_CREATED</option>
+                    <option value="STAFF_UPDATED">STAFF_UPDATED</option>
+                    <option value="PROOF_SUBMISSION_CREATED">PROOF_SUBMISSION_CREATED</option>
+                    <option value="PROOF_SUBMISSION_REVIEWED">PROOF_SUBMISSION_REVIEWED</option>
+                    <option value="BENEFICIARY_ELIGIBILITY_UPDATED">BENEFICIARY_ELIGIBILITY_UPDATED</option>
+                    <option value="BENEFICIARY_CLAIM_RECORDED">BENEFICIARY_CLAIM_RECORDED</option>
+                    <option value="OFFLINE_SYNC_RECEIVED">OFFLINE_SYNC_RECEIVED</option>
+                    <option value="ACCESS_DENIED">ACCESS_DENIED</option>
+                  </select>
+                </th>
+
+                {/* Actor Column Header & Filter */}
+                <th className="px-5 py-3.5 align-top min-w-[190px]">
+                  <div className="flex items-center justify-between gap-1 mb-2">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-slate-200">
+                      Actor
+                    </span>
+                    {actorFilter && (
+                      <button
+                        onClick={() => {
+                          setActorFilter('')
+                          setPage(1)
+                        }}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Clear actor filter"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Filter actor / role..."
+                      value={actorFilter}
+                      onChange={(e) => {
+                        setActorFilter(e.target.value)
+                        setPage(1)
+                      }}
+                      className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all"
+                    />
+                  </div>
+                </th>
+
+                {/* Target Column Header & Filter */}
+                <th className="px-5 py-3.5 align-top min-w-[180px]">
+                  <div className="flex items-center justify-between gap-1 mb-2">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-slate-200">
+                      Target
+                    </span>
+                    {targetFilter && (
+                      <button
+                        onClick={() => {
+                          setTargetFilter('')
+                          setPage(1)
+                        }}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Clear target filter"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Filter target entity..."
+                      value={targetFilter}
+                      onChange={(e) => {
+                        setTargetFilter(e.target.value)
+                        setPage(1)
+                      }}
+                      className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all"
+                    />
+                  </div>
+                </th>
+
+                {/* IP / User Agent Column Header & Filter */}
+                <th className="px-5 py-3.5 align-top min-w-[200px]">
+                  <div className="flex items-center justify-between gap-1 mb-2">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-slate-200">
+                      IP / User Agent
+                    </span>
+                    {ipFilter && (
+                      <button
+                        onClick={() => {
+                          setIpFilter('')
+                          setPage(1)
+                        }}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Clear IP / UA filter"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Filter IP or agent..."
+                      value={ipFilter}
+                      onChange={(e) => {
+                        setIpFilter(e.target.value)
+                        setPage(1)
+                      }}
+                      className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-normal transition-all"
+                    />
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                    Loading audit logs...
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500 mb-2"></div>
+                      Loading audit logs...
+                    </div>
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
@@ -110,32 +303,44 @@ export default function AuditLogsPage() {
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center">
                       <Search className="w-8 h-8 mb-2 opacity-20" />
-                      No audit logs found.
+                      <p className="font-medium">No audit logs found.</p>
+                      {hasActiveFilters && (
+                        <button
+                          onClick={handleResetFilters}
+                          className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                        >
+                          Clear all filters
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ) : (
                 logs.map((log) => (
                   <tr key={log._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-slate-300">
+                    <td className="px-5 py-4 whitespace-nowrap text-slate-600 dark:text-slate-300">
                       {new Date(log.createdAt).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4">
                       <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
                         {log.action}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-slate-900 dark:text-white font-medium">{log.actorName || log.actorId || 'System'}</div>
+                    <td className="px-5 py-4">
+                      <div className="text-slate-900 dark:text-white font-medium">
+                        {log.actorName || log.actorId || 'System'}
+                      </div>
                       <div className="text-xs text-slate-500 mt-0.5">{log.actorRole}</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4">
                       <div className="text-slate-600 dark:text-slate-300">{log.entityType}</div>
                       <div className="text-xs font-mono text-slate-400 mt-0.5">{log.entityId}</div>
                     </td>
-                    <td className="px-6 py-4 max-w-[200px]">
+                    <td className="px-5 py-4 max-w-[220px]">
                       <div className="text-slate-600 dark:text-slate-300 font-mono text-xs">{log.ip}</div>
-                      <div className="text-[10px] text-slate-400 mt-1 truncate" title={log.userAgent}>{log.userAgent}</div>
+                      <div className="text-[10px] text-slate-400 mt-1 truncate" title={log.userAgent}>
+                        {log.userAgent}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -143,7 +348,7 @@ export default function AuditLogsPage() {
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination */}
         {!loading && logs.length > 0 && (
           <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -152,14 +357,14 @@ export default function AuditLogsPage() {
             </span>
             <div className="flex gap-2">
               <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
               >

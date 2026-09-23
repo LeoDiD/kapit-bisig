@@ -10,18 +10,6 @@ import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
 import { isHighMatchResident } from '@/components/residents/ResidentTableBadges'
 import ResidentReviewModal from '@/components/residents/ResidentReviewModal'
 
-function maskResidentName(record: ResidentRecord): string {
-  const raw =
-    record.fullName?.trim() ||
-    `${record.firstName || ''} ${record.lastName || ''}`.trim()
-  if (!raw) return 'Uxxxx Uxxxx'
-
-  const parts = raw.split(/\s+/).filter(Boolean)
-  const firstInitial = (parts[0]?.[0] || 'U').toUpperCase()
-  const lastInitial = (parts.length > 1 ? parts[parts.length - 1]?.[0] : parts[0]?.[0] || 'U').toUpperCase()
-  return `${firstInitial}xxxx ${lastInitial}xxxx`
-}
-
 function getVerifiedTimestamp(record: ResidentRecord): string | undefined {
   return record.verifiedAt || record.createdAt
 }
@@ -218,10 +206,6 @@ export default function VerifiedResidentsPage() {
                 Use the record button to open the full approved resident information.
               </p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/25 dark:text-amber-300">
-              <LockIcon className="w-4 h-4" />
-              Resident inputs masked for privacy
-            </div>
           </div>
         </div>
 
@@ -278,6 +262,7 @@ export default function VerifiedResidentsPage() {
                   pagedRows.map((r) => {
                     const id = r._id || r.id || ''
                     const verifiedTimestamp = getVerifiedTimestamp(r)
+                    const residentName = r.fullName?.trim() || `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Unnamed Resident'
                     return (
                       <tr key={id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/50 transition-colors group">
                         <td className="px-6 py-4 whitespace-normal break-words">
@@ -286,7 +271,7 @@ export default function VerifiedResidentsPage() {
                               <RowCheckIcon className="h-4 w-4" />
                             </span>
                             <div className="min-w-0">
-                              <p className="truncate font-bold text-gray-900 dark:text-slate-100">{maskResidentName(r)}</p>
+                              <p className="truncate font-bold text-gray-900 dark:text-slate-100">{residentName}</p>
                               <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                                 Verified {formatVerifiedTimestamp(verifiedTimestamp)}
                               </p>
@@ -374,14 +359,6 @@ function SpinnerIcon({ className }: { className?: string }) {
     <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9" className="opacity-20" stroke="currentColor" strokeWidth="3" />
       <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function LockIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
     </svg>
   )
 }

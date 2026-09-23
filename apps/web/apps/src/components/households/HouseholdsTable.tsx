@@ -6,6 +6,12 @@ import type { HouseholdRow } from '@/app/households/page'
 
 const ROWS_PER_PAGE = 5
 
+export interface DistributionOption {
+  value: string
+  label: string
+  isCurrent?: boolean
+}
+
 interface HouseholdsTableProps {
   rows: HouseholdRow[]
   loading: boolean
@@ -20,6 +26,9 @@ interface HouseholdsTableProps {
   status: string
   statusOptions: string[]
   onStatusChange: (v: string) => void
+  distributionId?: string
+  distributionOptions?: DistributionOption[]
+  onDistributionChange?: (v: string) => void
 }
 
 export default function HouseholdsTable({
@@ -36,6 +45,9 @@ export default function HouseholdsTable({
   status,
   statusOptions,
   onStatusChange,
+  distributionId = 'all',
+  distributionOptions = [],
+  onDistributionChange,
 }: HouseholdsTableProps) {
   // Modal
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdRow | null>(null)
@@ -45,16 +57,20 @@ export default function HouseholdsTable({
   // Dropdowns
   const [barangayOpen, setBarangayOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
+  const [distOpen, setDistOpen] = useState(false)
   const barangayBtnRef = useRef<HTMLButtonElement>(null)
   const barangayMenuRef = useRef<HTMLDivElement>(null)
   const statusBtnRef = useRef<HTMLButtonElement>(null)
   const statusMenuRef = useRef<HTMLDivElement>(null)
+  const distBtnRef = useRef<HTMLButtonElement>(null)
+  const distMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const t = event.target as Node
       if (!barangayBtnRef.current?.contains(t) && !barangayMenuRef.current?.contains(t)) setBarangayOpen(false)
       if (!statusBtnRef.current?.contains(t) && !statusMenuRef.current?.contains(t)) setStatusOpen(false)
+      if (!distBtnRef.current?.contains(t) && !distMenuRef.current?.contains(t)) setDistOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -62,7 +78,7 @@ export default function HouseholdsTable({
 
   useEffect(() => {
     setPage(1)
-  }, [searchQuery, barangay, status])
+  }, [searchQuery, barangay, status, distributionId])
 
   const handleViewProfile = (household: HouseholdRow) => {
     setSelectedHousehold(household)
@@ -74,11 +90,22 @@ export default function HouseholdsTable({
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  const hasActiveFilters = searchQuery.trim().length > 0 || barangay !== 'All Barangays' || status !== 'All Status'
+  const selectedDistributionLabel = useMemo(() => {
+    const found = distributionOptions.find((d) => d.value === distributionId)
+    return found ? found.label : 'All Distributions (Lifetime)'
+  }, [distributionOptions, distributionId])
+
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    barangay !== 'All Barangays' ||
+    status !== 'All Status' ||
+    distributionId !== (distributionOptions[0]?.value || 'all')
+
   const activeFilterCount = [
     searchQuery.trim().length > 0,
     barangay !== 'All Barangays',
     status !== 'All Status',
+    distributionId !== (distributionOptions[0]?.value || 'all'),
   ].filter(Boolean).length
 
   const { visibleClaimed, visiblePending } = useMemo(() => {
@@ -104,12 +131,17 @@ export default function HouseholdsTable({
         <div className="border-b border-gray-100 bg-gradient-to-r from-white via-slate-50 to-white px-4 py-3 dark:border-slate-700 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400">Relief Registry</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-semibold tracking-[0.14em] uppercase text-gray-500 dark:text-slate-400">Relief Registry</p>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                  Cycle: {selectedDistributionLabel}
+                </span>
+              </div>
               <p className="mt-1 text-sm text-gray-700 dark:text-slate-300">
                 {loading ? 'Loading registry data...' : `${rows.length} visible record(s)`}
               </p>
               <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-                Each row is a resident-based relief record used for claim tracking.
+                Each row is a resident-based relief record for the selected distribution cycle.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -139,12 +171,45 @@ export default function HouseholdsTable({
             </div>
 
             <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
+              {/* Distribution Cycle Selector */}
+              {distributionOptions.length > 0 && (
+                <div className="relative min-w-[210px] flex-1 sm:flex-none">
+                  <button
+                    ref={distBtnRef}
+                    onClick={() => {
+                      setDistOpen(!distOpen)
+                      setBarangayOpen(false)
+                      setStatusOpen(false)
+                    }}
+                    className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
+                    title={`Distribution cycle: ${selectedDistributionLabel}`}
+                  >
+                    <span className="truncate max-w-[220px] text-xs font-semibold">
+                      {selectedDistributionLabel}
+                    </span>
+                    <ChevronDownIcon />
+                  </button>
+                  {distOpen && (
+                    <DropdownMenu
+                      menuRef={distMenuRef}
+                      items={distributionOptions}
+                      selected={distributionId}
+                      onSelect={(v) => {
+                        onDistributionChange?.(v)
+                        setDistOpen(false)
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+
               <div className="relative min-w-[180px] flex-1 sm:flex-none">
                 <button
                   ref={barangayBtnRef}
                   onClick={() => {
                     setBarangayOpen(!barangayOpen)
                     setStatusOpen(false)
+                    setDistOpen(false)
                   }}
                   className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
                 >
@@ -170,6 +235,7 @@ export default function HouseholdsTable({
                   onClick={() => {
                     setStatusOpen(!statusOpen)
                     setBarangayOpen(false)
+                    setDistOpen(false)
                   }}
                   className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
                 >
@@ -196,6 +262,9 @@ export default function HouseholdsTable({
                     onSearchChange('')
                     onBarangayChange('All Barangays')
                     onStatusChange('All Status')
+                    if (distributionOptions.length > 0) {
+                      onDistributionChange?.(distributionOptions[0].value)
+                    }
                   }}
                   className="inline-flex items-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/80"
                 >
@@ -332,6 +401,7 @@ export default function HouseholdsTable({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         data={selectedHousehold}
+        distributionName={selectedDistributionLabel}
       />
     </>
   )

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { forgotPasswordApi } from '@/lib/api'
 import { showToast } from '@/lib/toast'
-import { MAX_TEXT_LENGTH, sanitizeAsciiText, sanitizeNoWhitespace } from '@/lib/inputValidation'
+import { MAX_TEXT_LENGTH, MAX_EMAIL_LENGTH, sanitizeAsciiText, sanitizeNoWhitespace, validateEmailFormat } from '@/lib/inputValidation'
 import PasswordStrengthMeter from '@/components/ui/PasswordStrengthMeter'
 
 type Step = 'email' | 'otp' | 'reset'
@@ -53,8 +53,9 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setError(null)
 
-    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setError('Please enter a valid email address.')
+    const emailCheck = validateEmailFormat(email)
+    if (!emailCheck.isValid) {
+      setError(emailCheck.error || 'Please enter a valid email address.')
       return
     }
 
@@ -211,17 +212,17 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleSendOtp} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(sanitizeAsciiText(e.target.value))}
-                maxLength={MAX_TEXT_LENGTH}
-                placeholder="your.email@example.com"
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] text-gray-900 bg-white text-sm"
-                required
-                disabled={isLoading}
-                autoFocus
-              />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(sanitizeNoWhitespace(e.target.value, MAX_EMAIL_LENGTH))}
+                  maxLength={MAX_EMAIL_LENGTH}
+                  placeholder="your.email@example.com"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#226538] focus:border-[#226538] text-gray-900 bg-white text-sm"
+                  required
+                  disabled={isLoading}
+                  autoFocus
+                />
             </div>
             <button
               type="submit"

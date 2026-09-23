@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { api, BARANGAY_OPTIONS, CreateStaffData } from '@/lib/api'
 import { showToast } from '@/lib/toast'
-import { isAsciiText, MAX_TEXT_LENGTH, sanitizeAsciiText } from '@/lib/inputValidation'
+import { isAsciiText, MAX_TEXT_LENGTH, MAX_EMAIL_LENGTH, sanitizeAsciiText, sanitizeNoWhitespace, validateEmailFormat } from '@/lib/inputValidation'
 
 interface AddUserModalProps {
   isOpen: boolean
@@ -91,14 +91,9 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
     }
 
     // Email
-    if (!email.trim()) {
-      newErrors.email = 'Email is required'
-    } else if (email.trim().length > MAX_TEXT_LENGTH) {
-      newErrors.email = `Email must not exceed ${MAX_TEXT_LENGTH} characters`
-    } else if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      newErrors.email = 'Invalid email format'
-    } else if (!isAsciiText(email.trim())) {
-      newErrors.email = 'Only standard characters are allowed'
+    const emailCheck = validateEmailFormat(email)
+    if (!emailCheck.isValid) {
+      newErrors.email = emailCheck.error
     }
 
     // Accessible barangays
@@ -278,8 +273,8 @@ export default function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModa
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(sanitizeAsciiText(e.target.value))}
-                maxLength={MAX_TEXT_LENGTH}
+                onChange={(e) => setEmail(sanitizeNoWhitespace(e.target.value, MAX_EMAIL_LENGTH))}
+                maxLength={MAX_EMAIL_LENGTH}
                 placeholder="e.g. juan@lgu.gov.ph"
                 className={`w-full px-4 py-3 rounded-xl border ${
                   errors.email ? 'border-red-500' : 'border-gray-300'

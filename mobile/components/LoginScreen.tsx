@@ -21,6 +21,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { mobileAuthService, User } from '../services/auth/MobileAuthService';
+import { resolveApiBaseUrl } from '../services/config/apiSecurity';
+import { validateEmail as validateEmailHelper, cleanEmailInput, MAX_EMAIL_LENGTH } from '../utils/emailValidation';
 import { theme } from '../theme';
 import StaffForgotPasswordScreen from './StaffForgotPasswordScreen';
 
@@ -84,13 +86,9 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   }, [otp, otpScales]);
 
   const validateEmail = (value: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!value) {
-      setEmailError('Email is required');
-      return false;
-    }
-    if (!emailRegex.test(value)) {
-      setEmailError('Please enter a valid email');
+    const result = validateEmailHelper(value);
+    if (!result.isValid) {
+      setEmailError(result.error || 'Please enter a valid email');
       return false;
     }
     setEmailError(null);
@@ -218,9 +216,11 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
           placeholder="Email Address"
           placeholderTextColor="#888"
           value={email}
+          maxLength={MAX_EMAIL_LENGTH}
           onChangeText={(text) => {
-            setEmail(text);
-            if (emailError) validateEmail(text);
+            const cleaned = cleanEmailInput(text);
+            setEmail(cleaned);
+            if (emailError) validateEmail(cleaned);
           }}
           onFocus={() => setIsEmailFocused(true)}
           onBlur={() => setIsEmailFocused(false)}

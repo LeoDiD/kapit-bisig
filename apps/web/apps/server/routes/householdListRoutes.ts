@@ -12,6 +12,7 @@ import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Resident from '../models/Resident';
 import Claim from '../models/Claim';
+import Distribution from '../models/Distribution';
 import { AuthRequest } from '../middleware/unifiedAuth';
 import { validateRequest } from '../validation/validateRequest';
 import { escapeRegex } from '../validation/mongoSanitize';
@@ -34,10 +35,11 @@ function getFamilyHeadName(input: { firstName?: string; lastName?: string; fullN
 
 router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: AuthRequest, res: Response) => {
   try {
-    const { search, barangay, status } = req.query as {
+    const { search, barangay, status, distributionId } = req.query as {
       search?: string;
       barangay?: string;
       status?: string; // "Claimed" | "Not Claimed"
+      distributionId?: string;
     };
 
     // Build MongoDB filter
@@ -76,6 +78,41 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
       ]);
     }
 
+    // Resolve target distribution if specified
+    let targetDistributionId: string | null = null;
+    if (distributionId && distributionId !== 'all') {
+      if (distributionId === 'active' || distributionId === 'latest') {
+        // Find the active (or most recent) distribution for scope
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const distFilter: Record<string, any> = { archivedAt: null };
+        if (barangay && barangay !== 'All Barangays') {
+          distFilter.$or = mongoose.trusted([
+            { barangay },
+            { assignedBarangays: barangay },
+          ]);
+        }
+        const activeDist = await Distribution.findOne({
+          ...distFilter,
+          status: mongoose.trusted({ $in: ['Unclaimed', 'Partially Claimed'] }),
+        })
+          .setOptions({ sanitizeFilter: false })
+          .sort({ createdAt: -1 })
+          .lean();
+
+        const resolved =
+          activeDist ||
+          (await Distribution.findOne(distFilter)
+            .setOptions({ sanitizeFilter: false })
+            .sort({ createdAt: -1 })
+            .lean());
+        if (resolved) {
+          targetDistributionId = (resolved as any)._id.toString();
+        }
+      } else if (mongoose.Types.ObjectId.isValid(distributionId)) {
+        targetDistributionId = distributionId;
+      }
+    }
+
     // ── Pagination ──────────────────────────────────────────────
     const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
     const rawLimit = parseInt(req.query.limit as string, 10) || 50;
@@ -96,7 +133,7 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
       .limit(limit)
       .lean();
 
-    // Build a Set of resident IDs that have at least one CONFIRMED claim
+    // Fetch confirmed claims for the current residents page
     const residentIds = residents.map((r) => r._id.toString());
     const confirmedClaims = await Claim.find({
       claimCategory: 'DISTRIBUTION',
@@ -104,10 +141,14 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
       status: 'CONFIRMED',
     })
       .setOptions({ sanitizeFilter: false })
-      .select('residentId createdAt updatedAt')
+      .select('residentId distributionId createdAt updatedAt')
       .lean();
 
-    const claimedMap = new Map<string, number>();
+    // Map: residentId -> latest lifetime claim timestamp
+    const latestClaimTimeMap = new Map<string, number>();
+    // Set: residentIds that claimed the target distribution (or claimed any if no targetDistributionId)
+    const cycleClaimedSet = new Set<string>();
+
     for (const c of confirmedClaims) {
       const ridRaw = (c as any).residentId;
       const rid =
@@ -119,21 +160,25 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
       if (!rid) continue;
 
       const rawDate = c.createdAt || c.updatedAt;
-      if (!rawDate) {
-        if (!claimedMap.has(rid)) claimedMap.set(rid, 0);
-        continue;
+      if (rawDate) {
+        const cDate = rawDate instanceof Date ? rawDate : new Date(rawDate);
+        const cTime = cDate.getTime();
+        if (!Number.isNaN(cTime)) {
+          const existing = latestClaimTimeMap.get(rid);
+          if (existing === undefined || cTime > existing) {
+            latestClaimTimeMap.set(rid, cTime);
+          }
+        }
       }
 
-      const cDate = rawDate instanceof Date ? rawDate : new Date(rawDate);
-      const cTime = cDate.getTime();
-      if (Number.isNaN(cTime)) {
-        if (!claimedMap.has(rid)) claimedMap.set(rid, 0);
-        continue;
-      }
-
-      const existing = claimedMap.get(rid);
-      if (existing === undefined || cTime > existing) {
-        claimedMap.set(rid, cTime);
+      // Check if this claim satisfies the distribution scope
+      const claimDistId = (c as any).distributionId ? String((c as any).distributionId) : '';
+      if (!targetDistributionId) {
+        // Lifetime view (all distributions)
+        cycleClaimedSet.add(rid);
+      } else if (claimDistId === targetDistributionId) {
+        // Specific distribution cycle view
+        cycleClaimedSet.add(rid);
       }
     }
 
@@ -141,8 +186,9 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let households = residents.map((r: any) => {
       const id = r._id.toString();
-      const claimTime = claimedMap.get(id);
-      const hasClaim = claimTime !== undefined;
+      const hasClaim = cycleClaimedSet.has(id);
+      const lastClaimTime = latestClaimTimeMap.get(id);
+
       return {
         id,
         householdCode: `HH-${r.barangay?.substring(0, 2).toUpperCase() || 'XX'}-${id.slice(-4).toUpperCase()}`,
@@ -158,7 +204,7 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
         verificationStatus: r.verification?.aiVerificationStatus || '—',
         verificationScore: r.verification?.overallConfidence ?? null,
         claimStatus: hasClaim ? 'Claimed' as const : 'Not Claimed' as const,
-        lastClaimedAt: typeof claimTime === 'number' && claimTime > 0 ? new Date(claimTime).toISOString() : null,
+        lastClaimedAt: typeof lastClaimTime === 'number' && lastClaimTime > 0 ? new Date(lastClaimTime).toISOString() : null,
         registeredAt: r.createdAt ? new Date(r.createdAt).toISOString() : null,
       };
     });
@@ -174,6 +220,7 @@ router.get('/', validateRequest({ query: listHouseholdsQuery }), async (req: Aut
       success: true,
       data: households,
       total: households.length,
+      distributionId: targetDistributionId,
       pagination: {
         page,
         limit,

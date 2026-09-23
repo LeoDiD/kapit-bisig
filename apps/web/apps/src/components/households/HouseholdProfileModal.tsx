@@ -5,9 +5,10 @@ interface HouseholdProfileModalProps {
   isOpen: boolean
   onClose: () => void
   data: HouseholdRow | null
+  distributionName?: string
 }
 
-export default function HouseholdProfileModal({ isOpen, onClose, data }: HouseholdProfileModalProps) {
+export default function HouseholdProfileModal({ isOpen, onClose, data, distributionName }: HouseholdProfileModalProps) {
   if (!isOpen || !data) return null
 
   return (
@@ -61,11 +62,18 @@ export default function HouseholdProfileModal({ isOpen, onClose, data }: Househo
 
             {/* Claim Status */}
             <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-              <div className="flex items-center gap-2 mb-3">
-                <svg className="w-4 h-4 text-[#0F533A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-bold text-[#0F533A]">Claim Status</span>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-[#0F533A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-bold text-[#0F533A]">Distribution Claim Status</span>
+                </div>
+                {distributionName && (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-600 truncate max-w-[260px]">
+                    {distributionName}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-4">
                 <span className={`inline-flex items-center justify-center h-7 px-4 rounded-full text-xs font-semibold ${
@@ -73,12 +81,14 @@ export default function HouseholdProfileModal({ isOpen, onClose, data }: Househo
                 }`}>
                   {data.claimStatus}
                 </span>
-                {data.lastClaimedAt && (
+                {data.lastClaimedAt ? (
                   <span className="text-xs text-gray-500">
-                    Last claimed: {new Date(data.lastClaimedAt).toLocaleDateString('en-US', {
+                    Latest assistance: {new Date(data.lastClaimedAt).toLocaleDateString('en-US', {
                       year: 'numeric', month: 'long', day: 'numeric',
                     })}
                   </span>
+                ) : (
+                  <span className="text-xs text-gray-400">No previous claims recorded</span>
                 )}
               </div>
             </div>

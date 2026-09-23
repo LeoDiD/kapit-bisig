@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { mobileAuthService } from '../services/auth/MobileAuthService';
+import { validateEmail, cleanEmailInput, MAX_EMAIL_LENGTH } from '../utils/emailValidation';
 
 type RecoveryStep = 'email' | 'otp' | 'password' | 'done';
 
@@ -49,8 +50,9 @@ export default function StaffForgotPasswordScreen({ initialEmail = '', onBack }:
   const submit = async () => {
     setError(null);
     if (step === 'email') {
-      if (!/^\S+@\S+\.\S+$/.test(email)) {
-        setError('Enter the email used in Manage Users.');
+      const emailCheck = validateEmail(email);
+      if (!emailCheck.isValid) {
+        setError(emailCheck.error || 'Please enter a valid email address.');
         return;
       }
       setLoading(true);
@@ -150,7 +152,8 @@ export default function StaffForgotPasswordScreen({ initialEmail = '', onBack }:
               <TextInput
                 style={styles.input}
                 value={email}
-                onChangeText={setEmail}
+                maxLength={MAX_EMAIL_LENGTH}
+                onChangeText={(text) => setEmail(cleanEmailInput(text))}
                 placeholder="Email Address"
                 placeholderTextColor="#888"
                 keyboardType="email-address"

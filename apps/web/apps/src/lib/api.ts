@@ -735,15 +735,18 @@ export const api = {
     search?: string;
     barangay?: string;
     status?: string;
+    distributionId?: string;
     page?: number;
     limit?: number;
-  }): Promise<PaginatedApiResponse<any[]>> {
+  }): Promise<PaginatedApiResponse<any[]> & { distributionId?: string | null }> {
     const sp = new URLSearchParams();
     if (params?.search) sp.append('search', params.search);
     if (params?.barangay && params.barangay !== 'All Barangays')
       sp.append('barangay', params.barangay);
     if (params?.status && params.status !== 'All Status')
       sp.append('status', params.status);
+    if (params?.distributionId && params.distributionId !== 'all')
+      sp.append('distributionId', params.distributionId);
     if (typeof params?.page === 'number') sp.append('page', String(params.page));
     if (typeof params?.limit === 'number') sp.append('limit', String(params.limit));
 
@@ -753,7 +756,7 @@ export const api = {
       headers: createHeaders(),
       credentials: 'include',
     });
-    return handleResponse<PaginatedApiResponse<any[]>>(response);
+    return handleResponse<PaginatedApiResponse<any[]> & { distributionId?: string | null }>(response);
   },
 
   /**
@@ -1041,6 +1044,10 @@ export const api = {
     action?: string;
     entityType?: string;
     actorRole?: string;
+    actor?: string;
+    target?: string;
+    ip?: string;
+    date?: string;
   }): Promise<PaginatedApiResponse<AuditLogRecord[]>> {
     const sp = new URLSearchParams();
     if (typeof params?.page === 'number') sp.append('page', String(params.page));
@@ -1048,6 +1055,10 @@ export const api = {
     if (params?.action) sp.append('action', params.action);
     if (params?.entityType) sp.append('entityType', params.entityType);
     if (params?.actorRole) sp.append('actorRole', params.actorRole);
+    if (params?.actor) sp.append('actor', params.actor);
+    if (params?.target) sp.append('target', params.target);
+    if (params?.ip) sp.append('ip', params.ip);
+    if (params?.date) sp.append('date', params.date);
 
     const qs = sp.toString();
     const url = `${API_URL}/audit-logs${qs ? `?${qs}` : ''}`;
