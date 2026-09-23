@@ -121,5 +121,20 @@ export const distributionIdParams = z.object({
   id: objectId,
 }).strict();
 
+/* PATCH /api/distributions/:id/staff */
+export const updateDistributionStaffBody = z.object({
+  assignedStaffIds: z.array(objectId)
+    .min(1, 'Select at least 1 staff member'),
+}).strict().superRefine((data, ctx) => {
+  if (new Set(data.assignedStaffIds).size !== data.assignedStaffIds.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['assignedStaffIds'],
+      message: 'Assigned staff must be unique',
+    });
+  }
+});
+
 /* GET /api/distributions/:id/households */
 // reuses distributionIdParams
+

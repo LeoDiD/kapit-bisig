@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AddUserModal from './AddUserModal'
+import EditUserModal from './EditUserModal'
 import { api, getScopedBarangays, StaffUser } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -46,6 +47,7 @@ export default function UsersTable() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [filterBarangay, setFilterBarangay] = useState<FilterBarangay>('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<StaffUser | null>(null)
 
   const [users, setUsers] = useState<StaffUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -408,6 +410,7 @@ export default function UsersTable() {
                 <tr>
                   <th className="px-6 py-4">Staff Member</th>
                   <th className="px-6 py-4">Contact Email</th>
+                  <th className="px-6 py-4">Assigned Barangays</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Registered On</th>
                   <th className="px-6 py-4 text-right pr-6">
@@ -436,6 +439,31 @@ export default function UsersTable() {
                       </td>
 
                       <td className="px-6 py-4">
+                        {Array.isArray(u.assignedBarangays) && u.assignedBarangays.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-[240px]">
+                            {u.assignedBarangays.slice(0, 2).map((b) => (
+                              <span
+                                key={b}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                              >
+                                {b}
+                              </span>
+                            ))}
+                            {u.assignedBarangays.length > 2 && (
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300"
+                                title={u.assignedBarangays.slice(2).join(', ')}
+                              >
+                                +{u.assignedBarangays.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">None</span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4">
                         <StatusBadge status={getAccountStatus(u)} />
                       </td>
 
@@ -457,7 +485,7 @@ export default function UsersTable() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center text-gray-500 font-medium">
+                    <td colSpan={6} className="px-6 py-16 text-center text-gray-500 font-medium">
                       No staff accounts found matching your filters.
                     </td>
                   </tr>
@@ -512,6 +540,15 @@ export default function UsersTable() {
           className="w-52 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
         >
           <div className="flex flex-col gap-1">
+            <MenuItem
+              icon={<EditIcon className="w-4 h-4" />}
+              label="Edit Assigned Barangays"
+              onClick={() => {
+                const target = users.find((u) => u.id === activeDropdown)
+                if (target) setEditingUser(target)
+                setActiveDropdown(null)
+              }}
+            />
             {users.find((u) => u.id === activeDropdown)?.isActive ? (
               <MenuItem icon={<DeactivateIcon className="w-4 h-4" />} label="Deactivate Account" onClick={() => handleToggleActive(activeDropdown, true)} />
             ) : (
@@ -545,6 +582,13 @@ export default function UsersTable() {
       )}
 
       <AddUserModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={handleUserCreated} />
+
+      <EditUserModal
+        isOpen={Boolean(editingUser)}
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
+        onSuccess={fetchUsers}
+      />
 
       <ConfirmModal
         isOpen={!!deleteTarget}
@@ -744,6 +788,14 @@ function DeleteIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
+    </svg>
+  )
+}
+
+function EditIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
     </svg>
   )
 }

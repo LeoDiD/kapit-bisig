@@ -36,6 +36,9 @@ export default function DistributionPageClient() {
           id: d.id || d._id,
           barangay: d.barangay,
           assignedBarangays: d.assignedBarangays ?? [],
+          assignedStaffIds: Array.isArray(d.assignedStaffIds)
+            ? d.assignedStaffIds.map((item: any) => (typeof item === 'string' ? item : item.toString()))
+            : [],
           scheduled: d.scheduled,
           endsAt: d.endsAt,
           households: d.households,

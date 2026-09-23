@@ -6,3 +6,5 @@ export { default as DistributionDetailsModal } from './DistributionDetailsModal'
 export { default as NewDistributionModal } from './NewDistributionModal'
 export { default as RescheduleDistributionModal } from './RescheduleDistributionModal'
 export { default as CompletedArchiveModal } from './CompletedArchiveModal'
+export { default as EditDistributionStaffModal } from './EditDistributionStaffModal'
+

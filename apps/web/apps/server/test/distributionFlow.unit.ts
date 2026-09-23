@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { createDistributionBody } from '../validation/distribution.schema';
+import { createDistributionBody, updateDistributionStaffBody } from '../validation/distribution.schema';
 import {
   deriveDistributionStatus,
   getTargetBarangays,
@@ -91,4 +91,26 @@ export function runDistributionFlowUnitTests(): void {
     notes: 'test',
   });
   assert.strictEqual(missingStaff.success, false);
+
+  // Unit tests for updateDistributionStaffBody
+  const validStaffUpdate = updateDistributionStaffBody.safeParse({
+    assignedStaffIds: [validStaffId, '507f1f77bcf86cd799439013'],
+  });
+  assert.strictEqual(validStaffUpdate.success, true);
+
+  const emptyStaffUpdate = updateDistributionStaffBody.safeParse({
+    assignedStaffIds: [],
+  });
+  assert.strictEqual(emptyStaffUpdate.success, false);
+
+  const duplicateStaffUpdate = updateDistributionStaffBody.safeParse({
+    assignedStaffIds: [validStaffId, validStaffId],
+  });
+  assert.strictEqual(duplicateStaffUpdate.success, false);
+
+  const invalidObjectIdStaffUpdate = updateDistributionStaffBody.safeParse({
+    assignedStaffIds: ['not-an-objectid'],
+  });
+  assert.strictEqual(invalidObjectIdStaffUpdate.success, false);
 }
+

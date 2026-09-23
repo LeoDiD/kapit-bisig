@@ -40,6 +40,7 @@ export interface StaffUser {
   email?: string;
   fullName?: string;
   role: 'LGU_STAFF';
+  assignedBarangays?: string[];
   isActive: boolean;
   forcePasswordReset?: boolean;
   accountState?: 'Pending Activation' | 'Active' | 'Temporarily Locked' | 'Inactive';
@@ -67,6 +68,7 @@ export interface UpdateStaffData {
   firstName?: string;
   lastName?: string;
   isActive?: boolean;
+  assignedBarangays?: string[];
 }
 
 /**
@@ -693,6 +695,22 @@ export const api = {
       headers: createHeaders('PATCH'),
       credentials: 'include',
       body: JSON.stringify(data),
+    });
+    return handleResponse<ApiResponse<DistributionData>>(response);
+  },
+
+  /**
+   * Update assigned staff for an active or upcoming distribution
+   */
+  async updateDistributionStaff(
+    id: string,
+    assignedStaffIds: string[],
+  ): Promise<ApiResponse<DistributionData>> {
+    const response = await fetch(`${API_URL}/distributions/${id}/staff`, {
+      method: 'PATCH',
+      headers: createHeaders('PATCH'),
+      credentials: 'include',
+      body: JSON.stringify({ assignedStaffIds }),
     });
     return handleResponse<ApiResponse<DistributionData>>(response);
   },

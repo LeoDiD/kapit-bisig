@@ -6,6 +6,7 @@ import DistributionDetailsModal from './DistributionDetailsModal'
 import ViewHouseholdsModal from './ViewHouseholdsModal'
 import RescheduleDistributionModal from './RescheduleDistributionModal'
 import CompletedArchiveModal from './CompletedArchiveModal'
+import EditDistributionStaffModal from './EditDistributionStaffModal'
 
 export type DistributionStatus = 'Unclaimed' | 'Partially Claimed' | 'Claimed'
 export type DistributionLifecycleStatus = 'Upcoming' | 'Active' | 'Completed' | 'Archived'
@@ -14,6 +15,7 @@ export type DistributionRow = {
   id: string
   barangay: string
   assignedBarangays: string[]
+  assignedStaffIds?: string[]
   scheduled: string
   endsAt?: string | null
   households: number
@@ -106,6 +108,7 @@ export default function DistributionsTable({
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionRow | null>(null)
   const [householdsDistribution, setHouseholdsDistribution] = useState<DistributionRow | null>(null)
   const [rescheduleDistribution, setRescheduleDistribution] = useState<DistributionRow | null>(null)
+  const [editStaffDistribution, setEditStaffDistribution] = useState<DistributionRow | null>(null)
   const [archiveOpen, setArchiveOpen] = useState(false)
 
   const completedCount = useMemo(() => rows.filter((r) => r.lifecycleStatus === 'Completed').length, [rows])
@@ -526,6 +529,16 @@ export default function DistributionsTable({
                           }}
                         />
                       ) : null}
+                      {row.status !== 'Claimed' && row.lifecycleStatus !== 'Archived' ? (
+                        <MenuItem
+                          icon={<UsersStaffIcon />}
+                          label="Edit Assigned Staff"
+                          onClick={() => {
+                            setEditStaffDistribution(row)
+                            closeRowMenu()
+                          }}
+                        />
+                      ) : null}
                       {row.status !== 'Claimed' && row.lifecycleStatus === 'Active' ? (
                         <MenuItem
                           icon={<CheckGreenIcon />}
@@ -571,6 +584,17 @@ export default function DistributionsTable({
           open={Boolean(rescheduleDistribution)}
           distribution={rescheduleDistribution}
           onClose={() => setRescheduleDistribution(null)}
+          onSuccess={() => {
+            onRefresh?.()
+          }}
+        />
+      )}
+
+      {editStaffDistribution && (
+        <EditDistributionStaffModal
+          open={Boolean(editStaffDistribution)}
+          distribution={editStaffDistribution}
+          onClose={() => setEditStaffDistribution(null)}
           onSuccess={() => {
             onRefresh?.()
           }}
@@ -796,3 +820,12 @@ function ArchiveIcon({ className = 'h-4 w-4' }: { className?: string }) {
     </svg>
   )
 }
+
+function UsersStaffIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  )
+}
+

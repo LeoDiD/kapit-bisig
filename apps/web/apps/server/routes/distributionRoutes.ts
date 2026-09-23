@@ -24,6 +24,7 @@ import {
   createDistributionBody,
   distributionIdParams,
   rescheduleDistributionBody,
+  updateDistributionStaffBody,
 } from '../validation/distribution.schema';
 import { logAudit } from '../utils/audit';
 import { broadcastResidentNotification, broadcastScopedNotification } from '../utils/createNotification';
@@ -696,6 +697,170 @@ router.patch(
     } catch (error: unknown) {
       console.error('Error rescheduling distribution:', error);
       const message = error instanceof Error ? error.message : 'Failed to reschedule distribution';
+      return res.status(500).json({ success: false, message });
+    }
+  },
+);
+
+/**
+ * PATCH /api/distributions/:id/staff
+ *
+ * Update assigned staff members for an upcoming or active distribution.
+ * RBAC: SUPERADMIN or scoped LGU_STAFF.
+ */
+router.patch(
+  '/:id/staff',
+  requireStaffOrSuperadmin,
+  validateRequest({ params: distributionIdParams, body: updateDistributionStaffBody }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const scopedBarangays = await getScopedBarangays(req.authUser);
+      const { id } = req.params;
+      const { assignedStaffIds } = req.body as { assignedStaffIds: string[] };
+
+      const distribution = await Distribution.findById(id);
+      if (!distribution) {
+        return res.status(404).json({
+          success: false,
+          message: 'Distribution not found',
+        });
+      }
+
+      // Scope check for LGU_STAFF
+      if (
+        isScopedRole(req.authUser?.role) && !hasDistributionAccess(scopedBarangays, distribution)
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to manage staff for this distribution',
+        });
+      }
+
+      // Lifecycle status check: cannot edit completed or archived distributions
+      if (distribution.status === 'Claimed') {
+        return res.status(400).json({
+          success: false,
+          code: 'DISTRIBUTION_COMPLETED',
+          message: 'Cannot modify assigned staff on a completed distribution',
+        });
+      }
+      if (distribution.archivedAt) {
+        return res.status(400).json({
+          success: false,
+          code: 'DISTRIBUTION_ARCHIVED',
+          message: 'Cannot modify assigned staff on an archived distribution',
+        });
+      }
+
+      const coverageScope = normalizeScope([distribution.barangay, ...(distribution.assignedBarangays ?? [])]);
+      const uniqueStaffIds: string[] = [...new Set((assignedStaffIds || []).map((sId) => String(sId)))];
+
+      const activeStaffDocs = await StaffUser.find({ isActive: true })
+        .select('_id role assignedBarangays firstName lastName')
+        .lean();
+
+      const requestedIdSet = new Set(uniqueStaffIds);
+      const staffDocs = activeStaffDocs.filter((doc) => requestedIdSet.has(doc._id.toString()));
+
+      const foundIds = new Set(staffDocs.map((doc) => doc._id.toString()));
+      const missingStaffIds = uniqueStaffIds.filter((staffId) => !foundIds.has(staffId));
+      if (missingStaffIds.length > 0) {
+        return res.status(400).json({
+          success: false,
+          code: 'STAFF_NOT_FOUND',
+          message: 'One or more selected staff members were not found or are inactive',
+          missingStaffIds,
+        });
+      }
+
+      const invalidRole = staffDocs.find((doc) => !['LGU_STAFF'].includes(doc.role));
+      if (invalidRole) {
+        return res.status(400).json({
+          success: false,
+          code: 'INVALID_ASSIGNED_STAFF',
+          message: 'Only active LGU staff can be assigned to a distribution',
+        });
+      }
+
+      const outOfScopeAssignees = staffDocs
+        .filter((doc) => !hasAnyCoverage(doc.assignedBarangays ?? [], coverageScope))
+        .map((doc) => doc._id.toString());
+
+      if (outOfScopeAssignees.length > 0) {
+        return res.status(403).json({
+          success: false,
+          code: 'OUT_OF_SCOPE_STAFF',
+          message: 'One or more selected staff members are not assigned to any covered barangay for this distribution',
+          outOfScopeStaffIds: outOfScopeAssignees,
+        });
+      }
+
+      // Check same-day schedule conflicts for newly added staff
+      const currentStaffSet = new Set((distribution.assignedStaffIds || []).map((sId) => sId.toString()));
+      const newlyAddedStaffIds = uniqueStaffIds.filter((sId) => !currentStaffSet.has(sId));
+
+      if (newlyAddedStaffIds.length > 0 && distribution.scheduled) {
+        const targetDate = new Date(distribution.scheduled);
+        if (!isNaN(targetDate.getTime())) {
+          const targetYMD = targetDate.toISOString().slice(0, 10);
+          const allDists = await Distribution.find({}).lean();
+          const otherActiveDists = allDists.filter(
+            (d) => d.status !== 'Claimed' && d._id.toString() !== distribution._id.toString(),
+          );
+
+          for (const dist of otherActiveDists) {
+            if (!dist.scheduled) continue;
+            const distDate = new Date(dist.scheduled);
+            if (isNaN(distDate.getTime())) continue;
+            const distYMD = distDate.toISOString().slice(0, 10);
+            if (distYMD === targetYMD) {
+              const otherStaffSet = new Set((dist.assignedStaffIds || []).map((sId) => sId.toString()));
+              const conflictingIds = newlyAddedStaffIds.filter((sId) => otherStaffSet.has(sId));
+
+              if (conflictingIds.length > 0) {
+                const conflictStaffDocs = await StaffUser.find({ _id: { $in: conflictingIds } })
+                  .setOptions({ sanitizeFilter: false })
+                  .select('firstName lastName')
+                  .lean();
+                const names = conflictStaffDocs
+                  .map((doc: any) => `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || 'Staff')
+                  .join(', ');
+                return res.status(409).json({
+                  success: false,
+                  code: 'STAFF_SCHEDULE_CONFLICT',
+                  message: `Staff member (${names}) is already assigned to another distribution for Barangay ${dist.barangay} on this day.`,
+                  conflictingStaffIds: conflictingIds,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      const previousStaffIds = (distribution.assignedStaffIds || []).map((sId) => sId.toString());
+      distribution.assignedStaffIds = uniqueStaffIds.map((sId) => new mongoose.Types.ObjectId(sId));
+      await distribution.save();
+
+      await logAudit(req, 'DISTRIBUTION_STAFF_UPDATED', 'Distribution', distribution._id.toString(), {
+        barangay: distribution.barangay,
+        previousStaffIds,
+        newStaffIds: uniqueStaffIds,
+        addedStaffIds: newlyAddedStaffIds,
+        removedStaffIds: previousStaffIds.filter((sId) => !uniqueStaffIds.includes(sId)),
+      });
+
+      return res.json({
+        success: true,
+        message: 'Assigned staff updated successfully',
+        data: {
+          ...distribution.toJSON(),
+          id: distribution._id.toString(),
+          lifecycleStatus: deriveDistributionLifecycle(distribution),
+        },
+      });
+    } catch (error: unknown) {
+      console.error('Error updating distribution staff:', error);
+      const message = error instanceof Error ? error.message : 'Failed to update assigned staff';
       return res.status(500).json({ success: false, message });
     }
   },

@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { api } from '@/lib/api'
 import type { DistributionRow } from './DistributionsTable'
 import { formatScheduledDate } from './DistributionsTable'
 
@@ -15,6 +16,36 @@ export default function DistributionDetailsModal({
   distribution: DistributionRow | null
   onMarkClaimed?: (id: string) => void
 }) {
+  const [staffNames, setStaffNames] = React.useState<string[]>([])
+
+  React.useEffect(() => {
+    if (!open || !distribution || !distribution.assignedStaffIds?.length) {
+      setStaffNames([])
+      return
+    }
+
+    let cancelled = false
+    const loadStaff = async () => {
+      try {
+        const res = await api.getStaffUsers({ status: 'active' })
+        if (!cancelled && res.success && res.data) {
+          const idSet = new Set(distribution.assignedStaffIds)
+          const matched = res.data
+            .filter((s) => idSet.has(s.id))
+            .map((s) => `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.fullName || 'Staff')
+          setStaffNames(matched)
+        }
+      } catch (err) {
+        console.error('Failed to load staff for details:', err)
+      }
+    }
+    void loadStaff()
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, distribution])
+
   if (!open || !distribution) return null
 
   return (
@@ -115,6 +146,31 @@ export default function DistributionDetailsModal({
                       {item}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {!!distribution.assignedStaffIds?.length && (
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="flex items-center gap-2 text-gray-500 text-xs mb-2">
+                  <UsersIcon />
+                  <span>Assigned Field Staff ({distribution.assignedStaffIds.length})</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {staffNames.length > 0 ? (
+                    staffNames.map((name, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800"
+                      >
+                        {name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-gray-400">
+                      {distribution.assignedStaffIds.length} staff member{distribution.assignedStaffIds.length === 1 ? '' : 's'} assigned
+                    </span>
+                  )}
                 </div>
               </div>
             )}

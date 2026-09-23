@@ -528,7 +528,35 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
         scheduled: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
         reason: 'Cannot reschedule completed',
       });
-    assert.strictEqual(completedRescheduleResponse.status, 400);
+    // Staff update test: updating assigned staff on active distribution succeeds
+    const staffUpdateResponse = await request(app)
+      .patch(`/api/distributions/${secondDistributionId}/staff`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        assignedStaffIds: [String(staff._id)],
+      });
+    assert.strictEqual(staffUpdateResponse.status, 200);
+    assert.strictEqual(staffUpdateResponse.body?.success, true);
+    assert.deepStrictEqual(staffUpdateResponse.body?.data?.assignedStaffIds, [String(staff._id)]);
+
+    // Staff update test: updating with empty staff list fails with 400
+    const emptyStaffResponse = await request(app)
+      .patch(`/api/distributions/${secondDistributionId}/staff`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        assignedStaffIds: [],
+      });
+    assert.strictEqual(emptyStaffResponse.status, 400);
+
+    // Staff update test: updating completed distribution fails with 400
+    const completedStaffUpdateResponse = await request(app)
+      .patch(`/api/distributions/${distributionId}/staff`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        assignedStaffIds: [String(staff._id)],
+      });
+    assert.strictEqual(completedStaffUpdateResponse.status, 400);
+    assert.strictEqual(completedStaffUpdateResponse.body?.code, 'DISTRIBUTION_COMPLETED');
 
   } finally {
     await mongoose.disconnect();

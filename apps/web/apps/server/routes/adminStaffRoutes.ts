@@ -241,7 +241,12 @@ router.get('/stats', async (_req: AuthRequest, res: Response) => {
 router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffBody }), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, isActive } = req.body;
+    const { firstName, lastName, isActive, assignedBarangays } = req.body as {
+      firstName?: string;
+      lastName?: string;
+      isActive?: boolean;
+      assignedBarangays?: string[];
+    };
 
     const user = await StaffUser.findById(id);
     if (!user) {
@@ -268,6 +273,14 @@ router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffB
       user.isActive = !!isActive;
     }
 
+    if (assignedBarangays !== undefined) {
+      if (!Array.isArray(assignedBarangays) || assignedBarangays.length < 1) {
+        res.status(400).json({ success: false, message: 'At least one assigned barangay is required.' });
+        return;
+      }
+      user.assignedBarangays = [...new Set(assignedBarangays)];
+    }
+
     await user.save();
 
     logSecurity('ADMIN_UPDATE_STAFF', {
@@ -278,7 +291,7 @@ router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffB
     const auditAction = isActive === false ? 'STAFF_DISABLED' : 'STAFF_UPDATED';
     await logAudit(req, auditAction as any, 'StaffUser', user._id.toString(), {
       email: user.email,
-      changes: { firstName, lastName, isActive },
+      changes: { firstName, lastName, isActive, assignedBarangays: user.assignedBarangays },
     });
 
     res.json({ success: true, message: 'Staff user updated.', data: user.toJSON() });
