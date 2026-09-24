@@ -62,6 +62,11 @@ function getTransporter(): Transporter {
 
 const APP_NAME = process.env.APP_NAME || 'KapitBisig';
 
+function getFromAddress(): string {
+  const senderEmail = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || '';
+  return `"${APP_NAME}" <${senderEmail}>`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Send password-reset OTP email                                      */
 /* ------------------------------------------------------------------ */
@@ -76,7 +81,7 @@ export async function sendResetOtpEmail(
 ): Promise<void> {
   if (_resetOtpSenderForTests) return _resetOtpSenderForTests(to, otp);
   const transporter = getTransporter();
-  const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
+  const from = getFromAddress();
 
   const subject = `${APP_NAME} Password Reset OTP`;
 
@@ -127,7 +132,7 @@ export async function sendLoginVerifyOtpEmail(
     return;
   }
   const transporter = getTransporter();
-  const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
+  const from = getFromAddress();
 
   const subject = `${APP_NAME} Login Verification Code`;
 
@@ -175,7 +180,7 @@ export async function sendPasswordChangeOtpEmail(
   otp: string,
 ): Promise<void> {
   const transporter = getTransporter();
-  const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
+  const from = getFromAddress();
 
   const subject = `${APP_NAME} Password Change Verification Code`;
 
@@ -220,7 +225,7 @@ export async function sendFirstLoginOtpEmail(
   otp: string,
 ): Promise<void> {
   const transporter = getTransporter();
-  const from = `"${APP_NAME}" <${process.env.SMTP_USER}>`;
+  const from = getFromAddress();
 
   const subject = `${APP_NAME} First Login OTP`;
 
