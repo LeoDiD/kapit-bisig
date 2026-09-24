@@ -261,24 +261,28 @@ export default function UsersTable() {
             label="Total Staff"
             value={metrics.total}
             helper="Visible accounts"
+            variant="blue"
             icon={<UsersMenuIcon className="h-5 w-5" />}
           />
           <SummaryMetricCard
             label="Active"
             value={metrics.active}
             helper="Can access platform"
+            variant="emerald"
             icon={<CheckCircleIcon className="h-5 w-5" />}
           />
           <SummaryMetricCard
             label="Pending"
             value={metrics.pending}
             helper="Awaiting first login"
+            variant="amber"
             icon={<ClockIcon className="h-5 w-5" />}
           />
           <SummaryMetricCard
             label="Inactive"
             value={metrics.inactive}
             helper="Currently disabled"
+            variant="rose"
             icon={<DeactivateIcon className="h-5 w-5" />}
           />
         </div>

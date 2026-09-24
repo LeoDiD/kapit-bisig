@@ -38,24 +38,28 @@ export default function HouseholdStats({
           label="Registry Rows"
           value={total}
           helper="Resident-based records"
+          variant="blue"
           icon={<UsersIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard
           label="Claimed"
           value={claimed}
           helper="Released support"
+          variant="emerald"
           icon={<CheckCircleIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard
           label="Pending"
           value={notClaimed}
           helper="Needs follow-up"
+          variant="amber"
           icon={<HourglassIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard
           label="With History"
           value={withClaimHistory}
           helper="Previously assisted"
+          variant="purple"
           icon={<HistoryIcon className="h-5 w-5" />}
         />
       </div>

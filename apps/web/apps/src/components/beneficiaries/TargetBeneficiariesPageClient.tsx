@@ -505,10 +505,10 @@ const DEMO_PROOF_SUBMISSIONS: BeneficiaryProofSubmissionRecord[] = [
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryMetricCard label="Matched Submissions" value={String(proofSummary.total)} helper="Across the current proof queue filter" icon={<ClipboardIcon className="h-5 w-5" />} />
-          <SummaryMetricCard label="Pending Reviews" value={String(proofSummary.pendingVerification)} helper="Across the current queue filter" icon={<ClockIcon className="h-5 w-5" />} />
-          <SummaryMetricCard label="Approved Proofs" value={String(proofSummary.approved)} helper="Across the current queue filter" icon={<ShieldCheckIcon className="h-5 w-5" />} />
-          <SummaryMetricCard label="Returned Proofs" value={String(proofSummary.rejected)} helper="Sent back for additional proof" icon={<AlertIcon className="h-5 w-5" />} />
+          <SummaryMetricCard label="Matched Submissions" value={String(proofSummary.total)} helper="Across the current proof queue filter" variant="blue" icon={<ClipboardIcon className="h-5 w-5" />} />
+          <SummaryMetricCard label="Pending Reviews" value={String(proofSummary.pendingVerification)} helper="Across the current queue filter" variant="amber" icon={<ClockIcon className="h-5 w-5" />} />
+          <SummaryMetricCard label="Approved Proofs" value={String(proofSummary.approved)} helper="Across the current queue filter" variant="emerald" icon={<ShieldCheckIcon className="h-5 w-5" />} />
+          <SummaryMetricCard label="Returned Proofs" value={String(proofSummary.rejected)} helper="Sent back for additional proof" variant="rose" icon={<AlertIcon className="h-5 w-5" />} />
         </div>
       </section>
 

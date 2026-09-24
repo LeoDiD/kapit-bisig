@@ -32,24 +32,28 @@ export default function DistributionStats({
           label="Barangays"
           value={barangays}
           helper="Covered areas"
+          variant="blue"
           icon={<PinIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard
           label="Households Served"
           value={householdsServed}
           helper="Claimed households"
+          variant="emerald"
           icon={<UsersIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard
           label="Active"
           value={active}
           helper="Inside claim window"
+          variant="amber"
           icon={<CheckCircleIcon className="h-5 w-5" />}
         />
         <SummaryMetricCard
           label="Upcoming"
           value={upcoming}
           helper="Scheduled next"
+          variant="purple"
           icon={<ClockIcon className="h-5 w-5" />}
         />
       </div>

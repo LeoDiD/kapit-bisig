@@ -171,24 +171,28 @@ export default function VerifiedResidentsPage() {
             label="Verified"
             value={rows.length}
             helper="Verified registrations"
+            variant="emerald"
             icon={<CheckCircleIcon className="h-5 w-5" />}
           />
           <SummaryMetricCard
             label="Barangays"
             value={uniqueBarangayCount}
             helper="Covered barangays"
+            variant="blue"
             icon={<MapIcon className="h-5 w-5" />}
           />
           <SummaryMetricCard
             label="High AI Match"
             value={withHighMatch}
             helper="Strong confidence records"
+            variant="purple"
             icon={<SparklesIcon className="h-5 w-5" />}
           />
           <SummaryMetricCard
             label="Recent"
             value={verifiedLast7Days}
             helper="Verified in 7 days"
+            variant="amber"
             icon={<RefreshIcon className="h-5 w-5" />}
           />
         </div>

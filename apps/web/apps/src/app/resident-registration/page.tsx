@@ -658,24 +658,28 @@ export default function ResidentRegistrationPage() {
               label="Visible Queue" 
               value={queueMetrics.total} 
               helper="Total records loaded" 
+              variant="blue"
               icon={<UsersIcon className="h-5 w-5" />} 
             />
             <SummaryMetricCard 
               label="Ready for Review" 
               value={queueMetrics.manualReviewCount} 
               helper="Awaiting staff confirmation" 
+              variant="amber"
               icon={<ClipboardCheckIcon className="h-5 w-5" />} 
             />
             <SummaryMetricCard 
               label="Proof Ready" 
               value={queueMetrics.proofReadyCount} 
               helper="2+ assets detected" 
+              variant="emerald"
               icon={<FileCheckIcon className="h-5 w-5" />} 
             />
             <SummaryMetricCard 
               label="Needs Attention" 
               value={queueMetrics.blockedCount} 
               helper="Review AI red flags" 
+              variant="rose"
               icon={<AlertCircleIcon className="h-5 w-5" />} 
             />
           </div>
