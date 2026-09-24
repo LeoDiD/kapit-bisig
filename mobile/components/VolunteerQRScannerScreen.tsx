@@ -296,15 +296,41 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
   };
 
   const displayedDistribution = activeDistribution || nearestUpcoming;
-  const includedBarangays = displayedDistribution
-    ? [displayedDistribution.barangay, ...(displayedDistribution.assignedBarangays || [])]
-    : [];
-  const coveredBarangayCount = Array.from(new Set(includedBarangays.filter(Boolean))).length;
-  const claimCountText = displayedDistribution?.registeredHouseholds
-    ? `${displayedDistribution.claimedHouseholds || 0}/${displayedDistribution.registeredHouseholds} claimed`
-    : displayedDistribution?.claimedHouseholds
-      ? `${displayedDistribution.claimedHouseholds} claimed`
-      : 'No claim totals yet';
+  const isLive = Boolean(activeDistribution);
+  const isUpcoming = !activeDistribution && Boolean(nearestUpcoming);
+
+  const registeredCount = displayedDistribution?.registeredHouseholds || 0;
+  const claimedCount = displayedDistribution?.claimedHouseholds || 0;
+  const progressPercent = registeredCount > 0
+    ? Math.min(100, Math.round((claimedCount / registeredCount) * 100))
+    : 0;
+
+  const statusBadge = isLive
+    ? {
+        label: 'Live Distribution',
+        icon: 'radio-button-on' as const,
+        bg: '#ECFDF5',
+        border: '#A7F3D0',
+        text: '#047857',
+        iconColor: '#059669',
+      }
+    : isUpcoming
+      ? {
+          label: 'Scheduled',
+          icon: 'calendar-outline' as const,
+          bg: '#EFF6FF',
+          border: '#BFDBFE',
+          text: '#1D4ED8',
+          iconColor: '#2563EB',
+        }
+      : {
+          label: 'No Assignment',
+          icon: 'information-circle-outline' as const,
+          bg: '#F1F5F9',
+          border: '#CBD5E1',
+          text: '#64748B',
+          iconColor: '#64748B',
+        };
 
   let scannerTone: ScannerTone = 'ready';  if (isResolving) scannerTone = 'working';
   else if (error) scannerTone = 'error';
@@ -393,80 +419,115 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
         <View style={styles.distributionCard}>
           <View style={styles.distributionTopRow}>
             <View style={styles.distributionHostBlock}>
-              <Text style={styles.distributionLabel}>Active Host Barangay</Text>
-              <Text style={styles.distributionHost}>{displayedDistribution?.barangay || 'No assigned distribution'}</Text>
+              <View style={styles.eyebrowRow}>
+                <Ionicons name="location-sharp" size={12} color="#0F766E" />
+                <Text style={styles.distributionLabel}>Assigned Barangay</Text>
+              </View>
+              <Text style={styles.distributionHost}>
+                {displayedDistribution?.barangay ? `Barangay ${displayedDistribution.barangay}` : 'No assigned distribution'}
+              </Text>
             </View>
-            <View style={styles.distributionModePill}>
-              <Ionicons                name={activeDistribution ? 'radio-button-on' : 'alert-circle-outline'}
-                size={14}
-                color={activeDistribution ? '#0F766E' : '#B45309'}
-              />
-              <Text style={[styles.distributionModeText, { color: activeDistribution ? '#0F766E' : '#B45309' }]}>
-                {activeDistribution ? 'Live Claim Mode' : 'Validation Only'}
+            <View style={[styles.distributionModePill, { backgroundColor: statusBadge.bg, borderColor: statusBadge.border }]}>
+              <Ionicons name={statusBadge.icon} size={13} color={statusBadge.iconColor} />
+              <Text style={[styles.distributionModeText, { color: statusBadge.text }]}>
+                {statusBadge.label}
               </Text>
             </View>
           </View>
 
           {activeDistributions.length > 1 && (
             <View style={styles.assignmentChooser}>
-              <Text style={styles.assignmentChooserTitle}>Choose active distribution</Text>
-              <View style={styles.assignmentChoices}>
-                {activeDistributions.map((distribution) => (
-                  <TouchableOpacity
-                    key={distribution.id}
-                    style={[
-                      styles.assignmentChoice,
-                      activeDistribution?.id === distribution.id && styles.assignmentChoiceSelected,
-                    ]}
-                    onPress={() => {
-                      setActiveDistribution(distribution);
-                      setAssignmentMessage(null);
-                      handleScanAgain();
-                    }}
-                  >
-                    <Text style={[
-                      styles.assignmentChoiceTitle,
-                      activeDistribution?.id === distribution.id && styles.assignmentChoiceTitleSelected,
-                    ]}>
-                      {distribution.barangay}
-                    </Text>
-                    <Text style={styles.assignmentChoiceTime}>{formatScheduleLabel(distribution.scheduled)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Text style={styles.assignmentChooserTitle}>Choose target barangay</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.assignmentChips}>
+                {activeDistributions.map((distribution) => {
+                  const isSelected = activeDistribution?.id === distribution.id;
+                  return (
+                    <TouchableOpacity
+                      key={distribution.id}
+                      style={[
+                        styles.assignmentChoice,
+                        isSelected && styles.assignmentChoiceSelected,
+                      ]}
+                      onPress={() => {
+                        setActiveDistribution(distribution);
+                        setAssignmentMessage(null);
+                        handleScanAgain();
+                      }}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'checkmark-circle' : 'location-outline'}
+                        size={14}
+                        color={isSelected ? '#0F766E' : '#64748B'}
+                      />
+                      <Text style={[
+                        styles.assignmentChoiceTitle,
+                        isSelected && styles.assignmentChoiceTitleSelected,
+                      ]}>
+                        Barangay {distribution.barangay}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
 
-          {!!assignmentMessage && (
+          {isLive ? (
+            <View style={styles.liveNotice}>
+              <Ionicons name="checkmark-circle" size={16} color="#059669" />
+              <Text style={styles.liveNoticeText}>
+                Active distribution. QR scans verify eligibility and record claims automatically.
+              </Text>
+            </View>
+          ) : isUpcoming ? (
+            <View style={styles.upcomingNotice}>
+              <Ionicons name="time-outline" size={16} color="#1D4ED8" />
+              <Text style={styles.upcomingNoticeText}>
+                {assignmentMessage || `Starts ${formatScheduleLabel(displayedDistribution?.scheduled)}. Pre-check resident eligibility ahead of distribution.`}
+              </Text>
+            </View>
+          ) : !!assignmentMessage ? (
             <View style={styles.assignmentNotice}>
-              <Ionicons name="information-circle-outline" size={17} color="#B45309" />
+              <Ionicons name="information-circle-outline" size={16} color="#B45309" />
               <Text style={styles.assignmentNoticeText}>{assignmentMessage}</Text>
             </View>
-          )}
+          ) : null}
 
           <View style={styles.distributionMetaRow}>
             <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Schedule</Text>
+              <View style={styles.metaLabelRow}>
+                <Ionicons name="calendar-outline" size={12} color="#64748B" />
+                <Text style={styles.metaLabel}>Schedule</Text>
+              </View>
               <Text style={styles.metaValue}>{formatScheduleLabel(displayedDistribution?.scheduled)}</Text>
+              <Text style={styles.metaSubtext}>
+                {isLive ? 'Live relief drive' : isUpcoming ? 'Upcoming event' : 'No active schedule'}
+              </Text>
             </View>
             <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Coverage</Text>              <Text style={styles.metaValue}>{coveredBarangayCount || 0} barangays</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Progress</Text>
-              <Text style={styles.metaValue}>{claimCountText}</Text>
+              <View style={styles.metaLabelRow}>
+                <Ionicons name="people-outline" size={12} color="#64748B" />
+                <Text style={styles.metaLabel}>Claims & Target</Text>
+              </View>
+              <Text style={styles.metaValue}>
+                {registeredCount > 0
+                  ? `${claimedCount} / ${registeredCount}`
+                  : claimedCount > 0
+                    ? `${claimedCount} claimed`
+                    : '0 claimed'}
+              </Text>
+              {registeredCount > 0 ? (
+                <View style={styles.progressWrap}>
+                  <View style={styles.progressBarTrack}>
+                    <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                  </View>
+                  <Text style={styles.metaSubtext}>{progressPercent}% completed</Text>
+                </View>
+              ) : (
+                <Text style={styles.metaSubtext}>Per-barangay relief</Text>
+              )}
             </View>
           </View>
-
-          {includedBarangays.length > 0 && (
-            <View style={styles.coverageWrap}>
-              {Array.from(new Set(includedBarangays)).map((item) => (
-                <View key={item} style={styles.coverageChip}>
-                  <Text style={styles.coverageChipText}>{item}</Text>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         <View style={styles.scannerCard}>
@@ -533,9 +594,9 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
                     ? error
                     : resolvedResident
                       ? claimStatusText || 'Resident record resolved successfully.'
-                      : activeDistribution
-                        ? 'The scanner is linked to the current active distribution.'
-                        : 'No active distribution is selected, so scans will only validate the resident.'}
+                      : isLive
+                        ? 'Scanner is linked to this live distribution. Claims will be recorded.'
+                        : 'Distribution is scheduled. Scans will verify resident eligibility ahead of release.'}
               </Text>
             </View>
           </View>
@@ -576,8 +637,10 @@ export default function VolunteerQRScannerScreen({ onBack }: VolunteerQRScannerS
             <Text style={styles.tipText}>Use good lighting and hold the device steady for faster reads.</Text>
           </View>
           <View style={styles.tipRow}>
-            <Ionicons name="people-outline" size={18} color="#0F766E" />
-            <Text style={styles.tipText}>The selected distribution covers the host barangay plus the listed additional barangays.</Text>
+            <Ionicons name="location-outline" size={18} color="#0F766E" />
+            <Text style={styles.tipText}>
+              Relief distribution is conducted per barangay. Ensure the resident is registered under Barangay {displayedDistribution?.barangay || 'the target area'}.
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -689,11 +752,16 @@ const styles = StyleSheet.create({
   distributionHostBlock: {
     flex: 1,
   },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   distributionLabel: {
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
-    color: '#64748B',
+    color: '#0F766E',
     letterSpacing: 0.8,
   },
   distributionHost: {
@@ -707,34 +775,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: '#F0FDFA',
     borderWidth: 1,
-    borderColor: '#CCFBF1',
   },
   distributionModeText: {
     fontSize: 11,
     fontWeight: '800',
+    letterSpacing: 0.2,
   },
   assignmentChooser: {
-    gap: 10,
+    gap: 8,
   },
   assignmentChooserTitle: {
     fontSize: 12,
     fontWeight: '800',
     color: '#334155',
   },
-  assignmentChoices: {
+  assignmentChips: {
+    flexDirection: 'row',
     gap: 8,
+    paddingVertical: 2,
   },
   assignmentChoice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderWidth: 1,
     borderColor: '#CBD5E1',
     borderRadius: 14,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     backgroundColor: '#F8FAFC',
   },
   assignmentChoiceSelected: {
@@ -742,17 +814,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0FDFA',
   },
   assignmentChoiceTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#334155',
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
   },
   assignmentChoiceTitleSelected: {
     color: '#0F766E',
+    fontWeight: '800',
   },
-  assignmentChoiceTime: {
-    marginTop: 3,
-    fontSize: 11,
-    color: '#64748B',
+  liveNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 14,
+    padding: 10,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  liveNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#065F46',
+    fontWeight: '600',
+  },
+  upcomingNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 14,
+    padding: 10,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  upcomingNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#1E40AF',
+    fontWeight: '600',
   },
   assignmentNotice: {
     flexDirection: 'row',
@@ -769,6 +871,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     color: '#92400E',
+    fontWeight: '600',
   },
   distributionMetaRow: {
     flexDirection: 'row',
@@ -779,6 +882,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  metaLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   metaLabel: {
     fontSize: 11,
@@ -789,28 +899,31 @@ const styles = StyleSheet.create({
   },
   metaValue: {
     marginTop: 6,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '800',
     color: '#0F172A',
   },
-  coverageWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  metaSubtext: {
+    marginTop: 3,
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
   },
-  coverageChip: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  progressWrap: {
+    marginTop: 6,
+    gap: 3,
   },
-  coverageChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
+  progressBarTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#0F766E',
+    borderRadius: 2,
   },
   scannerCard: {
     backgroundColor: '#0F172A',
