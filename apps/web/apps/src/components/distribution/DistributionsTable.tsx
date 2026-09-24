@@ -537,7 +537,6 @@ export default function DistributionsTable({
                           closeRowMenu()
                         }}
                       />
-                      <MenuItem icon={<QrIcon />} label="Show QR Code" onClick={closeRowMenu} />
                       <MenuItem
                         icon={<HouseholdsIcon />}
                         label="View Households"
@@ -546,7 +545,7 @@ export default function DistributionsTable({
                           closeRowMenu()
                         }}
                       />
-                      {row.status !== 'Claimed' && row.lifecycleStatus !== 'Archived' ? (
+                      {canManageLifecycle && row.status !== 'Claimed' && row.lifecycleStatus !== 'Archived' ? (
                         <MenuItem
                           icon={<CalendarIcon />}
                           label="Reschedule"
@@ -557,7 +556,7 @@ export default function DistributionsTable({
                           }}
                         />
                       ) : null}
-                      {row.status !== 'Claimed' && row.lifecycleStatus !== 'Archived' ? (
+                      {canManageLifecycle && row.status !== 'Claimed' && row.lifecycleStatus !== 'Archived' ? (
                         <MenuItem
                           icon={<UsersStaffIcon />}
                           label="Edit Assigned Staff"
@@ -808,14 +807,6 @@ function EyeIcon() {
   )
 }
 
-function QrIcon() {
-  return (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 14h1v1h-1v-1zM16 16h1v1h-1v-1zM18 14h-1v1h1v3h-3v-1h-1v-3h2" />
-    </svg>
-  )
-}
 
 function CheckGreenIcon() {
   return (

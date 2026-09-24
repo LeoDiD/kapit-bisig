@@ -18,7 +18,7 @@ import DistributionClaim from '../models/DistributionClaim';
 import Claim from '../models/Claim';
 import StaffUser from '../models/StaffUser';
 import User from '../models/User';
-import { AuthRequest, requireStaffOrSuperadmin } from '../middleware/unifiedAuth';
+import { AuthRequest, requireStaffOrSuperadmin, requireSuperadmin } from '../middleware/unifiedAuth';
 import { validateRequest } from '../validation/validateRequest';
 import {
   createDistributionBody,
@@ -592,15 +592,14 @@ router.get('/scanner/active', async (req: AuthRequest, res: Response) => {
  * PATCH /api/distributions/:id/reschedule
  *
  * Reschedule an active distribution to a new date/time with an optional delay reason.
- * Admin and scoped LGU staff.
+ * Superadmin only.
  */
 router.patch(
   '/:id/reschedule',
-  requireStaffOrSuperadmin,
+  requireSuperadmin,
   validateRequest({ params: distributionIdParams, body: rescheduleDistributionBody }),
   async (req: AuthRequest, res: Response) => {
     try {
-      const scopedBarangays = await getScopedBarangays(req.authUser);
       const { id } = req.params;
       const { scheduled, reason } = req.body;
 
@@ -610,16 +609,6 @@ router.patch(
         return res.status(404).json({
           success: false,
           message: 'Distribution not found',
-        });
-      }
-
-      // Scope check
-      if (
-        isScopedRole(req.authUser?.role) && !hasDistributionAccess(scopedBarangays, distribution)
-      ) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have access to reschedule this distribution',
         });
       }
 
@@ -706,15 +695,14 @@ router.patch(
  * PATCH /api/distributions/:id/staff
  *
  * Update assigned staff members for an upcoming or active distribution.
- * RBAC: SUPERADMIN or scoped LGU_STAFF.
+ * RBAC: SUPERADMIN only.
  */
 router.patch(
   '/:id/staff',
-  requireStaffOrSuperadmin,
+  requireSuperadmin,
   validateRequest({ params: distributionIdParams, body: updateDistributionStaffBody }),
   async (req: AuthRequest, res: Response) => {
     try {
-      const scopedBarangays = await getScopedBarangays(req.authUser);
       const { id } = req.params;
       const { assignedStaffIds } = req.body as { assignedStaffIds: string[] };
 
@@ -723,16 +711,6 @@ router.patch(
         return res.status(404).json({
           success: false,
           message: 'Distribution not found',
-        });
-      }
-
-      // Scope check for LGU_STAFF
-      if (
-        isScopedRole(req.authUser?.role) && !hasDistributionAccess(scopedBarangays, distribution)
-      ) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have access to manage staff for this distribution',
         });
       }
 
@@ -924,6 +902,114 @@ router.patch(
       res.status(500).json({ success: false, message });
     }
   }
+);
+
+/**
+ * PATCH /api/distributions/:id/archive
+ *
+ * Archive a completed distribution. Superadmin only.
+ */
+router.patch(
+  '/:id/archive',
+  requireSuperadmin,
+  validateRequest({ params: distributionIdParams }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const distribution = await Distribution.findById(id);
+
+      if (!distribution) {
+        return res.status(404).json({
+          success: false,
+          message: 'Distribution not found',
+        });
+      }
+
+      if (distribution.archivedAt) {
+        return res.status(400).json({
+          success: false,
+          message: 'Distribution is already archived',
+        });
+      }
+
+      distribution.archivedAt = new Date();
+      distribution.archivedBy = req.authUser?.sub || 'SUPERADMIN';
+      await distribution.save();
+
+      await logAudit(req, 'DISTRIBUTION_ARCHIVED', 'Distribution', distribution._id.toString(), {
+        barangay: distribution.barangay,
+        archivedAt: distribution.archivedAt,
+        archivedBy: distribution.archivedBy,
+      });
+
+      return res.json({
+        success: true,
+        message: 'Distribution archived successfully',
+        data: {
+          ...distribution.toJSON(),
+          id: distribution._id.toString(),
+          lifecycleStatus: deriveDistributionLifecycle(distribution),
+        },
+      });
+    } catch (error: unknown) {
+      console.error('Error archiving distribution:', error);
+      const message = error instanceof Error ? error.message : 'Failed to archive distribution';
+      return res.status(500).json({ success: false, message });
+    }
+  },
+);
+
+/**
+ * PATCH /api/distributions/:id/restore
+ *
+ * Restore an archived distribution. Superadmin only.
+ */
+router.patch(
+  '/:id/restore',
+  requireSuperadmin,
+  validateRequest({ params: distributionIdParams }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const distribution = await Distribution.findById(id);
+
+      if (!distribution) {
+        return res.status(404).json({
+          success: false,
+          message: 'Distribution not found',
+        });
+      }
+
+      if (!distribution.archivedAt) {
+        return res.status(400).json({
+          success: false,
+          message: 'Distribution is not archived',
+        });
+      }
+
+      distribution.archivedAt = null;
+      distribution.archivedBy = null;
+      await distribution.save();
+
+      await logAudit(req, 'DISTRIBUTION_RESTORED', 'Distribution', distribution._id.toString(), {
+        barangay: distribution.barangay,
+      });
+
+      return res.json({
+        success: true,
+        message: 'Distribution restored successfully',
+        data: {
+          ...distribution.toJSON(),
+          id: distribution._id.toString(),
+          lifecycleStatus: deriveDistributionLifecycle(distribution),
+        },
+      });
+    } catch (error: unknown) {
+      console.error('Error restoring distribution:', error);
+      const message = error instanceof Error ? error.message : 'Failed to restore distribution';
+      return res.status(500).json({ success: false, message });
+    }
+  },
 );
 
 /**

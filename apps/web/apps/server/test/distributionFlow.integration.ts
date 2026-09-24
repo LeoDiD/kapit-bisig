@@ -125,10 +125,11 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
+      const role = (req.headers['x-test-role'] as string) || 'LGU_STAFF';
       (req as any).authUser = {
-        role: 'LGU_STAFF',
+        role,
         userId: String(staff._id),
-        sub: 'integration-staff',
+        sub: role === 'SUPERADMIN' ? 'integration-superadmin' : 'integration-staff',
         assignedBarangays: ['Bolo', 'Bongalon', 'Dulig', 'San Jose'],
       };
       next();
@@ -497,11 +498,40 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
       });
     assert.strictEqual(duplicateWithSameKey.status, 200);
 
-    // Reschedule test: active distribution can be rescheduled with a reason
+    // RBAC negative tests: LGU_STAFF cannot reschedule, modify staff, or archive/restore
+    const staffRescheduleAttempt = await request(app)
+      .patch(`/api/distributions/${secondDistributionId}/reschedule`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        scheduled: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+        reason: 'Staff attempted reschedule',
+      });
+    assert.strictEqual(staffRescheduleAttempt.status, 403);
+
+    const staffUpdateAttempt = await request(app)
+      .patch(`/api/distributions/${secondDistributionId}/staff`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        assignedStaffIds: [String(staff._id)],
+      });
+    assert.strictEqual(staffUpdateAttempt.status, 403);
+
+    const staffArchiveAttempt = await request(app)
+      .patch(`/api/distributions/${secondDistributionId}/archive`)
+      .set('Authorization', `Bearer ${authToken}`);
+    assert.strictEqual(staffArchiveAttempt.status, 403);
+
+    const staffRestoreAttempt = await request(app)
+      .patch(`/api/distributions/${secondDistributionId}/restore`)
+      .set('Authorization', `Bearer ${authToken}`);
+    assert.strictEqual(staffRestoreAttempt.status, 403);
+
+    // Reschedule test: superadmin can reschedule active distribution with a reason
     const rescheduleNewDate = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
     const rescheduleResponse = await request(app)
       .patch(`/api/distributions/${secondDistributionId}/reschedule`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('x-test-role', 'SUPERADMIN')
       .send({
         scheduled: rescheduleNewDate,
         reason: 'Typhoon delay: moving relief ops to next day',
@@ -515,6 +545,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const conflictRescheduleResponse = await request(app)
       .patch(`/api/distributions/${secondDistributionId}/reschedule`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('x-test-role', 'SUPERADMIN')
       .send({
         scheduled: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         reason: 'Attempted to move back to today',
@@ -524,14 +555,16 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const completedRescheduleResponse = await request(app)
       .patch(`/api/distributions/${distributionId}/reschedule`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('x-test-role', 'SUPERADMIN')
       .send({
         scheduled: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
         reason: 'Cannot reschedule completed',
       });
-    // Staff update test: updating assigned staff on active distribution succeeds
+    // Staff update test: updating assigned staff on active distribution succeeds as superadmin
     const staffUpdateResponse = await request(app)
       .patch(`/api/distributions/${secondDistributionId}/staff`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('x-test-role', 'SUPERADMIN')
       .send({
         assignedStaffIds: [String(staff._id)],
       });
@@ -543,6 +576,7 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const emptyStaffResponse = await request(app)
       .patch(`/api/distributions/${secondDistributionId}/staff`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('x-test-role', 'SUPERADMIN')
       .send({
         assignedStaffIds: [],
       });
@@ -552,11 +586,29 @@ export async function runDistributionFlowIntegrationTests(): Promise<void> {
     const completedStaffUpdateResponse = await request(app)
       .patch(`/api/distributions/${distributionId}/staff`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('x-test-role', 'SUPERADMIN')
       .send({
         assignedStaffIds: [String(staff._id)],
       });
     assert.strictEqual(completedStaffUpdateResponse.status, 400);
     assert.strictEqual(completedStaffUpdateResponse.body?.code, 'DISTRIBUTION_COMPLETED');
+
+    // Archive test: superadmin can archive completed distribution
+    const archiveResponse = await request(app)
+      .patch(`/api/distributions/${distributionId}/archive`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .set('x-test-role', 'SUPERADMIN');
+    assert.strictEqual(archiveResponse.status, 200);
+    assert.strictEqual(archiveResponse.body?.success, true);
+    assert.strictEqual(archiveResponse.body?.data?.lifecycleStatus, 'Archived');
+
+    // Restore test: superadmin can restore archived distribution
+    const restoreResponse = await request(app)
+      .patch(`/api/distributions/${distributionId}/restore`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .set('x-test-role', 'SUPERADMIN');
+    assert.strictEqual(restoreResponse.status, 200);
+    assert.strictEqual(restoreResponse.body?.success, true);
 
   } finally {
     await mongoose.disconnect();
