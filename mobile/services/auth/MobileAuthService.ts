@@ -354,6 +354,141 @@ class MobileAuthService {
     }
   }
 
+  /**
+   * Verify first-time login activation OTP
+   */
+  async verifyFirstLoginOtp(
+    email: string,
+    otp: string,
+  ): Promise<{ success: boolean; activationToken?: string; message?: string; code?: string }> {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/mobile-auth/first-login/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.message || 'OTP verification failed',
+          code: data.code,
+        };
+      }
+
+      return {
+        success: true,
+        activationToken: data.activationToken,
+        message: data.message || 'Code verified successfully',
+      };
+    } catch (error) {
+      console.error('[MobileAuthService] First-login OTP verify error:', error);
+      return {
+        success: false,
+        message: 'Unable to reach the server. Please check your network connection.',
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  /**
+   * Set initial password during first-time login
+   */
+  async firstLoginSetPassword(activationToken: string, newPassword: string): Promise<AuthResponse> {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/mobile-auth/first-login/set-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ activationToken, newPassword }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.message || 'Failed to set password',
+          code: data.code,
+        };
+      }
+
+      if (!data.success || !data.data) {
+        return {
+          success: false,
+          message: data.message || 'Invalid response from server',
+        };
+      }
+
+      const { user, token } = data.data;
+
+      if (user.role !== 'Volunteer' && user.role !== 'LGU_STAFF') {
+        return {
+          success: false,
+          message: 'This account is not allowed to use the mobile app.',
+          code: 'INVALID_ROLE',
+        };
+      }
+
+      await this.storeCredentials(token, user);
+
+      return {
+        success: true,
+        message: data.message || 'Password set successfully',
+        data: { user, token },
+      };
+    } catch (error) {
+      console.error('[MobileAuthService] First-login set password error:', error);
+      return {
+        success: false,
+        message: 'Unable to reach the server. Please check your network connection.',
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
+  /**
+   * Resend first-time login activation OTP
+   */
+  async resendFirstLoginOtp(email: string): Promise<{ success: boolean; message?: string; code?: string }> {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/mobile-auth/first-login/resend-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.message || 'Failed to resend activation code',
+          code: data.code,
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message || 'A new verification code has been sent.',
+      };
+    } catch (error) {
+      console.error('[MobileAuthService] First-login OTP resend error:', error);
+      return {
+        success: false,
+        message: 'Unable to reach the server. Please check your network connection.',
+        code: 'NETWORK_ERROR',
+      };
+    }
+  }
+
   async requestPasswordReset(email: string): Promise<PasswordRecoveryResponse> {
     try {
       const response = await fetch(`${API_CONFIG.baseUrl}/auth/forgot-password/send-otp`, {

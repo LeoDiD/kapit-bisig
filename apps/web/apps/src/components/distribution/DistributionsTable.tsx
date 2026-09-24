@@ -103,7 +103,13 @@ export default function DistributionsTable({
   const statusMenuRef = useRef<HTMLDivElement>(null)
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number; opensUp: boolean } | null>(null)
+  const [menuPos, setMenuPos] = useState<{
+    top?: number
+    bottom?: number
+    left: number
+    opensUp: boolean
+    maxHeight: number
+  } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const [selectedDistribution, setSelectedDistribution] = useState<DistributionRow | null>(null)
@@ -193,13 +199,20 @@ export default function DistributionsTable({
     }
 
     const rect = e.currentTarget.getBoundingClientRect()
-    const spaceBelow = window.innerHeight - rect.bottom
-    const opensUp = spaceBelow < 200
+    const menuWidth = 224
+    const estimatedMenuHeight = 290
+    const spaceBelow = window.innerHeight - rect.bottom - 12
+    const spaceAbove = rect.top - 12
+    const opensUp = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow
+
+    const left = Math.max(12, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 12))
 
     setMenuPos({
-      top: opensUp ? rect.top : rect.bottom + 8,
-      left: rect.right - 224,
+      top: opensUp ? undefined : rect.bottom + 8,
+      bottom: opensUp ? window.innerHeight - rect.top + 8 : undefined,
+      left,
       opensUp,
+      maxHeight: Math.min(opensUp ? spaceAbove : spaceBelow, 360),
     })
     setActiveMenu(id)
     setBarangayOpen(false)
@@ -516,11 +529,12 @@ export default function DistributionsTable({
               ref={menuRef}
               style={{
                 position: 'fixed',
-                top: menuPos.opensUp ? undefined : menuPos.top,
-                bottom: menuPos.opensUp ? window.innerHeight - menuPos.top + 8 : undefined,
+                top: menuPos.top,
+                bottom: menuPos.bottom,
                 left: menuPos.left,
+                maxHeight: menuPos.maxHeight,
               }}
-              className="z-[9999] w-56 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+              className="z-[9999] w-56 overflow-y-auto rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
             >
               <div className="flex flex-col gap-1">
                 {(() => {

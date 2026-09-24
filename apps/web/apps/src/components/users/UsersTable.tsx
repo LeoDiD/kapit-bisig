@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import AddUserModal from './AddUserModal'
 import EditUserModal from './EditUserModal'
 import { api, getScopedBarangays, StaffUser } from '@/lib/api'
@@ -54,7 +55,12 @@ export default function UsersTable() {
   const [error, setError] = useState<string | null>(null)
 
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top?: number
+    bottom?: number
+    left: number
+    maxHeight: number
+  } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StaffUser | null>(null)
   const [deleting, setDeleting] = useState(false)
   const rowMenuRef = useRef<HTMLDivElement>(null)
@@ -124,8 +130,19 @@ export default function UsersTable() {
       }
     }
 
+    const handleWindowChange = () => {
+      setActiveDropdown(null)
+    }
+
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    window.addEventListener('scroll', handleWindowChange, true)
+    window.addEventListener('resize', handleWindowChange)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('scroll', handleWindowChange, true)
+      window.removeEventListener('resize', handleWindowChange)
+    }
   }, [])
 
   const toggleRowDropdown = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
@@ -139,10 +156,26 @@ export default function UsersTable() {
 
     const buttonRect = e.currentTarget.getBoundingClientRect()
     const menuWidth = 208
-    setDropdownPosition({
-      top: buttonRect.bottom + 8,
-      left: buttonRect.right - menuWidth,
-    })
+    const estimatedMenuHeight = 260
+    const spaceBelow = window.innerHeight - buttonRect.bottom - 12
+    const spaceAbove = buttonRect.top - 12
+    const opensUp = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow
+
+    const left = Math.max(12, Math.min(buttonRect.right - menuWidth, window.innerWidth - menuWidth - 12))
+
+    if (opensUp) {
+      setDropdownPosition({
+        bottom: window.innerHeight - buttonRect.top + 8,
+        left,
+        maxHeight: Math.min(spaceAbove, 360),
+      })
+    } else {
+      setDropdownPosition({
+        top: buttonRect.bottom + 8,
+        left,
+        maxHeight: Math.min(spaceBelow, 360),
+      })
+    }
     setActiveDropdown(id)
   }
 
@@ -533,16 +566,18 @@ export default function UsersTable() {
         )}
       </section>
 
-      {activeDropdown !== null && dropdownPosition && (
+      {activeDropdown !== null && dropdownPosition && typeof document !== 'undefined' && createPortal(
         <div
           ref={rowMenuRef}
           style={{
             position: 'fixed',
             top: dropdownPosition.top,
+            bottom: dropdownPosition.bottom,
             left: dropdownPosition.left,
+            maxHeight: dropdownPosition.maxHeight,
             zIndex: 9999,
           }}
-          className="w-52 overflow-hidden rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+          className="w-52 overflow-y-auto rounded-2xl border border-[#DCDCDC] bg-[#ECECEC] p-2 shadow-[0_10px_30px_rgba(0,0,0,0.14)] dark:border-slate-700 dark:bg-slate-800 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
         >
           <div className="flex flex-col gap-1">
             <MenuItem
@@ -583,7 +618,8 @@ export default function UsersTable() {
               }}
             />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       <AddUserModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={handleUserCreated} />

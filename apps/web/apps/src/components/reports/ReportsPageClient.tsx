@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import api, { getScopedBarangays, type ReportSummaryData, type ReportDistributionRow } from '@/lib/api'
 import { useAuth } from '@/lib/AuthContext'
 import { DetailModal } from './DetailModal'
@@ -54,17 +55,33 @@ export default function ReportsPageClient() {
 
   // row menu
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
-  const [menuOpensUp, setMenuOpensUp] = useState(false)
+  const [menuPos, setMenuPos] = useState<{
+    top?: number
+    bottom?: number
+    left: number
+    maxHeight: number
+  } | null>(null)
   const rowMenuWrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (rowMenuWrapRef.current && !rowMenuWrapRef.current.contains(e.target as Node)) {
         setActiveMenu(null)
+        setMenuPos(null)
       }
     }
+    const onWindowChange = () => {
+      setActiveMenu(null)
+      setMenuPos(null)
+    }
     document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    window.addEventListener('scroll', onWindowChange, true)
+    window.addEventListener('resize', onWindowChange)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('scroll', onWindowChange, true)
+      window.removeEventListener('resize', onWindowChange)
+    }
   }, [])
 
   const fetchReport = useCallback(async (silent = false) => {
@@ -188,9 +205,26 @@ export default function ReportsPageClient() {
 
   const onToggleMenu = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
-    if (activeMenu === id) { setActiveMenu(null); return }
+    if (activeMenu === id) {
+      setActiveMenu(null)
+      setMenuPos(null)
+      return
+    }
     const rect = e.currentTarget.getBoundingClientRect()
-    setMenuOpensUp(window.innerHeight - rect.bottom < 160)
+    const menuWidth = 192
+    const estimatedHeight = 110
+    const spaceBelow = window.innerHeight - rect.bottom - 12
+    const spaceAbove = rect.top - 12
+    const opensUp = spaceBelow < estimatedHeight && spaceAbove > spaceBelow
+
+    const left = Math.max(12, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 12))
+
+    setMenuPos({
+      top: opensUp ? undefined : rect.bottom + 6,
+      bottom: opensUp ? window.innerHeight - rect.top + 6 : undefined,
+      left,
+      maxHeight: Math.min(opensUp ? spaceAbove : spaceBelow, 280),
+    })
     setActiveMenu(id)
   }
 
@@ -465,39 +499,62 @@ export default function ReportsPageClient() {
                           <StatusPill status={r.status} />
                         </td>
                         <td className="px-4 py-3.5 text-right relative">
-                          <div className="relative inline-block" ref={activeMenu === r.id ? rowMenuWrapRef : undefined}>
-                            <button
-                              onClick={(e) => onToggleMenu(r.id, e)}
-                              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
-                            >
-                              <DotsIcon />
-                            </button>
-                            {activeMenu === r.id && (
-                              <div
-                                className={[
-                                  'absolute right-0 z-50 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900',
-                                  menuOpensUp ? 'bottom-full mb-2' : 'top-full mt-2',
-                                ].join(' ')}
-                              >
-                                <MenuItem
-                                  icon={<EyeIcon />}
-                                  label="View Details"
-                                  onClick={() => { setDetailRow(r); setActiveMenu(null) }}
-                                />
-                                <MenuItem
-                                  icon={<DownloadIcon className="w-4 h-4" />}
-                                  label="Export Row CSV"
-                                  onClick={() => handleExportRowCSV(r)}
-                                />
-                              </div>
-                            )}
-                          </div>
+                          <button
+                            onClick={(e) => onToggleMenu(r.id, e)}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
+                          >
+                            <DotsIcon />
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              {activeMenu && menuPos && typeof document !== 'undefined'
+                ? createPortal(
+                    <div
+                      ref={rowMenuWrapRef}
+                      style={{
+                        position: 'fixed',
+                        top: menuPos.top,
+                        bottom: menuPos.bottom,
+                        left: menuPos.left,
+                        maxHeight: menuPos.maxHeight,
+                        zIndex: 9999,
+                      }}
+                      className="w-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      {(() => {
+                        const targetRow = distributions.find((d) => d.id === activeMenu)
+                        if (!targetRow) return null
+                        return (
+                          <>
+                            <MenuItem
+                              icon={<EyeIcon />}
+                              label="View Details"
+                              onClick={() => {
+                                setDetailRow(targetRow)
+                                setActiveMenu(null)
+                                setMenuPos(null)
+                              }}
+                            />
+                            <MenuItem
+                              icon={<DownloadIcon className="w-4 h-4" />}
+                              label="Export Row CSV"
+                              onClick={() => {
+                                handleExportRowCSV(targetRow)
+                                setMenuPos(null)
+                              }}
+                            />
+                          </>
+                        )
+                      })()}
+                    </div>,
+                    document.body,
+                  )
+                : null}
 
               {/* Pagination Controls */}
               <Pagination

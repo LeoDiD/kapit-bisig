@@ -71,3 +71,23 @@ export const loginResendOtpBody = z.object({
 export const setPasswordBody = z.object({
   newPassword: passwordString,
 }).strict();
+
+/* ---- Mobile Staff First Login Activation schemas ---- */
+
+/* POST /api/mobile-auth/first-login/verify-otp */
+export const staffFirstLoginVerifyOtpBody = z.object({
+  email: safeEmail,
+  otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must be 6 digits'),
+}).strict();
+
+/* POST /api/mobile-auth/first-login/set-password */
+export const staffFirstLoginSetPasswordBody = z.object({
+  activationToken: z.string().min(1, 'Activation token is required'),
+  newPassword: passwordString,
+}).strict();
+
+/* POST /api/mobile-auth/first-login/resend-otp */
+export const staffFirstLoginResendOtpBody = z.object({
+  email: safeEmail,
+}).strict();
+

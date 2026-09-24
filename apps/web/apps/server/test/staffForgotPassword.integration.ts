@@ -99,8 +99,8 @@ export async function runStaffForgotPasswordIntegrationTests(): Promise<void> {
       .post('/api/mobile-auth/login')
       .send({ email: establishedEmail, password: 'R7!vQ2#kL9@mT4' });
     assert.strictEqual(login.status, 200, JSON.stringify(login.body));
-    assert.strictEqual(login.body.otpRequired, true);
-    assert.ok(login.body.otpToken);
+    assert.strictEqual(login.body.success, true);
+    assert.ok(login.body.data?.token);
 
     deliveredOtp = '';
     const pending = await request(app)

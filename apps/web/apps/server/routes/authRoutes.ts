@@ -448,31 +448,39 @@ router.post('/login', loginRateLimiter, validateRequest({ body: userLoginSchema 
         });
       }
 
-      const otp = generateOtp();
-      await saveMobileLoginOtp(staffUser, otp);
+      staffUser.lastLoginAt = new Date();
+      await staffUser.save();
 
-      try {
-        await sendLoginVerifyOtpEmail(staffUser.email, otp);
-      } catch (mailErr) {
-        console.error('[MAILER] Failed to send mobile login verification OTP:', (mailErr as Error).message);
-        return res.status(500).json({
-          success: false,
-          message: 'Unable to send verification code.',
-          code: 'OTP_SEND_FAILED',
-        });
-      }
+      const scopedBarangays = Array.isArray(staffUser.assignedBarangays) ? staffUser.assignedBarangays : [];
+      const token = generateToken(
+        staffUser._id.toString(),
+        staffUser.emailLower || staffUser.email.toLowerCase(),
+        'LGU_STAFF',
+        scopedBarangays,
+      );
 
-      logAudit(req, 'LOGIN_OTP_SENT', 'Auth', staffUser._id.toString(), {
+      logAudit(req, 'LOGIN_SUCCESS', 'Auth', staffUser._id.toString(), {
         identifier: normalizedEmail,
         role: 'LGU_STAFF',
-        flow: 'MOBILE_LOGIN_2FA',
+        flow: 'MOBILE_PASSWORD_ONLY',
       }).catch(() => {});
 
       return res.json({
         success: true,
-        otpRequired: true,
-        otpToken: issueMobileOtpToken(staffUser._id.toString()),
-        message: 'A verification code has been sent to your registered Gmail address.',
+        message: 'Login successful',
+        data: {
+          user: {
+            id: staffUser._id.toString(),
+            email: staffUser.email,
+            firstName: staffUser.firstName,
+            lastName: staffUser.lastName,
+            role: 'LGU_STAFF',
+            status: staffUser.isActive ? 'Active' : 'Inactive',
+            assignedBarangays: scopedBarangays,
+            barangay: scopedBarangays.length > 0 ? scopedBarangays[0] : undefined,
+          },
+          token,
+        },
       });
     }
 

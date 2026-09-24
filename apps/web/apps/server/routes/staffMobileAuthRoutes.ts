@@ -5,10 +5,11 @@ import StaffUser from '../models/StaffUser';
 import LoginVerifyOtp from '../models/LoginVerifyOtp';
 import { loginRateLimiter } from '../middleware/rateLimiter';
 import { validateRequest } from '../validation/validateRequest';
-import { loginVerifyOtpBody, loginResendOtpBody } from '../validation/auth.schema';
+import { loginVerifyOtpBody, loginResendOtpBody, staffFirstLoginVerifyOtpBody, staffFirstLoginSetPasswordBody, staffFirstLoginResendOtpBody } from '../validation/auth.schema';
 import { generateToken } from '../middleware/authMiddleware';
 import { logAudit } from '../utils/audit';
-import { sendLoginVerifyOtpEmail } from '../utils/mailer';
+import { sendLoginVerifyOtpEmail, sendFirstLoginOtpEmail } from '../utils/mailer';
+import { validatePasswordStrength } from '../utils/passwordValidator';
 import crypto from 'crypto';
 
 const router = Router();
@@ -207,5 +208,260 @@ router.post('/login/resend-otp', loginRateLimiter, validateRequest({ body: login
   }
 });
 
+/* ------------------------------------------------------------------ */
+/*  POST /api/mobile-auth/first-login/verify-otp                      */
+/*  Verify initial account activation OTP sent on creation            */
+/* ------------------------------------------------------------------ */
+router.post(
+  '/first-login/verify-otp',
+  loginRateLimiter,
+  validateRequest({ body: staffFirstLoginVerifyOtpBody }),
+  async (req: Request, res: Response) => {
+    try {
+      const { email, otp } = req.body;
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const staffUser = await StaffUser.findOne({ emailLower: normalizedEmail }).select('+passwordHash');
+      if (!staffUser || !staffUser.isActive || !staffUser.forcePasswordReset || !!staffUser.passwordHash) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired activation request.',
+        });
+      }
+
+      const record = await LoginVerifyOtp.findOne({
+        emailLower: staffUser.emailLower,
+        purpose: 'FIRST_LOGIN',
+        usedAt: null,
+      }).sort({ lastSentAt: -1, createdAt: -1 });
+
+      if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
+        logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
+          identifier: staffUser.emailLower,
+          reason: !record ? 'no_record' : record.attemptsLeft <= 0 ? 'no_attempts' : 'expired',
+          flow: 'MOBILE_FIRST_LOGIN_VERIFY',
+        }).catch(() => {});
+        return res.status(400).json({
+          success: false,
+          message: 'Verification code has expired or is invalid. Please request a new code.',
+        });
+      }
+
+      const isMatch = await bcrypt.compare(otp, record.otpHash);
+      if (!isMatch) {
+        record.attemptsLeft = Math.max(0, record.attemptsLeft - 1);
+        await record.save();
+
+        logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', staffUser._id.toString(), {
+          identifier: staffUser.emailLower,
+          reason: 'wrong_otp',
+          attemptsLeft: record.attemptsLeft,
+          flow: 'MOBILE_FIRST_LOGIN_VERIFY',
+        }).catch(() => {});
+
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid verification code. Please check and try again.',
+        });
+      }
+
+      record.usedAt = new Date();
+      record.attemptsLeft = 0;
+      await record.save();
+
+      staffUser.lastOtpVerifiedAt = new Date();
+      await staffUser.save();
+
+      const activationToken = jwt.sign(
+        {
+          sub: staffUser._id.toString(),
+          purpose: 'mobile_first_login_set_password',
+        },
+        getJWTSecret(),
+        { expiresIn: '15m' },
+      );
+
+      logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', staffUser._id.toString(), {
+        identifier: staffUser.emailLower,
+        role: 'LGU_STAFF',
+        flow: 'MOBILE_FIRST_LOGIN_VERIFY',
+      }).catch(() => {});
+
+      return res.json({
+        success: true,
+        message: 'Code verified successfully. Please set your new password.',
+        activationToken,
+      });
+    } catch (error) {
+      console.error('[MOBILE FIRST LOGIN VERIFY OTP ERROR]', error);
+      return res.status(500).json({
+        success: false,
+        message: 'An error occurred during verification.',
+      });
+    }
+  },
+);
+
+/* ------------------------------------------------------------------ */
+/*  POST /api/mobile-auth/first-login/set-password                    */
+/*  Set initial password using the verified activation token          */
+/* ------------------------------------------------------------------ */
+router.post(
+  '/first-login/set-password',
+  loginRateLimiter,
+  validateRequest({ body: staffFirstLoginSetPasswordBody }),
+  async (req: Request, res: Response) => {
+    try {
+      const { activationToken, newPassword } = req.body;
+
+      let payload: { sub?: string; purpose?: string };
+      try {
+        payload = jwt.verify(activationToken, getJWTSecret()) as { sub?: string; purpose?: string };
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: 'Activation session has expired. Please verify your OTP again.',
+        });
+      }
+
+      if (payload.purpose !== 'mobile_first_login_set_password' || !payload.sub) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid activation token.',
+        });
+      }
+
+      const strengthResult = validatePasswordStrength(newPassword);
+      if (!strengthResult.ok) {
+        return res.status(400).json({
+          success: false,
+          message: strengthResult.reason || 'Password does not meet complexity requirements.',
+        });
+      }
+
+      const staffUser = await StaffUser.findById(payload.sub).select('+passwordHash');
+      if (!staffUser || !staffUser.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: 'Account not found or inactive.',
+        });
+      }
+
+      if (staffUser.passwordHash && !staffUser.forcePasswordReset) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password has already been set for this account.',
+        });
+      }
+
+      const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      staffUser.passwordHash = hash;
+      staffUser.forcePasswordReset = false;
+      staffUser.lastLoginAt = new Date();
+      await staffUser.save();
+
+      const scopedBarangays = Array.isArray(staffUser.assignedBarangays) ? staffUser.assignedBarangays : [];
+      const token = generateToken(
+        staffUser._id.toString(),
+        staffUser.emailLower || staffUser.email.toLowerCase(),
+        'LGU_STAFF',
+        scopedBarangays,
+      );
+      const names = splitFullName(staffUser.fullName || `${staffUser.firstName} ${staffUser.lastName}`);
+
+      logAudit(req, 'STAFF_PASSWORD_RESET', 'StaffUser', staffUser._id.toString(), {
+        identifier: staffUser.emailLower,
+        role: 'LGU_STAFF',
+        flow: 'MOBILE_FIRST_LOGIN_SET_PASSWORD',
+      }).catch(() => {});
+
+      return res.json({
+        success: true,
+        message: 'Password set successfully. Welcome to Kapit-Bisig!',
+        data: {
+          user: {
+            id: staffUser._id,
+            email: staffUser.email,
+            firstName: names.firstName,
+            lastName: names.lastName,
+            role: 'LGU_STAFF',
+            status: staffUser.isActive ? 'Active' : 'Inactive',
+            assignedBarangays: scopedBarangays,
+            barangay: scopedBarangays.length > 0 ? scopedBarangays[0] : undefined,
+          },
+          token,
+        },
+      });
+    } catch (error) {
+      console.error('[MOBILE FIRST LOGIN SET PASSWORD ERROR]', error);
+      return res.status(500).json({
+        success: false,
+        message: 'An error occurred while setting your password.',
+      });
+    }
+  },
+);
+
+/* ------------------------------------------------------------------ */
+/*  POST /api/mobile-auth/first-login/resend-otp                      */
+/*  Resend initial activation OTP for staff awaiting first login      */
+/* ------------------------------------------------------------------ */
+router.post(
+  '/first-login/resend-otp',
+  loginRateLimiter,
+  validateRequest({ body: staffFirstLoginResendOtpBody }),
+  async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const staffUser = await StaffUser.findOne({ emailLower: normalizedEmail });
+      if (staffUser && staffUser.isActive && staffUser.forcePasswordReset && !staffUser.passwordHash) {
+        const otp = generateOtp();
+        const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
+
+        await LoginVerifyOtp.findOneAndUpdate(
+          { emailLower: staffUser.emailLower, purpose: 'FIRST_LOGIN' },
+          {
+            userId: staffUser._id,
+            emailLower: staffUser.emailLower,
+            purpose: 'FIRST_LOGIN',
+            otpHash,
+            expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
+            usedAt: null,
+            attemptsLeft: OTP_MAX_ATTEMPTS,
+            lastSentAt: new Date(),
+            createdAt: new Date(),
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true },
+        );
+
+        try {
+          await sendFirstLoginOtpEmail(staffUser.email, otp);
+        } catch (mailErr) {
+          console.error('[MAILER] Failed to resend first-login OTP email:', (mailErr as Error).message);
+        }
+
+        logAudit(req, 'STAFF_ACTIVATION_OTP_RESENT', 'StaffUser', staffUser._id.toString(), {
+          identifier: staffUser.emailLower,
+          role: 'LGU_STAFF',
+          flow: 'MOBILE_FIRST_LOGIN_RESEND',
+        }).catch(() => {});
+      }
+
+      return res.json({
+        success: true,
+        message: 'If an account pending activation matches that email, a new verification code has been sent.',
+      });
+    } catch (error) {
+      console.error('[MOBILE FIRST LOGIN RESEND OTP ERROR]', error);
+      return res.status(500).json({
+        success: false,
+        message: 'An error occurred while resending the code.',
+      });
+    }
+  },
+);
 
 export default router;
+
