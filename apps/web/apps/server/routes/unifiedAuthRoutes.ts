@@ -207,7 +207,7 @@ async function saveLoginOtpRecord(
       await LoginVerifyOtp.deleteMany({
         emailLower: target.emailLower,
         purpose,
-        _id: { $ne: saved._id },
+        _id: { $nin: [saved._id] },
       });
     } catch (cleanupErr) {
       console.warn(
