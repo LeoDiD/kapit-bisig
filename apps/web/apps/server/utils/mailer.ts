@@ -24,6 +24,7 @@ export function setResetOtpSenderForTests(sender: ((to: string, otp: string) => 
 }
 
 export function isMailerConfigured(): boolean {
+  if (process.env.BREVO_API_KEY?.trim()) return true;
   return Boolean(
     process.env.SMTP_HOST?.trim()
     && process.env.SMTP_USER?.trim()
@@ -42,7 +43,7 @@ function getTransporter(): Transporter {
 
   if (!host || !user || !pass) {
     throw new Error(
-      'SMTP configuration incomplete. Set SMTP_HOST, SMTP_USER, and SMTP_PASS in your environment.',
+      'SMTP configuration incomplete. Set BREVO_API_KEY or SMTP_HOST, SMTP_USER, and SMTP_PASS in your environment.',
     );
   }
 
@@ -67,6 +68,48 @@ function getFromAddress(): string {
   return `"${APP_NAME}" <${senderEmail}>`;
 }
 
+interface SendEmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}
+
+async function sendEmail({ to, subject, html, text }: SendEmailOptions): Promise<void> {
+  const brevoApiKey = process.env.BREVO_API_KEY?.trim();
+
+  // 1. HTTPS API (bypasses cloud outbound SMTP port 587/465 blocks, e.g. Render Free Tier)
+  if (brevoApiKey) {
+    const senderEmail = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || 'kapitbisig2026@gmail.com';
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'api-key': brevoApiKey,
+      },
+      body: JSON.stringify({
+        sender: { name: APP_NAME, email: senderEmail },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Brevo API error (${res.status}): ${errBody || res.statusText}`);
+    }
+    return;
+  }
+
+  // 2. Standard Nodemailer SMTP
+  const transporter = getTransporter();
+  const from = getFromAddress();
+  await transporter.sendMail({ from, to, subject, html, text });
+}
+
 /* ------------------------------------------------------------------ */
 /*  Send password-reset OTP email                                      */
 /* ------------------------------------------------------------------ */
@@ -80,8 +123,6 @@ export async function sendResetOtpEmail(
   otp: string,
 ): Promise<void> {
   if (_resetOtpSenderForTests) return _resetOtpSenderForTests(to, otp);
-  const transporter = getTransporter();
-  const from = getFromAddress();
 
   const subject = `${APP_NAME} Password Reset OTP`;
 
@@ -113,7 +154,7 @@ export async function sendResetOtpEmail(
     'If you did not request this, you can safely ignore this email.',
   ].join('\n');
 
-  await transporter.sendMail({ from, to, subject, html, text });
+  await sendEmail({ to, subject, html, text });
 }
 
 /* ------------------------------------------------------------------ */
@@ -131,8 +172,6 @@ export async function sendLoginVerifyOtpEmail(
   if (process.env.NODE_ENV === 'test') {
     return;
   }
-  const transporter = getTransporter();
-  const from = getFromAddress();
 
   const subject = `${APP_NAME} Login Verification Code`;
 
@@ -164,7 +203,7 @@ export async function sendLoginVerifyOtpEmail(
     'If you did not attempt to log in, please secure your account immediately.',
   ].join('\n');
 
-  await transporter.sendMail({ from, to, subject, html, text });
+  await sendEmail({ to, subject, html, text });
 }
 
 /* ------------------------------------------------------------------ */
@@ -179,9 +218,6 @@ export async function sendPasswordChangeOtpEmail(
   to: string,
   otp: string,
 ): Promise<void> {
-  const transporter = getTransporter();
-  const from = getFromAddress();
-
   const subject = `${APP_NAME} Password Change Verification Code`;
 
   const html = `
@@ -212,7 +248,7 @@ export async function sendPasswordChangeOtpEmail(
     'If you did not request a password change, please secure your account immediately.',
   ].join('\n');
 
-  await transporter.sendMail({ from, to, subject, html, text });
+  await sendEmail({ to, subject, html, text });
 }
 /* ------------------------------------------------------------------ */
 
@@ -224,9 +260,6 @@ export async function sendFirstLoginOtpEmail(
   to: string,
   otp: string,
 ): Promise<void> {
-  const transporter = getTransporter();
-  const from = getFromAddress();
-
   const subject = `${APP_NAME} First Login OTP`;
 
   const html = `
@@ -257,5 +290,5 @@ export async function sendFirstLoginOtpEmail(
     'If you were not expecting this email, contact your administrator.',
   ].join('\n');
 
-  await transporter.sendMail({ from, to, subject, html, text });
+  await sendEmail({ to, subject, html, text });
 }
