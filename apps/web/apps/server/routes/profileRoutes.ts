@@ -95,40 +95,40 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
   try {
     const { role, sub, userId } = req.authUser!;
 
-    if (role === 'SUPERADMIN') {
-      // SUPERADMIN profile is env-based — return minimal info
-      return res.json({
-        success: true,
-        data: {
-          username: sub,
-          role,
-          firstName: 'Super',
-          lastName: 'Admin',
-          fullName: 'Super Admin',
-          email: '',
-          avatarUrl: null,
-        },
-      });
-    }
+    const targetUserId = userId || (role === 'SUPERADMIN' ? (await StaffUser.findOne({ role: 'SUPERADMIN' }))?._id : null);
+    const user = targetUserId ? await StaffUser.findById(targetUserId) : null;
 
-    // LGU_STAFF — fetch from DB
-    const staff = await StaffUser.findById(userId);
-    if (!staff) {
+    if (!user) {
+      if (role === 'SUPERADMIN') {
+        return res.json({
+          success: true,
+          data: {
+            username: sub,
+            role,
+            firstName: 'Super',
+            lastName: 'Admin',
+            fullName: 'Super Admin',
+            email: '',
+            avatarUrl: null,
+            assignedBarangays: [],
+          },
+        });
+      }
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     return res.json({
       success: true,
       data: {
-        id: staff._id.toString(),
-        username: staff.emailLower,
-        role: staff.role,
-        firstName: staff.firstName,
-        lastName: staff.lastName,
-        fullName: `${staff.firstName} ${staff.lastName}`.trim(),
-        email: staff.email,
-        avatarUrl: staff.avatarUrl || null,
-        assignedBarangays: staff.assignedBarangays,
+        id: user._id.toString(),
+        username: user.emailLower,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email,
+        avatarUrl: user.avatarUrl || null,
+        assignedBarangays: user.assignedBarangays || [],
       },
     });
   } catch (err) {
@@ -145,13 +145,6 @@ router.patch('/me', async (req: AuthRequest, res: Response) => {
   try {
     const { role, userId } = req.authUser!;
 
-    if (role === 'SUPERADMIN') {
-      return res.status(400).json({
-        success: false,
-        message: 'SUPERADMIN profile cannot be modified via API',
-      });
-    }
-
     const parsed = updateProfileSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -163,7 +156,8 @@ router.patch('/me', async (req: AuthRequest, res: Response) => {
 
     const { firstName, lastName } = parsed.data;
 
-    const staff = await StaffUser.findById(userId);
+    const targetUserId = userId || (role === 'SUPERADMIN' ? (await StaffUser.findOne({ role: 'SUPERADMIN' }))?._id : null);
+    const staff = targetUserId ? await StaffUser.findById(targetUserId) : null;
     if (!staff) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -228,21 +222,18 @@ router.post('/me/avatar', avatarUpload.single('avatar'), async (req: AuthRequest
   try {
     const { role, userId } = req.authUser!;
 
-    // SUPERADMIN is env-based, not in DB — cannot store avatar
-    if (role === 'SUPERADMIN') {
-      return res.status(403).json({
-        success: false,
-        message: 'Avatar upload not available for Superadmin.',
-      });
-    }
-
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const targetUserId = userId || (role === 'SUPERADMIN' ? (await StaffUser.findOne({ role: 'SUPERADMIN' }))?._id : null);
 
-    await StaffUser.findByIdAndUpdate(userId, { avatarUrl });
+    if (!targetUserId) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    await StaffUser.findByIdAndUpdate(targetUserId, { avatarUrl });
 
     return res.json({ success: true, data: { avatarUrl } });
   } catch (err) {
@@ -259,13 +250,6 @@ router.post('/me/avatar', avatarUpload.single('avatar'), async (req: AuthRequest
 router.post('/me/change-password/request-otp', async (req: AuthRequest, res: Response) => {
   try {
     const { role, userId } = req.authUser!;
-
-    if (role === 'SUPERADMIN') {
-      return res.status(400).json({
-        success: false,
-        message: 'SUPERADMIN password is managed via environment configuration',
-      });
-    }
 
     const parsed = changePasswordSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -295,7 +279,8 @@ router.post('/me/change-password/request-otp', async (req: AuthRequest, res: Res
       });
     }
 
-    const staff = await StaffUser.findById(userId).select('+passwordHash');
+    const targetUserId = userId || (role === 'SUPERADMIN' ? (await StaffUser.findOne({ role: 'SUPERADMIN' }))?._id : null);
+    const staff = targetUserId ? await StaffUser.findById(targetUserId).select('+passwordHash') : null;
     if (!staff) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -363,13 +348,6 @@ router.post('/me/change-password/confirm', async (req: AuthRequest, res: Respons
   try {
     const { role, userId } = req.authUser!;
 
-    if (role === 'SUPERADMIN') {
-      return res.status(400).json({
-        success: false,
-        message: 'SUPERADMIN password is managed via environment configuration',
-      });
-    }
-
     const parsed = changePasswordConfirmSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -398,7 +376,8 @@ router.post('/me/change-password/confirm', async (req: AuthRequest, res: Respons
       });
     }
 
-    const staff = await StaffUser.findById(userId).select('+passwordHash');
+    const targetUserId = userId || (role === 'SUPERADMIN' ? (await StaffUser.findOne({ role: 'SUPERADMIN' }))?._id : null);
+    const staff = targetUserId ? await StaffUser.findById(targetUserId).select('+passwordHash') : null;
     if (!staff) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }

@@ -17,6 +17,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 
 import { connectDB } from './config/database';
+import { ensureSuperadminExists } from './services/superadminSeedService';
 
 import userRoutes from './routes/userRoutes';
 import residentRoutes from './routes/residentRoutes';
@@ -149,40 +150,37 @@ app.use('/api/households', requireAuth, requireStaffOrSuperadmin, householdListR
 app.use('/api/reports', requireAuth, requireStaffOrSuperadmin, reportRoutes);
 app.use('/api/audit-logs', requireAuth, requireStaffOrSuperadmin, auditLogRoutes);
 
-app.use('/api/notifications', notificationRoutes); // Basic health check route
+app.use('/api/notifications', notificationRoutes);
+
+// Health check endpoint (production safe)
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    debug: {
-      hasEmail: !!process.env.SUPERADMIN_EMAIL,
-      email: process.env.SUPERADMIN_EMAIL,
-      hasHash: !!process.env.SUPERADMIN_PASSWORD_HASH,
-      hash: process.env.SUPERADMIN_PASSWORD_HASH,
-    }
   });
 });
 
-app.get('/api/debug-db', async (_req, res) => {
-  try {
-    const mongoose = require('mongoose');
-    const StaffUser = require('./models/StaffUser').default;
-    const Resident = require('./models/Resident').default;
-    
-    const staff = await StaffUser.find({});
-    const residents = await Resident.find({}).select('+password');
-    
-    res.json({
-      staffCount: staff.length,
-      staff: staff,
-      residentCount: residents.length,
-      residents: residents,
-      dbState: mongoose.connection.readyState
-    });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
+// Non-production debug route
+if (env.NODE_ENV !== 'production') {
+  app.get('/api/debug-db', async (_req, res) => {
+    try {
+      const mongoose = require('mongoose');
+      const StaffUser = require('./models/StaffUser').default;
+      const Resident = require('./models/Resident').default;
+      
+      const staffCount = await StaffUser.countDocuments();
+      const residentCount = await Resident.countDocuments();
+      
+      res.json({
+        staffCount,
+        residentCount,
+        dbState: mongoose.connection.readyState
+      });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+}
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -190,6 +188,9 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
+    await ensureSuperadminExists().catch((err) => {
+      console.warn('[BOOTSTRAP_WARN] Could not ensure Superadmin in database:', err);
+    });
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`⚡️ Server is running on port ${PORT} [0.0.0.0] [${env.NODE_ENV}]`);

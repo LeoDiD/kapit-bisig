@@ -62,9 +62,12 @@ type OtpRecordTarget = {
   userId?: string;
 };
 type SuperadminAccount = {
+  id?: string;
   email: string;
   emailLower: string;
   passwordHash: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 function getJWTSecret(): string {
@@ -133,12 +136,35 @@ function buildSuperadminSessionToken(account: SuperadminAccount, rememberMe: boo
   const payload: AuthPayload = {
     sub: account.emailLower,
     role: 'SUPERADMIN',
+    ...(account.id ? { userId: account.id } : {}),
     jti: randomUUID(),
   };
   return jwt.sign(payload, getJWTSecret(), getSessionSignOptions(rememberMe));
 }
 
-function getSuperadminAccount(): SuperadminAccount | null {
+async function getSuperadminAccount(candidateEmail?: string): Promise<SuperadminAccount | null> {
+  // 1. Database-backed lookup
+  try {
+    const query: Record<string, unknown> = { role: 'SUPERADMIN', isActive: true };
+    if (candidateEmail) {
+      query.emailLower = candidateEmail.trim().toLowerCase();
+    }
+    const dbAdmin = await StaffUser.findOne(query).select('+passwordHash');
+    if (dbAdmin && dbAdmin.passwordHash) {
+      return {
+        id: dbAdmin._id.toString(),
+        email: dbAdmin.email,
+        emailLower: dbAdmin.emailLower,
+        passwordHash: dbAdmin.passwordHash,
+        firstName: dbAdmin.firstName,
+        lastName: dbAdmin.lastName,
+      };
+    }
+  } catch (err) {
+    console.warn('[AUTH] Error querying superadmin from DB:', err);
+  }
+
+  // 2. Fallback to env vars if DB lookup yields nothing
   const email = process.env.SUPERADMIN_EMAIL?.trim();
   const passwordHash = process.env.SUPERADMIN_PASSWORD_HASH?.trim();
   if (!email || !passwordHash) return null;
@@ -229,7 +255,7 @@ router.post(
       const candidatePassword = typeof password === 'string' ? password : 'invalid-password';
 
       /* ---------- SUPERADMIN ---------- */
-      const superadminAccount = getSuperadminAccount();
+      const superadminAccount = await getSuperadminAccount(trimmedEmail);
       if (superadminAccount && trimmedEmail === superadminAccount.emailLower) {
         const match = await bcrypt.compare(candidatePassword, superadminAccount.passwordHash);
         if (!match || typeof password !== 'string') {
@@ -259,7 +285,12 @@ router.post(
             success: true,
             data: {
               user: {
+                id: superadminAccount.id,
                 username: superadminAccount.email,
+                email: superadminAccount.email,
+                firstName: superadminAccount.firstName || 'Super',
+                lastName: superadminAccount.lastName || 'Admin',
+                fullName: `${superadminAccount.firstName || 'Super'} ${superadminAccount.lastName || 'Admin'}`.trim(),
                 role: 'SUPERADMIN',
                 assignedBarangays: [],
                 forcePasswordReset: false,
@@ -271,7 +302,7 @@ router.post(
 
         const loginOtp = generateOtp();
         await saveLoginOtpRecord(
-          { emailLower: superadminAccount.emailLower },
+          { emailLower: superadminAccount.emailLower, userId: superadminAccount.id },
           'SUPERADMIN_LOGIN_2FA',
           loginOtp,
         );
@@ -282,7 +313,7 @@ router.post(
           res.status(500).json({ success: false, message: 'Unable to send verification code.' });
           return;
         }
-        logAudit(req, 'LOGIN_OTP_SENT', 'Auth', superadminAccount.emailLower, {
+        logAudit(req, 'LOGIN_OTP_SENT', 'Auth', superadminAccount.id || superadminAccount.emailLower, {
           username: superadminAccount.emailLower,
           emailLower: superadminAccount.emailLower,
           role: 'SUPERADMIN',
@@ -502,7 +533,7 @@ router.post(
 
       const remember = !!pending.rememberMe;
       if (pending.purpose === 'otp_pending_superadmin_login_2fa') {
-        const superadminAccount = getSuperadminAccount();
+        const superadminAccount = await getSuperadminAccount(pending.sub);
         if (!superadminAccount || pending.sub !== superadminAccount.emailLower) {
           res.status(400).json({ success: false, message: 'Invalid or expired code.' });
           return;
@@ -515,7 +546,7 @@ router.post(
         }).sort({ lastSentAt: -1, createdAt: -1 });
 
         if (!record || record.expiresAt < new Date() || record.attemptsLeft <= 0) {
-          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', superadminAccount.emailLower, {
+          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', superadminAccount.id || superadminAccount.emailLower, {
             emailLower: superadminAccount.emailLower,
             reason: !record ? 'no_record' : record.attemptsLeft <= 0 ? 'no_attempts' : 'expired',
             role: 'SUPERADMIN',
@@ -530,7 +561,7 @@ router.post(
           record.attemptsLeft = Math.max(0, record.attemptsLeft - 1);
           await record.save();
 
-          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', superadminAccount.emailLower, {
+          await logAudit(req, 'LOGIN_OTP_VERIFY_FAILED', 'Auth', superadminAccount.id || superadminAccount.emailLower, {
             emailLower: superadminAccount.emailLower,
             reason: 'wrong_otp',
             attemptsLeft: record.attemptsLeft,
@@ -557,7 +588,7 @@ router.post(
           otpVerified: true,
           flow: 'SUPERADMIN_LOGIN_2FA',
         });
-        await logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', superadminAccount.emailLower, {
+        await logAudit(req, 'LOGIN_OTP_VERIFY_SUCCESS', 'Auth', superadminAccount.id || superadminAccount.emailLower, {
           username: superadminAccount.emailLower,
           role: 'SUPERADMIN',
           flow: 'SUPERADMIN_LOGIN_2FA',
@@ -567,7 +598,12 @@ router.post(
           success: true,
           data: {
             user: {
+              id: superadminAccount.id,
               username: superadminAccount.email,
+              email: superadminAccount.email,
+              firstName: superadminAccount.firstName || 'Super',
+              lastName: superadminAccount.lastName || 'Admin',
+              fullName: `${superadminAccount.firstName || 'Super'} ${superadminAccount.lastName || 'Admin'}`.trim(),
               role: 'SUPERADMIN',
               assignedBarangays: [],
               forcePasswordReset: false,
@@ -706,7 +742,7 @@ router.post(
       }
 
       if (pending.purpose === 'otp_pending_superadmin_login_2fa') {
-        const superadminAccount = getSuperadminAccount();
+        const superadminAccount = await getSuperadminAccount(pending.sub);
         if (!superadminAccount || pending.sub !== superadminAccount.emailLower) {
           res.json({ success: true, message: 'If valid, a new OTP was sent.' });
           return;
@@ -714,7 +750,7 @@ router.post(
 
         const newOtp = generateOtp();
         await saveLoginOtpRecord(
-          { emailLower: superadminAccount.emailLower },
+          { emailLower: superadminAccount.emailLower, userId: superadminAccount.id },
           'SUPERADMIN_LOGIN_2FA',
           newOtp,
         );
@@ -725,7 +761,7 @@ router.post(
           console.error('[MAILER] Failed to resend superadmin OTP:', (mailErr as Error).message);
         }
 
-        await logAudit(req, 'LOGIN_OTP_RESEND', 'Auth', superadminAccount.emailLower, {
+        await logAudit(req, 'LOGIN_OTP_RESEND', 'Auth', superadminAccount.id || superadminAccount.emailLower, {
           username: superadminAccount.emailLower,
           emailLower: superadminAccount.emailLower,
           role: 'SUPERADMIN',
@@ -904,6 +940,41 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
         role: 'LGU_STAFF',
         assignedBarangays: staff.assignedBarangays,
         forcePasswordReset: staff.forcePasswordReset,
+      },
+    });
+    return;
+  }
+
+  if (role === 'SUPERADMIN') {
+    const adminUser = userId
+      ? await StaffUser.findById(userId)
+      : await StaffUser.findOne({ role: 'SUPERADMIN', isActive: true });
+
+    if (adminUser) {
+      res.json({
+        success: true,
+        data: {
+          id: adminUser._id.toString(),
+          username: adminUser.emailLower,
+          email: adminUser.email,
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          fullName: `${adminUser.firstName} ${adminUser.lastName}`.trim(),
+          role: 'SUPERADMIN',
+          assignedBarangays: [],
+          forcePasswordReset: false,
+        },
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        username: sub,
+        role: role,
+        assignedBarangays: assignedBarangays ?? [],
+        forcePasswordReset: false,
       },
     });
     return;

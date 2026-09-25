@@ -1,4 +1,4 @@
-﻿/**
+/**
  * StaffUser Model
  *
  * [SECURITY CHECKLIST §1.1] Strong Password Hashing (bcrypt 12 rounds)
@@ -20,7 +20,7 @@ export interface IStaffUser extends Document {
   lastName: string;
   fullName?: string;
   avatarUrl: string | null;
-  role: 'LGU_STAFF';
+  role: 'LGU_STAFF' | 'SUPERADMIN';
   assignedBarangays: string[];
   isActive: boolean;
   emailVerified: boolean;
@@ -73,7 +73,7 @@ const staffUserSchema = new Schema<IStaffUser>(
     },
     role: {
       type: String,
-      enum: ['LGU_STAFF'],
+      enum: ['LGU_STAFF', 'SUPERADMIN'],
       default: 'LGU_STAFF',
       required: true,
     },

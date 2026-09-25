@@ -45,13 +45,17 @@ const envSchema = z.object({
   /* ---- CORS ---- */
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
-  /* ---- Superadmin (env-based account) ---- */
+  /* ---- Superadmin (DB-backed account with env bootstrap fallbacks) ---- */
   SUPERADMIN_EMAIL: z
-    .string({ message: 'SUPERADMIN_EMAIL is required' })
-    .email('SUPERADMIN_EMAIL must be a valid email address'),
+    .string()
+    .email('SUPERADMIN_EMAIL must be a valid email address')
+    .optional()
+    .default('kapitbisig2026@gmail.com'),
   SUPERADMIN_PASSWORD_HASH: z
-    .string({ message: 'SUPERADMIN_PASSWORD_HASH is required' })
-    .min(1, 'SUPERADMIN_PASSWORD_HASH must not be empty'),
+    .string()
+    .min(1, 'SUPERADMIN_PASSWORD_HASH must not be empty')
+    .optional()
+    .default('$2b$12$V5PHd.zJhzX0b5LaT7VimeKQMO9wvY9Re1dA9kzv.UzeL7jzWOdWO'),
 
 
   /* ---- Cookie settings (optional, defaults based on NODE_ENV) ---- */
@@ -87,6 +91,7 @@ const envSchema = z.object({
   SMTP_FROM: z.string().optional(),
   APP_NAME: z.string().default('KapitBisig'),
   FRONTEND_URL: z.string().optional(),
+  HASH_SALT: z.string().optional().default('kapit-bisig-claim-salt-2026'),
 });
 
 /* ------------------------------------------------------------------ */

@@ -22,6 +22,7 @@
     "seed:target-beneficiary-demo": "ts-node --project tsconfig.server.json server/scripts/seedTargetBeneficiaryDemo.ts",
     "demo:scan:san-jose": "ts-node --project tsconfig.server.json server/scripts/runSanJoseScanDemo.ts",
     "migrate:distribution-ends": "ts-node --project tsconfig.server.json server/scripts/backfillDistributionEndsAt.ts",
+    "migrate:superadmin": "ts-node --project tsconfig.server.json server/scripts/transferSuperadminToDb.ts",
     "seed:link-claim-tokens": "node server/scripts/linkSeededClaimTokens.js",
     "test:risk2-logs": "ts-node --project tsconfig.server.json server/scripts/testRisk2Logging.ts",
     "test:distribution-flow": "ts-node --project tsconfig.server.json server/test/runDistributionFlowTests.ts",

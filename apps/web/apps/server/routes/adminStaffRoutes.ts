@@ -98,6 +98,7 @@ router.post('/', validateRequest({ body: createStaffBody }), async (req: AuthReq
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
+      role: 'LGU_STAFF',
       forcePasswordReset: true,
       assignedBarangays,
     });
@@ -169,7 +170,7 @@ router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequ
     const { search, status, barangay } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: any = {};
+    const filter: any = { role: 'LGU_STAFF' };
 
     if (search && typeof search === 'string') {
       const re = new RegExp(escapeRegex(search), 'i');
@@ -217,9 +218,10 @@ router.get('/', validateRequest({ query: listStaffQuery }), async (req: AuthRequ
 /* ------------------------------------------------------------------ */
 router.get('/stats', async (_req: AuthRequest, res: Response) => {
   try {
-    const total = await StaffUser.countDocuments();
+    const total = await StaffUser.countDocuments({ role: 'LGU_STAFF' });
     // Match list/status semantics: active only after first successful login.
     const active = await StaffUser.countDocuments({
+      role: 'LGU_STAFF',
       isActive: true,
       lastLoginAt: { $ne: null },
     });
@@ -249,7 +251,7 @@ router.patch('/:id', validateRequest({ params: staffIdParams, body: updateStaffB
     };
 
     const user = await StaffUser.findById(id);
-    if (!user) {
+    if (!user || user.role === 'SUPERADMIN') {
       res.status(404).json({ success: false, message: 'Staff user not found.' });
       return;
     }
@@ -325,7 +327,7 @@ router.patch('/:id/reset-password', validateRequest({ params: staffIdParams, bod
     }
 
     const user = await StaffUser.findById(id);
-    if (!user) {
+    if (!user || user.role === 'SUPERADMIN') {
       res.status(404).json({ success: false, message: 'Staff user not found.' });
       return;
     }
@@ -361,7 +363,7 @@ router.patch('/:id/reset-password', validateRequest({ params: staffIdParams, bod
 router.post('/:id/send-reset-otp', validateRequest({ params: staffIdParams }), async (req: AuthRequest, res: Response) => {
   try {
     const user = await StaffUser.findById(req.params.id);
-    if (!user) {
+    if (!user || user.role === 'SUPERADMIN') {
       res.status(404).json({ success: false, message: 'Staff user not found.' });
       return;
     }
@@ -404,7 +406,7 @@ router.post('/:id/send-reset-otp', validateRequest({ params: staffIdParams }), a
 router.post('/:id/resend-activation', validateRequest({ params: staffIdParams }), async (req: AuthRequest, res: Response) => {
   try {
     const user = await StaffUser.findById(req.params.id);
-    if (!user) {
+    if (!user || user.role === 'SUPERADMIN') {
       res.status(404).json({ success: false, message: 'Staff user not found.' });
       return;
     }
@@ -449,7 +451,7 @@ router.delete('/:id', validateRequest({ params: staffIdParams }), async (req: Au
     const { id } = req.params;
 
     const user = await StaffUser.findById(id);
-    if (!user) {
+    if (!user || user.role === 'SUPERADMIN') {
       res.status(404).json({ success: false, message: 'Staff user not found.' });
       return;
     }
