@@ -15,9 +15,11 @@ const ALL_NOTIFICATIONS_PAGE_SIZE = 25
 
 export function NotificationBell() {
   const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [showAllModal, setShowAllModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<NotificationData | 'all' | null>(null)
+  const [selectedDetailNotification, setSelectedDetailNotification] = useState<NotificationData | null>(null)
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [allNotifications, setAllNotifications] = useState<NotificationData[]>([])
   const [allTotal, setAllTotal] = useState(0)
@@ -140,6 +142,15 @@ export function NotificationBell() {
     return () => document.removeEventListener('keydown', keyHandler)
   }, [deleteTarget, deleting])
 
+  useEffect(() => {
+    if (!selectedDetailNotification) return
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deleteTarget) setSelectedDetailNotification(null)
+    }
+    document.addEventListener('keydown', keyHandler)
+    return () => document.removeEventListener('keydown', keyHandler)
+  }, [selectedDetailNotification, deleteTarget])
+
   const handleMarkAllRead = async () => {
     try {
       await notificationsApi.markAllRead()
@@ -191,11 +202,31 @@ export function NotificationBell() {
         if (wasUnread) setUnreadCount((c) => Math.max(0, c - 1))
         showToast.success('Notification deleted')
       }
+      setSelectedDetailNotification((current) => {
+        if (!current) return null
+        if (deleteTarget === 'all') return null
+        const targetId = typeof deleteTarget === 'object' ? (deleteTarget._id || deleteTarget.id) : null
+        return (current._id || current.id) === targetId ? null : current
+      })
       setDeleteTarget(null)
     } catch {
       showToast.error('Failed to delete notification')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleNotificationClick = (n: NotificationData) => {
+    if (!n.isRead) {
+      handleMarkRead(n._id || n.id)
+    }
+    const destination = getNotificationDestination(n)
+    if (destination) {
+      setOpen(false)
+      setShowAllModal(false)
+      router.push(destination.url)
+    } else {
+      setSelectedDetailNotification(n)
     }
   }
 
@@ -252,45 +283,56 @@ export function NotificationBell() {
                 <p className="text-sm text-gray-400 dark:text-slate-500">No notifications yet.</p>
               </div>
             ) : (
-              notifications.map((n) => (
-                <div
-                  key={n._id || n.id}
-                  className={`w-full flex items-start gap-2 px-4 py-3 transition-colors border-b border-gray-100 dark:border-slate-700/60 last:border-0 ${
-                    !n.isRead
-                      ? 'bg-emerald-50/70 dark:bg-emerald-500/10 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15'
-                      : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => { if (!n.isRead) handleMarkRead(n._id || n.id) }}
-                    className="flex flex-1 items-start gap-3 min-w-0 text-left"
+              notifications.map((n) => {
+                const dest = getNotificationDestination(n)
+                return (
+                  <div
+                    key={n._id || n.id}
+                    className={`w-full flex items-start gap-2 px-4 py-3 transition-colors border-b border-gray-100 dark:border-slate-700/60 last:border-0 ${
+                      !n.isRead
+                        ? 'bg-emerald-50/70 dark:bg-emerald-500/10 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15'
+                        : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                    }`}
                   >
-                    <NotificationTypeIcon type={n.type} />
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900 dark:text-slate-100' : 'font-medium text-gray-700 dark:text-slate-300'}`}>
-                        {n.title}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
-                      <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
-                    </div>
-                  </button>
-                  <div className="flex items-start gap-1.5 mt-0.5 shrink-0">
-                    {!n.isRead && (
-                      <span className="mt-1.5 w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                    )}
                     <button
                       type="button"
-                      onClick={() => handleDeleteClick(n)}
-                      className="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                      aria-label="Delete notification"
-                      title="Delete notification"
+                      onClick={() => handleNotificationClick(n)}
+                      className="flex flex-1 items-start gap-3 min-w-0 text-left group cursor-pointer"
                     >
-                      <TrashIcon className="w-3.5 h-3.5" />
+                      <NotificationTypeIcon type={n.type} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900 dark:text-slate-100' : 'font-medium text-gray-700 dark:text-slate-300'}`}>
+                            {n.title}
+                          </p>
+                          {dest && (
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400 opacity-80 group-hover:opacity-100 shrink-0 flex items-center gap-0.5">
+                              {dest.label.replace('View ', '')}
+                              <ChevronRightIcon className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                        <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
+                      </div>
                     </button>
+                    <div className="flex items-start gap-1.5 mt-0.5 shrink-0">
+                      {!n.isRead && (
+                        <span className="mt-1.5 w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick(n)}
+                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                        aria-label="Delete notification"
+                        title="Delete notification"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
 
@@ -361,45 +403,56 @@ export function NotificationBell() {
                   <p className="text-sm text-gray-400 dark:text-slate-500">No notifications yet.</p>
                 </div>
               ) : (
-                allNotifications.map((n) => (
-                  <div
-                    key={n._id || n.id}
-                    className={`w-full flex items-start gap-2 px-5 py-3 transition-colors border-b border-gray-100 dark:border-slate-700/60 last:border-0 ${
-                      !n.isRead
-                        ? 'bg-emerald-50/70 dark:bg-emerald-500/10 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15'
-                        : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => { if (!n.isRead) handleMarkRead(n._id || n.id) }}
-                      className="flex flex-1 items-start gap-3 min-w-0 text-left"
+                allNotifications.map((n) => {
+                  const dest = getNotificationDestination(n)
+                  return (
+                    <div
+                      key={n._id || n.id}
+                      className={`w-full flex items-start gap-2 px-5 py-3 transition-colors border-b border-gray-100 dark:border-slate-700/60 last:border-0 ${
+                        !n.isRead
+                          ? 'bg-emerald-50/70 dark:bg-emerald-500/10 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15'
+                          : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                      }`}
                     >
-                      <NotificationTypeIcon type={n.type} />
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900 dark:text-slate-100' : 'font-medium text-gray-700 dark:text-slate-300'}`}>
-                          {n.title}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
-                        <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
-                      </div>
-                    </button>
-                    <div className="flex items-start gap-1.5 mt-0.5 shrink-0">
-                      {!n.isRead && (
-                        <span className="mt-1.5 w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                      )}
                       <button
                         type="button"
-                        onClick={() => handleDeleteClick(n)}
-                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                        aria-label="Delete notification"
-                        title="Delete notification"
+                        onClick={() => handleNotificationClick(n)}
+                        className="flex flex-1 items-start gap-3 min-w-0 text-left group cursor-pointer"
                       >
-                        <TrashIcon className="w-4 h-4" />
+                        <NotificationTypeIcon type={n.type} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900 dark:text-slate-100' : 'font-medium text-gray-700 dark:text-slate-300'}`}>
+                              {n.title}
+                            </p>
+                            {dest && (
+                              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shrink-0 flex items-center gap-1 group-hover:underline">
+                                {dest.label}
+                                <ChevronRightIcon className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                          <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
+                        </div>
                       </button>
+                      <div className="flex items-start gap-1.5 mt-0.5 shrink-0">
+                        {!n.isRead && (
+                          <span className="mt-1.5 w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClick(n)}
+                          className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                          aria-label="Delete notification"
+                          title="Delete notification"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
 
@@ -464,6 +517,122 @@ export function NotificationBell() {
                   'Delete'
                 )}
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {selectedDetailNotification && createPortal(
+        <div className="fixed inset-0 z-[240] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+            onClick={() => setSelectedDetailNotification(null)}
+          />
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <NotificationTypeIcon type={selectedDetailNotification.type} />
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                    {formatNotificationType(selectedDetailNotification.type)}
+                  </span>
+                  <p className="text-[11px] text-gray-400 dark:text-slate-500">
+                    {formatExactDateTime(selectedDetailNotification.createdAt)}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDetailNotification(null)}
+                className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Close details"
+              >
+                <CloseIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-snug">
+                  {selectedDetailNotification.title}
+                </h3>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                  Received {timeAgo(selectedDetailNotification.createdAt)}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-slate-800/60 rounded-xl p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
+                  {selectedDetailNotification.message}
+                </p>
+              </div>
+
+              {selectedDetailNotification.meta && Object.keys(selectedDetailNotification.meta).length > 0 && (
+                <div className="pt-2">
+                  <h4 className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                    Additional Details
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {Object.entries(selectedDetailNotification.meta)
+                      .filter(([_, val]) => val !== undefined && val !== null && typeof val !== 'object')
+                      .map(([key, val]) => (
+                        <div key={key} className="bg-gray-50 dark:bg-slate-800/40 px-3 py-2 rounded-lg border border-gray-100 dark:border-slate-800">
+                          <span className="text-gray-400 dark:text-slate-500 block capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                          <span className="font-medium text-gray-800 dark:text-slate-200 break-all">{String(val)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3.5 bg-gray-50 dark:bg-slate-800/40 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = selectedDetailNotification
+                  setSelectedDetailNotification(null)
+                  handleDeleteClick(target)
+                }}
+                className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <TrashIcon className="w-3.5 h-3.5" />
+                Delete
+              </button>
+
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const dest = getNotificationDestination(selectedDetailNotification)
+                  if (!dest) return null
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDetailNotification(null)
+                        setOpen(false)
+                        setShowAllModal(false)
+                        router.push(dest.url)
+                      }}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-sm flex items-center gap-1.5"
+                    >
+                      {dest.label}
+                      <ChevronRightIcon className="w-3.5 h-3.5" />
+                    </button>
+                  )
+                })()}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedDetailNotification(null)}
+                  className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600 rounded-xl transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>,
@@ -772,4 +941,84 @@ function HelpSmIcon({ className }: { className?: string }) {
 
 function LogoutSmIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+}
+
+function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  )
+}
+
+function formatNotificationType(type: string): string {
+  switch (type) {
+    case 'dispatch':
+      return 'Relief Distribution'
+    case 'status_update':
+      return 'Status Update'
+    case 'volunteer':
+      return 'Volunteer Activity'
+    case 'security':
+      return 'Security Alert'
+    case 'system':
+      return 'System Notice'
+    default:
+      return 'Notification'
+  }
+}
+
+function formatExactDateTime(dateStr: string): string {
+  try {
+    const d = new Date(dateStr)
+    if (Number.isNaN(d.getTime())) return dateStr
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+function getNotificationDestination(n: NotificationData): { url: string; label: string } | null {
+  const meta = n.meta || {}
+  const type = (n.type || '').toLowerCase()
+  const title = (n.title || '').toLowerCase()
+
+  // 1. Proof / Beneficiary submission
+  if (meta.submissionId || title.includes('proof submission') || title.includes('beneficiary')) {
+    return { url: '/target-beneficiaries', label: 'View Beneficiaries' }
+  }
+
+  // 2. Relief Distribution
+  if (meta.distributionId || type === 'dispatch' || title.includes('distribution')) {
+    return { url: '/distribution', label: 'View Distribution' }
+  }
+
+  // 3. Claims / Households
+  if (meta.householdCode || meta.claimId || title.includes('claim recorded') || title.includes('household')) {
+    return { url: '/households', label: 'View Households' }
+  }
+
+  // 4. Resident verification
+  if (meta.residentId && (title.includes('resident') || title.includes('virtual resident id') || title.includes('registration'))) {
+    return { url: '/verified-residents', label: 'View Residents' }
+  }
+
+  // 5. Security alerts
+  if (type === 'security' || title.includes('security')) {
+    return { url: '/audit-logs', label: 'View Audit Logs' }
+  }
+
+  // 6. Reports
+  if (title.includes('report') || title.includes('export')) {
+    return { url: '/reports', label: 'View Reports' }
+  }
+
+  return null
 }
