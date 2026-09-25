@@ -21,11 +21,14 @@ function resolveApiProxyTarget() {
 
   return configured
 }
+const path = require('path')
 
 const nextConfig = {
   reactStrictMode: true,
-  // Use a dedicated build directory to avoid Windows file-lock issues on `.next/trace`.
-  distDir: '.next-app',
+  experimental: {
+    outputFileTracingRoot: path.join(__dirname),
+  },
+  ...(process.env.NODE_ENV === 'development' ? { distDir: '.next-app' } : {}),
   webpack(config, { dev }) {
     if (dev) {
       // Avoid flaky Windows filesystem cache pack-file races in Next dev mode.
