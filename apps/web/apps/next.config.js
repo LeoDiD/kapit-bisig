@@ -25,9 +25,7 @@ const path = require('path')
 
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    outputFileTracingRoot: path.join(__dirname),
-  },
+  outputFileTracing: false,
   ...(process.env.NODE_ENV === 'development' ? { distDir: '.next-app' } : {}),
   webpack(config, { dev }) {
     if (dev) {
