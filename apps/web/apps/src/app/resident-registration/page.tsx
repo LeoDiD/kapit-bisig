@@ -8,6 +8,7 @@ import api, { getScopedBarangays, ResidentRecord } from '@/lib/api'
 import { useAuth } from '@/lib/AuthContext'
 import { showToast } from '@/lib/toast'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
+import SectionHeader from '@/components/ui/SectionHeader'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 import ResidentReviewModal from '@/components/residents/ResidentReviewModal'
@@ -647,13 +648,21 @@ export default function ResidentRegistrationPage() {
       <div className="space-y-6">
         
         {/* Top Level Control Section & Metrics */}
-        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400">Account Authentication</p>
-            <h2 className="mt-2 text-2xl font-black text-gray-900 dark:text-slate-100">Review new registrations</h2>
+        <section className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-none">
+          <div className="border-b border-slate-200/80 bg-slate-50/90 px-5 py-5 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-6">
+            <SectionHeader
+              eyebrow="Account Authentication"
+              title="Review new registrations"
+              subtitle="Screen newly submitted resident applications, proof uploads, and validation flags"
+              rightAccessory={
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                  Ready for review: {queueMetrics.manualReviewCount}
+                </div>
+              }
+            />
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="p-5 sm:p-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryMetricCard 
               label="Visible Queue" 
               value={queueMetrics.total} 

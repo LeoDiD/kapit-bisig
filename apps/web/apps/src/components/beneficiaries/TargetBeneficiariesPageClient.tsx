@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/AuthContext'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
+import SectionHeader from '@/components/ui/SectionHeader'
 import FilterDropdown from '@/components/ui/FilterDropdown'
 import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 
@@ -495,16 +496,21 @@ const DEMO_PROOF_SUBMISSIONS: BeneficiaryProofSubmissionRecord[] = [
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_12px_40px_rgba(0,0,0,0.22)]">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-slate-400">Target Beneficiary Control</p>
-          <h2 className="mt-2 text-2xl font-black text-gray-900 dark:text-slate-100">Event-scoped eligibility review</h2>
-          <p className="mt-2 max-w-3xl text-sm text-gray-600 dark:text-slate-400">
-            Review affected-resident proof submissions, approve complete requests, and return incomplete requests so residents can upload clearer proof or missing barangay documents for each distribution.
-          </p>
+      <section className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.05)] dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-[0_12px_40px_rgba(0,0,0,0.22)]">
+        <div className="border-b border-slate-200/80 bg-slate-50/90 px-5 py-5 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-6">
+          <SectionHeader
+            eyebrow="Target Beneficiary Control"
+            title="Event-scoped eligibility review"
+            subtitle="Review resident proof submissions, approve eligible claims, or return for revision."
+            rightAccessory={
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                Pending reviews: {proofSummary.pendingVerification}
+              </div>
+            }
+          />
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="p-5 sm:p-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryMetricCard label="Matched Submissions" value={String(proofSummary.total)} helper="Across the current proof queue filter" variant="blue" icon={<ClipboardIcon className="h-5 w-5" />} />
           <SummaryMetricCard label="Pending Reviews" value={String(proofSummary.pendingVerification)} helper="Across the current queue filter" variant="amber" icon={<ClockIcon className="h-5 w-5" />} />
           <SummaryMetricCard label="Approved Proofs" value={String(proofSummary.approved)} helper="Across the current queue filter" variant="emerald" icon={<ShieldCheckIcon className="h-5 w-5" />} />

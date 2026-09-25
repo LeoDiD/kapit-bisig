@@ -67,23 +67,23 @@ export default function GeneratedCodesTable({
   selectedBarangay,
 }: Props) {
   return (
-    <section className="rounded-[2rem] border border-white/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl flex flex-col overflow-hidden shadow-[0_8px_32px_-8px_rgba(0,0,0,0.08)]">
+    <section className="overflow-hidden rounded-[2rem] border border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-900 shadow-sm flex flex-col">
       {/* Integrated Toolbar */}
-      <div className="p-5 border-b border-gray-100 dark:border-slate-800 bg-white/40 dark:bg-slate-800/40 flex flex-col lg:flex-row gap-4 justify-between items-center sm:items-start lg:items-center">
+      <div className="p-5 border-b border-slate-200/80 bg-slate-50/90 dark:border-slate-700/80 dark:bg-slate-800/80 flex flex-col lg:flex-row gap-4 justify-between items-center sm:items-start lg:items-center">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 tracking-wide uppercase">
               {viewMode === 'REGISTRY' ? `Barangay Token Registry (${selectedBarangay || 'All'})` : batchTitle || 'Generated Codes Batch'}
             </h3>
             {onSwitchMode && (
-              <div className="inline-flex rounded-lg p-0.5 bg-gray-200/60 dark:bg-slate-800 border border-gray-300/40 dark:border-slate-700">
+              <div className="inline-flex rounded-xl p-0.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
                 <button
                   type="button"
                   onClick={() => onSwitchMode('BATCH')}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
                     viewMode === 'BATCH'
-                      ? 'bg-white dark:bg-slate-750 text-[#004A1C] dark:text-[#ECC323] shadow-sm font-bold'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      ? 'bg-slate-900 text-white dark:bg-slate-700 dark:text-white shadow-sm font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   Active Batch {hasActiveBatch ? '●' : ''}
@@ -91,10 +91,10 @@ export default function GeneratedCodesTable({
                 <button
                   type="button"
                   onClick={() => onSwitchMode('REGISTRY')}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
                     viewMode === 'REGISTRY'
-                      ? 'bg-white dark:bg-slate-750 text-[#004A1C] dark:text-[#ECC323] shadow-sm font-bold'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      ? 'bg-slate-900 text-white dark:bg-slate-700 dark:text-white shadow-sm font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   Barangay Registry

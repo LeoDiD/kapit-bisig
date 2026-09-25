@@ -8,6 +8,7 @@ import { api, getScopedBarangays, StaffUser } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
+import SectionHeader from '@/components/ui/SectionHeader'
 import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 import { useAuth } from '@/lib/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -276,17 +277,18 @@ export default function UsersTable() {
 
   return (
     <>
-      <section className="mb-6 rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div className="border-b border-slate-200 px-5 py-5 dark:border-slate-700 sm:px-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">Team Access Overview</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-100">
-                Staff account summary
-              </h2>
-            </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Active rate {metrics.activeRate}%</p>
-          </div>
+      <section className="mb-6 overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-900">
+        <div className="border-b border-slate-200/80 bg-slate-50/90 px-5 py-5 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-6">
+          <SectionHeader
+            eyebrow="Team Access Overview"
+            title="Staff account summary"
+            subtitle="Manage municipal staff accounts, role-based access permissions, and account status"
+            rightAccessory={
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                Active rate {metrics.activeRate}%
+              </div>
+            }
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import SelectDropdown from '@/components/ui/SelectDropdown'
+import SectionHeader from '@/components/ui/SectionHeader'
 
 const EXPIRY_DAYS = 30
 
@@ -193,15 +194,22 @@ export default function CodeGenerationForm({
   )
 
   return (
-    <section className="relative z-20 rounded-[2rem] border border-white/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl p-6 lg:p-8 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.08)] mb-8">
-      {/* Brand Ambient Glows */}
-      <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-[#ECC323]/20 dark:from-[#ECC323]/10 to-[#004A1C]/5 dark:to-[#004A1C]/20 rounded-full blur-[80px] pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-[#004A1C]/5 dark:bg-slate-800/80 rounded-full blur-[60px] pointer-events-none" />
+    <section className="relative z-20 overflow-hidden rounded-[2rem] border border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-900 shadow-sm mb-8">
+      {/* Top Header Bar */}
+      <div className="border-b border-slate-200/80 bg-slate-50/90 px-6 py-5 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-8">
+        <SectionHeader
+          eyebrow="Security & Token Dispatch"
+          title="Municipal code generator"
+          subtitle="Generate single-use verification tokens for barangay resident distribution claims"
+          rightAccessory={
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+              30-day token lifetime
+            </div>
+          }
+        />
       </div>
 
-      
-      <div className="relative z-10">
+      <div className="relative z-10 p-6 lg:p-8">
         <div className="flex flex-col lg:flex-row lg:items-end gap-6">
           <div className="flex-1 w-full">
             <label htmlFor="code-generation-barangay" className="mb-2 block text-[11px] font-bold tracking-widest text-gray-500 dark:text-gray-400 uppercase">

@@ -1,5 +1,6 @@
 import React from 'react'
 import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
+import SectionHeader from '@/components/ui/SectionHeader'
 
 type Counts = {
   total: number
@@ -20,17 +21,18 @@ export default function HouseholdStats({
   const claimRate = total > 0 ? Math.round((claimed / total) * 100) : 0
 
   return (
-    <section className="mb-6 rounded-[28px] border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Relief Registry Overview</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950">
-              Resident relief summary
-            </h2>
-          </div>
-          <p className="text-sm text-slate-500">Claim rate {claimRate}%</p>
-        </div>
+    <section className="mb-6 overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-900">
+      <div className="border-b border-slate-200/80 bg-slate-50/90 px-5 py-5 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-6">
+        <SectionHeader
+          eyebrow="Relief Registry Overview"
+          title="Resident relief summary"
+          subtitle="Comprehensive overview of registered resident households, assistance claims, and distribution coverage"
+          rightAccessory={
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+              Claim rate {claimRate}%
+            </div>
+          }
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">

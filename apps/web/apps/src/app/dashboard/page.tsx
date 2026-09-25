@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { DashboardLayout, Header } from '@/components/layout'
+import { SectionHeader } from '@/components/ui'
 import {
   LowStockAlert,
   QuickActions,
@@ -143,39 +144,33 @@ export default function DashboardPage() {
       />
 
       {/* ── High-Impact Executive Command Deck ── */}
-      <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] transition-all dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+      <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] transition-all dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
         {/* Top Header Bar */}
-        <div className="border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50/80 via-white to-slate-50/80 px-5 py-3.5 dark:from-slate-900/90 dark:via-slate-900 dark:to-slate-900/90 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 animate-pulse" />
-              <div>
-                <h2 className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-base">
-                  Executive Relief Distribution Command
-                </h2>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Real-time municipal distribution monitoring & telemetry
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
-                <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
-                {currentPeriod}
-              </div>
-              <button
-                type="button"
-                onClick={() => fetchDashboardStats(false)}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 transition-colors"
-                title="Refresh metrics"
-              >
-                <RefreshIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
-                <span>Refresh</span>
-              </button>
-            </div>
-          </div>
+        <div className="border-b border-slate-200/80 bg-slate-50/90 px-5 py-5 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-6">
+          <SectionHeader
+            eyebrow="Executive Command Overview"
+            title="Executive Relief Distribution Command"
+            subtitle="Real-time municipal distribution monitoring & telemetry"
+            statusDot="emerald"
+            rightAccessory={
+              <>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                  <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                  {currentPeriod}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fetchDashboardStats(false)}
+                  disabled={loading}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 shadow-sm transition-colors"
+                  title="Refresh metrics"
+                >
+                  <RefreshIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+                  <span>Refresh</span>
+                </button>
+              </>
+            }
+          />
         </div>
 
         {/* 4-KPI Grid with Rich Sub-metrics */}

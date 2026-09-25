@@ -1,13 +1,15 @@
 'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { DashboardLayout, Header } from '@/components/layout'
 import { api } from '@/lib/api'
 import type { AuditLogRecord } from '@/lib/api'
 import { showToast } from '@/lib/toast'
-import { ChevronLeft, ChevronRight, Search, RotateCcw, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, RotateCcw, X, Shield, Key, FileText, AlertTriangle } from 'lucide-react'
 import { sanitizeSearchQuery, MAX_SEARCH_LENGTH } from '@/lib/inputValidation'
 import SelectDropdown from '@/components/ui/SelectDropdown'
+import SectionHeader from '@/components/ui/SectionHeader'
+import SummaryMetricCard from '@/components/ui/SummaryMetricCard'
 
 const ACTION_OPTIONS = [
   { value: '', label: 'All Actions' },
@@ -33,6 +35,7 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
 
   // Direct column filters
   const [dateFilter, setDateFilter] = useState('')
@@ -95,6 +98,7 @@ export default function AuditLogsPage() {
       setLogs(res.data || [])
       if (res.pagination) {
         setTotalPages(res.pagination.totalPages)
+        setTotal(res.pagination.totalDocs || 0)
       }
     } catch (err) {
       console.error(err)
@@ -108,24 +112,92 @@ export default function AuditLogsPage() {
     fetchLogs()
   }, [fetchLogs])
 
+  const securityAlertCount = useMemo(
+    () => logs.filter((l) => l.action === 'ACCESS_DENIED' || l.action === 'LOGIN_FAILURE').length,
+    [logs]
+  )
+  const mutationCount = useMemo(
+    () => logs.filter((l) => l.action.includes('CREATED') || l.action.includes('UPDATED') || l.action.includes('REVIEWED')).length,
+    [logs]
+  )
+
   return (
     <DashboardLayout>
       <Header
         title="Audit Logs"
         subtitle="System activity and security events (Superadmin Only)"
-      >
-        {hasActiveFilters && (
-          <button
-            onClick={handleResetFilters}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-            Reset all filters
-          </button>
-        )}
-      </Header>
+      />
 
-      <div className="mt-6 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm">
+      {/* ── Top Level Control Section & Metrics ── */}
+      <section className="mb-6 overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-900">
+        <div className="border-b border-slate-200/80 bg-slate-50/90 px-5 py-5 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-6">
+          <SectionHeader
+            eyebrow="Security & Governance"
+            title="System audit activity"
+            subtitle="Immutable audit trail of administrator actions, resident verifications, and distribution lifecycle events"
+            rightAccessory={
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                Total events {total.toLocaleString()}
+              </div>
+            }
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
+          <SummaryMetricCard
+            label="Total Logged"
+            value={total}
+            helper="All recorded audit events"
+            variant="blue"
+            icon={<Shield className="h-5 w-5" />}
+          />
+          <SummaryMetricCard
+            label="Visible Page"
+            value={logs.length}
+            helper={`Page ${page} of ${totalPages || 1}`}
+            variant="purple"
+            icon={<FileText className="h-5 w-5" />}
+          />
+          <SummaryMetricCard
+            label="Data Changes"
+            value={mutationCount}
+            helper="Creations & updates on page"
+            variant="emerald"
+            icon={<Key className="h-5 w-5" />}
+          />
+          <SummaryMetricCard
+            label="Security Alerts"
+            value={securityAlertCount}
+            helper="Denied access & failed logins"
+            variant="rose"
+            icon={<AlertTriangle className="h-5 w-5" />}
+          />
+        </div>
+      </section>
+
+      {/* ── Audit Logs Table Card ── */}
+      <div className="overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-sm dark:border-slate-700/80 dark:bg-slate-900">
+        <div className="border-b border-slate-200/80 bg-slate-50/90 px-5 py-4 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                Audit Directory
+              </p>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+                Event records
+              </h3>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shadow-sm"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset filters
+              </button>
+            )}
+          </div>
+        </div>
         <div className="overflow-x-auto min-h-[460px]">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">

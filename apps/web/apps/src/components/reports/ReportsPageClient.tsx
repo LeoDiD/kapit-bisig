@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import api, { getScopedBarangays, type ReportSummaryData, type ReportDistributionRow } from '@/lib/api'
 import { useAuth } from '@/lib/AuthContext'
 import { DetailModal } from './DetailModal'
+import SectionHeader from '@/components/ui/SectionHeader'
 import { 
   formatDate, Dropdown, StatCard, StatusPill, ClaimRateBar, 
   Donut, MiniBarChart, SummaryCell, MenuItem, LoadingSpinner, EmptyState,
@@ -252,42 +253,42 @@ export default function ReportsPageClient() {
   return (
     <div className="space-y-6">
       {/* ── High-Density Filter Toolbar ──────────────────── */}
-      <div className="print:hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
-        <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100 text-sm">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-              <FilterIcon className="h-4 w-4" />
-            </div>
-            <span>Report Parameters & Filters</span>
-          </div>
-
-          {/* Quick Date Presets */}
-          <div className="flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800 text-xs font-semibold">
-            {[
-              { id: 'all', label: 'All' },
-              { id: 'today', label: 'Today' },
-              { id: '7d', label: '7 Days' },
-              { id: '30d', label: '30 Days' },
-              { id: 'month', label: 'This Month' },
-              { id: 'ytd', label: 'YTD' },
-            ].map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => applyDatePreset(p.id as any)}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
-                  activePreset === p.id
-                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
-                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+      <div className="print:hidden overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+        <div className="border-b border-slate-200/80 bg-slate-50/90 px-5 py-5 dark:border-slate-700/80 dark:bg-slate-800/80 sm:px-6">
+          <SectionHeader
+            eyebrow="Reporting & Analytics"
+            title="Distribution report generator"
+            subtitle="Configure report types, date ranges, and sector filters to generate municipal distribution summaries"
+            rightAccessory={
+              <div className="flex flex-wrap items-center gap-1 rounded-xl bg-white p-1 dark:bg-slate-900 text-xs font-semibold border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'today', label: 'Today' },
+                  { id: '7d', label: '7 Days' },
+                  { id: '30d', label: '30 Days' },
+                  { id: 'month', label: 'This Month' },
+                  { id: 'ytd', label: 'YTD' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => applyDatePreset(p.id as any)}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${
+                      activePreset === p.id
+                        ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-700 dark:text-white'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            }
+          />
         </div>
 
-        {/* Inputs Grid */}
+        <div className="p-5 sm:p-6">
+          {/* Inputs Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
@@ -389,6 +390,7 @@ export default function ReportsPageClient() {
           )}
         </div>
       </div>
+    </div>
 
       {/* ── Error Banner ──────────────────────────────────── */}
       {error && (
@@ -440,8 +442,8 @@ export default function ReportsPageClient() {
 
       {/* ── Distribution Summary Table ────────────────────── */}
       {generated && !loading && reportType === 'distribution' && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
-          <div className="border-b border-slate-100 p-4 sm:p-5 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+          <div className="border-b border-slate-200/80 bg-slate-50/90 p-4 sm:p-5 dark:border-slate-700/80 dark:bg-slate-800/80 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
                 <DocIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -451,7 +453,7 @@ export default function ReportsPageClient() {
                 Filtered period: <strong className="text-slate-700 dark:text-slate-300">{dateRangeLabel}</strong>
               </div>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
               {distributions.length} records found
             </span>
           </div>
@@ -586,8 +588,8 @@ export default function ReportsPageClient() {
 
       {/* ── Barangay Summary Table ────────────────────────── */}
       {generated && !loading && reportType === 'barangay' && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
-          <div className="border-b border-slate-100 p-4 sm:p-5 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_6px_16px_rgba(0,0,0,0.03)] dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+          <div className="border-b border-slate-200/80 bg-slate-50/90 p-4 sm:p-5 dark:border-slate-700/80 dark:bg-slate-800/80 flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
                 <DocIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -597,7 +599,7 @@ export default function ReportsPageClient() {
                 Performance grouped across barangay jurisdictions
               </div>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
               {barangaySummaryRows.length} sectors active
             </span>
           </div>
