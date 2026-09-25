@@ -202,12 +202,12 @@ async function saveLoginOtpRecord(
   // Defensive cleanup: keep only the newest OTP record for a given email+purpose.
   // Without a DB unique constraint, historical duplicates can cause findOne() to
   // read a stale hash and reject a freshly sent code.
-  if (saved?._id) {
+  if (saved?._id && saved.createdAt) {
     try {
       await LoginVerifyOtp.deleteMany({
         emailLower: target.emailLower,
         purpose,
-        _id: { $nin: [saved._id] },
+        createdAt: { $lt: saved.createdAt },
       });
     } catch (cleanupErr) {
       console.warn(
@@ -309,7 +309,7 @@ router.post(
         try {
           await sendLoginVerifyOtpEmail(superadminAccount.email, loginOtp);
         } catch (mailErr) {
-          console.error('[MAILER] Failed to send superadmin OTP:', (mailErr as Error).message);
+          console.error('[MAILER] Failed to send superadmin OTP:', mailErr);
           res.status(500).json({ success: false, message: 'Unable to send verification code.' });
           return;
         }
