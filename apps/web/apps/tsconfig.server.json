@@ -19,6 +19,7 @@
   "exclude": [
     "node_modules",
     "server/test/**/*",
+    "server/scripts/**/*",
     "server/**/*.test.ts",
     "server/**/*.spec.ts",
     "server/**/*.unit.ts",
