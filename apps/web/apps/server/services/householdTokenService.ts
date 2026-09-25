@@ -18,6 +18,7 @@ import HouseholdToken, { IHouseholdToken, TokenStatus } from '../models/Househol
 import RegistrationAuditLog from '../models/RegistrationAuditLog';
 
 const SALT_ROUNDS = 12;
+const BATCH_SALT_ROUNDS = 10;
 const DEFAULT_TOKEN_VALIDITY_DAYS = 30;
 const LOCK_DURATION_SECONDS = 60; // 60-second lock for registration
 const MAX_DUPLICATE_BLOCK_ATTEMPTS = 3;
@@ -51,6 +52,31 @@ export interface TokenGenerationResult {
   success: boolean;
   token?: string; // Plain token (shown once, then never again)
   tokenId?: mongoose.Types.ObjectId;
+  expiresAt?: Date;
+  error?: string;
+}
+
+export interface BatchTokenGenerationParams {
+  barangay: string;
+  quantity: number;
+  issuedBy: string;
+  validityDays?: number;
+}
+
+export interface GeneratedTokenItem {
+  code: string;
+  barangay: string;
+  status: TokenStatus;
+  expiresAt: Date;
+  generatedAt: Date;
+}
+
+export interface BatchTokenGenerationResult {
+  success: boolean;
+  batchId?: string;
+  tokens?: GeneratedTokenItem[];
+  quantity?: number;
+  generatedAt?: Date;
   expiresAt?: Date;
   error?: string;
 }
@@ -204,6 +230,95 @@ export class HouseholdTokenService {
       return {
         success: false,
         error: 'Failed to generate token',
+      };
+    }
+  }
+
+  /**
+   * Bulk generate household tokens with high-performance concurrent hashing and single bulk insert.
+   * Prevents HTTP timeouts when generating up to 100 tokens.
+   */
+  async generateBatch(params: BatchTokenGenerationParams): Promise<BatchTokenGenerationResult> {
+    try {
+      const { barangay, quantity, issuedBy } = params;
+      const validityDays = params.validityDays || DEFAULT_TOKEN_VALIDITY_DAYS;
+      const generatedAt = new Date();
+      const expiresAt = new Date(generatedAt);
+      expiresAt.setDate(expiresAt.getDate() + validityDays);
+
+      const batchSlug = barangay.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      const batchId = `BATCH-${batchSlug}-${Date.now()}`;
+
+      // Generate all cryptographically secure plain tokens first
+      const plainTokens: string[] = [];
+      for (let i = 0; i < quantity; i++) {
+        plainTokens.push(generateSecureToken());
+      }
+
+      // Process hashing concurrently in chunks of 10 to balance event loop and thread pool
+      const chunkSize = 10;
+      const tokenDocs: Array<Record<string, unknown>> = [];
+      const returnTokens: GeneratedTokenItem[] = [];
+
+      for (let i = 0; i < plainTokens.length; i += chunkSize) {
+        const chunk = plainTokens.slice(i, i + chunkSize);
+        const hashedChunk = await Promise.all(
+          chunk.map(async (plainToken, idx) => {
+            const globalIndex = i + idx;
+            const sequence = String(globalIndex + 1).padStart(3, '0');
+            const tokenHash = await bcrypt.hash(plainToken, BATCH_SALT_ROUNDS);
+            const tokenPrefix = plainToken.replace(/-/g, '').slice(0, 4);
+
+            return {
+              plainToken,
+              doc: {
+                tokenHash,
+                tokenPrefix,
+                batchId,
+                status: 'UNUSED' as TokenStatus,
+                expiresAt,
+                householdInfo: {
+                  headOfHousehold: `Unassigned Household ${sequence}`,
+                  address: barangay,
+                  barangay,
+                  expectedMembers: 1,
+                  notes: `Bulk generated via Code Generation page (${quantity} tokens)`,
+                },
+                issuedBy,
+                issuedAt: generatedAt,
+              },
+            };
+          })
+        );
+
+        for (const item of hashedChunk) {
+          tokenDocs.push(item.doc);
+          returnTokens.push({
+            code: item.plainToken,
+            barangay,
+            status: 'UNUSED',
+            expiresAt,
+            generatedAt,
+          });
+        }
+      }
+
+      // Single atomic database bulk insert
+      await HouseholdToken.insertMany(tokenDocs, { ordered: false });
+
+      return {
+        success: true,
+        batchId,
+        quantity: returnTokens.length,
+        generatedAt,
+        expiresAt,
+        tokens: returnTokens,
+      };
+    } catch (error) {
+      console.error('[TokenService] Error generating token batch:', (error as Error).message);
+      return {
+        success: false,
+        error: 'Failed to generate token batch',
       };
     }
   }
@@ -965,6 +1080,125 @@ export class HouseholdTokenService {
     }
     
     return result.modifiedCount;
+  }
+
+  /**
+   * Get token counts and statuses for a barangay
+   */
+  async getTokenStatsByBarangay(barangay: string): Promise<{
+    activeUnused: number;
+    used: number;
+    expired: number;
+    total: number;
+  }> {
+    const now = new Date();
+    const [activeUnused, used, expired, total] = await Promise.all([
+      HouseholdToken.countDocuments({
+        'householdInfo.barangay': barangay,
+        status: 'UNUSED',
+        expiresAt: { $gt: now },
+      }).setOptions({ sanitizeFilter: false }),
+      HouseholdToken.countDocuments({
+        'householdInfo.barangay': barangay,
+        status: 'USED',
+      }).setOptions({ sanitizeFilter: false }),
+      HouseholdToken.countDocuments({
+        'householdInfo.barangay': barangay,
+        $or: [
+          { status: 'EXPIRED' },
+          { status: 'UNUSED', expiresAt: { $lte: now } },
+        ],
+      }).setOptions({ sanitizeFilter: false }),
+      HouseholdToken.countDocuments({
+        'householdInfo.barangay': barangay,
+      }).setOptions({ sanitizeFilter: false }),
+    ]);
+
+    return { activeUnused, used, expired, total };
+  }
+
+  /**
+   * List batch generation history for a barangay or across barangays
+   */
+  async listBatchesByBarangay(barangay?: string): Promise<Array<{
+    batchId: string;
+    barangay: string;
+    quantity: number;
+    issuedBy: string;
+    date: Date;
+    summary: {
+      unused: number;
+      used: number;
+      expired: number;
+    };
+  }>> {
+    const match: Record<string, unknown> = {
+      batchId: { $ne: null, $exists: true },
+    };
+    if (barangay && barangay.trim()) {
+      match['householdInfo.barangay'] = barangay.trim();
+    }
+
+    const batches = await HouseholdToken.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$batchId',
+          barangay: { $first: '$householdInfo.barangay' },
+          quantity: { $sum: 1 },
+          issuedBy: { $first: '$issuedBy' },
+          date: { $min: '$issuedAt' },
+          unusedCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'UNUSED'] }, 1, 0] },
+          },
+          usedCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'USED'] }, 1, 0] },
+          },
+          expiredCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'EXPIRED'] }, 1, 0] },
+          },
+        },
+      },
+      { $sort: { date: -1 } },
+      { $limit: 50 },
+    ]);
+
+    return batches.map((b) => ({
+      batchId: b._id,
+      barangay: b.barangay,
+      quantity: b.quantity,
+      issuedBy: b.issuedBy,
+      date: b.date,
+      summary: {
+        unused: b.unusedCount,
+        used: b.usedCount,
+        expired: b.expiredCount,
+      },
+    }));
+  }
+
+  /**
+   * Get tokens belonging to a specific batch (with masked codes for audit)
+   */
+  async getBatchTokens(batchId: string): Promise<Array<{
+    code: string;
+    barangay: string;
+    status: TokenStatus;
+    expiry: Date;
+    createdAt: Date;
+  }>> {
+    const tokens = await HouseholdToken.find({ batchId })
+      .setOptions({ sanitizeFilter: false })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    return tokens.map((t) => ({
+      code: `${t.tokenPrefix}-****-****`,
+      barangay: t.householdInfo.barangay,
+      status: t.status,
+      expiry: t.expiresAt,
+      createdAt: t.createdAt,
+    }));
   }
 }
 

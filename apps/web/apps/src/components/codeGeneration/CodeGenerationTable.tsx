@@ -189,8 +189,36 @@ function filterRows(rows: GeneratedCodeRow[], search: string, statusFilter: 'ALL
   })
 }
 
-// Placeholder for future GET history endpoint integration.
-async function loadBatchHistoryFromApi(): Promise<BatchHistoryItem[]> {
+const ACTIVE_BATCH_STORAGE_KEY = 'kapit_bisig_active_batch'
+
+async function loadBatchHistoryFromApi(brgy?: string): Promise<BatchHistoryItem[]> {
+  try {
+    const url = brgy
+      ? `${API_URL}/residents/codes/batches?barangay=${encodeURIComponent(brgy)}`
+      : `${API_URL}/residents/codes/batches`
+    const response = await fetch(url, { credentials: 'include' })
+    if (!response.ok) return []
+    const json = await response.json()
+    if (json.success && Array.isArray(json.batches)) {
+      return json.batches.map((b: any) => ({
+        batchId: b.batchId,
+        barangay: b.barangay,
+        quantity: b.quantity,
+        generatedBy: b.issuedBy || 'Admin',
+        date: toReadableDate(b.date),
+        rows: [],
+        summary: {
+          generatedCount: b.quantity,
+          failedCount: 0,
+          unused: b.summary?.unused,
+          used: b.summary?.used,
+          expired: b.summary?.expired,
+        },
+      }))
+    }
+  } catch {
+    // Silently fall back to empty array
+  }
   return []
 }
 
@@ -208,11 +236,15 @@ export default function CodeGenerationTable() {
   const [now, setNow] = useState(() => new Date())
   const [activeUnusedLabel, setActiveUnusedLabel] = useState('Select a barangay to view active unused codes')
 
-  const [rows, setRows] = useState<GeneratedCodeRow[]>([])
+  // Data states
+  const [batchRows, setBatchRows] = useState<GeneratedCodeRow[]>([])
+  const [registryRows, setRegistryRows] = useState<GeneratedCodeRow[]>([])
   const [summary, setSummary] = useState<{ generatedCount: number; failedCount: number; resolveTimeMs?: number } | null>(null)
   const [errorBanner, setErrorBanner] = useState('')
-
   const [history, setHistory] = useState<BatchHistoryItem[]>([])
+  const [viewMode, setViewMode] = useState<'BATCH' | 'REGISTRY'>('BATCH')
+  const [hasActiveBatch, setHasActiveBatch] = useState(false)
+  const [batchTitle, setBatchTitle] = useState('Generated Codes Batch')
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | CodeStatus>('ALL')
@@ -234,7 +266,9 @@ export default function CodeGenerationTable() {
   const expirationLabel = useMemo(() => toReadableDate(expirationDate), [expirationDate])
   const canSubmit = Boolean(barangay) && !quantityError && !isLoading
 
-  const filteredRows = useMemo(() => filterRows(rows, search, statusFilter), [rows, search, statusFilter])
+  // Active rows based on view mode
+  const currentRows = viewMode === 'REGISTRY' ? registryRows : batchRows
+  const filteredRows = useMemo(() => filterRows(currentRows, search, statusFilter), [currentRows, search, statusFilter])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -244,12 +278,32 @@ export default function CodeGenerationTable() {
     return () => window.clearInterval(intervalId)
   }, [])
 
+  // Restore active batch from session storage on mount
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem(ACTIVE_BATCH_STORAGE_KEY)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (parsed?.rows?.length) {
+          setBatchRows(parsed.rows)
+          setSummary(parsed.summary || null)
+          if (parsed.barangay) setBarangay(parsed.barangay)
+          setHasActiveBatch(true)
+          setBatchTitle(parsed.batchId ? `Active Batch: ${parsed.batchId}` : 'Active Generated Batch')
+        }
+      }
+    } catch {
+      // Ignore session storage errors
+    }
+  }, [])
+
+  // Load batch history
   useEffect(() => {
     let mounted = true
 
     const run = async () => {
-      const initial = await loadBatchHistoryFromApi()
-      if (mounted && initial.length) {
+      const initial = await loadBatchHistoryFromApi(barangay)
+      if (mounted) {
         setHistory(initial)
       }
     }
@@ -258,48 +312,85 @@ export default function CodeGenerationTable() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [barangay])
 
+  // Fetch real-time token stats when barangay changes
+  const fetchStats = async () => {
+    if (!barangay) {
+      setActiveUnusedLabel('Select a barangay to view active unused codes')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/residents/codes/stats?barangayId=${encodeURIComponent(barangay)}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Stats endpoint unavailable')
+      }
+
+      const json = await response.json()
+      const activeUnused = typeof json?.activeUnused === 'number' ? json.activeUnused : null
+      setActiveUnusedLabel(
+        activeUnused === null
+          ? 'Active unused codes: unavailable'
+          : `Active unused codes in this barangay: ${activeUnused}`
+      )
+    } catch {
+      setActiveUnusedLabel('Active unused codes: unavailable')
+    }
+  }
+
+  useEffect(() => {
+    fetchStats()
+  }, [barangay])
+
+  // Fetch registry tokens when in REGISTRY mode
   useEffect(() => {
     let mounted = true
 
-    const fetchStats = async () => {
-      if (!barangay) {
-        setActiveUnusedLabel('Select a barangay to view active unused codes')
+    const fetchRegistry = async () => {
+      if (viewMode !== 'REGISTRY' || !barangay) {
+        if (!barangay && mounted) setRegistryRows([])
         return
       }
 
       try {
-        const response = await fetch(`${API_URL}/residents/codes/stats?barangayId=${encodeURIComponent(barangay)}`, {
-          credentials: 'include',
-        })
+        const statusParam = statusFilter !== 'ALL' ? `&status=${statusFilter}` : ''
+        const response = await fetch(
+          `${API_URL}/residents/codes/list?barangay=${encodeURIComponent(barangay)}${statusParam}&limit=100`,
+          { credentials: 'include' }
+        )
 
-        if (!response.ok) {
-          throw new Error('Stats endpoint unavailable')
-        }
+        if (!response.ok) throw new Error('Registry endpoint failed')
 
         const json = await response.json()
-        const activeUnused = typeof json?.activeUnused === 'number' ? json.activeUnused : null
-        if (mounted) {
-          setActiveUnusedLabel(
-            activeUnused === null
-              ? 'Active unused codes: unavailable'
-              : `Active unused codes in this barangay: ${activeUnused}`
-          )
+        if (mounted && json.success && Array.isArray(json.tokens)) {
+          const mapped: GeneratedCodeRow[] = json.tokens.map((t: any) => ({
+            code: t.code,
+            barangay: t.barangay,
+            status: normalizeStatus(t.status),
+            expiry: toReadableDate(t.expiry),
+          }))
+          setRegistryRows(mapped)
+          setSummary({
+            generatedCount: json.total || mapped.length,
+            failedCount: 0,
+          })
         }
       } catch {
         if (mounted) {
-          setActiveUnusedLabel('Active unused codes: unavailable')
+          setErrorBanner('Failed to load token registry for this barangay.')
         }
       }
     }
 
-    fetchStats()
-
+    fetchRegistry()
     return () => {
       mounted = false
     }
-  }, [barangay])
+  }, [barangay, viewMode, statusFilter])
 
   const submitGeneration = async () => {
     if (!canSubmit || isLoading) return
@@ -338,10 +429,29 @@ export default function CodeGenerationTable() {
         setErrorBanner(normalized.errors.join(', '))
       }
 
-      setRows(normalized.rows)
+      setBatchRows(normalized.rows)
       setSummary(normalized.summary)
       setSearch('')
       setStatusFilter('ALL')
+      setViewMode('BATCH')
+      setHasActiveBatch(true)
+      setBatchTitle(`Batch: ${normalized.batchId}`)
+
+      // Persist active batch in session storage so navigating away doesn't discard plain codes
+      try {
+        sessionStorage.setItem(
+          ACTIVE_BATCH_STORAGE_KEY,
+          JSON.stringify({
+            batchId: normalized.batchId,
+            barangay,
+            rows: normalized.rows,
+            summary: normalized.summary,
+            date: normalized.date,
+          })
+        )
+      } catch {
+        // Ignore session storage errors
+      }
 
       const historyItem: BatchHistoryItem = {
         batchId: normalized.batchId,
@@ -350,10 +460,18 @@ export default function CodeGenerationTable() {
         generatedBy: normalized.generatedBy,
         date: normalized.date,
         rows: normalized.rows,
-        summary: normalized.summary,
+        summary: {
+          ...normalized.summary,
+          unused: normalized.rows.length,
+          used: 0,
+          expired: 0,
+        },
       }
 
-      setHistory((prev) => [historyItem, ...prev])
+      setHistory((prev) => [historyItem, ...prev.filter((h) => h.batchId !== normalized.batchId)])
+
+      // Refresh live stats
+      fetchStats()
 
       if (normalized.rows.length > 0) {
         await showSuccessSweetAlert(
@@ -404,16 +522,64 @@ export default function CodeGenerationTable() {
     downloadPdf(filteredRows, `kapit-bisig-codes-${Date.now()}`, 'Kapit-Bisig Generated Codes')
   }
 
-  const onViewBatch = (batchId: string) => {
+  const onViewBatch = async (batchId: string) => {
     const selected = history.find((item) => item.batchId === batchId)
-    if (!selected) return
-    setRows(selected.rows)
-    setSummary(selected.summary)
-    setBarangay(selected.barangay)
-    setQuantity(String(selected.quantity))
-    setSearch('')
-    setStatusFilter('ALL')
-    setErrorBanner('')
+    if (selected && selected.rows?.length) {
+      setBatchRows(selected.rows)
+      setSummary(selected.summary)
+      setBarangay(selected.barangay)
+      setSearch('')
+      setStatusFilter('ALL')
+      setErrorBanner('')
+      setViewMode('BATCH')
+      setBatchTitle(`Batch: ${batchId}`)
+      return
+    }
+
+    // Otherwise fetch tokens for this historical batch from the API
+    try {
+      setIsLoading(true)
+      const response = await fetch(`${API_URL}/residents/codes/batch/${encodeURIComponent(batchId)}`, {
+        credentials: 'include',
+      })
+      const json = await response.json()
+      if (json.success && Array.isArray(json.tokens)) {
+        const rows: GeneratedCodeRow[] = json.tokens.map((t: any) => ({
+          code: t.code,
+          barangay: t.barangay,
+          status: normalizeStatus(t.status),
+          expiry: toReadableDate(t.expiry),
+        }))
+        setBatchRows(rows)
+        setSummary({
+          generatedCount: rows.length,
+          failedCount: 0,
+        })
+        if (selected?.barangay) setBarangay(selected.barangay)
+        setSearch('')
+        setStatusFilter('ALL')
+        setErrorBanner('')
+        setViewMode('BATCH')
+        setBatchTitle(`Batch: ${batchId}`)
+      }
+    } catch {
+      showToast.error('Failed to load batch records')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const onClearActiveBatch = () => {
+    try {
+      sessionStorage.removeItem(ACTIVE_BATCH_STORAGE_KEY)
+    } catch {
+      // Ignore
+    }
+    setBatchRows([])
+    setSummary(null)
+    setHasActiveBatch(false)
+    setBatchTitle('Generated Codes Batch')
+    showToast.success('Batch view cleared.')
   }
 
   return (
@@ -428,7 +594,7 @@ export default function CodeGenerationTable() {
         quantityError={quantityError}
         canSubmit={canSubmit}
         isLoading={isLoading}
-        hasGeneratedBatch={rows.length > 0}
+        hasGeneratedBatch={batchRows.length > 0}
         onOpenConfirm={() => setConfirmOpen(true)}
         confirmOpen={confirmOpen}
         onCloseConfirm={() => setConfirmOpen(false)}
@@ -445,6 +611,12 @@ export default function CodeGenerationTable() {
         onCopyRow={onCopyRow}
         summary={summary}
         errorBanner={errorBanner}
+        viewMode={viewMode}
+        onSwitchMode={setViewMode}
+        onClearActiveBatch={onClearActiveBatch}
+        batchTitle={batchTitle}
+        hasActiveBatch={hasActiveBatch}
+        selectedBarangay={barangay}
         downloadActions={
           <DownloadActions
             disabled={!filteredRows.length}

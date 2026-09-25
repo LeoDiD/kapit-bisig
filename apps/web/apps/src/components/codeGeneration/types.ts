@@ -1,4 +1,4 @@
-﻿export type CodeStatus = 'UNUSED' | 'USED' | 'EXPIRED' | 'LOCKED'
+export type CodeStatus = 'UNUSED' | 'USED' | 'EXPIRED' | 'LOCKED'
 
 export type GeneratedCodeRow = {
   code: string
@@ -11,6 +11,9 @@ export type BatchSummary = {
   generatedCount: number
   failedCount: number
   resolveTimeMs?: number
+  unused?: number
+  used?: number
+  expired?: number
 }
 
 export type BatchHistoryItem = {

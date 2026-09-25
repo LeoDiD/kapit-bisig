@@ -527,7 +527,7 @@ router.patch(
 
 /**
  * POST /api/residents/codes/generate-batch
- * Generate household registration codes by barangay.
+ * Generate household registration codes by barangay using high-performance concurrent batching.
  */
 router.post(
   '/codes/generate-batch',
@@ -538,54 +538,35 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       const { barangay, quantity } = req.body as { barangay: string; quantity: number };
-
       const issuedBy = req.authUser?.userId || req.authUser?.sub || 'system';
-      const generatedAt = new Date();
-      const expiresAt = new Date(generatedAt);
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      const startTime = Date.now();
 
-      const tokens: Array<{
-        code: string;
-        barangay: string;
-        expiresAt: Date;
-        generatedAt: Date;
-      }> = [];
+      const result = await householdTokenService.generateBatch({
+        barangay,
+        quantity,
+        issuedBy,
+        validityDays: 30,
+      });
 
-      for (let i = 0; i < quantity; i++) {
-        const sequence = String(i + 1).padStart(3, '0');
-        const result = await householdTokenService.generateToken({
-          headOfHousehold: `Unassigned Household ${sequence}`,
-          address: barangay,
-          barangay,
-          expectedMembers: 1,
-          notes: `Bulk generated via Code Generation page (${quantity} token${quantity > 1 ? 's' : ''})`,
-          validityDays: 30,
-          issuedBy,
-        });
-
-        if (!result.success || !result.token) {
-          return res.status(500).json({
-            success: false,
-            message: `Failed to generate code at item ${i + 1}`,
-          });
-        }
-
-        tokens.push({
-          code: result.token,
-          barangay,
-          expiresAt: result.expiresAt || expiresAt,
-          generatedAt,
+      if (!result.success || !result.tokens?.length) {
+        return res.status(500).json({
+          success: false,
+          message: result.error || 'Failed to generate codes',
         });
       }
 
+      const resolveTimeMs = Date.now() - startTime;
+
       return res.status(201).json({
         success: true,
-        message: `Generated ${tokens.length} code${tokens.length > 1 ? 's' : ''}`,
+        message: `Generated ${result.tokens.length} code${result.tokens.length > 1 ? 's' : ''}`,
         data: {
+          batchId: result.batchId,
           barangay,
-          quantity: tokens.length,
-          generatedAt,
-          tokens,
+          quantity: result.tokens.length,
+          generatedAt: result.generatedAt,
+          resolveTimeMs,
+          tokens: result.tokens,
         },
       });
     } catch (error) {
@@ -593,6 +574,147 @@ router.post(
       return res.status(500).json({
         success: false,
         message: 'Failed to generate codes',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/residents/codes/stats
+ * Real-time token statistics for a barangay
+ */
+router.get(
+  '/codes/stats',
+  requireAuth,
+  requireStaffOrSuperadmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const barangay = (req.query.barangayId || req.query.barangay) as string;
+      if (!barangay || !barangay.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'barangayId query parameter is required',
+        });
+      }
+
+      const stats = await householdTokenService.getTokenStatsByBarangay(barangay.trim());
+      return res.json({
+        success: true,
+        activeUnused: stats.activeUnused,
+        used: stats.used,
+        expired: stats.expired,
+        total: stats.total,
+      });
+    } catch (error) {
+      console.error('[ResidentRoutes] Token stats error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch token stats',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/residents/codes/batches
+ * List generated batches with live usage breakdown
+ */
+router.get(
+  '/codes/batches',
+  requireAuth,
+  requireSuperadmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const barangay = (req.query.barangayId || req.query.barangay) as string | undefined;
+      const batches = await householdTokenService.listBatchesByBarangay(barangay?.trim());
+      return res.json({
+        success: true,
+        batches,
+      });
+    } catch (error) {
+      console.error('[ResidentRoutes] Batches list error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch batch history',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/residents/codes/batch/:batchId
+ * Fetch tokens belonging to a specific batch
+ */
+router.get(
+  '/codes/batch/:batchId',
+  requireAuth,
+  requireSuperadmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { batchId } = req.params;
+      const tokens = await householdTokenService.getBatchTokens(batchId);
+      return res.json({
+        success: true,
+        tokens,
+      });
+    } catch (error) {
+      console.error('[ResidentRoutes] Batch tokens error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch batch tokens',
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/residents/codes/list
+ * Query all tokens for a barangay with optional status filter and pagination
+ */
+router.get(
+  '/codes/list',
+  requireAuth,
+  requireSuperadmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const barangay = (req.query.barangayId || req.query.barangay) as string;
+      const status = req.query.status as any;
+      const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+
+      if (!barangay || !barangay.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'barangay parameter is required',
+        });
+      }
+
+      const result = await householdTokenService.listTokensByBarangay(
+        barangay.trim(),
+        status === 'ALL' || !status ? undefined : status,
+        page,
+        limit
+      );
+
+      return res.json({
+        success: true,
+        tokens: result.tokens.map((t) => ({
+          code: `${t.tokenPrefix}-****-****`,
+          barangay: t.householdInfo.barangay,
+          status: t.status,
+          expiry: t.expiresAt,
+          createdAt: t.createdAt,
+          usedAt: t.usedAt,
+        })),
+        total: result.total,
+        page,
+        limit,
+      });
+    } catch (error) {
+      console.error('[ResidentRoutes] List tokens error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to list tokens',
       });
     }
   }

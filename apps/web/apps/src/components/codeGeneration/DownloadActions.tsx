@@ -13,7 +13,7 @@ export default function DownloadActions({ disabled, onDownloadCsv, onDownloadPdf
   return (
     <div className="flex flex-col sm:flex-row gap-3 items-center">
       <div className="rounded-xl border border-amber-200 dark:border-amber-800/80 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 text-[12px] font-bold text-amber-900 dark:text-amber-400">
-        Codes are only shown once. Download and secure.
+        Download or copy codes before session ends.
       </div>
 
       <div className="flex flex-wrap gap-2">

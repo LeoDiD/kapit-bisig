@@ -15,6 +15,12 @@ type Props = {
   summary: BatchSummary | null
   errorBanner: string
   downloadActions: React.ReactNode
+  viewMode?: 'BATCH' | 'REGISTRY'
+  onSwitchMode?: (mode: 'BATCH' | 'REGISTRY') => void
+  onClearActiveBatch?: () => void
+  batchTitle?: string
+  hasActiveBatch?: boolean
+  selectedBarangay?: string
 }
 
 function StatusBadge({ status }: { status: CodeStatus }) {
@@ -53,17 +59,67 @@ export default function GeneratedCodesTable({
   summary,
   errorBanner,
   downloadActions,
+  viewMode = 'BATCH',
+  onSwitchMode,
+  onClearActiveBatch,
+  batchTitle,
+  hasActiveBatch,
+  selectedBarangay,
 }: Props) {
   return (
     <section className="rounded-[2rem] border border-white/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl flex flex-col overflow-hidden shadow-[0_8px_32px_-8px_rgba(0,0,0,0.08)]">
       {/* Integrated Toolbar */}
       <div className="p-5 border-b border-gray-100 dark:border-slate-800 bg-white/40 dark:bg-slate-800/40 flex flex-col lg:flex-row gap-4 justify-between items-center sm:items-start lg:items-center">
-        <div>
-          <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 tracking-wide uppercase">Generated Codes</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Review and store generated core entries securely.</p>
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 tracking-wide uppercase">
+              {viewMode === 'REGISTRY' ? `Barangay Token Registry (${selectedBarangay || 'All'})` : batchTitle || 'Generated Codes Batch'}
+            </h3>
+            {onSwitchMode && (
+              <div className="inline-flex rounded-lg p-0.5 bg-gray-200/60 dark:bg-slate-800 border border-gray-300/40 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => onSwitchMode('BATCH')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                    viewMode === 'BATCH'
+                      ? 'bg-white dark:bg-slate-750 text-[#004A1C] dark:text-[#ECC323] shadow-sm font-bold'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Active Batch {hasActiveBatch ? '●' : ''}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSwitchMode('REGISTRY')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                    viewMode === 'REGISTRY'
+                      ? 'bg-white dark:bg-slate-750 text-[#004A1C] dark:text-[#ECC323] shadow-sm font-bold'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Barangay Registry
+                </button>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {viewMode === 'REGISTRY'
+              ? 'Real-time database records for this barangay. Filter by status to track redemptions and expirations.'
+              : 'Plain-text codes available for copy or CSV/PDF download in this session.'}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {viewMode === 'BATCH' && hasActiveBatch && onClearActiveBatch && (
+            <button
+              type="button"
+              onClick={onClearActiveBatch}
+              className="h-10 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 border border-gray-200 dark:border-slate-700 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:border-rose-300 dark:hover:border-rose-800 transition-colors"
+              title="Clear current batch from view"
+            >
+              Clear View
+            </button>
+          )}
           <input
             type="text"
             value={search}
@@ -71,14 +127,14 @@ export default function GeneratedCodesTable({
             maxLength={MAX_SEARCH_LENGTH}
             placeholder="Search code"
             aria-label="Search generated codes"
-            className="h-10 w-48 rounded-xl border border-gray-300 dark:border-slate-700 px-3 text-sm text-gray-900 dark:text-white bg-white/80 dark:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800 focus:border-[#004A1C] dark:focus:border-[#ECC323] focus:outline-none focus:ring-2 focus:ring-[#004A1C]/20 dark:focus:ring-[#ECC323]/20 shadow-inner transition-all"
+            className="h-10 w-44 rounded-xl border border-gray-300 dark:border-slate-700 px-3 text-sm text-gray-900 dark:text-white bg-white/80 dark:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800 focus:border-[#004A1C] dark:focus:border-[#ECC323] focus:outline-none focus:ring-2 focus:ring-[#004A1C]/20 dark:focus:ring-[#ECC323]/20 shadow-inner transition-all"
           />
           <SelectDropdown
             value={statusFilter}
             onChange={(value) => setStatusFilter(value as 'ALL' | CodeStatus)}
             options={STATUS_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
             ariaLabel="Filter by status"
-            className="min-w-[140px]"
+            className="min-w-[130px]"
             buttonClassName="h-10"
           />
         </div>
@@ -89,12 +145,14 @@ export default function GeneratedCodesTable({
           {summary ? (
             <div className="flex flex-wrap gap-2">
               <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                Generated: {summary.generatedCount}
+                {viewMode === 'REGISTRY' ? 'Total Tokens:' : 'Batch Count:'} {summary.generatedCount}
               </span>
-              <span className="rounded-full bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">Failed: {summary.failedCount}</span>
+              {summary.failedCount > 0 && (
+                <span className="rounded-full bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">Failed: {summary.failedCount}</span>
+              )}
               {typeof summary.resolveTimeMs === 'number' ? (
                 <span className="rounded-full bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400">
-                  Resolve time: {summary.resolveTimeMs}ms
+                  Generation time: {summary.resolveTimeMs}ms
                 </span>
               ) : null}
             </div>
@@ -144,9 +202,15 @@ export default function GeneratedCodesTable({
             ) : (
               <tr>
                 <td colSpan={5} className="px-6 py-16 text-center text-sm text-gray-500 dark:text-gray-400">
-                  <div className="mx-auto max-w-md">
-                    <p className="font-semibold text-gray-900 dark:text-gray-100">No generated codes yet</p>
-                    <p className="mt-1 text-gray-500 dark:text-gray-400">Generate a batch to view code records here.</p>
+                  <div className="mx-auto max-w-md space-y-1">
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      {viewMode === 'REGISTRY' ? 'No tokens found in registry' : 'No active generated batch'}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs">
+                      {viewMode === 'REGISTRY'
+                        ? 'Try changing the status filter or select a different barangay.'
+                        : 'Generate a new batch above to produce downloadable registration codes, or toggle to Barangay Registry.'}
+                    </p>
                   </div>
                 </td>
               </tr>

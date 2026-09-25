@@ -70,6 +70,7 @@ export interface IHouseholdToken extends Document {
   // Admin tracking
   issuedBy: string; // Admin user ID
   issuedAt: Date;
+  batchId?: string | null; // Batch identifier for bulk generations
   
   // Version for optimistic locking
   version: number;
@@ -206,6 +207,11 @@ const HouseholdTokenSchema: Schema = new Schema(
     issuedAt: {
       type: Date,
       default: Date.now,
+    },
+    batchId: {
+      type: String,
+      default: null,
+      index: true,
     },
     
     version: {
