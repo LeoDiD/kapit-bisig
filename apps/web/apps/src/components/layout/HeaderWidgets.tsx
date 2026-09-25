@@ -225,14 +225,14 @@ export function NotificationBell() {
             <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">Notifications</h3>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
-                <button onClick={handleMarkAllRead} className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center gap-1">
+                <button onClick={handleMarkAllRead} className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium flex items-center gap-1 transition-colors">
                   <CheckIcon className="w-3.5 h-3.5" /> Mark all read
                 </button>
               )}
               {notifications.length > 0 && (
                 <button
                   onClick={handleDeleteAllClick}
-                  className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                  className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium flex items-center gap-1 transition-colors"
                 >
                   <TrashIcon className="w-3.5 h-3.5" /> Delete all
                 </button>
@@ -248,15 +248,17 @@ export function NotificationBell() {
               </div>
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center">
-                <BellOffIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">No notifications yet.</p>
+                <BellOffIcon className="w-8 h-8 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-400 dark:text-slate-500">No notifications yet.</p>
               </div>
             ) : (
               notifications.map((n) => (
                 <div
                   key={n._id || n.id}
-                  className={`w-full flex items-start gap-2 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${
-                    !n.isRead ? 'bg-green-50/40' : ''
+                  className={`w-full flex items-start gap-2 px-4 py-3 transition-colors border-b border-gray-100 dark:border-slate-700/60 last:border-0 ${
+                    !n.isRead
+                      ? 'bg-emerald-50/70 dark:bg-emerald-500/10 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15'
+                      : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
                   }`}
                 >
                   <button
@@ -266,21 +268,21 @@ export function NotificationBell() {
                   >
                     <NotificationTypeIcon type={n.type} />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                      <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900 dark:text-slate-100' : 'font-medium text-gray-700 dark:text-slate-300'}`}>
                         {n.title}
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                      <p className="text-[11px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
                     </div>
                   </button>
                   <div className="flex items-start gap-1.5 mt-0.5 shrink-0">
                     {!n.isRead && (
-                      <span className="mt-1.5 w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                      <span className="mt-1.5 w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                     )}
                     <button
                       type="button"
                       onClick={() => handleDeleteClick(n)}
-                      className="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                       aria-label="Delete notification"
                       title="Delete notification"
                     >
@@ -299,7 +301,7 @@ export function NotificationBell() {
                 setOpen(false)
                 setShowAllModal(true)
               }}
-              className="text-xs text-green-600 hover:text-green-700 font-medium"
+              className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium transition-colors"
             >
               View all notifications
             </button>
@@ -310,14 +312,14 @@ export function NotificationBell() {
       {showAllModal && createPortal(
         <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm"
             onClick={() => setShowAllModal(false)}
           />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden border border-gray-100">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden border border-gray-100 dark:border-slate-700">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">All notifications</h3>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">All notifications</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   {allTotal} total{unreadCount > 0 ? ` - ${unreadCount} unread` : ''}
                 </p>
               </div>
@@ -325,7 +327,7 @@ export function NotificationBell() {
                 {unreadCount > 0 && (
                   <button
                     onClick={handleMarkAllRead}
-                    className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
+                    className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium flex items-center gap-1 transition-colors"
                   >
                     <CheckIcon className="w-3.5 h-3.5" /> Mark all read
                   </button>
@@ -333,14 +335,14 @@ export function NotificationBell() {
                 {allTotal > 0 && (
                   <button
                     onClick={handleDeleteAllClick}
-                    className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                    className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium flex items-center gap-1 transition-colors"
                   >
                     <TrashIcon className="w-3.5 h-3.5" /> Delete all
                   </button>
                 )}
                 <button
                   onClick={() => setShowAllModal(false)}
-                  className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                   aria-label="Close notifications"
                 >
                   <CloseIcon className="w-4 h-4" />
@@ -355,15 +357,17 @@ export function NotificationBell() {
                 </div>
               ) : allNotifications.length === 0 ? (
                 <div className="p-10 text-center">
-                  <BellOffIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">No notifications yet.</p>
+                  <BellOffIcon className="w-8 h-8 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
+                  <p className="text-sm text-gray-400 dark:text-slate-500">No notifications yet.</p>
                 </div>
               ) : (
                 allNotifications.map((n) => (
                   <div
                     key={n._id || n.id}
-                    className={`w-full flex items-start gap-2 px-5 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${
-                      !n.isRead ? 'bg-green-50/40' : ''
+                    className={`w-full flex items-start gap-2 px-5 py-3 transition-colors border-b border-gray-100 dark:border-slate-700/60 last:border-0 ${
+                      !n.isRead
+                        ? 'bg-emerald-50/70 dark:bg-emerald-500/10 hover:bg-emerald-100/60 dark:hover:bg-emerald-500/15'
+                        : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
                     }`}
                   >
                     <button
@@ -373,21 +377,21 @@ export function NotificationBell() {
                     >
                       <NotificationTypeIcon type={n.type} />
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                        <p className={`text-sm ${!n.isRead ? 'font-semibold text-gray-900 dark:text-slate-100' : 'font-medium text-gray-700 dark:text-slate-300'}`}>
                           {n.title}
                         </p>
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                        <p className="text-[11px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                        <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{timeAgo(n.createdAt)}</p>
                       </div>
                     </button>
                     <div className="flex items-start gap-1.5 mt-0.5 shrink-0">
                       {!n.isRead && (
-                        <span className="mt-1.5 w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                        <span className="mt-1.5 w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                       )}
                       <button
                         type="button"
                         onClick={() => handleDeleteClick(n)}
-                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                         aria-label="Delete notification"
                         title="Delete notification"
                       >
@@ -400,11 +404,11 @@ export function NotificationBell() {
             </div>
 
             {!allLoading && allNotifications.length < allTotal && (
-              <div className="border-t border-gray-100 px-5 py-3 text-center">
+              <div className="border-t border-gray-100 dark:border-slate-700 px-5 py-3 text-center">
                 <button
                   onClick={() => fetchAllNotifications(allNotifications.length, true)}
                   disabled={allLoadingMore}
-                  className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50"
+                  className="text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium transition-colors disabled:opacity-50"
                 >
                   {allLoadingMore ? 'Loading...' : 'Load more'}
                 </button>
@@ -418,19 +422,19 @@ export function NotificationBell() {
       {deleteTarget && createPortal(
         <div className="fixed inset-0 z-[230] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/55 dark:bg-black/75 backdrop-blur-sm"
             onClick={() => { if (!deleting) setDeleteTarget(null) }}
           />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm border border-gray-100 p-6 animate-in fade-in zoom-in duration-200">
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-100 dark:border-slate-700 p-6 animate-in fade-in zoom-in duration-200">
             <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-                <TrashIcon className="w-6 h-6 text-red-500" />
+              <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 flex items-center justify-center">
+                <TrashIcon className="w-6 h-6 text-red-500 dark:text-red-400" />
               </div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 text-center">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 text-center">
               {deleteTarget === 'all' ? 'Delete all notifications?' : 'Delete notification?'}
             </h3>
-            <p className="mt-2 text-sm text-gray-500 text-center">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">
               {deleteTarget === 'all'
                 ? 'This will permanently remove all notifications from your list.'
                 : 'This notification will be permanently removed from your list.'}
@@ -439,14 +443,14 @@ export function NotificationBell() {
               <button
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleting}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
                 disabled={deleting}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {deleting ? (
                   <>
@@ -680,17 +684,17 @@ function NotificationTypeIcon({ type }: { type: string }) {
   const base = 'w-9 h-9 rounded-xl flex items-center justify-center shrink-0'
   switch (type) {
     case 'dispatch':
-      return <span className={`${base} bg-blue-50`}><TruckIcon className="w-4 h-4 text-blue-600" /></span>
+      return <span className={`${base} bg-blue-50 dark:bg-blue-500/15`}><TruckIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" /></span>
     case 'status_update':
-      return <span className={`${base} bg-amber-50`}><AlertIcon className="w-4 h-4 text-amber-600" /></span>
+      return <span className={`${base} bg-amber-50 dark:bg-amber-500/15`}><AlertIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /></span>
     case 'volunteer':
-      return <span className={`${base} bg-green-50`}><UsersIcon className="w-4 h-4 text-green-600" /></span>
+      return <span className={`${base} bg-emerald-50 dark:bg-emerald-500/15`}><UsersIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /></span>
     case 'security':
-      return <span className={`${base} bg-red-50`}><ShieldIcon className="w-4 h-4 text-red-500" /></span>
+      return <span className={`${base} bg-red-50 dark:bg-red-500/15`}><ShieldIcon className="w-4 h-4 text-red-500 dark:text-red-400" /></span>
     case 'system':
-      return <span className={`${base} bg-gray-100`}><InfoIcon className="w-4 h-4 text-gray-600" /></span>
+      return <span className={`${base} bg-gray-100 dark:bg-slate-700/60`}><InfoIcon className="w-4 h-4 text-gray-600 dark:text-slate-300" /></span>
     default:
-      return <span className={`${base} bg-gray-100`}><InfoIcon className="w-4 h-4 text-gray-500" /></span>
+      return <span className={`${base} bg-gray-100 dark:bg-slate-700/60`}><InfoIcon className="w-4 h-4 text-gray-500 dark:text-slate-400" /></span>
   }
 }
 
