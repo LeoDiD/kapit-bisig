@@ -34,11 +34,11 @@ npm run migrate:superadmin
    - **Runtime**: `Node`
    - **Build Command**:
      ```bash
-     npm install && npx tsc --project tsconfig.server.json
+     npm install && npm run server:build
      ```
    - **Start Command**:
      ```bash
-     node dist/index.js
+     npm run server:prod
      ```
    - **Instance Type**: Free or Starter
 

@@ -16,5 +16,13 @@
     "sourceMap": true
   },
   "include": ["server/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "server/test/**/*",
+    "server/**/*.test.ts",
+    "server/**/*.spec.ts",
+    "server/**/*.unit.ts",
+    "server/**/*.integration.ts",
+    "server/test-*.ts"
+  ]
 }

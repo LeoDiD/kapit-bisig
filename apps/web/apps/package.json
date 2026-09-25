@@ -13,6 +13,8 @@
     "lint": "next lint",
     "server": "node scripts/free-port.js 3001 && ts-node --project tsconfig.server.json server/index.ts",
     "server:dev": "node scripts/free-port.js 3001 && nodemon --watch server --ext ts,js,json --exec ts-node --transpile-only --project tsconfig.server.json server/index.ts",
+    "server:build": "tsc --project tsconfig.server.json",
+    "server:prod": "node dist/index.js",
     "seed:reset": "node server/scripts/resetSeededData.js",
     "seed:households:10x10": "node server/scripts/seedClaimHouseholds10x10.js",
     "seed:distributions:10x10": "node server/scripts/seedClaimDistributions10x10.js",
