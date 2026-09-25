@@ -36,6 +36,7 @@ import {
   forgotResetPasswordBody,
 } from '../validation/auth.schema';
 import StaffUser from '../models/StaffUser';
+import User from '../models/User';
 import PasswordResetOtp from '../models/PasswordResetOtp';
 import { sendResetOtpEmail } from '../utils/mailer';
 import { validatePasswordStrength } from '../utils/passwordValidator';
@@ -74,13 +75,29 @@ router.post(
     try {
       const emailLower: string = req.body.email.trim().toLowerCase();
 
-      // Look up the user — but ALWAYS return the same generic response
-      const staffUser = await StaffUser.findOne({
-        emailLower,
-        isActive: true,
-      }).select('+passwordHash');
+      // Look up user in StaffUser first, then User — but ALWAYS return the same generic response
+      let targetUserId: string | null = null;
+      let targetEmail: string | null = null;
+      let userType: 'StaffUser' | 'User' | null = null;
+
+      const staffUser = (await StaffUser.findOne({ emailLower, isActive: true }).select('+passwordHash'))
+        || (await StaffUser.findOne({ email: emailLower, isActive: true }).select('+passwordHash'));
 
       if (staffUser?.passwordHash) {
+        targetUserId = staffUser._id.toString();
+        targetEmail = staffUser.email;
+        userType = 'StaffUser';
+      } else {
+        const regularUser = await User.findOne({ email: emailLower }).select('+password');
+
+        if (regularUser?.password && regularUser.status !== 'Suspended') {
+          targetUserId = regularUser._id.toString();
+          targetEmail = regularUser.email;
+          userType = 'User';
+        }
+      }
+
+      if (targetUserId && targetEmail) {
         const otp = generateOtp();
         const otpHash = await bcrypt.hash(otp, SALT_ROUNDS);
 
@@ -88,7 +105,7 @@ router.post(
         await PasswordResetOtp.findOneAndUpdate(
           { emailLower },
           {
-            userId: staffUser._id,
+            userId: targetUserId,
             emailLower,
             otpHash,
             expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
@@ -100,7 +117,7 @@ router.post(
         );
 
         try {
-          await sendResetOtpEmail(staffUser.email, otp);
+          await sendResetOtpEmail(targetEmail, otp);
         } catch (mailErr) {
           console.error('[MAILER] Failed to send OTP email:', (mailErr as Error).message);
           await PasswordResetOtp.deleteOne({ emailLower });
@@ -112,8 +129,9 @@ router.post(
           return;
         }
 
-        await logAudit(req, 'FORGOT_PASSWORD_OTP_REQUESTED', 'Auth', staffUser._id.toString(), {
+        await logAudit(req, 'FORGOT_PASSWORD_OTP_REQUESTED', 'Auth', targetUserId, {
           emailLower,
+          userType,
         });
       }
 
@@ -241,29 +259,49 @@ router.post(
         return;
       }
 
-      // Find user
+      // Find user in StaffUser first, then User
       const staffUser = await StaffUser.findById(payload.sub);
-      if (!staffUser) {
-        res.status(400).json({ success: false, message: 'Invalid or expired reset token.' });
+      if (staffUser) {
+        // Hash and update password
+        staffUser.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+        staffUser.forcePasswordReset = false;
+        await staffUser.save();
+        clearLoginAttempts(staffUser.emailLower);
+
+        // Clean up any remaining OTP records for this user
+        await PasswordResetOtp.deleteMany({
+          $or: [{ userId: staffUser._id }, { emailLower: staffUser.emailLower }],
+        });
+
+        await logAudit(req, 'FORGOT_PASSWORD_RESET_SUCCESS', 'Auth', staffUser._id.toString(), {
+          username: staffUser.username,
+        });
+
+        res.json({ success: true, message: 'Password has been reset successfully.' });
         return;
       }
 
-      // Hash and update password
-      staffUser.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-      staffUser.forcePasswordReset = false;
-      await staffUser.save();
-      clearLoginAttempts(staffUser.emailLower);
+      const regularUser = await User.findById(payload.sub);
+      if (regularUser) {
+        regularUser.password = newPassword;
+        await regularUser.save();
+        clearLoginAttempts(regularUser.email.toLowerCase());
 
-      // Clean up any remaining OTP records for this user
-      await PasswordResetOtp.deleteMany({
-        $or: [{ userId: staffUser._id }, { emailLower: staffUser.emailLower }],
-      });
+        // Clean up any remaining OTP records for this user
+        await PasswordResetOtp.deleteMany({
+          $or: [{ userId: regularUser._id }, { emailLower: regularUser.email.toLowerCase() }],
+        });
 
-      await logAudit(req, 'FORGOT_PASSWORD_RESET_SUCCESS', 'Auth', staffUser._id.toString(), {
-        username: staffUser.username,
-      });
+        await logAudit(req, 'FORGOT_PASSWORD_RESET_SUCCESS', 'Auth', regularUser._id.toString(), {
+          email: regularUser.email,
+        });
 
-      res.json({ success: true, message: 'Password has been reset successfully.' });
+        res.json({ success: true, message: 'Password has been reset successfully.' });
+        return;
+      }
+
+      res.status(400).json({ success: false, message: 'Invalid or expired reset token.' });
+      return;
     } catch (err) {
       console.error('[FORGOT_PASSWORD_RESET]', err);
       res.status(500).json({

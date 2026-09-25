@@ -15,6 +15,8 @@ import jwt from 'jsonwebtoken';
 import { isJWTRevoked } from '../services/tokenRevocationService';
 import { sanitizeForLogs } from '../utils/logSanitizer';
 
+import UserPreference from '../models/UserPreference';
+
 /* ------------------------------------------------------------------ */
 /*  Constants & types                                                 */
 /* ------------------------------------------------------------------ */
@@ -108,11 +110,28 @@ export const requireAuth = async (
       res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
       return;
     }
+
+    // Check if user has revoked all previous sessions
+    const userIdentifier = decoded.userId || (decoded.role === 'SUPERADMIN' ? 'SUPERADMIN' : decoded.sub);
+    if (decoded.iat && userIdentifier) {
+      const pref = await UserPreference.findOne({ userId: userIdentifier }).select('sessionsRevokedBefore currentActiveJti');
+      if (pref?.sessionsRevokedBefore) {
+        const tokenIssuedAt = decoded.iat * 1000;
+        const revokedBefore = pref.sessionsRevokedBefore.getTime();
+        if (tokenIssuedAt < revokedBefore && decoded.jti !== pref.currentActiveJti) {
+          logSecurity('ACCESS_DENIED', { reason: 'session_revoked_by_user', ip: req.ip });
+          res.status(401).json({ success: false, message: 'This session has been revoked from another device. Please log in again.' });
+          return;
+        }
+      }
+    }
+
     req.authUser = decoded;
     // Backward compat (used in superadminAuthRoutes /me)
     (req as any).saUser = decoded;
     next();
   } catch (err) {
+
     if (err instanceof jwt.TokenExpiredError) {
       logSecurity('ACCESS_DENIED', { reason: 'token_expired', ip: req.ip });
       res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });

@@ -15,6 +15,7 @@ import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 import { z } from 'zod';
+import UserPreference from '../models/UserPreference';
 import StaffUser from '../models/StaffUser';
 import Distribution from '../models/Distribution';
 import LoginVerifyOtp from '../models/LoginVerifyOtp';
@@ -65,7 +66,18 @@ const changePasswordConfirmSchema = z.object({
 
 const preferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'system']).optional(),
+  textSize: z.enum(['small', 'medium', 'large']).optional(),
+  defaultBarangay: z.string().trim().max(60).optional(),
+  timeFormat: z.enum(['12h', '24h']).optional(),
+  notifications: z
+    .object({
+      emailNotifications: z.boolean().optional(),
+      distributionAlerts: z.boolean().optional(),
+      securityAlerts: z.boolean().optional(),
+    })
+    .optional(),
 });
+
 
 const SALT_ROUNDS = 12;
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
@@ -459,6 +471,50 @@ router.post('/me/change-password/confirm', async (req: AuthRequest, res: Respons
 });
 
 /* ------------------------------------------------------------------ */
+/*  GET /api/users/me/preferences                                     */
+/* ------------------------------------------------------------------ */
+
+router.get('/me/preferences', async (req: AuthRequest, res: Response) => {
+  try {
+    const userIdentifier = req.authUser?.userId || (req.authUser?.role === 'SUPERADMIN' ? 'SUPERADMIN' : req.authUser?.sub);
+    if (!userIdentifier) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    let pref = await UserPreference.findOne({ userId: userIdentifier });
+    if (!pref) {
+      pref = await UserPreference.create({
+        userId: userIdentifier,
+        theme: 'system',
+        textSize: 'medium',
+        defaultBarangay: 'All',
+        timeFormat: '12h',
+        notifications: {
+          emailNotifications: true,
+          distributionAlerts: true,
+          securityAlerts: true,
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        theme: pref.theme,
+        textSize: pref.textSize,
+        defaultBarangay: pref.defaultBarangay,
+        timeFormat: pref.timeFormat,
+        notifications: pref.notifications,
+        sessionsRevokedBefore: pref.sessionsRevokedBefore,
+      },
+    });
+  } catch (err) {
+    console.error('[Profile] GET preferences error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch preferences' });
+  }
+});
+
+/* ------------------------------------------------------------------ */
 /*  PATCH /api/users/me/preferences                                   */
 /* ------------------------------------------------------------------ */
 
@@ -469,21 +525,85 @@ router.patch('/me/preferences', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid preferences',
+        errors: parsed.error.issues.map((e: any) => e.message),
       });
     }
 
-    // For now, accept the preferences and echo back.
-    // In production, this would persist to a UserPreferences collection.
+    const userIdentifier = req.authUser?.userId || (req.authUser?.role === 'SUPERADMIN' ? 'SUPERADMIN' : req.authUser?.sub);
+    if (!userIdentifier) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const updateFields: any = {};
+    if (parsed.data.theme !== undefined) updateFields.theme = parsed.data.theme;
+    if (parsed.data.textSize !== undefined) updateFields.textSize = parsed.data.textSize;
+    if (parsed.data.defaultBarangay !== undefined) updateFields.defaultBarangay = parsed.data.defaultBarangay;
+    if (parsed.data.timeFormat !== undefined) updateFields.timeFormat = parsed.data.timeFormat;
+    if (parsed.data.notifications !== undefined) {
+      for (const [key, val] of Object.entries(parsed.data.notifications)) {
+        if (val !== undefined) {
+          updateFields[`notifications.${key}`] = val;
+        }
+      }
+    }
+
+    const pref = await UserPreference.findOneAndUpdate(
+      { userId: userIdentifier },
+      { $set: updateFields },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
     return res.json({
       success: true,
       message: 'Preferences saved',
-      data: parsed.data,
+      data: {
+        theme: pref.theme,
+        textSize: pref.textSize,
+        defaultBarangay: pref.defaultBarangay,
+        timeFormat: pref.timeFormat,
+        notifications: pref.notifications,
+      },
     });
   } catch (err) {
-    console.error('[Profile] preferences error:', err);
+    console.error('[Profile] PATCH preferences error:', err);
     return res.status(500).json({ success: false, message: 'Failed to save preferences' });
   }
 });
+
+/* ------------------------------------------------------------------ */
+/*  POST /api/users/me/revoke-other-sessions                          */
+/* ------------------------------------------------------------------ */
+
+router.post('/me/revoke-other-sessions', async (req: AuthRequest, res: Response) => {
+  try {
+    const userIdentifier = req.authUser?.userId || (req.authUser?.role === 'SUPERADMIN' ? 'SUPERADMIN' : req.authUser?.sub);
+    if (!userIdentifier) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const currentJti = req.authUser?.jti || null;
+
+    await UserPreference.findOneAndUpdate(
+      { userId: userIdentifier },
+      {
+        $set: {
+          sessionsRevokedBefore: new Date(),
+          currentActiveJti: currentJti,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    return res.json({
+      success: true,
+      message: 'All other active sessions have been signed out successfully.',
+    });
+  } catch (err) {
+    console.error('[Profile] revoke-other-sessions error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to revoke other sessions' });
+  }
+});
+
 
 /* ------------------------------------------------------------------ */
 /*  GET /api/users/scan-eligible                                      */

@@ -5,20 +5,17 @@ import { useTheme, type Theme, type TextSize } from '@/lib/ThemeContext'
 import { profileApi } from '@/lib/api'
 import { showToast } from '@/lib/toast'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import SelectDropdown from '@/components/ui/SelectDropdown'
 
 export default function AppearanceSection() {
   const { theme, textSize, resolvedTheme, setTheme, setTextSize } = useTheme()
   const [saving, setSaving] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const isDark = resolvedTheme === 'dark'
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Persist to server (best-effort)
       await profileApi.updatePreferences({ theme, textSize }).catch(() => {})
-      showToast.success('Preferences saved')
+      showToast.success('Appearance preferences saved')
     } catch {
       showToast.error('Failed to save preferences')
     } finally {
@@ -27,147 +24,245 @@ export default function AppearanceSection() {
     }
   }
 
-  const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
+  const themes: {
+    value: Theme
+    title: string
+    subtitle: string
+    variant: 'light' | 'dark' | 'system'
+  }[] = [
     {
       value: 'light',
-      label: 'Light',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      ),
+      title: 'Light Mode',
+      subtitle: 'Crisp white canvas with emerald accents',
+      variant: 'light',
     },
     {
       value: 'dark',
-      label: 'Dark',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-      ),
+      title: 'Dark Mode',
+      subtitle: 'Deep slate surfaces designed for low light',
+      variant: 'dark',
     },
     {
       value: 'system',
-      label: 'System',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      ),
+      title: 'System Default',
+      subtitle: 'Syncs automatically with your OS settings',
+      variant: 'system',
     },
   ]
 
-  const textSizeOptions = [
-    { value: 'medium', label: 'Medium (Default)' },
-    { value: 'small', label: 'Small' },
-    { value: 'large', label: 'Large' },
+  const textSizes: {
+    value: TextSize
+    label: string
+    glyph: string
+    desc: string
+  }[] = [
+    {
+      value: 'small',
+      label: 'Small',
+      glyph: 'A',
+      desc: 'Compact layout & denser data',
+    },
+    {
+      value: 'medium',
+      label: 'Default',
+      glyph: 'Aa',
+      desc: 'Standard balanced readability',
+    },
+    {
+      value: 'large',
+      label: 'Large',
+      glyph: 'AA',
+      desc: 'Enhanced legibility and spacing',
+    },
   ]
-
-  const textSizePreview: Record<TextSize, string> = {
-    small: 'text-xs',
-    medium: 'text-sm',
-    large: 'text-base',
-  }
 
   return (
     <div className="space-y-6">
-      {/* Theme */}
-      <div className={`rounded-2xl border shadow-sm p-6 ${
-        isDark
-          ? 'bg-slate-800/50 border-slate-700/50'
-          : 'bg-white border-gray-100'
-      }`}>
-        <h2 className={`text-lg font-bold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>Theme</h2>
-        <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-          Choose your preferred color scheme.
-        </p>
+      {/* ── Theme Selection Card ─────────────────────────── */}
+      <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-gray-200/70 dark:border-slate-700/60 shadow-sm p-6 sm:p-7">
+        <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-700/60 mb-6">
+          <div>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+              Interface Theme
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Select how KapitBisig looks to you on this device.
+            </p>
+          </div>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#0F533A] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+            Active: {resolvedTheme === 'dark' ? 'Dark' : 'Light'}
+          </span>
+        </div>
 
-        <div className="grid grid-cols-3 gap-3 mt-6">
-          {themeOptions.map((opt) => {
-            const isSelected = theme === opt.value
+        {/* Visual Theme Preview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {themes.map((item) => {
+            const isSelected = theme === item.value
             return (
               <button
-                key={opt.value}
-                onClick={() => setTheme(opt.value)}
-                className={`flex flex-col items-center gap-2 py-4 px-3 text-sm font-medium rounded-xl border-2 transition-all ${
+                key={item.value}
+                type="button"
+                onClick={() => setTheme(item.value)}
+                className={`group relative text-left rounded-2xl border-2 p-3 transition-all duration-200 flex flex-col ${
                   isSelected
-                    ? isDark
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                      : 'border-[#0F533A] bg-[#0F533A]/5 text-[#0F533A]'
-                    : isDark
-                      ? 'border-slate-600 bg-slate-700/30 text-gray-300 hover:border-slate-500 hover:bg-slate-700/60'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    ? 'border-[#0F533A] dark:border-emerald-500 bg-[#0F533A]/5 dark:bg-emerald-500/10 shadow-sm ring-1 ring-[#0F533A]/20'
+                    : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-gray-50/50 dark:bg-slate-800/50'
                 }`}
               >
-                <span className={isSelected ? (isDark ? 'text-emerald-400' : 'text-[#0F533A]') : (isDark ? 'text-gray-400' : 'text-gray-400')}>
-                  {opt.icon}
-                </span>
-                {opt.label}
+                {/* Mini UI Mockup */}
+                <div className="w-full h-24 rounded-xl overflow-hidden mb-3 border border-gray-200/80 dark:border-slate-700/80 relative shadow-inner">
+                  {item.variant === 'light' && (
+                    <div className="w-full h-full bg-slate-100 p-2 flex flex-col gap-1.5">
+                      {/* Mini App Bar */}
+                      <div className="h-3 bg-[#0F533A] rounded-md flex items-center px-1.5 gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
+                        <div className="w-6 h-1 bg-white/60 rounded-full" />
+                      </div>
+                      {/* Mini Content */}
+                      <div className="flex-1 flex gap-1.5">
+                        <div className="w-1/3 bg-white rounded-md shadow-xs p-1 flex flex-col gap-1">
+                          <div className="w-full h-1 bg-gray-200 rounded" />
+                          <div className="w-3/4 h-1 bg-gray-200 rounded" />
+                        </div>
+                        <div className="flex-1 bg-white rounded-md shadow-xs p-1 flex flex-col gap-1">
+                          <div className="w-full h-2 bg-emerald-50 rounded" />
+                          <div className="w-1/2 h-1 bg-gray-200 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.variant === 'dark' && (
+                    <div className="w-full h-full bg-slate-900 p-2 flex flex-col gap-1.5">
+                      {/* Mini App Bar */}
+                      <div className="h-3 bg-slate-800 rounded-md border border-slate-700 flex items-center px-1.5 gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <div className="w-6 h-1 bg-slate-400 rounded-full" />
+                      </div>
+                      {/* Mini Content */}
+                      <div className="flex-1 flex gap-1.5">
+                        <div className="w-1/3 bg-slate-800 rounded-md border border-slate-700/60 p-1 flex flex-col gap-1">
+                          <div className="w-full h-1 bg-slate-700 rounded" />
+                          <div className="w-3/4 h-1 bg-slate-700 rounded" />
+                        </div>
+                        <div className="flex-1 bg-slate-800 rounded-md border border-slate-700/60 p-1 flex flex-col gap-1">
+                          <div className="w-full h-2 bg-emerald-950/60 rounded" />
+                          <div className="w-1/2 h-1 bg-slate-700 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.variant === 'system' && (
+                    <div className="w-full h-full flex">
+                      {/* Left half Light */}
+                      <div className="w-1/2 h-full bg-slate-100 p-2 border-r border-gray-300 flex flex-col gap-1.5">
+                        <div className="h-3 bg-[#0F533A] rounded-md" />
+                        <div className="flex-1 bg-white rounded-md shadow-xs p-1" />
+                      </div>
+                      {/* Right half Dark */}
+                      <div className="w-1/2 h-full bg-slate-900 p-2 flex flex-col gap-1.5">
+                        <div className="h-3 bg-slate-800 rounded-md" />
+                        <div className="flex-1 bg-slate-800 rounded-md border border-slate-700" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Badge */}
+                  {isSelected && (
+                    <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#0F533A] dark:bg-emerald-500 text-white flex items-center justify-center shadow-md">
+                      <CheckIcon className="w-3.5 h-3.5" />
+                    </span>
+                  )}
+                </div>
+
+                <div className="pt-1">
+                  <p className="text-xs font-bold text-gray-900 dark:text-white">
+                    {item.title}
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                    {item.subtitle}
+                  </p>
+                </div>
               </button>
             )
           })}
         </div>
       </div>
 
-      {/* Accessibility / Text Size */}
-      <div className={`rounded-2xl border shadow-sm p-6 ${
-        isDark
-          ? 'bg-slate-800/50 border-slate-700/50'
-          : 'bg-white border-gray-100'
-      }`}>
-        <h2 className={`text-lg font-bold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>
-          Accessibility
-        </h2>
-        <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-          Adjust display preferences for comfort.
-        </p>
-
-        <div className="mt-4">
-          <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-            Text Size
-          </label>
-          <SelectDropdown
-            value={textSize}
-            onChange={(val: string) => setTextSize(val as TextSize)}
-            options={textSizeOptions}
-            ariaLabel="Select text size"
-            className="w-full max-w-xs"
-            buttonClassName="py-2.5"
-          />
+      {/* ── Accessibility & Typography Card ─────────────────────────── */}
+      <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-gray-200/70 dark:border-slate-700/60 shadow-sm p-6 sm:p-7">
+        <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-700/60 mb-6">
+          <div>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+              Typography & Scaling
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Customize text size for visual comfort across dashboards and forms.
+            </p>
+          </div>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300">
+            {textSize.toUpperCase()}
+          </span>
         </div>
 
-        {/* Preview */}
-        <div className={`mt-4 rounded-xl p-4 ${isDark ? 'bg-slate-700/50 border border-slate-600/50' : 'bg-gray-50 border border-gray-100'}`}>
-          <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            Preview
-          </p>
-          <p className={`${textSizePreview[textSize]} ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-            The quick brown fox jumps over the lazy dog. This is how your text will appear across the application.
-          </p>
+        {/* Text Size Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          {textSizes.map((opt) => {
+            const isSelected = textSize === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTextSize(opt.value)}
+                className={`p-4 rounded-xl border-2 text-left transition-all flex flex-col justify-between ${
+                  isSelected
+                    ? 'border-[#0F533A] dark:border-emerald-500 bg-[#0F533A]/5 dark:bg-emerald-500/10 ring-1 ring-[#0F533A]/20'
+                    : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-gray-50/50 dark:bg-slate-800/50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 flex items-center justify-center font-bold text-sm">
+                    {opt.glyph}
+                  </span>
+                  {isSelected && (
+                    <span className="w-4 h-4 rounded-full bg-[#0F533A] dark:bg-emerald-500 text-white flex items-center justify-center">
+                      <CheckIcon className="w-3 h-3" />
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-900 dark:text-white">
+                    {opt.label}
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    {opt.desc}
+                  </p>
+                </div>
+              </button>
+            )
+          })}
         </div>
-      </div>
 
-      {/* Save */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setConfirmOpen(true)}
-          disabled={saving}
-          className={`px-6 py-2.5 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 ${
-            isDark
-              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-              : 'bg-[#0F533A] text-white hover:bg-[#0a3f2c]'
-          }`}
-        >
-          {saving && <Spinner />}
-          Save Preferences
-        </button>
+        {/* Footer Actions */}
+        <div className="flex justify-end mt-7 pt-5 border-t border-gray-100 dark:border-slate-700/60">
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-[#0F533A] hover:bg-[#0a3f2c] active:bg-[#073021] rounded-xl transition-all shadow-sm shadow-[#0F533A]/25 disabled:opacity-50"
+          >
+            {saving ? <Spinner /> : <PaletteIcon className="w-4 h-4" />}
+            Save Preferences
+          </button>
+        </div>
       </div>
 
       {/* Confirm Modal */}
       <ConfirmModal
         isOpen={confirmOpen}
-        title="Confirm Preferences"
-        body="Save these appearance preferences?"
+        title="Save Appearance Preferences"
+        body="Are you sure you want to save these display preferences? They will be applied to your account across your sessions."
         confirmLabel="Yes, Save"
         loading={saving}
         onConfirm={handleSave}
@@ -177,11 +272,28 @@ export default function AppearanceSection() {
   )
 }
 
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
 function Spinner() {
   return (
-    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
   )
 }
+
+function PaletteIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+    </svg>
+  )
+}
+

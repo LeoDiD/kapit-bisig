@@ -241,7 +241,7 @@ const createPasswordResetRateLimiter = (options: {
   message: string;
 }): RateLimitRequestHandler => rateLimit({
   windowMs: options.windowMs,
-  max: isTest ? 10000 : options.max,
+  max: isTest || process.env.NODE_ENV === 'development' ? 10000 : options.max,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getClientIP,

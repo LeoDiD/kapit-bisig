@@ -48,6 +48,19 @@ export default function ForgotPasswordPage() {
   const [isResending, setIsResending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const emailParam = params.get('email')
+      if (emailParam) {
+        setEmail(emailParam)
+      }
+      if (params.get('sent') === 'true' && emailParam) {
+        setStep('otp')
+      }
+    }
+  }, [])
+
   /* ── Step 1: Send OTP ── */
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()

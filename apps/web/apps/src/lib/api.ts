@@ -1092,21 +1092,33 @@ export default api;
 
 // ==================== PROFILE / SETTINGS ====================
 
+export interface UserPreferencesData {
+
+  theme?: 'light' | 'dark' | 'system';
+  textSize?: 'small' | 'medium' | 'large';
+  defaultBarangay?: string;
+  timeFormat?: '12h' | '24h';
+  notifications?: {
+    emailNotifications: boolean;
+    distributionAlerts: boolean;
+    securityAlerts: boolean;
+  };
+  sessionsRevokedBefore?: string | null;
+}
+
 export const profileApi = {
-  /** GET /api/users/me – current user profile */
+  /** GET /api/users/me */
   async getProfile(): Promise<ApiResponse<any>> {
     const response = await fetch(`${API_URL}/users/me`, {
-      headers: createHeaders(),
+      method: 'GET',
+      headers: createHeaders('GET'),
       credentials: 'include',
     });
     return handleResponse<ApiResponse<any>>(response);
   },
 
-  /** PATCH /api/users/me – update profile fields */
-  async updateProfile(data: {
-    firstName?: string;
-    lastName?: string;
-  }): Promise<ApiResponse<any>> {
+  /** PATCH /api/users/me */
+  async updateProfile(data: { firstName?: string; lastName?: string }): Promise<ApiResponse<any>> {
     const response = await fetch(`${API_URL}/users/me`, {
       method: 'PATCH',
       headers: createHeaders('PATCH'),
@@ -1116,28 +1128,25 @@ export const profileApi = {
     return handleResponse<ApiResponse<any>>(response);
   },
 
-  /** POST /api/users/me/avatar – upload avatar image */
+
+  /** POST /api/users/me/avatar */
   async uploadAvatar(file: File): Promise<ApiResponse<{ avatarUrl: string }>> {
     const formData = new FormData();
     formData.append('avatar', file);
-    // Don't set Content-Type header — browser sets it with boundary for FormData
-    const csrfToken = getCookie('XSRF-TOKEN');
+    const headers = createHeaders('POST');
+    delete (headers as Record<string, string>)['Content-Type'];
+
     const response = await fetch(`${API_URL}/users/me/avatar`, {
       method: 'POST',
-      headers: {
-        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-      },
+      headers,
       credentials: 'include',
       body: formData,
     });
     return handleResponse<ApiResponse<{ avatarUrl: string }>>(response);
   },
 
-  /** POST /api/users/me/change-password/request-otp — Step 1: validate password, send OTP */
-  async requestPasswordChangeOtp(data: {
-    currentPassword: string;
-    newPassword: string;
-  }): Promise<ApiResponse<void>> {
+  /** POST /api/users/me/change-password/request-otp */
+  async requestPasswordChangeOtp(data: { currentPassword?: string; newPassword?: string }): Promise<ApiResponse<void>> {
     const response = await fetch(`${API_URL}/users/me/change-password/request-otp`, {
       method: 'POST',
       headers: createHeaders('POST'),
@@ -1147,12 +1156,8 @@ export const profileApi = {
     return handleResponse<ApiResponse<void>>(response);
   },
 
-  /** POST /api/users/me/change-password/confirm — Step 2: verify OTP, change password */
-  async confirmPasswordChange(data: {
-    currentPassword: string;
-    newPassword: string;
-    otp: string;
-  }): Promise<ApiResponse<void>> {
+  /** POST /api/users/me/change-password/confirm */
+  async confirmPasswordChange(data: { currentPassword?: string; newPassword?: string; otp: string }): Promise<ApiResponse<void>> {
     const response = await fetch(`${API_URL}/users/me/change-password/confirm`, {
       method: 'POST',
       headers: createHeaders('POST'),
@@ -1162,17 +1167,38 @@ export const profileApi = {
     return handleResponse<ApiResponse<void>>(response);
   },
 
+  /** GET /api/users/me/preferences */
+  async getPreferences(): Promise<ApiResponse<UserPreferencesData>> {
+    const response = await fetch(`${API_URL}/users/me/preferences`, {
+      method: 'GET',
+      headers: createHeaders('GET'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<UserPreferencesData>>(response);
+  },
+
   /** PATCH /api/users/me/preferences */
-  async updatePreferences(data: { theme?: string; textSize?: 'small' | 'medium' | 'large' }): Promise<ApiResponse<any>> {
+  async updatePreferences(data: Partial<UserPreferencesData>): Promise<ApiResponse<UserPreferencesData>> {
     const response = await fetch(`${API_URL}/users/me/preferences`, {
       method: 'PATCH',
       headers: createHeaders('PATCH'),
       credentials: 'include',
       body: JSON.stringify(data),
     });
-    return handleResponse<ApiResponse<any>>(response);
+    return handleResponse<ApiResponse<UserPreferencesData>>(response);
+  },
+
+  /** POST /api/users/me/revoke-other-sessions */
+  async revokeOtherSessions(): Promise<ApiResponse<{ message: string }>> {
+    const response = await fetch(`${API_URL}/users/me/revoke-other-sessions`, {
+      method: 'POST',
+      headers: createHeaders('POST'),
+      credentials: 'include',
+    });
+    return handleResponse<ApiResponse<{ message: string }>>(response);
   },
 };
+
 
 // ==================== NOTIFICATIONS ====================
 

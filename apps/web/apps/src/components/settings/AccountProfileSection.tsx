@@ -19,6 +19,8 @@ export default function AccountProfileSection() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Initial values for reset detection
+  const [initialData, setInitialData] = useState({ firstName: '', lastName: '' })
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -34,8 +36,11 @@ export default function AccountProfileSection() {
       setLoading(true)
       const res = await profileApi.getProfile()
       if (res.success && res.data) {
-        setFirstName(res.data.firstName || '')
-        setLastName(res.data.lastName || '')
+        const fName = res.data.firstName || ''
+        const lName = res.data.lastName || ''
+        setFirstName(fName)
+        setLastName(lName)
+        setInitialData({ firstName: fName, lastName: lName })
         setEmail(res.data.email || '')
         setRole(res.data.role || '')
         setAvatarUrl(res.data.avatarUrl || null)
@@ -45,6 +50,13 @@ export default function AccountProfileSection() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const isDirty = firstName !== initialData.firstName || lastName !== initialData.lastName
+
+  const handleReset = () => {
+    setFirstName(initialData.firstName)
+    setLastName(initialData.lastName)
   }
 
   /** Validate then open confirm modal */
@@ -74,6 +86,7 @@ export default function AccountProfileSection() {
       })
       if (res.success) {
         showToast.success('Profile updated successfully')
+        setInitialData({ firstName: firstName.trim(), lastName: lastName.trim() })
       } else {
         showToast.error(res.message || 'Update failed')
       }
@@ -112,41 +125,71 @@ export default function AccountProfileSection() {
       showToast.error('Failed to upload photo')
     } finally {
       setUploading(false)
-      // Reset file input so same file can be selected again
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
-  const displayName = `${firstName} ${lastName}`.trim()
+  const displayName = `${firstName} ${lastName}`.trim() || 'KapitBisig User'
   const initial = (displayName[0] || 'U').toUpperCase()
-  const roleLabel = role === 'SUPERADMIN' ? 'Superadmin' : role === 'LGU_STAFF' ? 'LGU Staff' : role
+  const roleLabel = role === 'SUPERADMIN' ? 'Superadmin' : role === 'LGU_STAFF' ? 'LGU Staff' : role || 'Member'
   const isSuperadmin = role === 'SUPERADMIN'
 
   if (loading) return <ProfileSkeleton />
 
   return (
-    <div>
-      <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Profile Information</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Update your personal details.</p>
+    <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-gray-200/70 dark:border-slate-700/60 shadow-sm overflow-hidden">
+      {/* Decorative Brand Banner */}
+      <div className="h-28 bg-gradient-to-r from-[#0F533A] via-[#146c4c] to-emerald-600 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_50%)]" />
+        <div className="absolute bottom-2 right-4 text-white/30 text-xs font-mono select-none hidden sm:block">
+          KapitBisig ID: {roleLabel}
+        </div>
+      </div>
 
-      {/* Avatar */}
-      <div className="flex items-center gap-4 mt-6">
-        {avatarUrl ? (
-          <img
-            src={`${API_ORIGIN}${avatarUrl}`}
-            alt="Avatar"
-            className="w-16 h-16 rounded-full object-cover border-2 border-gray-100"
-          />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-[#0F533A] flex items-center justify-center text-white font-bold text-xl">
-            {initial}
+      {/* Profile Header Hero */}
+      <div className="px-6 pb-6 pt-0">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-12">
+          {/* Avatar & Identifiers */}
+          <div className="flex items-end gap-4">
+            <div className="relative group shrink-0">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden ring-4 ring-white dark:ring-slate-800 shadow-md bg-[#0F533A] flex items-center justify-center text-white text-3xl font-bold select-none">
+                {avatarUrl ? (
+                  <img
+                    src={`${API_ORIGIN}${avatarUrl}`}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{initial}</span>
+                )}
+              </div>
+
+              {/* Online/Active Indicator */}
+              <span
+                className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-slate-800 rounded-full"
+                title="Active account"
+              />
+            </div>
+
+            <div className="pt-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {displayName}
+                </h1>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/60 rounded-full">
+                  <CheckBadgeIcon className="w-3.5 h-3.5" />
+                  {roleLabel}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                {email || 'No email registered'}
+              </p>
+            </div>
           </div>
-        )}
-        <div>
-          {isSuperadmin ? (
-            <p className="text-xs text-gray-400">Photo upload not available for Superadmin</p>
-          ) : (
-            <>
+
+          {/* Change Photo Button */}
+          {!isSuperadmin && (
+            <div className="sm:self-center">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -158,55 +201,157 @@ export default function AccountProfileSection() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-slate-700/80 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl transition-all shadow-xs disabled:opacity-50"
               >
-                <CameraIcon className="w-4 h-4" />
-                {uploading ? 'Uploading…' : 'Change Photo'}
+                <CameraIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                {uploading ? 'Uploading...' : 'Change Photo'}
               </button>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG, or WebP up to 2 MB</p>
-            </>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Form */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-        <div className="md:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <Field label="First Name" value={firstName} onChange={(v) => setFirstName(sanitizeAsciiText(v))} maxLength={MAX_TEXT_LENGTH} />
-            <Field label="Last Name" value={lastName} onChange={(v) => setLastName(sanitizeAsciiText(v))} maxLength={MAX_TEXT_LENGTH} />
+        {/* Content Divider */}
+        <hr className="my-6 border-gray-100 dark:border-slate-700/60" />
+
+        {/* Form Sections */}
+        <div className="space-y-6">
+          {/* Section 1: Personal Details */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <UserCircleIcon className="w-4 h-4 text-[#0F533A] dark:text-emerald-400" />
+              <h2 className="text-sm font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                Personal Information
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ModernField
+                label="First Name"
+                value={firstName}
+                onChange={(v) => setFirstName(sanitizeAsciiText(v))}
+                placeholder="Enter first name"
+                maxLength={MAX_TEXT_LENGTH}
+                hint="Used on official receipts and reports"
+              />
+              <ModernField
+                label="Last Name"
+                value={lastName}
+                onChange={(v) => setLastName(sanitizeAsciiText(v))}
+                placeholder="Enter last name"
+                maxLength={MAX_TEXT_LENGTH}
+                hint="Family or legal surname"
+              />
+            </div>
+          </div>
+
+          {/* Section 2: Contact & Access */}
+          <div className="pt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheckIcon className="w-4 h-4 text-[#0F533A] dark:text-emerald-400" />
+              <h2 className="text-sm font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                Account & Credentials
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Email (Read Only) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Email Address
+                  </label>
+                  <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+                    Verified ID
+                  </span>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <MailIcon className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    readOnly
+                    className="w-full pl-10 pr-10 py-2.5 text-sm bg-gray-50 dark:bg-slate-700/50 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600/70 rounded-xl cursor-not-allowed select-all"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-emerald-600 dark:text-emerald-400">
+                    <LockSmallIcon className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+                  Contact system administrator to request an email address update.
+                </p>
+              </div>
+
+              {/* Role Card */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Role & Privileges
+                </label>
+                <div className="p-2.5 rounded-xl border border-gray-200/80 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-700/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#0F533A]/10 dark:bg-emerald-500/20 text-[#0F533A] dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+                      {roleLabel.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-900 dark:text-white">
+                        {roleLabel}
+                      </p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        {isSuperadmin
+                          ? 'Full administrative control and user governance'
+                          : 'Barangay relief distributions and resident claims'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <Field label="Email" value={email} readOnly />
 
-        {/* Role badge */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Role</label>
-          <div className="pt-1.5">
-            <span className="inline-block px-3 py-1 text-xs font-semibold text-white bg-[#0F533A] rounded-full">
-              {roleLabel}
-            </span>
+        {/* Footer Actions */}
+        <div className="mt-8 pt-5 border-t border-gray-100 dark:border-slate-700/60 flex items-center justify-between flex-wrap gap-3">
+          <div className="text-xs text-gray-400 dark:text-gray-500">
+            {isDirty ? (
+              <span className="text-amber-600 dark:text-amber-400 font-medium">
+                You have unsaved changes
+              </span>
+            ) : (
+              <span>All changes saved</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {isDirty && (
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={saving}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+              >
+                Reset
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleRequestSave}
+              disabled={saving || !isDirty}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-[#0F533A] hover:bg-[#0a3f2c] active:bg-[#073021] rounded-xl transition-all shadow-sm shadow-[#0F533A]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? <Spinner /> : <SaveIcon className="w-4 h-4" />}
+              Save Changes
+            </button>
           </div>
         </div>
-      </div>
-
-      {/* Save */}
-      <div className="flex justify-end mt-8">
-        <button
-          onClick={handleRequestSave}
-          disabled={saving}
-          className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0F533A] rounded-xl hover:bg-[#0a3f2c] transition-colors disabled:opacity-50 flex items-center gap-2"
-        >
-          {saving && <Spinner />}
-          Save Changes
-        </button>
       </div>
 
       {/* Confirm Modal */}
       <ConfirmModal
         isOpen={confirmOpen}
-        title="Confirm Changes"
-        body="Are you sure you want to save these profile changes?"
+        title="Confirm Profile Changes"
+        body="Are you sure you want to update your profile information? These changes will reflect immediately across all system reports."
         confirmLabel="Yes, Save"
         loading={saving}
         onConfirm={handleConfirmedSave}
@@ -216,57 +361,64 @@ export default function AccountProfileSection() {
   )
 }
 
-/* ── Helpers ─────────────────────────────────────────────── */
+/* ── Modern Field Component ─────────────────────────────────────── */
 
-function Field({
+function ModernField({
   label,
   value,
   onChange,
-  readOnly,
   placeholder,
   maxLength,
+  hint,
 }: {
   label: string
   value: string
-  onChange?: (v: string) => void
-  readOnly?: boolean
+  onChange: (v: string) => void
   placeholder?: string
   maxLength?: number
+  hint?: string
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{label}</label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+          {label}
+        </label>
+        {maxLength && (
+          <span className="text-[10px] text-gray-400">
+            {value.length}/{maxLength}
+          </span>
+        )}
+      </div>
       <input
         type="text"
         value={value}
-        readOnly={readOnly}
-        onChange={(e) => onChange?.(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         maxLength={maxLength}
-        className={`w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-slate-600 rounded-xl transition-colors focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none ${
-          readOnly ? 'bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400 cursor-not-allowed' : 'bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100'
-        }`}
+        className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-slate-600 rounded-xl transition-all focus:border-[#0F533A] dark:focus:border-emerald-500 focus:ring-2 focus:ring-[#0F533A]/15 dark:focus:ring-emerald-500/20 outline-none"
       />
+      {hint && <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">{hint}</p>}
     </div>
   )
 }
 
 function ProfileSkeleton() {
   return (
-    <div className="animate-pulse space-y-6">
-      <div className="h-5 w-48 bg-gray-200 rounded" />
-      <div className="h-4 w-64 bg-gray-100 rounded" />
-      <div className="flex items-center gap-4">
-        <div className="w-16 h-16 bg-gray-200 rounded-full" />
-        <div className="h-9 w-32 bg-gray-200 rounded-xl" />
-      </div>
-      <div className="grid grid-cols-2 gap-5">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="space-y-2">
-            <div className="h-4 w-20 bg-gray-200 rounded" />
-            <div className="h-10 bg-gray-100 rounded-xl" />
+    <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-gray-200/70 dark:border-slate-700/60 shadow-sm overflow-hidden animate-pulse">
+      <div className="h-28 bg-gray-200 dark:bg-slate-700" />
+      <div className="p-6 space-y-6">
+        <div className="flex items-end gap-4 -mt-12">
+          <div className="w-24 h-24 rounded-2xl bg-gray-300 dark:bg-slate-600 ring-4 ring-white dark:ring-slate-800" />
+          <div className="space-y-2 pb-2">
+            <div className="h-5 w-40 bg-gray-200 dark:bg-slate-700 rounded" />
+            <div className="h-4 w-28 bg-gray-100 dark:bg-slate-700/60 rounded" />
           </div>
-        ))}
+        </div>
+        <div className="grid grid-cols-2 gap-4 pt-4">
+          <div className="h-10 bg-gray-100 dark:bg-slate-700/60 rounded-xl" />
+          <div className="h-10 bg-gray-100 dark:bg-slate-700/60 rounded-xl" />
+        </div>
       </div>
     </div>
   )
@@ -274,7 +426,7 @@ function ProfileSkeleton() {
 
 function Spinner() {
   return (
-    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
@@ -284,11 +436,56 @@ function Spinner() {
 function CameraIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   )
 }
 
+function CheckBadgeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  )
+}
 
+function UserCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
 
+function ShieldCheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  )
+}
+
+function MailIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function LockSmallIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+  )
+}
+
+function SaveIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+    </svg>
+  )
+}
