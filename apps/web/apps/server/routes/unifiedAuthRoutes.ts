@@ -82,16 +82,28 @@ function generateOtp(): string {
   return num.toString().padStart(6, '0');
 }
 
-function setCookie(res: Response, token: string, rememberMe: boolean) {
+function getCookieSecuritySettings(): { secure: boolean; sameSite: 'lax' | 'strict' | 'none' } {
   const isProd = process.env.NODE_ENV === 'production';
+  const secure = process.env.COOKIE_SECURE === 'true' || (process.env.COOKIE_SECURE !== 'false' && isProd);
+  const sameSiteEnv = process.env.COOKIE_SAMESITE?.toLowerCase();
+  const sameSite: 'lax' | 'strict' | 'none' =
+    sameSiteEnv === 'none' || sameSiteEnv === 'strict' || sameSiteEnv === 'lax'
+      ? sameSiteEnv
+      : (secure ? 'none' : 'lax');
+
+  return { secure, sameSite };
+}
+
+function setCookie(res: Response, token: string, rememberMe: boolean) {
   const maxAge = rememberMe
     ? REMEMBER_ME_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     : TOKEN_EXPIRY_HOURS * 60 * 60 * 1000;
+  const { secure, sameSite } = getCookieSecuritySettings();
 
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
+    secure,
+    sameSite,
     maxAge,
     path: '/',
   });
@@ -895,15 +907,16 @@ router.post('/logout', (_req: Request, res: Response) => {
     revokeJWTByValue(tokenToRevoke, 'session').catch(() => {});
   }
 
+  const { secure, sameSite } = getCookieSecuritySettings();
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure,
+    sameSite,
     path: '/',
   });
   res.clearCookie('XSRF-TOKEN', {
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure,
+    sameSite,
     path: '/',
   });
   logSecurity('LOGOUT', { ip: _req.ip });

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api'
+const API_URL = typeof window !== 'undefined' ? '/api' : (process.env.NEXT_PUBLIC_API_URL?.trim() || '/api')
 
 export type AppRole = 'SUPERADMIN' | 'LGU_STAFF'
 

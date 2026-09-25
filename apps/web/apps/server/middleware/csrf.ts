@@ -44,10 +44,17 @@ const AUTH_COOKIE = 'sa_token';
 /** Set the XSRF-TOKEN cookie (called after successful login). */
 export function setCsrfCookie(res: Response, token: string): void {
   const isProd = process.env.NODE_ENV === 'production';
+  const secure = process.env.COOKIE_SECURE === 'true' || (process.env.COOKIE_SECURE !== 'false' && isProd);
+  const sameSiteEnv = process.env.COOKIE_SAMESITE?.toLowerCase();
+  const sameSite: 'lax' | 'strict' | 'none' =
+    sameSiteEnv === 'none' || sameSiteEnv === 'strict' || sameSiteEnv === 'lax'
+      ? sameSiteEnv
+      : (secure ? 'none' : 'lax');
+
   res.cookie(CSRF_COOKIE, token, {
     httpOnly: false, // JS must be able to read it
-    secure: isProd,
-    sameSite: 'lax',
+    secure,
+    sameSite,
     path: '/',
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days — matches longest session
   });

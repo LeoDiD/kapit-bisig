@@ -4,7 +4,7 @@
  * Centralized API client with authentication support and type safety.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api';
+const API_URL = typeof window !== 'undefined' ? '/api' : (process.env.NEXT_PUBLIC_API_URL?.trim() || '/api');
 
 // ========================== TYPES ==========================
 
